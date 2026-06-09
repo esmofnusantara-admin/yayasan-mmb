@@ -1,0 +1,458 @@
+{
+  "entities": {
+    "User": {
+      "title": "OperatorUser",
+      "description": "Authenticated system operators of ESM with granular feature access checklist.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "password": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "features": { "type": "array" }
+      },
+      "required": ["email", "password", "name", "role", "features"]
+    },
+    "InstitutionalProfile": {
+      "title": "InstitutionalProfile",
+      "description": "Institutional corporate details for the ESM foundation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "address": { "type": "string" },
+        "npwp": { "type": "string" },
+        "website": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "legalReg": { "type": "string" }
+      },
+      "required": ["id", "name", "address", "email", "phone"]
+    },
+    "Member": {
+      "title": "Member",
+      "description": "Individual member or leader details.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fullName": { "type": "string" },
+        "nickName": { "type": "string" },
+        "gender": { "type": "string", "enum": ["Laki-laki", "Perempuan"] },
+        "birthPlace": { "type": "string" },
+        "birthDate": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "province": { "type": "string" },
+        "instagram": { "type": "string" },
+        "originalChurch": { "type": "string" },
+        "education": { "type": "string" },
+        "occupation": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "component": { "type": "string", "enum": ["Siswa", "Mahasiswa", "Alumni", "Umum"] },
+        "region": { "type": "string" },
+        "smallGroupId": { "type": "string" },
+        "staffAdvisor": { "type": "string" },
+        "mentor": { "type": "string" },
+        "statusKeaktifan": { "type": "string", "enum": ["Aktif", "Pasif", "Cuti", "Pindah"] },
+        "joinedDate": { "type": "string" }
+      },
+      "required": ["id", "fullName", "nickName", "gender", "component", "region", "statusKeaktifan", "joinedDate"]
+    },
+    "MemberNote": {
+      "title": "MemberNote",
+      "description": "Counseling and follow-up notes for members.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "memberId": { "type": "string" },
+        "date": { "type": "string" },
+        "category": { "type": "string" },
+        "notes": { "type": "string" },
+        "author": { "type": "string" }
+      },
+      "required": ["id", "memberId", "date", "category", "notes", "author"]
+    },
+    "PrayerRequest": {
+      "title": "PrayerRequest",
+      "description": "Prayer requests submitted by or for members.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "memberId": { "type": "string" },
+        "memberName": { "type": "string" },
+        "title": { "type": "string" },
+        "request": { "type": "string" },
+        "date": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Didoakan", "Terjawab"] }
+      },
+      "required": ["id", "memberId", "memberName", "title", "request", "date", "status"]
+    },
+    "FollowUpLog": {
+      "title": "FollowUpLog",
+      "description": "Logs of visits, conversations, or mentoring sessions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "memberId": { "type": "string" },
+        "memberName": { "type": "string" },
+        "date": { "type": "string" },
+        "type": { "type": "string", "enum": ["Telepon", "Kunjungan", "Konseling", "Mentoring", "Pemuridan"] },
+        "notes": { "type": "string" },
+        "staffName": { "type": "string" }
+      },
+      "required": ["id", "memberId", "memberName", "date", "type", "notes", "staffName"]
+    },
+    "SmallGroup": {
+      "title": "SmallGroup",
+      "description": "Kelompok Kecil (KBB/KTB) small groups for core discipleship.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "region": { "type": "string" },
+        "staffAdvisor": { "type": "string" },
+        "leaderName": { "type": "string" },
+        "leaderId": { "type": "string" },
+        "meetingDay": { "type": "string" },
+        "meetingTime": { "type": "string" },
+        "location": { "type": "string" },
+        "memberCount": { "type": "number" }
+      },
+      "required": ["id", "name", "region", "leaderName", "meetingDay", "meetingTime", "location"]
+    },
+    "MeetingLog": {
+      "title": "MeetingLog",
+      "description": "Small group meeting notes and attendances.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "groupId": { "type": "string" },
+        "date": { "type": "string" },
+        "materialName": { "type": "string" },
+        "attendance": { "type": "array" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "groupId", "date", "materialName", "attendance", "notes"]
+    },
+    "MaterialInfo": {
+      "title": "MaterialInfo",
+      "description": "PDF files and learning curricula materials.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "fileSize": { "type": "string" }
+      },
+      "required": ["id", "title", "category", "description"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial ledger transactions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["Income", "Expense"] },
+        "sourceOrRecipient": { "type": "string" },
+        "approvedBy": { "type": "string" },
+        "status": { "type": "string", "enum": ["Draft", "Pending Approval", "Approved", "Rejected"] }
+      },
+      "required": ["id", "date", "category", "description", "amount", "type", "sourceOrRecipient", "status"]
+    },
+    "FinancialCategory": {
+      "title": "FinancialCategory",
+      "description": "Budget tags and income/expense accounts.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["Income", "Expense"] },
+        "budgetLimit": { "type": "number" }
+      },
+      "required": ["id", "name", "type"]
+    },
+    "Partner": {
+      "title": "Partner",
+      "description": "Donors, partner churches, or sponsoring agencies.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "birthDate": { "type": "string" },
+        "occupation": { "type": "string" },
+        "partnerType": { "type": "string", "enum": ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"] },
+        "region": { "type": "string" },
+        "staffRelasi": { "type": "string" },
+        "status": { "type": "string" },
+        "commitmentAmount": { "type": "number" },
+        "frequency": { "type": "string", "enum": ["Bulanan", "Tahunan", "Satu Kali"] },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" }
+      },
+      "required": ["id", "name", "partnerType", "region", "status", "commitmentAmount", "frequency", "startDate"]
+    },
+    "CampaignDonation": {
+      "title": "CampaignDonation",
+      "description": "Individual donation recordings.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "partnerId": { "type": "string" },
+        "partnerName": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string" },
+        "channel": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "partnerId", "partnerName", "amount", "date", "channel"]
+    },
+    "Staff": {
+      "title": "Staff",
+      "description": "Staf/field worker info, salary bases, and allowance specs.",
+      "type": "object",
+      "properties": {
+        "nik": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "position": { "type": "string" },
+        "division": { "type": "string" },
+        "status": { "type": "string", "enum": ["Tetap", "Kontrak", "Magang", "Resigned"] },
+        "joinedDate": { "type": "string" },
+        "contractEndDate": { "type": "string" },
+        "salaryBase": { "type": "number" },
+        "allowancePosition": { "type": "number" },
+        "allowanceHousing": { "type": "number" },
+        "allowanceTransport": { "type": "number" },
+        "allowanceComm": { "type": "number" },
+        "bonus": { "type": "number" },
+        "thr": { "type": "number" },
+        "bpjsAllowance": { "type": "number" },
+        "taxDeduction": { "type": "number" },
+        "bpjsDeduction: ": { "type": "number" },
+        "kasbonDeduction": { "type": "number" },
+        "otherDeduction": { "type": "number" },
+        "paidAmount": { "type": "number" }
+      },
+      "required": ["nik", "name", "position", "division", "status", "joinedDate", "salaryBase"]
+    },
+    "StaffSalary": {
+      "title": "StaffSalary",
+      "description": "Detil remunerasi gaji karyawan dan komponen tunjangan/potongan dinamis terintegrasi database gaji.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "salaryBase": { "type": "number" },
+        "components": { "type": "array" }
+      },
+      "required": ["id", "salaryBase"]
+    },
+    "LetterInward": {
+      "title": "LetterInward",
+      "description": "Inward correspondence records.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "letterNumber": { "type": "string" },
+        "sender": { "type": "string" },
+        "subject": { "type": "string" },
+        "receivedDate": { "type": "string" },
+        "attachmentUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["Arsip", "Disposisi", "Tindak Lanjut"] }
+      },
+      "required": ["id", "letterNumber", "sender", "subject", "receivedDate", "status"]
+    },
+    "LetterOutward": {
+      "title": "LetterOutward",
+      "description": "Outward letters drafted or sent.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "letterNumber": { "type": "string" },
+        "templateType": { "type": "string" },
+        "recipient": { "type": "string" },
+        "subject": { "type": "string" },
+        "date": { "type": "string" },
+        "content": { "type": "string" },
+        "author": { "type": "string" },
+        "status": { "type": "string", "enum": ["Draft", "Pending Approval", "Approved", "Sent"] }
+      },
+      "required": ["id", "letterNumber", "templateType", "recipient", "subject", "date", "content", "author", "status"]
+    },
+    "OrgDocument": {
+      "title": "OrgDocument",
+      "description": "General organization credentials and constitutions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "uploadedDate": { "type": "string" },
+        "fileSize": { "type": "string" }
+      },
+      "required": ["id", "name", "category", "uploadedDate", "fileSize"]
+    },
+    "ApprovalRequest": {
+      "title": "ApprovalRequest",
+      "description": "Approvals routed to Chairman/Executives.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "module": { "type": "string", "enum": ["Keuangan", "Payroll", "Surat", "Mitra", "Event Budget"] },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "requestedBy": { "type": "string" },
+        "requestedAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Approved", "Rejected"] },
+        "comment": { "type": "string" },
+        "referenceId": { "type": "string" }
+      },
+      "required": ["id", "module", "title", "description", "requestedBy", "requestedAt", "status", "referenceId"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Global user interaction auditing tracker logs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userName": { "type": "string" },
+        "userRole": { "type": "string" },
+        "action": { "type": "string" },
+        "module": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "beforeValue": { "type": "string" },
+        "afterValue": { "type": "string" }
+      },
+      "required": ["id", "userName", "userRole", "action", "module", "timestamp"]
+    },
+    "Kas": {
+      "title": "Kas",
+      "description": "Total cash and treasury balance tracking.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "balance": { "type": "number" },
+        "lastUpdated": { "type": "string" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["id", "balance"]
+    },
+    "StructureNode": {
+      "title": "StructureNode",
+      "description": "Dynamic organizational hierarchy node.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "name": { "type": "string" },
+        "sub": { "type": "string" },
+        "order": { "type": "number" },
+        "deleted": { "type": "boolean" }
+      },
+      "required": ["id", "title", "name", "sub"]
+    }
+  },
+  "firestore": {
+    "/structures/{id}": {
+      "schema": "StructureNode",
+      "description": "Interactive dynamic organization structure hierarchy nodes."
+    },
+    "/users/{email}": {
+      "schema": "User",
+      "description": "Database-driven operator logins with custom checklist access permissions."
+    },
+    "/profiles/{profileId}": {
+      "schema": "InstitutionalProfile",
+      "description": "Foundation executive data settings profile."
+    },
+    "/members/{memberId}": {
+      "schema": "Member",
+      "description": "General dynamic and active members roster."
+    },
+    "/member_notes/{noteId}": {
+      "schema": "MemberNote",
+      "description": "Confidential counseling journals and interview details."
+    },
+    "/prayer_requests/{requestId}": {
+      "schema": "PrayerRequest",
+      "description": "Prayer logs requested by group networks."
+    },
+    "/follow_ups/{followUpId}": {
+      "schema": "FollowUpLog",
+      "description": "Pastoral visits and communications historical ledger."
+    },
+    "/small_groups/{groupId}": {
+      "schema": "SmallGroup",
+      "description": "Kelompok Kecil (KBB/KTB) small cohorts list."
+    },
+    "/meeting_logs/{logId}": {
+      "schema": "MeetingLog",
+      "description": "KTB meeting and curriculum attendance logs."
+    },
+    "/materials/{materialId}": {
+      "schema": "MaterialInfo",
+      "description": "Educational resource brochures and lesson modules."
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Financial ledger transactions."
+    },
+    "/categories/{categoryId}": {
+      "schema": "FinancialCategory",
+      "description": "Budget definitions."
+    },
+    "/partners/{partnerId}": {
+      "schema": "Partner",
+      "description": "Donors, sponsor databases, and relationship specs."
+    },
+    "/donations/{donationId}": {
+      "schema": "CampaignDonation",
+      "description": "Donations logged in fundraising tab."
+    },
+    "/staff/{staffId}": {
+      "schema": "Staff",
+      "description": "Staf lists, base salaries, and human resource statistics."
+    },
+    "/inward_letters/{letterId}": {
+      "schema": "LetterInward",
+      "description": "Incoming legal correspondence archives."
+    },
+    "/outward_letters/{letterId}": {
+      "schema": "LetterOutward",
+      "description": "Outgoing letters drafted, processed, or authorized."
+    },
+    "/documents/{documentId}": {
+      "schema": "OrgDocument",
+      "description": "Administrative policies, legal certificates, of NPWP copies."
+    },
+    "/approvals/{approvalId}": {
+      "schema": "ApprovalRequest",
+      "description": "Chairman's executive pending approval requests."
+    },
+    "/audits/{auditId}": {
+      "schema": "AuditLog",
+      "description": "Sistem security auditing log."
+    },
+    "/kas/{recordId}": {
+      "schema": "Kas",
+      "description": "Global cash or treasury records."
+    },
+    "/salaries/{nik}": {
+      "schema": "StaffSalary",
+      "description": "Konfigurasi detail gaji dasar dan rincian parameter tunjangan/potongan dinamis pegawai."
+    }
+  }
+}

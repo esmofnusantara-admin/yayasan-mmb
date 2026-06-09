@@ -1,0 +1,6 @@
+{
+  "name": "Foundation Management System ESM",
+  "description": "Enterprise-grade ERP Platform for Evangelical Student Movement (ESM) featuring Members, Small Groups, Finance, Fundraising & Partners, HR Staff & Payroll, Document Management, and Approval workflows.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

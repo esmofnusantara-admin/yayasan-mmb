@@ -1,0 +1,311 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+export type RoleType = 
+  | 'Super Admin'
+  | 'Ketua Yayasan'
+  | 'Bendahara'
+  | 'Sekretaris'
+  | 'Koordinator Wilayah'
+  | 'Staff';
+
+export interface UserPermission {
+  module: string;
+  view: boolean;
+  create: boolean;
+  edit: boolean;
+  delete: boolean;
+  approve: boolean;
+  export: boolean;
+}
+
+export type JourneyStatus = 
+  | 'Prospect'
+  | 'Encounter'
+  | 'Explore'
+  | 'Connect'
+  | 'Alumni Aktif'
+  | 'Alumni Non Aktif';
+
+export interface Member {
+  id: string; // Auto-generated e.g. ENC-2026-00001
+  fullName: string;
+  nickName: string;
+  gender: 'Laki-laki' | 'Perempuan';
+  birthPlace: string;
+  birthDate: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  province: string;
+  instagram: string;
+  originalChurch: string;
+  education: string;
+  occupation: string;
+  photoUrl?: string;
+  
+  // Ministry Details
+  component: 'Siswa' | 'Mahasiswa' | 'Alumni' | 'Umum';
+  region: string;
+  smallGroupId?: string;
+  staffAdvisor: string;
+  mentor: string;
+  statusKeaktifan: 'Aktif' | 'Pasif' | 'Cuti' | 'Pindah';
+  joinedDate: string;
+}
+
+export interface MemberNote {
+  id: string;
+  memberId: string;
+  date: string;
+  category: string; // e.g. Konseling Akademik, Follow Up Retret, Kepemimpinan
+  notes: string;
+  author: string;
+}
+
+export interface PrayerRequest {
+  id: string;
+  memberId: string;
+  memberName: string;
+  title: string;
+  request: string;
+  date: string;
+  status: 'Pending' | 'Didoakan' | 'Terjawab';
+}
+
+export interface FollowUpLog {
+  id: string;
+  memberId: string;
+  memberName: string;
+  date: string;
+  type: 'Telepon' | 'Kunjungan' | 'Konseling' | 'Mentoring' | 'Pemuridan';
+  notes: string;
+  staffName: string;
+}
+
+export interface SmallGroup {
+  id: string;
+  name: string;
+  region: string;
+  staffAdvisor: string;
+  leaderName: string;
+  leaderId?: string;
+  meetingDay: string;
+  meetingTime: string;
+  location: string;
+  memberCount: number;
+}
+
+export interface MeetingLog {
+  id: string;
+  groupId: string;
+  date: string;
+  materialName: string; // Materi
+  attendance: string[]; // List of member IDs who were present
+  notes: string;
+}
+
+export interface MaterialInfo {
+  id: string;
+  title: string;
+  category: string;
+  description: string;
+  fileSize?: string;
+}
+
+export interface Transaction {
+  id: string;
+  date: string;
+  category: string;
+  description: string;
+  amount: number;
+  type: 'Income' | 'Expense'; // Income / Expense
+  sourceOrRecipient: string; // e.g. Donatur A, Gaji Staff X
+  approvedBy?: string;
+  status: 'Draft' | 'Pending Approval' | 'Approved' | 'Rejected';
+}
+
+export interface FinancialCategory {
+  id: string;
+  name: string;
+  type: 'Income' | 'Expense';
+  budgetLimit?: number;
+}
+
+export type PartnerType = 'Pribadi' | 'Gereja' | 'Perusahaan' | 'Instansi' | 'Yayasan';
+export type PartnerStatus = 'Prospek' | 'Kontak Awal' | 'Presentasi' | 'Komitmen' | 'Donasi Pertama' | 'Aktif' | 'Tidak Aktif';
+
+export interface Partner {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  birthDate?: string;
+  occupation?: string;
+  partnerType: PartnerType;
+  region: string;
+  staffRelasi: string;
+  status: PartnerStatus;
+  
+  // Commitment Details
+  commitmentAmount: number;
+  frequency: 'Bulanan' | 'Tahunan' | 'Satu Kali';
+  startDate: string;
+  endDate?: string;
+}
+
+export interface CampaignDonation {
+  id: string;
+  partnerId: string;
+  partnerName: string;
+  amount: number;
+  date: string;
+  channel: string; // Transfer Bank, Cash, dll
+  notes?: string;
+}
+
+export interface CustomPayrollField {
+  id: string;
+  name: string;
+  amount: number;
+  type: 'allowance' | 'deduction';
+}
+
+export interface SalaryComponent {
+  id: string;
+  name: string;
+  amount: number;
+  type: 'allowance' | 'deduction';
+}
+
+export interface StaffSalary {
+  id: string; // Matches staff's NIK
+  salaryBase: number;
+  components: SalaryComponent[];
+}
+
+export interface PublicField {
+  id: string;
+  name: string;
+  type: 'allowance' | 'deduction';
+  property?: string;
+  isCustom?: boolean;
+}
+
+export interface Staff {
+  nik: string; // e.g. NIK-1002
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  position: string; // Jabatan
+  division: string; // Divisi
+  status: 'Tetap' | 'Kontrak' | 'Magang' | 'Resigned';
+  joinedDate: string;
+  contractEndDate?: string;
+  
+  // Salary details
+  salaryBase: number;
+  allowancePosition: number;
+  allowanceHousing: number;
+  allowanceTransport: number;
+  allowanceComm: number;
+  bonus: number;
+  thr: number;
+  bpjsAllowance: number;
+  
+  // Deductions
+  taxDeduction: number;
+  bpjsDeduction: number;
+  kasbonDeduction: number;
+  otherDeduction: number;
+
+  customFields?: CustomPayrollField[];
+  paidAmount?: number;
+}
+
+export interface CareerHistory {
+  id: string;
+  staffNik: string;
+  position: string;
+  salaryBase: number;
+  periodStart: string;
+  periodEnd?: string;
+  notes?: string;
+}
+
+export interface LetterInward {
+  id: string;
+  letterNumber: string;
+  sender: string;
+  subject: string; // Perihal
+  receivedDate: string;
+  attachmentUrl?: string;
+  status: 'Arsip' | 'Disposisi' | 'Tindak Lanjut';
+}
+
+export interface LetterOutward {
+  id: string;
+  letterNumber: string; // Auto-generate like 001/SK/ESM/VI/2026
+  templateType: 'SK' | 'Surat Tugas' | 'Surat Keterangan' | 'Surat Relasi' | 'Surat Peminjaman' | 'Surat Permohonan';
+  recipient: string;
+  subject: string;
+  date: string;
+  content: string;
+  author: string;
+  status: 'Draft' | 'Pending Approval' | 'Approved' | 'Sent';
+}
+
+export interface OrgDocument {
+  id: string;
+  name: string; // e.g. AD/ART, SOP Keuangan, Akta Pendirian
+  category: string;
+  uploadedDate: string;
+  fileSize: string;
+}
+
+export interface ApprovalRequest {
+  id: string;
+  module: 'Keuangan' | 'Payroll' | 'Surat' | 'Mitra' | 'Event Budget';
+  title: string;
+  description: string;
+  amount?: number;
+  requestedBy: string;
+  requestedAt: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  comment?: string;
+  referenceId: string; // ID of the referenced object
+}
+
+export interface InstitutionalProfile {
+  id: string;
+  name: string;
+  logoUrl?: string;
+  address: string;
+  npwp: string;
+  website: string;
+  email: string;
+  phone: string;
+  legalReg: string; // Legalitas/SK Kemenkumham
+}
+
+export interface AuditLog {
+  id: string;
+  userName: string;
+  userRole: string;
+  action: string;
+  module: string;
+  timestamp: string;
+  beforeValue?: string;
+  afterValue?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  deleted?: boolean;
+  deletedAt?: string;
+  deletedBy?: string;
+}

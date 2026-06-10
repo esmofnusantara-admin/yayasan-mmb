@@ -26,7 +26,10 @@ import {
   Trash2,
   RefreshCw,
   Eye,
-  EyeOff
+  EyeOff,
+  Edit,
+  RotateCw,
+  RotateCcw
 } from 'lucide-react';
 import { InstitutionalProfile, AuditLog } from '../types';
 
@@ -70,6 +73,10 @@ export default function SystemTab({
   const [newNodeName, setNewNodeName] = useState('');
   const [newNodeSub, setNewNodeSub] = useState('');
   const [newNodeOrder, setNewNodeOrder] = useState<number>(100);
+
+  // States for custom modal confirmations
+  const [deleteConfirmOp, setDeleteConfirmOp] = useState<{ email: string; role: string; name: string } | null>(null);
+  const [deleteConfirmNode, setDeleteConfirmNode] = useState<{ id: string; title: string } | null>(null);
 
   const fetchOrgTree = async () => {
     setIsFetchingTree(true);
@@ -264,10 +271,6 @@ export default function SystemTab({
     const nodeToDelete = orgTree.find(n => n.id === nodeId);
     const titleLabel = nodeToDelete?.title || nodeId;
 
-    if (!window.confirm(`Apakah Anda yakin ingin menghapus "${titleLabel}" dari bagan organisasi?`)) {
-      return;
-    }
-
     setIsSavingTree(true);
     try {
       // Set to soft-delete by posting empty object with deleted: true
@@ -352,6 +355,7 @@ export default function SystemTab({
     setNpwp(profile.npwp || '');
     setSkLegal(profile.legalReg || '');
     setSignatureUrl(profile.signatureUrl || '');
+    setIsSignatureDirty(false);
     setSystemTitle(profile.systemTitle || 'ESM FMS');
     setDashboardTitle(profile.dashboardTitle || 'Institutional Executive ERP');
     setRegions(profile.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]);
@@ -373,6 +377,7 @@ export default function SystemTab({
   const [npwp, setNpwp] = useState(profile.npwp || '');
   const [skLegal, setSkLegal] = useState(profile.legalReg || '');
   const [signatureUrl, setSignatureUrl] = useState(profile.signatureUrl || '');
+  const [isSignatureDirty, setIsSignatureDirty] = useState(false);
 
   // Dynamic system and dashboard titles
   const [systemTitle, setSystemTitle] = useState(profile.systemTitle || 'ESM FMS');
@@ -432,7 +437,7 @@ export default function SystemTab({
   const fetchOperators = async () => {
     setIsFetchingOps(true);
     try {
-      const res = await fetch('/api/data/users');
+      const res = await fetch(`/api/data/users?t=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
         // filter out elements that are flagged as deleted
@@ -448,6 +453,30 @@ export default function SystemTab({
   useEffect(() => {
     fetchOperators();
   }, [activeSubView]);
+
+  const handleRotateSignature = (direction: 'cw' | 'ccw' = 'cw') => {
+    if (!signatureUrl) return;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.height;
+      canvas.height = img.width;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        if (direction === 'cw') {
+          ctx.rotate((90 * Math.PI) / 180);
+        } else {
+          ctx.rotate((-90 * Math.PI) / 180);
+        }
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        setSignatureUrl(canvas.toDataURL('image/png'));
+        setIsSignatureDirty(true);
+      }
+    };
+    img.src = signatureUrl;
+  };
 
   const handleUpdateProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -468,6 +497,7 @@ export default function SystemTab({
       signatureUrl
     };
     onUpdateProfile(updated);
+    setIsSignatureDirty(false);
     alert('Informasi legalitas profil institusi ESM berhasil diperbarui & dicadangkan.');
   };
 
@@ -551,6 +581,32 @@ export default function SystemTab({
       });
 
       if (res.ok) {
+        if (newOpRole === 'Staff') {
+          const staffNik = `NIK-OP-${Date.now().toString().slice(-4)}`;
+          const blankStaff = {
+            nik: staffNik,
+            name: newOpName.trim(),
+            email: newOpEmail.toLowerCase().trim(),
+            phone: '0812345678',
+            address: 'Kantor Yayasan',
+            position: 'Staf Pelaksana',
+            division: 'Umum',
+            status: 'Kontrak',
+            joinedDate: new Date().toISOString().split('T')[0],
+            salaryBase: 0,
+            allowancePosition: 0,
+            allowanceHousing: 0,
+            allowanceTransport: 0,
+            allowanceComm: 0,
+            deleted: false,
+            createdAt: new Date().toISOString()
+          };
+          await fetch(`/api/data/staff/${staffNik}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(blankStaff)
+          });
+        }
         setFormSuccess(`Operator ${newOpName} berhasil terdaftar dan ditambahkan ke database.`);
         setNewOpName('');
         setNewOpEmail('');
@@ -646,6 +702,43 @@ export default function SystemTab({
       });
 
       if (res.ok) {
+        if (targetUser.role === 'Staff') {
+          try {
+            const staffRes = await fetch('/api/data/staff');
+            if (staffRes.ok) {
+              const staffs = await staffRes.json();
+              const hasStaff = staffs.some((s: any) => s.email?.toLowerCase().trim() === targetUser.email?.toLowerCase().trim());
+              if (!hasStaff) {
+                const staffNik = `NIK-OP-${Date.now().toString().slice(-4)}`;
+                const blankStaff = {
+                  nik: staffNik,
+                  name: targetUser.name.trim(),
+                  email: targetUser.email.toLowerCase().trim(),
+                  phone: targetUser.phone || '0812345678',
+                  address: 'Kantor Yayasan',
+                  position: 'Staf Pelaksana',
+                  division: 'Umum',
+                  status: 'Kontrak',
+                  joinedDate: new Date().toISOString().split('T')[0],
+                  salaryBase: 0,
+                  allowancePosition: 0,
+                  allowanceHousing: 0,
+                  allowanceTransport: 0,
+                  allowanceComm: 0,
+                  deleted: false,
+                  createdAt: new Date().toISOString()
+                };
+                await fetch(`/api/data/staff/${staffNik}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(blankStaff)
+                });
+              }
+            }
+          } catch (staffErr) {
+            console.error('Failed to auto-create staff during operator approval:', staffErr);
+          }
+        }
         alert(`Sukses: Akun operator ${targetUser.name} telah disetujui & diaktifkan.`);
         await fetchOperators();
       } else {
@@ -664,35 +757,94 @@ export default function SystemTab({
       return;
     }
 
-    if (userEmail === 'superadmin@esm.or.id') {
+    if (userEmail?.toLowerCase().trim() === 'superadmin@esm.or.id') {
       alert('Proteksi Keamanan: Akun Super Admin bawaan sistem tidak boleh dihapus demi kelangsungan sistem.');
       return;
     }
 
-    if (!confirm(`Apakah Anda yakin ingin menonaktifkan operator ${userEmail}?`)) {
+    const targetUser = operators.find(op => op.email?.toLowerCase().trim() === userEmail?.toLowerCase().trim());
+    if (!targetUser) {
+      alert('Kesalahan: Operator tidak ditemukan.');
       return;
     }
 
-    // Flag as deleted in database instead of hard-delete to keep audit integrity
     try {
-      const targetUser = operators.find(op => op.email === userEmail);
-      if (!targetUser) return;
-
-      const payload = {
-        ...targetUser,
-        deleted: true
-      };
-
-      const res = await fetch(`/api/data/users/${userEmail}`, {
-        method: 'PUT',
+      const cleanEmail = targetUser.email.toLowerCase().trim();
+      
+      // 1. Delete User Account with credentials
+      const res = await fetch(`/api/data/users/${encodeURIComponent(cleanEmail)}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
+          'x-user-role': currentRole
+        }
       });
 
       if (res.ok) {
-        alert('Operator berhasil dinonaktifkan.');
+        // Log user deletion audit
+        const sessionUser = localStorage.getItem('esm_session_user');
+        const userName = sessionUser ? JSON.parse(sessionUser).name : 'Super Admin';
+        
+        const auditId = `AUD-${Date.now()}`;
+        await fetch(`/api/data/audits/${auditId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            id: auditId,
+            userName: userName,
+            userRole: currentRole,
+            action: `[Akun Operator] Menonaktifkan akun operator: "${targetUser.name}" (${targetUser.email}) dengan hak akses: ${targetUser.role}.`,
+            module: 'Sistem / Pelayanan',
+            timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
+            deleted: false
+          })
+        });
+
+        // 2. Check and delete associated staff records
+        let staffAlertNote = '';
+        try {
+          const staffRes = await fetch('/api/data/staff');
+          if (staffRes.ok) {
+            const staffsData = await staffRes.json();
+            const matchedStaff = staffsData.find((s: any) => s.email?.toLowerCase().trim() === cleanEmail);
+            
+            if (matchedStaff && !matchedStaff.deleted) {
+              const staffDelId = matchedStaff.nik;
+              const staffDelRes = await fetch(`/api/data/staff/${staffDelId}?role=${encodeURIComponent(currentRole)}`, {
+                method: 'DELETE',
+                headers: {
+                  'x-user-role': currentRole
+                }
+              });
+              
+              if (staffDelRes.ok) {
+                // Log staff deletion audit
+                const staffAuditId = `AUD-STF-${Date.now()}`;
+                await fetch(`/api/data/audits/${staffAuditId}`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    id: staffAuditId,
+                    userName: userName,
+                    userRole: currentRole,
+                    action: `[Database Staf] Menonaktifkan otomatis data staf terkait: NIK ${staffDelId} - "${matchedStaff.name}" (Email: ${cleanEmail}) karena akun operatornya dinonaktifkan oleh Super Admin.`,
+                    module: 'Staf & HR',
+                    timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
+                    deleted: false
+                  })
+                });
+                staffAlertNote = ` Serta data kepegawaian staf terkait (${matchedStaff.name} - NIK: ${staffDelId}) berhasil dihapus (deleted: true) secara otomatis.`;
+              }
+            }
+          }
+        } catch (staffErr) {
+          console.error('Error handling associated staff deletion:', staffErr);
+        }
+
+        alert(`Operator berhasil dihapus (soft-delete: status "deleted" diubah menjadi true).${staffAlertNote}`);
         await fetchOperators();
       } else {
         alert('Gagal memperbarui status operator di database.');
@@ -842,21 +994,71 @@ export default function SystemTab({
               
               <div className="flex flex-col sm:flex-row items-center gap-6">
                 {signatureUrl ? (
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col items-center gap-2 select-none relative group max-w-[200px]">
-                    <img 
-                      src={signatureUrl} 
-                      alt="Tanda Tangan Bendahara" 
-                      className="max-h-20 max-w-full object-contain"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setSignatureUrl('')}
-                      className="absolute -top-2 -right-2 bg-rose-550 text-white p-1 rounded-full hover:bg-rose-600 transition-colors cursor-pointer shadow-xs flex items-center justify-center"
-                      title="Hapus tanda tangan"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                    <span className="text-[9px] text-slate-400 font-mono tracking-wider">Bendahara Aktif</span>
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center select-none relative group w-[200px] h-24 overflow-hidden">
+                      <img 
+                        src={signatureUrl} 
+                        alt="Tanda Tangan Bendahara" 
+                        className="max-h-16 max-w-full object-contain"
+                      />
+                      
+                      {/* Hover overlay to change the signature easily with one click */}
+                      <label className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200 cursor-pointer text-[10px] font-bold gap-1">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                if (event.target?.result) {
+                                  setSignatureUrl(event.target.result as string);
+                                  setIsSignatureDirty(true);
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="hidden"
+                        />
+                        <Edit className="w-3.5 h-3.5 text-white" />
+                        Ganti Gambar
+                      </label>
+                    </div>
+
+                    {/* Toolbar controls for rotating and deleting */}
+                    <div className="flex flex-col gap-1.5 w-[200px]">
+                      <div className="flex items-center gap-1 w-full">
+                        <button
+                          type="button"
+                          onClick={() => handleRotateSignature('ccw')}
+                          className="flex-1 flex items-center justify-center gap-1 text-[9px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-1.5 py-1.5 rounded-lg border border-slate-200 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                          title="Putar gambar 90 derajat berlawanan arah-jarum-jam (kiri)"
+                        >
+                          <RotateCcw className="w-3 h-3 text-slate-500" />
+                          Putar Kiri
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRotateSignature('cw')}
+                          className="flex-1 flex items-center justify-center gap-1 text-[9px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-1.5 py-1.5 rounded-lg border border-indigo-200 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                          title="Putar gambar 90 derajat searah jarum jam (kanan)"
+                        >
+                          <RotateCw className="w-3 h-3 text-indigo-550" />
+                          Putar Kanan
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setSignatureUrl(''); setIsSignatureDirty(true); }}
+                        className="w-full flex items-center justify-center gap-1 text-[9px] font-bold bg-red-50 hover:bg-red-100 text-red-650 py-1.5 rounded-lg border border-red-200 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                        title="Hapus tanda tangan"
+                      >
+                        <X className="w-3 h-3 text-red-500" />
+                        Hapus Gambar
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="w-full sm:w-[200px] h-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 bg-slate-50 hover:bg-slate-100/50 transition-colors relative cursor-pointer group">
@@ -870,6 +1072,7 @@ export default function SystemTab({
                           reader.onload = (event) => {
                             if (event.target?.result) {
                               setSignatureUrl(event.target.result as string);
+                              setIsSignatureDirty(true);
                             }
                           };
                           reader.readAsDataURL(file);
@@ -884,12 +1087,22 @@ export default function SystemTab({
                 )}
                 
                 <div className="flex-1 text-left space-y-1.5">
-                  <div className="text-[11px] text-slate-650 font-medium">Spesifikasi unggahan:</div>
+                  <div className="text-[11px] text-slate-650 font-medium">Spesifikasi & Panduan:</div>
                   <ul className="list-disc pl-4 text-[10px] text-slate-500 space-y-0.5 font-sans">
-                    <li>Rasio yang ideal adalah horisontal (panjang kesamping)</li>
-                    <li>Gunakan latar belakang transparan (.png) agar terlihat menyatu dengan dokumen PDF</li>
-                    <li>Sistem mengenkripsi gambar langsung di peramban secara aman</li>
+                    <li>Rasio ideal: Horisontal (panjang ke samping seperti tanda tangan biasa)</li>
+                    <li>Latar belakang transparan (.png) agar menyatu dengan dokumen slip gaji</li>
+                    <li>Gunakan tombol <strong>Putar Kiri</strong> / <strong>Putar Kanan</strong> untuk menyesuaikan orientasi jika terbalik/mereng</li>
+                    <li>Sistem menyandikan gambar secara aman</li>
                   </ul>
+                  {isSignatureDirty && (
+                    <div className="mt-2 p-2.5 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-[10.5px] font-medium flex items-start gap-2 animate-pulse shadow-sm">
+                      <span className="text-sm font-bold leading-none text-amber-600">⚠️</span>
+                      <div>
+                        <strong>Perubahan Belum Disimpan!</strong>
+                        <p className="text-[9.5px] mt-0.5 text-amber-750">Anda harus menekan tombol <strong>"Simpan Identitas Lembaga"</strong> di bagian bawah untuk menyimpan rotasi/gambar tanda tangan yang baru.</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1138,7 +1351,16 @@ export default function SystemTab({
                         <div className="flex justify-between items-center pt-1 gap-2">
                           <button
                             type="button"
-                            onClick={() => handleDeleteStructureNode(activeNodeId)}
+                            onClick={() => {
+                              const isAuthorized = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan';
+                              if (!isAuthorized) {
+                                alert('Akses Terbatas: Hanya Super Admin / Ketua Yayasan yang berhak menghapus struktur.');
+                                return;
+                              }
+                              const nodeToDelete = orgTree.find(n => n.id === activeNodeId);
+                              const titleLabel = nodeToDelete?.title || activeNodeId;
+                              setDeleteConfirmNode({ id: activeNodeId, title: titleLabel });
+                            }}
                             disabled={isSavingTree}
                             className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-red-200 disabled:opacity-50 font-bold"
                             title="Hapus Jabatan Ini dari Bagan"
@@ -1268,7 +1490,18 @@ export default function SystemTab({
                           </button>
 
                           <button
-                            onClick={() => handleDeleteOperator(op.email, op.role)}
+                            onClick={() => {
+                              const isAuthorized = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan';
+                              if (!isAuthorized) {
+                                alert('Akses Terbatas: Hanya Ketua Yayasan atau Super Admin yang dapat menonaktifkan operator.');
+                                return;
+                              }
+                              if (op.email?.toLowerCase().trim() === 'superadmin@esm.or.id') {
+                                alert('Proteksi Keamanan: Akun Super Admin bawaan sistem tidak boleh dihapus demi kelangsungan sistem.');
+                                return;
+                              }
+                              setDeleteConfirmOp({ email: op.email, role: op.role, name: op.name });
+                            }}
                             className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                             title="Hapus Operator"
                           >
@@ -1897,6 +2130,47 @@ export default function SystemTab({
               </button>
             </div>
           </form>
+
+          {/* DATABASE CLEANSLATE & CLEANSING AGENT */}
+          {(currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan') && (
+            <div className="bg-rose-50/50 p-6 rounded-2xl border border-rose-100 space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div className="text-left">
+                  <h4 className="font-bold text-rose-900 text-sm flex items-center gap-1.5 leading-none">
+                    <Trash2 className="w-4 h-4 text-rose-600 animate-pulse" />
+                    Pusat Pembersihan Data Kritis (Data Cleansing & Reset)
+                  </h4>
+                  <p className="text-slate-500 text-[11px] mt-1.5 max-w-xl leading-relaxed">
+                    Sesuai instruksi kebijakan, fitur ini bertujuan menghapus seluruh entitas data testing/percobaan (Keuangan, Anggota, Rekaman Payroll, Surat-menyurat, Dokumen, dll) secara tuntas/cleansing dari Firestore, serta mereset user operator kembali ke 5 akun standar yayasan dengan profil staf yang sinkron.
+                  </p>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const confirmRes = window.confirm('PERINGATAN KRITIS: Anda akan menghapus seluruh data testing di sistem dan mengembalikan database ke kondisi awal bersih (clean slate). Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin?');
+                    if (!confirmRes) return;
+                    
+                    try {
+                      const res = await fetch('/api/system/cleanse', { method: 'POST' });
+                      const result = await res.json();
+                      if (result.success) {
+                        alert('SUKSES: Database berhasil dibersihkan (cleansing). Aplikasi akan dimuat ulang otomatis untuk menyegarkan data.');
+                        window.location.reload();
+                      } else {
+                        alert('Gagal membersihkan data: ' + result.error);
+                      }
+                    } catch (err: any) {
+                      alert('Error koneksi saat melakukan cleansing: ' + err.message);
+                    }
+                  }}
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl cursor-pointer transition-colors text-xs flex items-center gap-2 shrink-0 shadow-sm shadow-rose-200"
+                >
+                  <Trash2 className="w-4 h-4" /> Cleansing Data Testing
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1926,6 +2200,92 @@ export default function SystemTab({
           </div>
           
           <p className="text-[9px] text-slate-500">Jurnal audit sistem ini bersifat tertutup, non-destruktif, dan terenkripsi AES-256 otomatis dalam standard audit kepatuhan IT Yayasan.</p>
+        </div>
+      )}
+
+      {/* Custom Modal Confirmation for Deleting Operator */}
+      {deleteConfirmOp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl border border-slate-100 p-6 max-w-md w-full shadow-xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 text-red-600">
+              <div className="p-2.5 bg-red-50 rounded-xl">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-900">Konfirmasi Hapus Operator</h3>
+            </div>
+            
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Apakah Anda yakin ingin menghapus operator <strong className="text-slate-800">"{deleteConfirmOp.name}"</strong> ({deleteConfirmOp.email})? 
+              Tindakan ini akan mengubah status data <code className="bg-slate-100 text-red-600 px-1 py-0.5 rounded text-[10px] font-mono">deleted: true</code> (soft delete).
+            </p>
+            
+            {currentRole === 'Super Admin' && (
+              <div className="p-3 bg-amber-50 border border-amber-200/50 rounded-xl text-[11px] text-amber-800 leading-normal font-medium">
+                <strong>Info Kepegawaian & Staf:</strong> Jika operator ini juga tercatat di Staff Database, data kepegawaiannya akan secara otomatis ikut dinonaktifkan (deleted: true) secara menyeluruh.
+              </div>
+            )}
+            
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmOp(null)}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-205 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const email = deleteConfirmOp.email;
+                  const role = deleteConfirmOp.role;
+                  setDeleteConfirmOp(null);
+                  await handleDeleteOperator(email, role);
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm shadow-red-100"
+              >
+                Ya, Hapus Operator
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Modal Confirmation for Deleting Org Tree Node */}
+      {deleteConfirmNode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl border border-slate-100 p-6 max-w-md w-full shadow-xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 text-red-600">
+              <div className="p-2.5 bg-red-50 rounded-xl">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-900">Konfirmasi Hapus Jabatan</h3>
+            </div>
+            
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Apakah Anda yakin ingin menghapus struktur jabatan <strong className="text-slate-800">"{deleteConfirmNode.title}"</strong> (ID: {deleteConfirmNode.id}) dari bagan organisasi?
+            </p>
+            
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmNode(null)}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-205 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const nodeId = deleteConfirmNode.id;
+                  setDeleteConfirmNode(null);
+                  await handleDeleteStructureNode(nodeId);
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm shadow-red-100"
+              >
+                Ya, Hapus Jabatan
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

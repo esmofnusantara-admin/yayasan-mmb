@@ -57,12 +57,15 @@ export default function StaffTab({
   const [isRehireOpen, setIsRehireOpen] = useState(false);
   const [rehireDate, setRehireDate] = useState('');
   
+  // Custom delete confirmation state
+  const [deleteConfirmStaff, setDeleteConfirmStaff] = useState<{ nik: string; name: string } | null>(null);
+  
   // Base constants when registering a new staff
   const [baseSalary, setBaseSalary] = useState<number>(4500000);
 
   // Security authorizations for HR Directory
   const canViewHRDetails = ['Super Admin', 'Ketua Yayasan', 'Staff', 'Bendahara', 'Sekretaris'].includes(currentRole);
-  const canModifyHR = ['Super Admin', 'Ketua Yayasan'].includes(currentRole);
+  const canModifyHR = ['Super Admin', 'Ketua Yayasan', 'Sekretaris'].includes(currentRole);
 
   const calculateDurationOfService = (joinedDateStr?: string) => {
     if (!joinedDateStr) return '0 Hari';
@@ -348,11 +351,7 @@ export default function StaffTab({
                               Edit
                             </button>
                             <button 
-                              onClick={() => {
-                                if (confirm(`Apakah Anda yakin ingin menghapus data kepegawaian ${staff.name}?`)) {
-                                  onDeleteStaff(staff.nik);
-                                }
-                              }}
+                              onClick={() => setDeleteConfirmStaff({ nik: staff.nik, name: staff.name })}
                               className="px-2.5 py-1 bg-rose-50 hover:bg-rose-150 text-rose-750 border border-rose-200 rounded-lg text-[10px] font-bold cursor-pointer shadow-xs transition-colors"
                             >
                               Hapus
@@ -680,6 +679,51 @@ export default function StaffTab({
 
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* Custom Modal Confirmation for Deleting Staff */}
+      {deleteConfirmStaff && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl border border-slate-100 p-6 max-w-md w-full shadow-xl space-y-4 animate-in fade-in zoom-in-95 duration-150 text-left">
+            <div className="flex items-center gap-3 text-red-600">
+              <div className="p-2.5 bg-red-50 rounded-xl">
+                <Trash className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-900">Konfirmasi Hapus Data Kepegawaian</h3>
+            </div>
+            
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Apakah Anda yakin ingin menghapus data kepegawaian <strong className="text-slate-800">"{deleteConfirmStaff.name}"</strong> (NIK: {deleteConfirmStaff.nik})? 
+              Tindakan ini akan mengubah status data <code className="bg-slate-100 text-red-600 px-1 py-0.5 rounded text-[10px] font-mono font-medium">deleted: true</code> (soft delete).
+            </p>
+            
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmStaff(null)}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-205 text-slate-705 text-xs font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const nik = deleteConfirmStaff.nik;
+                  setDeleteConfirmStaff(null);
+                  onDeleteStaff(nik);
+                  // Update selectedStaff if it was the one deleted
+                  if (selectedStaff && selectedStaff.nik === nik) {
+                    const remaining = staffs.filter(s => s.nik !== nik);
+                    setSelectedStaff(remaining[0] || null);
+                  }
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm shadow-red-100"
+              >
+                Ya, Hapus Kepegawaian
+              </button>
+            </div>
           </div>
         </div>
       )}

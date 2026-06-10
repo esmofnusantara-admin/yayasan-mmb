@@ -37,6 +37,7 @@ interface SmallGroupsTabProps {
   onAddMaterial: (mat: MaterialInfo) => void;
   onDeleteMaterial: (id: string) => void;
   profile?: InstitutionalProfile;
+  currentRole: string;
 }
 
 export default function SmallGroupsTab({
@@ -50,7 +51,10 @@ export default function SmallGroupsTab({
   onAddMaterial,
   onDeleteMaterial,
   profile,
+  currentRole,
 }: SmallGroupsTabProps) {
+  const isEditable = ['Super Admin', 'Ketua Yayasan', 'Sekretaris'].includes(currentRole);
+
   // Navigation inside groups
   const [activeSubView, setActiveSubView] = useState<'groups' | 'meetings' | 'materials'>('groups');
   
@@ -354,15 +358,17 @@ export default function SmallGroupsTab({
               >
                 <Download className="w-4 h-4 text-emerald-600" /> Export CSV
               </button>
-              <button 
-                onClick={() => setIsAddGroupOpen(true)}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm"
-              >
-                <Plus className="w-4 h-4" /> Tambah Kelompok Kecil
-              </button>
+              {isEditable && (
+                <button 
+                  onClick={() => setIsAddGroupOpen(true)}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <Plus className="w-4 h-4" /> Tambah Kelompok Kecil
+                </button>
+              )}
             </>
           )}
-          {activeSubView === 'materials' && (
+          {activeSubView === 'materials' && isEditable && (
             <button 
               onClick={() => setIsAddMaterialOpen(true)}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm"
@@ -475,15 +481,17 @@ export default function SmallGroupsTab({
                       <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
                         <Users className="w-4 h-4 text-slate-400" /> {grpMembersCount} Kader Tergabung
                       </span>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteGroup(group.id);
-                        }}
-                        className="text-[10px] text-red-500 hover:underline cursor-pointer"
-                      >
-                        Hapus Kelompok
-                      </button>
+                      {isEditable && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteGroup(group.id);
+                          }}
+                          className="text-[10px] text-red-500 hover:underline cursor-pointer"
+                        >
+                          Hapus Kelompok
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -523,18 +531,20 @@ export default function SmallGroupsTab({
                   )}
                 </div>
 
-                <div className="pt-4 border-t border-slate-50 text-center">
-                  <button 
-                    onClick={() => {
-                      setMeetingMaterial('Pertumbuhan Rohani Kristen');
-                      setIsAddMeetingOpen(true);
-                      setActiveSubView('meetings');
-                    }}
-                    className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-transparent rounded-xl text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-all"
-                  >
-                    <CheckSquare className="w-4 h-4" /> Presensi Pertemuan Mingguan
-                  </button>
-                </div>
+                {isEditable && (
+                  <div className="pt-4 border-t border-slate-50 text-center">
+                    <button 
+                      onClick={() => {
+                        setMeetingMaterial('Pertumbuhan Rohani Kristen');
+                        setIsAddMeetingOpen(true);
+                        setActiveSubView('meetings');
+                      }}
+                      className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-transparent rounded-xl text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-all"
+                    >
+                      <CheckSquare className="w-4 h-4" /> Presensi Pertemuan Mingguan
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-12 text-slate-400 text-xs">
@@ -705,17 +715,19 @@ export default function SmallGroupsTab({
                 <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between">
                   <span className="text-[10px] text-slate-400 font-medium">Bahan Versi Cetak: Tersedia</span>
                   <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => {
-                        if (confirm(`Apakah Anda yakin ingin menghapus materi "${material.title}"?`)) {
-                          onDeleteMaterial(material.id);
-                        }
-                      }}
-                      className="p-1 px-3 bg-red-50 hover:bg-red-100 text-[10px] text-red-700 font-bold border border-red-100 rounded-lg flex items-center gap-1 hover:text-red-900 transition-colors cursor-pointer"
-                      title="Hapus materi kurikulum ini"
-                    >
-                      <Trash className="w-3 h-3 text-red-500" /> Hapus
-                    </button>
+                    {isEditable && (
+                      <button 
+                        onClick={() => {
+                          if (confirm(`Apakah Anda yakin ingin menghapus materi "${material.title}"?`)) {
+                            onDeleteMaterial(material.id);
+                          }
+                        }}
+                        className="p-1 px-3 bg-red-50 hover:bg-red-100 text-[10px] text-red-700 font-bold border border-red-100 rounded-lg flex items-center gap-1 hover:text-red-900 transition-colors cursor-pointer"
+                        title="Hapus materi kurikulum ini"
+                      >
+                        <Trash className="w-3 h-3 text-red-500" /> Hapus
+                      </button>
+                    )}
                     <button 
                       onClick={() => handleDownloadPDF(material)}
                       className="p-1 px-3 bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-700 font-bold border border-slate-200 rounded-lg flex items-center gap-1 hover:text-indigo-600 transition-colors cursor-pointer"

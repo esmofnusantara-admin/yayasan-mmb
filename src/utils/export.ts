@@ -31,7 +31,8 @@ export function exportSlipToPDF(
   publicFields: PublicField[] = [], 
   salaryConfig?: StaffSalary,
   profile?: any,
-  paidAmount: number = 0
+  paidAmount: number = 0,
+  treasurerName?: string
 ) {
   const fieldsToUse = publicFields && publicFields.length > 0 ? publicFields : [
     { id: '1', name: 'Tunjangan Jabatan', type: 'allowance', property: 'allowancePosition' },
@@ -329,8 +330,8 @@ export function exportSlipToPDF(
   
   const formattedToday = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   doc.text(`Dikeluarkan di Jakarta, ${formattedToday}`, 25, ySign);
-  doc.text('Petugas verifikasi keuangan,', 25, ySign + 5);
-  doc.text('Penerima gaji struktural,', 130, ySign + 5);
+  doc.text('Bendahara yayasan,', 25, ySign + 5);
+  doc.text('Penerima,', 130, ySign + 5);
 
   // Render Bendahara uploaded signature (Requirement 7)
   if (profile?.signatureUrl && profile.signatureUrl.startsWith('data:image')) {
@@ -344,7 +345,8 @@ export function exportSlipToPDF(
   ySign += 22;
   doc.setFont('Helvetica', 'bold');
   doc.setTextColor(textDark[0], textDark[1], textDark[2]);
-  doc.text('BENDAHARA YAYASAN', 25, ySign);
+  const printedTreasurerName = treasurerName ? treasurerName.toUpperCase() : 'BENDAHARA YAYASAN';
+  doc.text(printedTreasurerName, 25, ySign);
   doc.text(staff.name.toUpperCase(), 130, ySign);
 
   // Underline signature rows

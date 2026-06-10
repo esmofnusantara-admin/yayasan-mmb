@@ -14,6 +14,7 @@ import {
   FileText, 
   Server, 
   UserSquare2,
+  User,
   Menu,
   X,
   Coins
@@ -31,6 +32,7 @@ import LettersTab from './components/LettersTab';
 import ApprovalsTab from './components/ApprovalsTab';
 import SystemTab from './components/SystemTab';
 import LoginScreen from './components/LoginScreen';
+import StaffMeTab from './components/StaffMeTab';
 
 // Import state type bindings & seed data
 import { 
@@ -95,15 +97,16 @@ export default function App() {
 
   const hasFeatureAccess = (feature: string): boolean => {
     if (!currentUser) return false;
+    if (feature === 'staff_profile') return true; // Always allow self-profile
     if (currentUser.features && currentUser.features.length > 0) {
       return currentUser.features.includes(feature);
     }
     const defaultFeaturesMap: Record<string, string[]> = {
-      'Super Admin': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system'],
-      'Ketua Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system'],
-      'Bendahara': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals'],
-      'Sekretaris': ['dashboard', 'members', 'small_groups', 'letters', 'system'],
-      'Staff': ['dashboard', 'members', 'small_groups']
+      'Super Admin': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile'],
+      'Ketua Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile'],
+      'Bendahara': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'staff_profile'],
+      'Sekretaris': ['dashboard', 'members', 'small_groups', 'letters', 'system', 'staff_profile'],
+      'Staff': ['dashboard', 'members', 'small_groups', 'staff_profile']
     };
     const roleFeatures = defaultFeaturesMap[currentUser.role] || ['dashboard'];
     return roleFeatures.includes(feature);
@@ -170,6 +173,7 @@ export default function App() {
   const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [donations, setDonations] = useState<CampaignDonation[]>([]);
+  const [structures, setStructures] = useState<any[]>([]);
 
   // Restful Loader Helper with Auto-Seeding
   const loadCollection = async <T extends { id?: string; nik?: string; deleted?: boolean; createdAt?: string; createdBy?: string }>(
@@ -178,10 +182,15 @@ export default function App() {
     setter: React.Dispatch<React.SetStateAction<T[]>>
   ) => {
     try {
-      const res = await fetch(`/api/data/${colName}`);
+      const res = await fetch(`/api/data/${colName}?includeDeleted=true&t=${Date.now()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      if (!data || data.length === 0) {
+      const rawData = await res.json();
+      const activeData = Array.isArray(rawData) ? rawData.filter((x: any) => !x.deleted) : [];
+      
+      const seededKey = `esm_seeded_${colName}`;
+      const isSeeded = localStorage.getItem(seededKey) === 'true';
+
+      if (!rawData || rawData.length === 0) {
         console.log(`Seeding ${colName} via restful API endpoints...`);
         for (const item of initialData) {
           const id = item.id || item.nik;
@@ -198,38 +207,43 @@ export default function App() {
             });
           }
         }
-        const freshRes = await fetch(`/api/data/${colName}`);
+        localStorage.setItem(seededKey, 'true');
+        const freshRes = await fetch(`/api/data/${colName}?t=${Date.now()}`);
         const freshData = await freshRes.json();
         setter(freshData);
       } else {
         // Dynamic Incremental Auto-Seeding to support new default template entries safely
-        let didSeedNewItem = false;
-        for (const item of initialData) {
-          const id = item.id || item.nik;
-          if (id) {
-            const exists = data.some((x: any) => (x.id === id || x.nik === id));
-            if (!exists) {
-              await fetch(`/api/data/${colName}/${id}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  ...item,
-                  deleted: false,
-                  createdAt: item.createdAt || new Date().toISOString(),
-                  createdBy: item.createdBy || 'System Dynamic Incremental Seed'
-                })
-              });
-              didSeedNewItem = true;
+        // But only lock/run this if we haven't flagged it as seeded, to respect hard-deletes
+        if (!isSeeded) {
+          let didSeedNewItem = false;
+          for (const item of initialData) {
+            const id = item.id || item.nik;
+            if (id) {
+              const exists = rawData.some((x: any) => (x.id === id || x.nik === id));
+              if (!exists) {
+                await fetch(`/api/data/${colName}/${id}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    ...item,
+                    deleted: false,
+                    createdAt: item.createdAt || new Date().toISOString(),
+                    createdBy: item.createdBy || 'System Dynamic Incremental Seed'
+                  })
+                });
+                didSeedNewItem = true;
+              }
             }
           }
+          localStorage.setItem(seededKey, 'true');
+          if (didSeedNewItem) {
+            const freshRes = await fetch(`/api/data/${colName}?t=${Date.now()}`);
+            const freshData = await freshRes.json();
+            setter(freshData);
+            return;
+          }
         }
-        if (didSeedNewItem) {
-          const freshRes = await fetch(`/api/data/${colName}`);
-          const freshData = await freshRes.json();
-          setter(freshData);
-        } else {
-          setter(data);
-        }
+        setter(activeData);
       }
     } catch (err) {
       console.error(`Failed to load/seed collection ${colName}:`, err);
@@ -263,9 +277,24 @@ export default function App() {
     }
   };
 
+  const loadStructures = async () => {
+    try {
+      const res = await fetch('/api/data/structures');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setStructures(data);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load structures:', e);
+    }
+  };
+
   const loadAllData = async () => {
     await Promise.all([
       loadProfile(),
+      loadStructures(),
       loadCollection('members', INITIAL_MEMBERS, setMembers),
       loadCollection('member_notes', INITIAL_MEMBER_NOTES, setNotes),
       loadCollection('prayer_requests', INITIAL_PRAYER_REQUESTS, setPrayerRequests),
@@ -368,13 +397,22 @@ export default function App() {
 
   const handleDeleteMember = async (id: string) => {
     try {
-      await fetch(`/api/data/members/${id}`, {
-        method: 'DELETE'
+      const res = await fetch(`/api/data/members/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE',
+        headers: {
+          'x-user-role': currentRole
+        }
       });
+      if (!res.ok) {
+        const errText = await res.text();
+        alert(`Gagal menghapus Anggota: ${errText}`);
+        return;
+      }
       await logAudit(`Menghapus anggota ID: ${id} (Soft-Delete)`, 'Anggota');
       loadCollection('members', INITIAL_MEMBERS, setMembers);
     } catch (e: any) {
       console.error(e);
+      alert(`Terjadi kesalahan saat menghapus anggota: ${e.message}`);
     }
   };
 
@@ -501,13 +539,22 @@ export default function App() {
 
   const handleDeleteSmallGroup = async (id: string) => {
     try {
-      await fetch(`/api/data/small_groups/${id}`, {
-        method: 'DELETE'
+      const res = await fetch(`/api/data/small_groups/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE',
+        headers: {
+          'x-user-role': currentRole
+        }
       });
+      if (!res.ok) {
+        const errText = await res.text();
+        alert(`Gagal membubarkan Kelompok Kecil: ${errText}`);
+        return;
+      }
       await logAudit(`Membubarkan Kelompok Kecil ID: ${id} (Soft-Delete)`, 'Kelompok Kecil');
       loadCollection('small_groups', INITIAL_SMALL_GROUPS, setSmallGroups);
     } catch (e: any) {
       console.error(e);
+      alert(`Terjadi kesalahan saat membubarkan kelompok kecil: ${e.message}`);
     }
   };
 
@@ -553,13 +600,22 @@ export default function App() {
 
   const handleDeleteMaterial = async (id: string) => {
     try {
-      await fetch(`/api/data/materials/${id}`, {
-        method: 'DELETE'
+      const res = await fetch(`/api/data/materials/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE',
+        headers: {
+          'x-user-role': currentRole
+        }
       });
+      if (!res.ok) {
+        const errText = await res.text();
+        alert(`Gagal menghapus Kurikulum/Materi: ${errText}`);
+        return;
+      }
       await logAudit(`Menghapus Kurikulum/Materi ID: ${id} (Soft-Delete)`, 'Kurikulum');
       loadCollection('materials', INITIAL_MATERIALS, setMaterials);
     } catch (e: any) {
       console.error(e);
+      alert(`Terjadi kesalahan saat menghapus kurikulum/materi: ${e.message}`);
     }
   };
 
@@ -641,37 +697,47 @@ export default function App() {
     try {
       const oldTx = transactions.find(t => t.id === id);
       const previousApprovedBalanceOfOthers = transactions
-        .filter(t => t.id !== id && t.status === 'Approved')
-        .reduce((sum, t) => sum + (t.type === 'Income' ? t.amount : -t.amount), 0);
-
-      if (oldTx) {
-        const softDeletedTx: Transaction = {
-          ...oldTx,
-          status: 'Rejected',
-        };
-        await fetch('/api/finance/sync', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tx: softDeletedTx,
-            operatorName: `${currentRole} Operator`,
-            operatorRole: currentRole,
-            currentBalanceBeforeTx: previousApprovedBalanceOfOthers
-          })
-        });
-      }
-      
-      await fetch(`/api/data/transactions/${id}`, {
-        method: 'DELETE'
-      });
-      await logAudit(`Menghapus Transaksi Kas ID: ${id} (Soft-Delete)`, 'Keuangan');
-      
-      await loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions);
-      await loadCollection('audits', INITIAL_AUDITS, setAuditLogs);
-    } catch (e: any) {
-      console.error(e);
-    }
-  };
+         .filter(t => t.id !== id && t.status === 'Approved')
+         .reduce((sum, t) => sum + (t.type === 'Income' ? t.amount : -t.amount), 0);
+ 
+       if (oldTx) {
+         const softDeletedTx: Transaction = {
+           ...oldTx,
+           status: 'Rejected',
+         };
+         const syncRes = await fetch('/api/finance/sync', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({
+             tx: softDeletedTx,
+             operatorName: `${currentRole} Operator`,
+             operatorRole: currentRole,
+             currentBalanceBeforeTx: previousApprovedBalanceOfOthers
+           })
+         });
+         if (!syncRes.ok) throw new Error('Finance atomic synchronization failed on transaction reject action');
+       }
+       
+       const res = await fetch(`/api/data/transactions/${id}?role=${encodeURIComponent(currentRole)}`, {
+         method: 'DELETE',
+         headers: {
+           'x-user-role': currentRole
+         }
+       });
+       if (!res.ok) {
+         const errText = await res.text();
+         alert(`Gagal menghapus Transaksi Kas: ${errText}`);
+         return;
+       }
+       await logAudit(`Menghapus Transaksi Kas ID: ${id} (Soft-Delete)`, 'Keuangan');
+       
+       await loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions);
+       await loadCollection('audits', INITIAL_AUDITS, setAuditLogs);
+     } catch (e: any) {
+       console.error(e);
+       alert(`Terjadi kesalahan saat menghapus transaksi: ${e.message}`);
+     }
+   };
 
   const handleAddCategory = async (cat: FinancialCategory) => {
     try {
@@ -706,16 +772,25 @@ export default function App() {
   const handleDeleteCategory = async (id: string) => {
     try {
       const match = categories.find(c => c.id === id);
-      await fetch(`/api/data/categories/${id}`, {
-        method: 'DELETE'
+      const res = await fetch(`/api/data/categories/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE',
+        headers: {
+          'x-user-role': currentRole
+        }
       });
+      if (!res.ok) {
+        const errText = await res.text();
+        alert(`Gagal menghapus Kategori Kas: ${errText}`);
+        return;
+      }
       if (match) {
         await logAudit(`Menghapus Kategori Kas: ${match.name}`, 'Keuangan');
       }
       await loadCollection('categories', INITIAL_CATEGORIES, setCategories);
       await loadCollection('audits', INITIAL_AUDITS, setAuditLogs);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      alert(`Terjadi kesalahan saat menghapus kategori kas: ${e.message}`);
     }
   };
 
@@ -811,13 +886,22 @@ export default function App() {
 
   const handleDeletePartner = async (id: string) => {
     try {
-      await fetch(`/api/data/partners/${id}`, {
-        method: 'DELETE'
+      const res = await fetch(`/api/data/partners/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE',
+        headers: {
+          'x-user-role': currentRole
+        }
       });
+      if (!res.ok) {
+        const errText = await res.text();
+        alert(`Gagal mencabut komitmen kemitraan sponsor: ${errText}`);
+        return;
+      }
       await logAudit(`Mencabut Komitmen Kemitraan Sponsor ID: ${id} (Soft-Delete)`, 'Mitra & Fundraising');
       loadCollection('partners', INITIAL_PARTNERS, setPartners);
     } catch (e: any) {
       console.error(e);
+      alert(`Terjadi kesalahan saat mencabut komitmen kemitraan sponsor: ${e.message}`);
     }
   };
 
@@ -835,7 +919,30 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      await logAudit(`Mengumumkan Penerimaan Karyawan Baru NIK: ${s.nik}`, 'Staf & HR');
+
+      // Automatically register user/operator account
+      const cleanEmail = s.email?.trim() || `${s.nik.toLowerCase().trim()}@esm.or.id`;
+      const cleanPhone = s.phone?.trim() || '0812345678';
+      const userPayload = {
+        name: s.name,
+        email: cleanEmail.toLowerCase(),
+        phone: cleanPhone,
+        password: 'staff123', // Default starter password
+        role: 'Staff',
+        approved: true, // Auto-approved because added by Super Admin/Operator directly
+        features: ['dashboard', 'members', 'small_groups'],
+        deleted: false,
+        createdAt: new Date().toISOString(),
+        createdBy: `${currentRole} Operator`
+      };
+
+      await fetch(`/api/data/users/${encodeURIComponent(cleanEmail.toLowerCase())}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userPayload)
+      });
+
+      await logAudit(`Menggunakan Penerimaan Karyawan Baru NIK: ${s.nik} & Auto-Registrasi Akun Operator Staff: ${cleanEmail}`, 'Staf & HR');
       loadCollection('staff', INITIAL_STAFF, setStaffs);
     } catch (e: any) {
       console.error(e);
@@ -881,14 +988,73 @@ export default function App() {
   };
 
   const handleDeleteStaff = async (nik: string) => {
+    // Check authorizations
+    const canModifyHR = ['Super Admin', 'Ketua Yayasan', 'Sekretaris'].includes(currentRole);
+    if (!canModifyHR) {
+      alert('Akses Terbatas: Anda tidak memiliki hak akses untuk menghapus data kepegawaian.');
+      return;
+    }
+
+    const staffToDelete = staffs.find(s => s.nik === nik);
+    if (!staffToDelete) {
+      alert('Kesalahan: Data staf tidak ditemukan.');
+      return;
+    }
+
     try {
-      await fetch(`/api/data/staff/${nik}`, {
-        method: 'DELETE'
+      // Check for associated operator/user account
+      let associatedUserDeletedText = '';
+      const cleanEmail = staffToDelete.email?.toLowerCase().trim();
+      
+      if (cleanEmail) {
+        // Fetch users to see if there is a matching operator account
+        const usersRes = await fetch('/api/data/users');
+        if (usersRes.ok) {
+          const usersList = await usersRes.json();
+          const matchedUser = usersList.find((u: any) => u.email?.toLowerCase().trim() === cleanEmail && !u.deleted);
+          
+          if (matchedUser) {
+            // Found matched operator user, de-activate/delete it as well since Super Admin has full permission
+            const userDelRes = await fetch(`/api/data/users/${encodeURIComponent(cleanEmail)}?role=${encodeURIComponent(currentRole)}`, {
+              method: 'DELETE',
+              headers: {
+                'x-user-role': currentRole
+              }
+            });
+
+            if (userDelRes.ok) {
+              // Log audit for operator deletion
+              await logAudit(
+                `[Database Staf] Menonaktifkan otomatis akun operator terkait: "${matchedUser.name}" (${cleanEmail}) karena data kepegawaiannya (NIK ${nik}) dinonaktifkan oleh ${currentRole}.`,
+                'Sistem / Pelayanan'
+              );
+              associatedUserDeletedText = ` Serta akun operator terkait (${matchedUser.name}) berhasil dinonaktifkan secara otomatis.`;
+            }
+          }
+        }
+      }
+
+      // Call delete route on server
+      const res = await fetch(`/api/data/staff/${nik}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE',
+        headers: {
+          'x-user-role': currentRole
+        }
       });
-      await logAudit(`Pemutusan Kontrak Kerja Pegawai NIK: ${nik} (Soft-Delete)`, 'Staf & HR');
-      loadCollection('staff', INITIAL_STAFF, setStaffs);
+
+      if (res.ok) {
+        await logAudit(`[Database Staf] Pemutusan Kontrak Kerja, Pegawai NIK: ${nik} - "${staffToDelete.name}" dinonaktifkan oleh ${currentRole}.`, 'Staf & HR');
+        
+        // Refresh staffs list
+        await loadCollection('staff', INITIAL_STAFF, setStaffs);
+        alert(`Sukses: Data kepegawaian staf ${staffToDelete.name} berhasil dinonaktifkan.${associatedUserDeletedText}`);
+      } else {
+        const errorText = await res.text();
+        alert(`Gagal menonaktifkan data staf: ${errorText}`);
+      }
     } catch (e: any) {
       console.error(e);
+      alert(`Terjadi kesalahan: ${e.message}`);
     }
   };
 
@@ -1300,6 +1466,20 @@ export default function App() {
                 </button>
               )}
 
+              {currentUser?.role !== 'Super Admin' && hasFeatureAccess('staff_profile') && (
+                <button 
+                  onClick={() => { setActiveTab('staff_profile'); setIsMobileMenuOpen(false); }}
+                  className={`w-full text-[13px] font-medium px-3.5 py-2 rounded-lg flex items-center justify-between transition-all cursor-pointer text-left ${
+                    activeTab === 'staff_profile' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#94A3B8] hover:bg-white/5 hover:text-[#F8FAFC]'
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <User className="w-4 h-4 shrink-0 text-emerald-400" /> Profil & Gaji Saya
+                  </span>
+                  <span className="text-[9px] font-mono bg-emerald-500/20 text-emerald-400 font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider scale-90">Staf</span>
+                </button>
+              )}
+
               {hasFeatureAccess('system') && (
                 <>
                   <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#475569] block pt-3 pb-2 px-3">Organization</span>
@@ -1377,6 +1557,7 @@ export default function App() {
                 onAddMaterial={handleAddMaterial}
                 onDeleteMaterial={handleDeleteMaterial}
                 profile={profile}
+                currentRole={currentRole}
               />
             )}
 
@@ -1429,6 +1610,7 @@ export default function App() {
                 salaries={salaries}
                 onUpdateSalary={handleUpdateSalary}
                 profile={profile}
+                structures={structures}
               />
             )}
 
@@ -1458,6 +1640,16 @@ export default function App() {
                 auditLogs={auditLogs}
                 onUpdateProfile={handleUpdateProfile}
                 currentRole={currentRole}
+              />
+            )}
+
+            {activeTab === 'staff_profile' && (
+              <StaffMeTab 
+                currentUser={currentUser}
+                staffs={staffs}
+                salaries={salaries}
+                profile={profile}
+                structures={structures}
               />
             )}
 

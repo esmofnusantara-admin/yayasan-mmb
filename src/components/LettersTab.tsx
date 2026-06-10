@@ -46,6 +46,7 @@ export default function LettersTab({
   onUpdateOutwardStatus,
   currentRole,
 }: LettersTabProps) {
+  const isEditable = ['Super Admin', 'Ketua Yayasan', 'Sekretaris'].includes(currentRole);
   const [subTab, setSubTab] = useState<'inward' | 'outward' | 'repository'>('outward');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -125,7 +126,7 @@ export default function LettersTab({
 
     // If composer is Super Admin / Sekretaris, pre-approve right away!
     // Others route into pending state in App Center
-    const isOfficer = ['Sekretaris', 'Super Admin'].includes(currentRole);
+    const isOfficer = isEditable;
     const resolvedStatus = isOfficer ? 'Approved' : 'Pending Approval';
 
     const newOut: LetterOutward = {
@@ -273,7 +274,7 @@ export default function LettersTab({
           >
             <Download className="w-4 h-4 text-emerald-600" /> Export CSV
           </button>
-          {subTab === 'outward' && (
+          {subTab === 'outward' && isEditable && (
             <button 
               onClick={() => setIsFormOutOpen(true)}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer"
@@ -282,7 +283,7 @@ export default function LettersTab({
             </button>
           )}
 
-          {subTab === 'inward' && (
+          {subTab === 'inward' && isEditable && (
             <button 
               onClick={() => setIsFormInOpen(true)}
               className="px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-white font-semibold rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer"

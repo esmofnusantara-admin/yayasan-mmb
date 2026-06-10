@@ -48,6 +48,7 @@ export default function PartnersTab({
   onAddDonation,
   profile,
 }: PartnersTabProps) {
+  const isEditable = ['Super Admin', 'Ketua Yayasan', 'Sekretaris'].includes(currentRole);
   const [subView, setSubView] = useState<'directory' | 'pipeline' | 'donations'>('directory');
   
   // Search metrics
@@ -314,13 +315,15 @@ export default function PartnersTab({
               <Download className="w-4 h-4 text-emerald-600" /> Export CSV
             </button>
           )}
-          <button 
-            onClick={openAddForm}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
-          >
-            <Plus className="w-4 h-4" /> Tambah Mitra Baru
-          </button>
-          {subView === 'donations' && (
+          {isEditable && (
+            <button 
+              onClick={openAddForm}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
+            >
+              <Plus className="w-4 h-4" /> Tambah Mitra Baru
+            </button>
+          )}
+          {subView === 'donations' && isEditable && (
             <button 
               onClick={() => setIsDonationFormOpen(true)}
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
@@ -367,8 +370,8 @@ export default function PartnersTab({
                   <th className="p-4">Klasifikasi / Wilayah</th>
                   <th className="p-4">Hubungan & Relasi Staff</th>
                   <th className="p-4">Komitmen Bulanan / Kontrak</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4 text-center">Aksi</th>
+                  <th className="p-4 font-semibold text-slate-400">Status</th>
+                  {isEditable && <th className="p-4 text-center">Aksi</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -408,22 +411,24 @@ export default function PartnersTab({
                         {partner.status}
                       </span>
                     </td>
-                    <td className="p-4 text-center">
-                      <div className="flex justify-center gap-2">
-                        <button 
-                          onClick={() => openEditForm(partner)}
-                          className="p-1 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[10px] rounded font-semibold text-slate-650 cursor-pointer"
-                        >
-                          Edit
-                        </button>
-                        <button 
-                          onClick={() => onDeletePartner(partner.id)}
-                          className="p-1 text-red-500 hover:bg-slate-50 text-[10px] cursor-pointer"
-                        >
-                          Hapus
-                        </button>
-                      </div>
-                    </td>
+                    {isEditable && (
+                      <td className="p-4 text-center">
+                        <div className="flex justify-center gap-2">
+                          <button 
+                            onClick={() => openEditForm(partner)}
+                            className="p-1 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[10px] rounded font-semibold text-slate-650 cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            onClick={() => onDeletePartner(partner.id)}
+                            className="p-1 text-red-500 hover:bg-slate-50 text-[10px] cursor-pointer"
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

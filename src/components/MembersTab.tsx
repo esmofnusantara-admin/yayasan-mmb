@@ -63,6 +63,8 @@ export default function MembersTab({
   currentRole,
   profile,
 }: MembersTabProps) {
+  const isEditable = ['Super Admin', 'Ketua Yayasan', 'Sekretaris'].includes(currentRole);
+
   // Navigation within sub-tabs in Members
   const [subTab, setSubTab] = useState<'directory' | 'notes' | 'prayers' | 'followup' | 'import'>('directory');
   
@@ -415,7 +417,7 @@ export default function MembersTab({
         
         {/* Buttons */}
         <div className="flex gap-2">
-          {subTab === 'directory' && (
+          {subTab === 'directory' && isEditable && (
             <button 
               onClick={openAddForm}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm shadow-indigo-900/10"
@@ -520,7 +522,7 @@ export default function MembersTab({
                       <th className="p-4">Kelompok Kecil</th>
                       <th className="p-4">Gereja / Pekerjaan</th>
                       <th className="p-4">Status</th>
-                      <th className="p-4 text-center">Aksi</th>
+                      {isEditable && <th className="p-4 text-center">Aksi</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
@@ -568,22 +570,24 @@ export default function MembersTab({
                             {member.statusKeaktifan}
                           </span>
                         </td>
-                        <td className="p-4 text-center cursor-auto">
-                          <div className="flex justify-center gap-2" onClick={(e) => e.stopPropagation()}>
-                            <button 
-                              onClick={() => openEditForm(member)}
-                              className="p-1 px-2.5 bg-slate-50 hover:bg-slate-100 rounded border border-slate-200 transition-all text-slate-600 hover:text-slate-800 font-semibold text-[10px] flex items-center gap-0.5 cursor-pointer"
-                            >
-                              <Edit className="w-3 h-3" /> Edit
-                            </button>
-                            <button 
-                              onClick={() => onDeleteMember(member.id)}
-                              className="p-1 text-red-500 hover:bg-red-50 border border-transparent hover:border-red-100 rounded transition-all text-[10px] cursor-pointer"
-                            >
-                              <Trash className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </td>
+                        {isEditable && (
+                          <td className="p-4 text-center cursor-auto">
+                            <div className="flex justify-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              <button 
+                                onClick={() => openEditForm(member)}
+                                className="p-1 px-2.5 bg-slate-50 hover:bg-slate-100 rounded border border-slate-200 transition-all text-slate-600 hover:text-slate-800 font-semibold text-[10px] flex items-center gap-0.5 cursor-pointer"
+                              >
+                                <Edit className="w-3 h-3" /> Edit
+                              </button>
+                              <button 
+                                onClick={() => onDeleteMember(member.id)}
+                                className="p-1 text-red-500 hover:bg-red-50 border border-transparent hover:border-red-100 rounded transition-all text-[10px] cursor-pointer"
+                              >
+                                <Trash className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -708,10 +712,10 @@ export default function MembersTab({
 
       {/* SUBTAB 2: CATATAN PELAYANAN (COUNSELING TIMELINE) */}
       {subTab === 'notes' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className={isEditable ? "grid grid-cols-1 lg:grid-cols-3 gap-6" : "grid grid-cols-1 gap-6"}>
           
           {/* Timeline of notes */}
-          <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+          <div className={isEditable ? "lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4" : "w-full bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4"}>
             <h3 className="text-md font-semibold text-slate-800">Timeline Catatan Pelayanan & Counseling</h3>
             
             <div className="relative border-l border-slate-200 ml-4 pl-6 space-y-6 max-h-160 overflow-y-auto pt-2">
@@ -748,6 +752,7 @@ export default function MembersTab({
           </div>
 
           {/* Form to add note */}
+          {isEditable && (
           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
             <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-1.5 border-b border-slate-50 pb-2">
               <Plus className="w-4 h-4 text-indigo-500" /> Catat Histori Konseling Baru
@@ -803,16 +808,17 @@ export default function MembersTab({
               </button>
             </form>
           </div>
+          )}
 
         </div>
       )}
 
       {/* SUBTAB 3: PRAYER REQUESTS BOARD */}
       {subTab === 'prayers' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className={isEditable ? "grid grid-cols-1 lg:grid-cols-3 gap-6" : "grid grid-cols-1 gap-6"}>
           
           {/* Prayer directory list */}
-          <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+          <div className={isEditable ? "lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4" : "w-full bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4"}>
             <h3 className="text-md font-semibold text-slate-800">Pokok Permohonan Doa (Prayer Request)</h3>
             
             <div className="divide-y divide-slate-100 max-h-160 overflow-y-auto">
@@ -836,31 +842,32 @@ export default function MembersTab({
                   </p>
                   
                   {/* Action states toggle */}
-                  <div className="flex gap-2.5 mt-2 justify-end">
-                    <span className="text-[9px] text-slate-400 self-center">Ubah Status Doa:</span>
-                    <button 
-                      onClick={() => onUpdatePrayerStatus(p.id, 'Didoakan')}
-                      className="p-1 px-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-transparent rounded-lg text-[9px] font-semibold cursor-pointer"
-                    >
-                      Mulai Doakan
-                    </button>
-                    <button 
-                      onClick={() => onUpdatePrayerStatus(p.id, 'Terjawab')}
-                      className="p-1 px-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-transparent rounded-lg text-[9px] font-semibold cursor-pointer"
-                    >
-                      Puji Tuhan, Terjawab!
-                    </button>
-                  </div>
+                  {isEditable && (
+                    <div className="flex gap-2.5 mt-2 justify-end">
+                      <span className="text-[9px] text-slate-400 self-center">Ubah Status Doa:</span>
+                      <button 
+                        onClick={() => onUpdatePrayerStatus(p.id, 'Didoakan')}
+                        className="p-1 px-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-transparent rounded-lg text-[9px] font-semibold cursor-pointer"
+                      >
+                        Mulai Doakan
+                      </button>
+                      <button 
+                        onClick={() => onUpdatePrayerStatus(p.id, 'Terjawab')}
+                        className="p-1 px-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-transparent rounded-lg text-[9px] font-semibold cursor-pointer"
+                      >
+                        Puji Tuhan, Terjawab!
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           </div>
 
           {/* Form to add prayer */}
+          {/* Form to submit a prayer */}
+          {isEditable && (
           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-1.5 border-b border-slate-50 pb-2">
-              <Plus className="w-4 h-4 text-indigo-500" /> Ajukan Pokok Doa Baru
-            </h3>
             <form onSubmit={handleAddPrayerForm} className="space-y-4 text-xs">
               <div>
                 <label className="text-slate-500 block mb-1">Pemohon (Anggota):</label>
@@ -909,16 +916,17 @@ export default function MembersTab({
               </button>
             </form>
           </div>
+          )}
 
         </div>
       )}
 
       {/* SUBTAB 4: FOLLOW UP WORKSPACE */}
       {subTab === 'followup' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className={isEditable ? "grid grid-cols-1 lg:grid-cols-3 gap-6" : "grid grid-cols-1 gap-6"}>
           
           {/* List of past follow ups */}
-          <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+          <div className={isEditable ? "lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4" : "w-full bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4"}>
             <h3 className="text-md font-semibold text-slate-800">History Follow Up</h3>
             
             <div className="divide-y divide-slate-100 max-h-160 overflow-y-auto">
@@ -943,6 +951,7 @@ export default function MembersTab({
           </div>
 
           {/* Form to submit a follow up report */}
+          {isEditable && (
           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
             <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-1.5 border-b border-slate-50 pb-2">
               <Plus className="w-4 h-4 text-indigo-500" /> Catat Laporan Follow Up
@@ -998,6 +1007,7 @@ export default function MembersTab({
               </button>
             </form>
           </div>
+          )}
 
         </div>
       )}

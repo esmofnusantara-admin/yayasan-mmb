@@ -39,6 +39,7 @@ interface PayrollTabProps {
   salaries?: StaffSalary[];
   onUpdateSalary?: (s: StaffSalary) => void;
   profile?: InstitutionalProfile;
+  structures?: any[];
 }
 
 const DEFAULT_PUBLIC_FIELDS = [
@@ -62,6 +63,7 @@ export default function PayrollTab({
   salaries = [],
   onUpdateSalary,
   profile,
+  structures = [],
 }: PayrollTabProps) {
   const [editingSalary, setEditingSalary] = useState<StaffSalary | null>(null);
   const [publicFields, setPublicFields] = useState<any[]>(() => {
@@ -1587,12 +1589,27 @@ export default function PayrollTab({
               </button>
               <button 
                 onClick={() => {
+                  const bendaharaNode = structures.find(s => s.id === 'bendahara');
+                  let treasurerName = '';
+                  if (bendaharaNode && !bendaharaNode.deleted && bendaharaNode.name?.trim()) {
+                    treasurerName = bendaharaNode.name;
+                  } else {
+                    const treasurerStaff = staffs.find(s => s.position?.toLowerCase().includes('bendahara') || s.email?.toLowerCase().includes('bendahara'));
+                    if (treasurerStaff?.name?.trim()) {
+                      treasurerName = treasurerStaff.name;
+                    } else if (bendaharaNode && bendaharaNode.deleted) {
+                      treasurerName = 'BENDAHARA YAYASAN';
+                    } else {
+                      treasurerName = 'Ibu Ruth Sitorus, S.E.';
+                    }
+                  }
                   exportSlipToPDF(
                     activeSlipStaff, 
                     publicFields, 
                     getStaffSalaryConfig(activeSlipStaff.nik, activeSlipStaff.salaryBase),
                     profile,
-                    staffPaidAmounts[activeSlipStaff.nik] || 0
+                    staffPaidAmounts[activeSlipStaff.nik] || 0,
+                    treasurerName
                   );
                 }}
                 className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer transition-colors"

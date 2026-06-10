@@ -49,6 +49,7 @@ export default function FinanceTab({
   onDeleteCategory,
   profile,
 }: FinanceTabProps) {
+  const isEditable = ['Super Admin', 'Ketua Yayasan', 'Sekretaris'].includes(currentRole);
   const [activeSubView, setActiveSubView] = useState<'ledger' | 'import' | 'categories'>('ledger');
   
   // States for search and filter
@@ -373,12 +374,14 @@ export default function FinanceTab({
               >
                 <Printer className="w-4 h-4 text-indigo-600" /> Print Laporan
               </button>
-              <button 
-                onClick={openAddForm}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1 shadow-sm cursor-pointer"
-              >
-                <Plus className="w-4 h-4" /> Entri Kas
-              </button>
+              {isEditable && (
+                <button 
+                  onClick={openAddForm}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1 shadow-sm cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" /> Entri Kas
+                </button>
+              )}
             </>
           )}
         </div>
@@ -437,7 +440,7 @@ export default function FinanceTab({
                   <th className="p-4">Sumber / Pihak Relasi</th>
                   <th className="p-4 text-right">Nominal Transaksi</th>
                   <th className="p-4">Status Approval</th>
-                  <th className="p-4 text-center">Aksi</th>
+                  {isEditable && <th className="p-4 text-center">Aksi</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -475,22 +478,24 @@ export default function FinanceTab({
                         {tx.status}
                       </span>
                     </td>
-                    <td className="p-4 text-center">
-                      <div className="flex justify-center gap-2">
-                        <button 
-                          onClick={() => openEditForm(tx)}
-                          className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-[10px] rounded-lg font-bold text-indigo-750 cursor-pointer shadow-xs transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button 
-                          onClick={() => onDeleteTransaction(tx.id)}
-                          className="px-2.5 py-1 bg-rose-50 hover:bg-rose-150 border border-rose-200 text-[10px] rounded-lg font-bold text-rose-755 cursor-pointer shadow-xs transition-colors"
-                        >
-                          Hapus
-                        </button>
-                      </div>
-                    </td>
+                    {isEditable && (
+                      <td className="p-4 text-center">
+                        <div className="flex justify-center gap-2">
+                          <button 
+                            onClick={() => openEditForm(tx)}
+                            className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-[10px] rounded-lg font-bold text-indigo-750 cursor-pointer shadow-xs transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            onClick={() => onDeleteTransaction(tx.id)}
+                            className="px-2.5 py-1 bg-rose-50 hover:bg-rose-150 border border-rose-200 text-[10px] rounded-lg font-bold text-rose-755 cursor-pointer shadow-xs transition-colors"
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

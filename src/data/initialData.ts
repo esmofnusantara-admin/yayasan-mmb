@@ -621,6 +621,30 @@ export const INITIAL_STAFF: Staff[] = [
     kasbonDeduction: 400000, // Kasbon potongan
     otherDeduction: 0,
     paidAmount: 3670000
+  },
+  {
+    nik: 'NIK-1004',
+    name: 'Staff Operator',
+    phone: '081234567890',
+    email: 'staff@esm.or.id',
+    address: 'Jl. Diponegoro No. 12, Jakarta Pusat',
+    position: 'Staff Pelaksana Lapangan',
+    division: 'Pelayanan Wilayah',
+    status: 'Tetap',
+    joinedDate: '2025-01-10',
+    salaryBase: 4200000,
+    allowancePosition: 300000,
+    allowanceHousing: 300000,
+    allowanceTransport: 300000,
+    allowanceComm: 200000,
+    bonus: 0,
+    thr: 0,
+    bpjsAllowance: 200000,
+    taxDeduction: 80000,
+    bpjsDeduction: 80000,
+    kasbonDeduction: 0,
+    otherDeduction: 0,
+    paidAmount: 5140000
   }
 ];
 

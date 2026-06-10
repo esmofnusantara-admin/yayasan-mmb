@@ -19,9 +19,9 @@ import {
   X, 
   FileSpreadsheet, 
   Printer, 
-  AlertTriangle 
+  AlertTriangle
 } from 'lucide-react';
-import { Transaction, FinancialCategory } from '../types';
+import { Transaction, FinancialCategory, InstitutionalProfile } from '../types';
 import { exportToCSV } from '../utils/export';
 
 interface FinanceTabProps {
@@ -31,6 +31,10 @@ interface FinanceTabProps {
   onUpdateTransaction: (tx: Transaction) => void;
   onDeleteTransaction: (id: string) => void;
   currentRole: string;
+  onAddCategory?: (cat: FinancialCategory) => void;
+  onUpdateCategory?: (cat: FinancialCategory) => void;
+  onDeleteCategory?: (id: string) => void;
+  profile?: InstitutionalProfile;
 }
 
 export default function FinanceTab({
@@ -40,6 +44,10 @@ export default function FinanceTab({
   onUpdateTransaction,
   onDeleteTransaction,
   currentRole,
+  onAddCategory,
+  onUpdateCategory,
+  onDeleteCategory,
+  profile,
 }: FinanceTabProps) {
   const [activeSubView, setActiveSubView] = useState<'ledger' | 'import' | 'categories'>('ledger');
   
@@ -60,6 +68,17 @@ export default function FinanceTab({
   const [txType, setTxType] = useState<'Income' | 'Expense'>('Income');
   const [txSource, setTxSource] = useState('');
 
+  // Transaction Allocation selection
+  const [txAllocation, setTxAllocation] = useState('Gaji / Operasional');
+
+  // Categories Form fields
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatType, setNewCatType] = useState<'Income' | 'Expense'>('Expense');
+  const [newCatLimit, setNewCatLimit] = useState<number | ''>('');
+
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [editLimitVal, setEditLimitVal] = useState<number | ''>('');
+
   // Bulk Excel Paste Simulation state
   const [pastedLedgerText, setPastedLedgerText] = useState(
     "2026-06-10|Dukungan Mitra Bulanan|Dukungan Pdt. Samuel Siregar|2500000|Income|Pdt Samuel\n" +
@@ -75,6 +94,7 @@ export default function FinanceTab({
     setTxAmount(150000);
     setTxType('Income');
     setTxSource('');
+    setTxAllocation(profile?.incomeAllocations?.[0] || 'Gaji / Operasional');
     setIsFormOpen(true);
   };
 
@@ -86,6 +106,7 @@ export default function FinanceTab({
     setTxAmount(tx.amount);
     setTxType(tx.type);
     setTxSource(tx.sourceOrRecipient);
+    setTxAllocation(tx.allocationObjective || profile?.incomeAllocations?.[0] || 'Gaji / Operasional');
     setIsFormOpen(true);
   };
 
@@ -123,7 +144,8 @@ export default function FinanceTab({
         amount: Number(txAmount),
         type: txType,
         sourceOrRecipient: txSource,
-        status: resolvedStatus
+        status: resolvedStatus,
+        allocationObjective: txType === 'Income' ? txAllocation : undefined
       };
       onUpdateTransaction(updated);
     } else {
@@ -135,7 +157,8 @@ export default function FinanceTab({
         amount: Number(txAmount),
         type: txType,
         sourceOrRecipient: txSource,
-        status: resolvedStatus
+        status: resolvedStatus,
+        allocationObjective: txType === 'Income' ? txAllocation : undefined
       };
       onAddTransaction(newTx);
     }
@@ -221,7 +244,7 @@ export default function FinanceTab({
     const matchesType = filterType === 'Semua' || tx.type === filterType;
     const matchesCategory = filterCategory === 'Semua' || tx.category === filterCategory;
     return matchesSearch && matchesType && matchesCategory;
-  });
+  }).sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
 
   // Export PDF/Excel
   const triggerSimulationExport = (format: string) => {
@@ -271,7 +294,7 @@ export default function FinanceTab({
           <div className="mt-4 pt-3 border-t border-slate-700/40 text-xs text-slate-300 flex justify-between items-center">
             <span>Staf Relasi: Mandiri Utama</span>
             <span className="flex items-center gap-0.5 text-emerald-400 font-bold">
-              ● Active Ledger
+              ● Buku Jurnal Kas Aktif
             </span>
           </div>
         </div>
@@ -313,7 +336,7 @@ export default function FinanceTab({
               activeSubView === 'ledger' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
             }`}
           >
-            Aliran kas Jurnal Kas
+            Buku Jurnal Kas
           </button>
           <button 
             onClick={() => setActiveSubView('import')}
@@ -321,7 +344,7 @@ export default function FinanceTab({
               activeSubView === 'import' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
             }`}
           >
-            Import Excel Ledger
+            Unggah Jurnal Excel
           </button>
           <button 
             onClick={() => setActiveSubView('categories')}
@@ -426,6 +449,9 @@ export default function FinanceTab({
                     </td>
                     <td className="p-4">
                       <span className="text-slate-600 font-semibold">{tx.category}</span>
+                      {tx.type === 'Income' && tx.allocationObjective && (
+                        <div className="text-[10px] text-indigo-600 font-bold mt-0.5">Peruntukan: {tx.allocationObjective}</div>
+                      )}
                     </td>
                     <td className="p-4 font-medium text-slate-800 max-w-sm leading-relaxed">
                       {tx.description}
@@ -453,13 +479,13 @@ export default function FinanceTab({
                       <div className="flex justify-center gap-2">
                         <button 
                           onClick={() => openEditForm(tx)}
-                          className="p-1 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[10px] rounded font-semibold text-slate-600 cursor-pointer"
+                          className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-[10px] rounded-lg font-bold text-indigo-750 cursor-pointer shadow-xs transition-colors"
                         >
                           Edit
                         </button>
                         <button 
                           onClick={() => onDeleteTransaction(tx.id)}
-                          className="p-1 text-red-500 hover:bg-red-50 rounded text-[10px] cursor-pointer"
+                          className="px-2.5 py-1 bg-rose-50 hover:bg-rose-150 border border-rose-200 text-[10px] rounded-lg font-bold text-rose-755 cursor-pointer shadow-xs transition-colors"
                         >
                           Hapus
                         </button>
@@ -472,8 +498,8 @@ export default function FinanceTab({
           </div>
 
           <div className="p-4 border-t border-slate-50 bg-slate-50/50 flex justify-between text-xs text-slate-505">
-            <span>Filter Menampilkan {filteredTransactions.length} baris ledger audit</span>
-            <span className="font-mono text-[10px]">Verified Ledger &bull; Internal System</span>
+            <span>Filter Menampilkan {filteredTransactions.length} baris riwayat kas</span>
+            <span className="font-mono text-[10px]">Jurnal Terverifikasi &bull; Sistem Internal</span>
           </div>
 
         </div>
@@ -483,9 +509,9 @@ export default function FinanceTab({
       {activeSubView === 'import' && (
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
           <div>
-            <h3 className="text-md font-semibold text-slate-800">Uploader Import Massal Jurnal Transaksi</h3>
+            <h3 className="text-md font-semibold text-slate-800">Unggah Masal Jurnal Transaksi</h3>
             <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Modul penyesuaian kas bulanan dari slip mutasi bank atau laporan audit fisik. Salin-tempel multi baris dengan pemisah karakter pipa (<code className="bg-slate-100 p-0.5 rounded font-bold font-mono">|</code>) untuk langsung menyatukannya dengan ledger utama di memori aplikasi.
+              Modul penyesuaian kas bulanan dari slip mutasi bank atau laporan audit fisik. Salin-tempel multi baris dengan pemisah karakter pipa (<code className="bg-slate-100 p-0.5 rounded font-bold font-mono">|</code>) untuk langsung menyatukannya dengan catatan kas utama di memori aplikasi.
             </p>
           </div>
 
@@ -516,7 +542,7 @@ export default function FinanceTab({
               onClick={handleBulkLedgerImport}
               className="px-5 py-2 text-white bg-indigo-600 hover:bg-indigo-700 font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
             >
-              <Upload className="w-4 h-4" /> Import Ledger ke Kas Utama
+              <Upload className="w-4 h-4" /> Impor Data ke Catatan Kas
             </button>
           </div>
         </div>
@@ -530,6 +556,71 @@ export default function FinanceTab({
             <p className="text-xs text-slate-500 mt-1">Garis kontrol alokasi kas bulanan per pos pengeluaran dalam setahun.</p>
           </div>
 
+          {/* Form to Add New Category */}
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6 space-y-4">
+            <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">➕ Tambah Kategori Akun Baru / Atur Batas Budgeting</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="text-slate-500 block mb-1 text-[10px] font-bold">Nama Kategori Buku Kas :</label>
+                <input 
+                  type="text" 
+                  value={newCatName} 
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  placeholder="Contoh: ATK & Cetak, Sewa Kantor"
+                  className="w-full border border-slate-200 rounded-xl px-3 py-1.5 bg-white text-xs text-slate-800"
+                />
+              </div>
+              <div>
+                <label className="text-slate-500 block mb-1 text-[10px] font-bold">Jenis Akun Mutasi :</label>
+                <select 
+                  value={newCatType} 
+                  onChange={(e) => setNewCatType(e.target.value as any)}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-1.5 bg-white text-xs text-slate-800"
+                >
+                  <option value="Expense">Pengeluaran (-EXP)</option>
+                  <option value="Income">Pemasukan (+IN)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-slate-500 block mb-1 text-[10px] font-bold">Batas Limit Anggaran Bulanan (IDR - Opsional) :</label>
+                <input 
+                  type="number" 
+                  value={newCatLimit || ''} 
+                  onChange={(e) => setNewCatLimit(e.target.value ? Number(e.target.value) : '')}
+                  placeholder="Contoh: 5000000"
+                  className="w-full border border-slate-200 rounded-xl px-3 py-1.5 bg-white text-xs text-slate-800 font-mono"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end pt-2">
+              <button 
+                type="button"
+                onClick={() => {
+                  if (!newCatName.trim()) {
+                    alert('Harap isi Nama Kategori!');
+                    return;
+                  }
+                  if (onAddCategory) {
+                    onAddCategory({
+                      id: `CAT-ACC-${Date.now()}`,
+                      name: newCatName.trim(),
+                      type: newCatType,
+                      budgetLimit: newCatLimit ? Number(newCatLimit) : undefined
+                    });
+                    setNewCatName('');
+                    setNewCatLimit('');
+                    alert(`Kategori "${newCatName}" berhasil didaftarkan.`);
+                  } else {
+                    alert('Backend sinkronisasi belum tersedia untuk kategori baru.');
+                  }
+                }}
+                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-750 text-white font-bold rounded-xl text-[11px] shadow-sm cursor-pointer"
+              >
+                Simpan & Daftarkan Kategori
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {categories.map((cat) => {
               const txsForCat = transactions.filter(t => t.category === cat.name && t.status === 'Approved');
@@ -538,13 +629,13 @@ export default function FinanceTab({
               const isOver = cat.budgetLimit && usedAmount > cat.budgetLimit;
 
               return (
-                <div key={cat.id} className="p-4 border border-slate-100 rounded-2xl hover:shadow-md transition-all flex flex-col justify-between">
+                <div key={cat.id} className="p-4 border border-slate-100 bg-white rounded-2xl hover:shadow-md transition-all flex flex-col justify-between">
                   <div>
                     <div className="flex justify-between items-start mb-2">
                       <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded ${
                         cat.type === 'Income' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
                       }`}>
-                        {cat.type}
+                        {cat.type === 'Income' ? 'Pemasukan' : 'Pengeluaran'}
                       </span>
                       <span className="text-[10px] text-slate-400 font-mono">ID: {cat.id}</span>
                     </div>
@@ -553,23 +644,63 @@ export default function FinanceTab({
                     <div className="text-xs text-slate-600 space-y-1">
                       <div className="flex justify-between">
                         <span>Realisasi Kas:</span>
-                        <strong className="text-slate-800">Rp {usedAmount.toLocaleString('id-ID')}</strong>
+                        <strong className="text-slate-800 font-mono">Rp {usedAmount.toLocaleString('id-ID')}</strong>
                       </div>
                       
-                      {cat.budgetLimit && (
+                      {editingCatId === cat.id ? (
+                        <div className="space-y-1.5 pt-2 border-t mt-2">
+                          <label className="text-[10px] text-slate-400 font-bold block">Edit Limit Anggaran (IDR):</label>
+                          <div className="flex gap-1.5">
+                            <input 
+                              type="number"
+                              value={editLimitVal}
+                              onChange={(e) => setEditLimitVal(e.target.value ? Number(e.target.value) : '')}
+                              className="w-full border border-slate-200 rounded px-2 py-1 text-xs font-mono"
+                              placeholder="Limit..."
+                            />
+                            <button 
+                              onClick={() => {
+                                if (onUpdateCategory) {
+                                  onUpdateCategory({
+                                    ...cat,
+                                    budgetLimit: editLimitVal ? Number(editLimitVal) : undefined
+                                  });
+                                }
+                                setEditingCatId(null);
+                                setEditLimitVal('');
+                              }}
+                              className="px-2 py-1 bg-indigo-650 hover:bg-slate-800 text-white rounded font-bold text-[10px]"
+                            >
+                              OK
+                            </button>
+                            <button 
+                              onClick={() => setEditingCatId(null)}
+                              className="px-2 py-1 border rounded text-[10px]"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
                         <>
-                          <div className="flex justify-between">
+                          <div className="flex justify-between items-center pt-1">
                             <span>Batas Limit Anggaran:</span>
-                            <span className="font-semibold text-slate-600">Rp {cat.budgetLimit.toLocaleString('id-ID')}</span>
+                            <span className="font-semibold text-slate-600 font-mono">
+                              {cat.budgetLimit ? `Rp ${cat.budgetLimit.toLocaleString('id-ID')}` : 'Belum Ditentukan'}
+                            </span>
                           </div>
                           
-                          {/* Visual progress bar */}
-                          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-3">
-                            <div 
-                              style={{ width: `${percentage}%` }} 
-                              className={`h-full ${isOver ? 'bg-rose-500' : 'bg-indigo-600'} transition-all`}
-                            />
-                          </div>
+                          {cat.budgetLimit ? (
+                            <>
+                              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-3">
+                                <div 
+                                  style={{ width: `${percentage}%` }} 
+                                  className={`h-full ${isOver ? 'bg-rose-500' : 'bg-indigo-600'} transition-all`}
+                                />
+                              </div>
+                              <p className="text-[9px] text-slate-400 font-bold mt-1 text-right">Pemakaian: {percentage.toFixed(0)}%</p>
+                            </>
+                          ) : null}
                         </>
                       )}
                     </div>
@@ -578,6 +709,33 @@ export default function FinanceTab({
                   {isOver && (
                     <div className="mt-3 p-2 bg-rose-50 border border-rose-100 rounded-lg text-[10px] text-rose-700 font-medium flex items-center gap-1">
                       <AlertTriangle className="w-3.5 h-3.5" /> Pos Anggaran ini Melebihi Batas Tahun Ini!
+                    </div>
+                  )}
+
+                  {/* Edit / Delete actions at the card bottom */}
+                  {editingCatId !== cat.id && (
+                    <div className="mt-4 pt-3 border-t border-slate-50 flex justify-end gap-1.5">
+                      <button 
+                        onClick={() => {
+                          setEditingCatId(cat.id);
+                          setEditLimitVal(cat.budgetLimit || '');
+                        }}
+                        className="px-2 py-1 hover:bg-slate-100 text-slate-500 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                        title="Edit limit anggaran"
+                      >
+                        <Edit className="w-3.5 h-3.5" /> Edit Limit
+                      </button>
+                      <button 
+                        onClick={() => {
+                          if (confirm(`Apakah Anda yakin ingin menghapus kategori "${cat.name}"?`)) {
+                            onDeleteCategory?.(cat.id);
+                          }
+                        }}
+                        className="px-2 py-1 hover:bg-red-50 text-red-500 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                        title="Hapus kategori ini"
+                      >
+                        <Trash className="w-3.5 h-3.5" /> Hapus
+                      </button>
                     </div>
                   )}
                 </div>
@@ -594,7 +752,7 @@ export default function FinanceTab({
             
             <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
               <div>
-                <dt className="text-sm font-bold">{editingTx ? 'Ubah Data Pencatatan Ledger' : 'Input Transaksi Jurnal Baru'}</dt>
+                <dt className="text-sm font-bold">{editingTx ? 'Ubah Catatan Transaksi Kas' : 'Input Transaksi Jurnal Baru'}</dt>
                 <dd className="text-[11px] text-slate-300">Setiap nominal pengeluaran di bawah wewenang persetujuan Bendahara.</dd>
               </div>
               <button 
@@ -650,6 +808,21 @@ export default function FinanceTab({
                   ))}
                 </select>
               </div>
+
+              {txType === 'Income' && (
+                <div>
+                  <label className="text-slate-500 block mb-1">Peruntukan / Tujuan Pemasukan :</label>
+                  <select 
+                    value={txAllocation}
+                    onChange={(e) => setTxAllocation(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
+                  >
+                    {(profile?.incomeAllocations || ["Gaji / Operasional", "Peralatan", "Kegiatan Khusus", "Lainnya"]).map((alloc, idx) => (
+                      <option key={idx} value={alloc}>{alloc}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="text-slate-500 block mb-1">Deskripsi / Perihal Transaksi :</label>

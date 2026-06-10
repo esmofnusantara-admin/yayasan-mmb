@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { jsPDF } from 'jspdf';
 import { 
   Plus, 
   MapPin, 
@@ -22,7 +23,7 @@ import {
   Sliders, 
   CheckSquare 
 } from 'lucide-react';
-import { SmallGroup, MeetingLog, MaterialInfo, Member } from '../types';
+import { SmallGroup, MeetingLog, MaterialInfo, Member, InstitutionalProfile } from '../types';
 import { exportToCSV } from '../utils/export';
 
 interface SmallGroupsTabProps {
@@ -33,6 +34,9 @@ interface SmallGroupsTabProps {
   onAddGroup: (g: SmallGroup) => void;
   onDeleteGroup: (id: string) => void;
   onAddMeeting: (m: MeetingLog) => void;
+  onAddMaterial: (mat: MaterialInfo) => void;
+  onDeleteMaterial: (id: string) => void;
+  profile?: InstitutionalProfile;
 }
 
 export default function SmallGroupsTab({
@@ -43,6 +47,9 @@ export default function SmallGroupsTab({
   onAddGroup,
   onDeleteGroup,
   onAddMeeting,
+  onAddMaterial,
+  onDeleteMaterial,
+  profile,
 }: SmallGroupsTabProps) {
   // Navigation inside groups
   const [activeSubView, setActiveSubView] = useState<'groups' | 'meetings' | 'materials'>('groups');
@@ -54,7 +61,7 @@ export default function SmallGroupsTab({
   // Group Form state
   const [isAddGroupOpen, setIsAddGroupOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
-  const [groupRegion, setGroupRegion] = useState('Yogyakarta');
+  const [groupRegion, setGroupRegion] = useState(profile?.regions?.[0] || 'Yogyakarta');
   const [groupStaff, setGroupStaff] = useState('Ahmad Faisal');
   const [groupLeader, setGroupLeader] = useState('');
   const [groupDay, setGroupDay] = useState('Rabu');
@@ -67,6 +74,15 @@ export default function SmallGroupsTab({
   const [meetingMaterial, setMeetingMaterial] = useState('Fondasi Iman Kristen (Buku 1)');
   const [meetingNotes, setMeetingNotes] = useState('');
   const [presentMembers, setPresentMembers] = useState<string[]>([]);
+
+  // Material Form state
+  const [isAddMaterialOpen, setIsAddMaterialOpen] = useState(false);
+  const [materialTitle, setMaterialTitle] = useState('');
+  const [materialCategory, setMaterialCategory] = useState(profile?.materialCategories?.[0] || 'Materi Dasar / Siswa');
+  const [materialDescription, setMaterialDescription] = useState('');
+  const [uploadedFileName, setUploadedFileName] = useState('');
+  const [pdfData, setPdfData] = useState<string>('');
+  const [fileSizeStr, setFileSizeStr] = useState('');
 
   // Function to create group
   const handleCreateGroup = (e: React.FormEvent) => {
@@ -122,6 +138,164 @@ export default function SmallGroupsTab({
       setPresentMembers(presentMembers.filter(id => id !== memberId));
     } else {
       setPresentMembers([...presentMembers, memberId]);
+    }
+  };
+
+  // Handle PDF file selection & conversion to Base64
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      alert('Hanya file PDF yang diperbolehkan!');
+      return;
+    }
+    if (file.size > 750 * 1024) {
+      alert('Ukuran file PDF maksimal adalah 750 KB demi efisiensi database!');
+      return;
+    }
+
+    const kb = (file.size / 1024).toFixed(1);
+    const mb = (file.size / (1024 * 1024)).toFixed(1);
+    const sizeStr = file.size > 1024 * 1024 ? `${mb} MB` : `${kb} KB`;
+    setFileSizeStr(sizeStr);
+    setUploadedFileName(file.name);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setPdfData(reader.result);
+      }
+    };
+    reader.onerror = () => {
+      alert('Gagal membaca file PDF.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Submit new material/curriculum
+  const handleCreateMaterial = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!materialTitle || !materialCategory || !materialDescription) {
+      alert('Judul, Kategori & Deskripsi wajib diisi!');
+      return;
+    }
+
+    const newMaterial: MaterialInfo = {
+      id: `MAT-${Date.now()}`,
+      title: materialTitle,
+      category: materialCategory,
+      description: materialDescription,
+      fileSize: fileSizeStr || 'Generated PDF',
+      pdfData: pdfData || undefined,
+    };
+
+    onAddMaterial(newMaterial);
+
+    // Reset Form
+    setMaterialTitle('');
+    setMaterialCategory('Materi Dasar / Siswa');
+    setMaterialDescription('');
+    setUploadedFileName('');
+    setPdfData('');
+    setFileSizeStr('');
+    setIsAddMaterialOpen(false);
+    alert('Materi Kurikulum Berhasil Diupload & Tersimpan.');
+  };
+
+  // Download PDF file handling
+  const handleDownloadPDF = (material: MaterialInfo) => {
+    if (material.pdfData) {
+      try {
+        const link = document.createElement('a');
+        link.href = material.pdfData;
+        link.download = `${material.title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (err) {
+        console.error('Error downloading uploaded PDF:', err);
+        alert('Gagal mengunduh file PDF.');
+      }
+    } else {
+      try {
+        const doc = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        // Background styling
+        doc.setFillColor(248, 250, 252); // slate-50
+        doc.rect(0, 0, 210, 297, 'F');
+
+        // Header bar
+        doc.setFillColor(79, 70, 229); // indigo-600
+        doc.rect(0, 0, 210, 15, 'F');
+
+        // Brand Title
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(22);
+        doc.setTextColor(30, 41, 59); // slate-800
+        doc.text("YAYASAN EL SHADDAI MINISTRY", 15, 35);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139); // slate-500
+        doc.text("DISCIPLESHIP LIBRARY - OFFICIAL CURRICULUM SYLLABUS", 15, 41);
+
+        // Header Divider
+        doc.setLineWidth(0.5);
+        doc.setDrawColor(226, 232, 240); // slate-200
+        doc.line(15, 45, 195, 45);
+
+        // Kategori Block
+        doc.setFillColor(238, 242, 255); // indigo-50
+        doc.setDrawColor(224, 231, 255); // indigo-100
+        doc.rect(15, 52, 180, 10, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(79, 70, 229); // indigo-600
+        doc.text(`KATEGORI: ${material.category.toUpperCase()}`, 20, 58.5);
+
+        // Core Content: Title
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.setTextColor(15, 23, 42); // slate-900
+        const titleLines = doc.splitTextToSize(material.title, 170);
+        doc.text(titleLines, 15, 75);
+
+        const startY = 75 + (titleLines.length * 7);
+
+        // Description Label
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.setTextColor(71, 85, 105); // slate-600
+        doc.text("Deskripsi & Garis Besar Diskusi:", 15, startY + 5);
+
+        // Description Body Text
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(11);
+        doc.setTextColor(51, 65, 85); // slate-700
+        const descLines = doc.splitTextToSize(material.description, 170);
+        doc.text(descLines, 15, startY + 12);
+
+        // Footer block
+        const footerY = Math.max(startY + 12 + (descLines.length * 6) + 20, 245);
+        doc.setLineWidth(0.2);
+        doc.setDrawColor(203, 213, 225); // slate-300
+        doc.line(15, footerY, 195, footerY);
+
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(9);
+        doc.setTextColor(148, 163, 184); // slate-400
+        doc.text(`ID Referensi: ${material.id} | Versi Cetak Digital Resmi - El Shaddai Ministry`, 15, footerY + 8);
+        doc.text(`Unduhan Elektronik: ${new Date().toLocaleDateString('id-ID')} | Status: Terakreditasi`, 15, footerY + 13);
+
+        doc.save(`${material.title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+      } catch (err) {
+        console.error('Error synthesizing PDF using jsPDF:', err);
+        alert('Gagal menyusun data PDF.');
+      }
     }
   };
 
@@ -188,34 +362,51 @@ export default function SmallGroupsTab({
               </button>
             </>
           )}
+          {activeSubView === 'materials' && (
+            <button 
+              onClick={() => setIsAddMaterialOpen(true)}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm"
+            >
+              <Plus className="w-4 h-4" /> Unggah Kurikulum / Materi
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Internal Menu Control */}
-      <div className="flex flex-wrap gap-2 p-1.5 bg-slate-100 rounded-xl max-w-md">
+      {/* Segmented Menu Control Redesign */}
+      <div className="bg-slate-50 border border-slate-200 p-1 rounded-2xl flex max-w-lg shadow-xs my-2">
         <button 
           onClick={() => setActiveSubView('groups')}
-          className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-            activeSubView === 'groups' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${
+            activeSubView === 'groups' 
+              ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md transform scale-[1.01]' 
+              : 'text-slate-600 hover:text-indigo-650 hover:bg-slate-100/50'
           }`}
         >
-          Konfigurasi Kelompok
+          <Users className="w-4 h-4" />
+          <span>Kelompok Pemuridan</span>
         </button>
         <button 
           onClick={() => setActiveSubView('meetings')}
-          className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-            activeSubView === 'meetings' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${
+            activeSubView === 'meetings' 
+              ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md transform scale-[1.01]' 
+              : 'text-slate-600 hover:text-indigo-650 hover:bg-slate-100/50'
           }`}
         >
-          Log Pertemuan mingguan
+          <Calendar className="w-4 h-4" />
+          <span>Log Pertemuan</span>
         </button>
         <button 
           onClick={() => setActiveSubView('materials')}
-          className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-            activeSubView === 'materials' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${
+            activeSubView === 'materials' 
+              ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md transform scale-[1.01]' 
+              : 'text-slate-600 hover:text-indigo-650 hover:bg-slate-100/50'
           }`}
         >
-          Kurikulum & Materi
+          <BookMarked className="w-4 h-4" />
+          <span>Bahan Kurikulum</span>
         </button>
       </div>
 
@@ -498,7 +689,7 @@ export default function SmallGroupsTab({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {materials.map(material => (
-              <div key={material.id} className="p-5 border border-slate-100 rounded-2xl hover:shadow-md transition-all flex flex-col justify-between">
+              <div key={material.id} className="p-5 border border-slate-100 rounded-2xl hover:shadow-md transition-all flex flex-col justify-between bg-slate-50/10">
                 <div>
                   <div className="flex justify-between items-start mb-2">
                     <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-bold px-2.5 py-0.5 rounded font-mono">
@@ -511,18 +702,27 @@ export default function SmallGroupsTab({
                     "{material.description}"
                   </p>
                 </div>
-                <div className="pt-4 border-t border-slate-50 mt-4 flex items-center justify-between">
+                <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between">
                   <span className="text-[10px] text-slate-400 font-medium">Bahan Versi Cetak: Tersedia</span>
-                  <a 
-                    href="#download"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      alert(`Menyimulasikan download file "${material.title}" PDF...`);
-                    }}
-                    className="p-1 px-3 bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-700 font-bold border border-slate-200 rounded-lg flex items-center gap-1 hover:text-indigo-600 transition-colors cursor-pointer"
-                  >
-                    <Download className="w-3 h-3" /> Unduh PDF
-                  </a>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => {
+                        if (confirm(`Apakah Anda yakin ingin menghapus materi "${material.title}"?`)) {
+                          onDeleteMaterial(material.id);
+                        }
+                      }}
+                      className="p-1 px-3 bg-red-50 hover:bg-red-100 text-[10px] text-red-700 font-bold border border-red-100 rounded-lg flex items-center gap-1 hover:text-red-900 transition-colors cursor-pointer"
+                      title="Hapus materi kurikulum ini"
+                    >
+                      <Trash className="w-3 h-3 text-red-500" /> Hapus
+                    </button>
+                    <button 
+                      onClick={() => handleDownloadPDF(material)}
+                      className="p-1 px-3 bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-700 font-bold border border-slate-200 rounded-lg flex items-center gap-1 hover:text-indigo-600 transition-colors cursor-pointer"
+                    >
+                      <Download className="w-3 h-3 text-indigo-500" /> Unduh PDF
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -564,11 +764,9 @@ export default function SmallGroupsTab({
                     onChange={(e) => setGroupRegion(e.target.value)}
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-850"
                   >
-                    <option value="Yogyakarta">Yogyakarta</option>
-                    <option value="Surabaya">Surabaya</option>
-                    <option value="Jakarta">Jakarta</option>
-                    <option value="Bandung">Bandung</option>
-                    <option value="Medan">Medan</option>
+                    {(profile?.regions || ["Yogyakarta", "Surabaya", "Jakarta", "Bandung", "Medan"]).map((r, idx) => (
+                      <option key={idx} value={r}>{r}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -603,13 +801,9 @@ export default function SmallGroupsTab({
                     onChange={(e) => setGroupDay(e.target.value)}
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-850"
                   >
-                    <option value="Senin">Senin</option>
-                    <option value="Selasa">Selasa</option>
-                    <option value="Rabu">Rabu</option>
-                    <option value="Kamis">Kamis</option>
-                    <option value="Jumat">Jumat</option>
-                    <option value="Sabtu">Sabtu</option>
-                    <option value="Minggu">Minggu</option>
+                    {(profile?.meetingDays || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]).map((day, idx) => (
+                      <option key={idx} value={day}>{day}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -649,6 +843,119 @@ export default function SmallGroupsTab({
                   className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
                 >
                   <Save className="w-4 h-4 inline mr-1" /> Simpan Kelompok kecil
+                </button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CREATE / UPLOAD MATERIAL */}
+      {isAddMaterialOpen && (
+        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden scale-95 transition-all">
+            
+            <div className="bg-indigo-900 px-6 py-4 text-white flex justify-between items-center">
+              <div>
+                <dt className="text-sm font-bold">Unggah Kurikulum & Materi Baru</dt>
+                <dd className="text-[11px] text-indigo-200">Arsipkan bahan ajar KTB baru ke dalam Discipleship Library ESM.</dd>
+              </div>
+              <button 
+                onClick={() => {
+                  setIsAddMaterialOpen(false);
+                  setUploadedFileName('');
+                  setPdfData('');
+                  setFileSizeStr('');
+                }} 
+                className="text-indigo-300 hover:text-white cursor-pointer"
+              >
+                <Plus className="w-5 h-5 rotate-45" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateMaterial} className="p-6 space-y-4 text-xs">
+              <div>
+                <label className="text-slate-500 block mb-1">Judul Materi / Modul kurikulum :</label>
+                <input 
+                  type="text" 
+                  value={materialTitle}
+                  onChange={(e) => setMaterialTitle(e.target.value)}
+                  placeholder="Contoh: Bertumbuh dalam Karakter Kristus (Buku 3)"
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-500 block mb-1">Kategori Sasaran Bimbingan :</label>
+                <select 
+                  value={materialCategory}
+                  onChange={(e) => setMaterialCategory(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-850"
+                >
+                  {(profile?.materialCategories || [
+                    "Materi Dasar / Siswa",
+                    "Siswa & Mahasiswa",
+                    "Alumni",
+                    "Pelatihan Pemimpin (PKK)",
+                    "Materi Umum / Publik"
+                  ]).map((cat, idx) => (
+                    <option key={idx} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-slate-500 block mb-1">Deskripsi & Garis Besar Pembahasan :</label>
+                <textarea 
+                  rows={4}
+                  value={materialDescription}
+                  onChange={(e) => setMaterialDescription(e.target.value)}
+                  placeholder="Deskripsikan secara ringkas bab bimbingan ini, sasaran pembimbingan, referensi ayat firman tuhan, dll..."
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 leading-relaxed"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-500 block mb-1">Lampiran File PDF (Maksimal 750 KB):</label>
+                <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-xl p-4 transition-colors cursor-pointer relative bg-slate-50 hover:bg-slate-100/30">
+                  <input 
+                    type="file" 
+                    accept="application/pdf"
+                    onChange={handleFileChange}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  />
+                  <Download className="w-6 h-6 text-indigo-500 mb-1.5" />
+                  <span className="text-[11px] font-semibold text-slate-600 block text-center truncate max-w-[280px]">
+                    {uploadedFileName || 'Klik atau seret file PDF di sini'}
+                  </span>
+                  <span className="text-[9px] text-slate-400 mt-0.5 text-center px-1.5 block">
+                    Opsional. Jika tidak dilampirkan, sistem akan mengompilasi dan mensintesis PDF lembar modul secara otomatis saat diunduh.
+                  </span>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-50 flex justify-end gap-3.5">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setIsAddMaterialOpen(false);
+                    setUploadedFileName('');
+                    setPdfData('');
+                    setFileSizeStr('');
+                  }}
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 font-semibold cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button 
+                  type="submit"
+                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+                >
+                  <Save className="w-4 h-4 inline mr-1" /> Unggah & Simpan
                 </button>
               </div>
 

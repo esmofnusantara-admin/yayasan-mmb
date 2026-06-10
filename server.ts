@@ -1,211 +1,31 @@
-import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { Pool } from 'pg';
 import { createServer as createViteServer } from 'vite';
 
 const PORT = 3000;
-const DB_PROVIDER = (process.env.DB_PROVIDER || 'firebase').toLowerCase();
-const JSON_DB_PATH = process.env.JSON_DB_PATH || path.join(process.cwd(), 'data', 'local-db.json');
 
-type PlainObject = Record<string, any>;
+// Read Firebase config safely from JSON file
+const firebaseConfigPath = path.join(process.cwd(), 'firebase-applet-config.json');
+const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf8'));
 
-interface DbAdapter {
-  list(colName: string): Promise<PlainObject[]>;
-  get(colName: string, id: string): Promise<PlainObject | null>;
-  set(colName: string, id: string, value: PlainObject): Promise<void>;
-  update(colName: string, id: string, patch: PlainObject): Promise<void>;
-  delete(colName: string, id: string): Promise<void>;
-}
-
-interface JsonDbData {
-  collections: Record<string, Record<string, PlainObject>>;
-}
-
-function ensureJsonDbExists() {
-  const dir = path.dirname(JSON_DB_PATH);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  if (!fs.existsSync(JSON_DB_PATH)) {
-    const initial: JsonDbData = { collections: {} };
-    fs.writeFileSync(JSON_DB_PATH, JSON.stringify(initial, null, 2), 'utf8');
-  }
-}
-
-function readJsonDb(): JsonDbData {
-  ensureJsonDbExists();
-  const raw = fs.readFileSync(JSON_DB_PATH, 'utf8');
-  const parsed = JSON.parse(raw) as JsonDbData;
-  if (!parsed.collections || typeof parsed.collections !== 'object') {
-    return { collections: {} };
-  }
-  return parsed;
-}
-
-function writeJsonDb(data: JsonDbData) {
-  ensureJsonDbExists();
-  fs.writeFileSync(JSON_DB_PATH, JSON.stringify(data, null, 2), 'utf8');
-}
-
-function createJsonAdapter(): DbAdapter {
-  return {
-    async list(colName: string) {
-      const dbData = readJsonDb();
-      const col = dbData.collections[colName] || {};
-      return Object.values(col);
-    },
-    async get(colName: string, id: string) {
-      const dbData = readJsonDb();
-      const col = dbData.collections[colName] || {};
-      return col[id] || null;
-    },
-    async set(colName: string, id: string, value: PlainObject) {
-      const dbData = readJsonDb();
-      if (!dbData.collections[colName]) dbData.collections[colName] = {};
-      dbData.collections[colName][id] = value;
-      writeJsonDb(dbData);
-    },
-    async update(colName: string, id: string, patch: PlainObject) {
-      const dbData = readJsonDb();
-      const col = dbData.collections[colName] || {};
-      if (!col[id]) {
-        throw new Error(`Document not found: ${colName}/${id}`);
-      }
-      col[id] = { ...col[id], ...patch };
-      dbData.collections[colName] = col;
-      writeJsonDb(dbData);
-    },
-    async delete(colName: string, id: string) {
-      const dbData = readJsonDb();
-      const col = dbData.collections[colName] || {};
-      delete col[id];
-      dbData.collections[colName] = col;
-      writeJsonDb(dbData);
-    },
-  };
-}
-
-function createFirebaseAdapter(): DbAdapter {
-  const firebaseConfigPath = path.join(process.cwd(), 'firebase-applet-config.json');
-  const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf8'));
-  const firebaseApp = initializeApp(firebaseConfig);
-  const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
-
-  return {
-    async list(colName: string) {
-      const snap = await getDocs(collection(db, colName));
-      const result: PlainObject[] = [];
-      snap.forEach((docSnap) => result.push(docSnap.data() as PlainObject));
-      return result;
-    },
-    async get(colName: string, id: string) {
-      const ref = doc(db, colName, id);
-      const snap = await getDoc(ref);
-      return snap.exists() ? (snap.data() as PlainObject) : null;
-    },
-    async set(colName: string, id: string, value: PlainObject) {
-      await setDoc(doc(db, colName, id), value);
-    },
-    async update(colName: string, id: string, patch: PlainObject) {
-      await updateDoc(doc(db, colName, id), patch);
-    },
-    async delete(colName: string, id: string) {
-      await deleteDoc(doc(db, colName, id));
-    },
-  };
-}
-
-function createPostgresAdapter(): DbAdapter {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-
-  // Ensure the generic kv_store table exists on first use
-  let initialized = false;
-  async function ensureSchema() {
-    if (initialized) return;
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS kv_store (
-        collection TEXT NOT NULL,
-        id         TEXT NOT NULL,
-        data       JSONB NOT NULL DEFAULT '{}',
-        PRIMARY KEY (collection, id)
-      )
-    `);
-    initialized = true;
-  }
-
-  return {
-    async list(colName: string) {
-      await ensureSchema();
-      const res = await pool.query(
-        'SELECT data FROM kv_store WHERE collection = $1',
-        [colName]
-      );
-      return res.rows.map((r) => r.data as PlainObject);
-    },
-    async get(colName: string, id: string) {
-      await ensureSchema();
-      const res = await pool.query(
-        'SELECT data FROM kv_store WHERE collection = $1 AND id = $2',
-        [colName, id]
-      );
-      return res.rows.length > 0 ? (res.rows[0].data as PlainObject) : null;
-    },
-    async set(colName: string, id: string, value: PlainObject) {
-      await ensureSchema();
-      await pool.query(
-        `INSERT INTO kv_store (collection, id, data)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (collection, id) DO UPDATE SET data = $3`,
-        [colName, id, JSON.stringify(value)]
-      );
-    },
-    async update(colName: string, id: string, patch: PlainObject) {
-      await ensureSchema();
-      const res = await pool.query(
-        'SELECT data FROM kv_store WHERE collection = $1 AND id = $2',
-        [colName, id]
-      );
-      if (res.rows.length === 0) {
-        throw new Error(`Document not found: ${colName}/${id}`);
-      }
-      const merged = { ...res.rows[0].data, ...patch };
-      await pool.query(
-        'UPDATE kv_store SET data = $3 WHERE collection = $1 AND id = $2',
-        [colName, id, JSON.stringify(merged)]
-      );
-    },
-    async delete(colName: string, id: string) {
-      await ensureSchema();
-      await pool.query(
-        'DELETE FROM kv_store WHERE collection = $1 AND id = $2',
-        [colName, id]
-      );
-    },
-  };
-}
-
-function resolveAdapter(): DbAdapter {
-  if (DB_PROVIDER === 'json') return createJsonAdapter();
-  if (DB_PROVIDER === 'postgres') return createPostgresAdapter();
-  return createFirebaseAdapter();
-}
-
-const dbAdapter: DbAdapter = resolveAdapter();
-console.log(`[DB] Using provider: ${DB_PROVIDER}`);
+// Initialize Firebase client SDK server-side
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Seeding default users to Firestore if the 'users' collection is empty
 async function seedUsersIfEmpty() {
   try {
-    const users = await dbAdapter.list('users');
-    if (users.length === 0) {
-      console.log('Seeding default users to users collection...');
+    const colRef = collection(db, 'users');
+    const snap = await getDocs(colRef);
+    if (snap.empty) {
+      console.log('Seeding default users to Firestore users collection...');
       const defaultUsers = [
         { 
           email: 'superadmin@esm.or.id', 
@@ -249,11 +69,11 @@ async function seedUsersIfEmpty() {
         }
       ];
       for (const u of defaultUsers) {
-        await dbAdapter.set('users', u.email, u);
+        await setDoc(doc(db, 'users', u.email), u);
       }
     }
   } catch (error) {
-    console.error('Failed to seed users:', error);
+    console.error('Failed to seed users to Firestore:', error);
   }
 }
 
@@ -292,8 +112,9 @@ app.post('/api/auth/register', async (req, res) => {
     const docId = `${cleanPhone}@esm.or.id`; // standard document ID as email for full compatibility
 
     // Check if phone or email already registered
-    const existingUser = await dbAdapter.get('users', docId);
-    if (existingUser) {
+    const docRef = doc(db, 'users', docId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
       return res.status(400).json({ success: false, message: 'Nomor telepon ini sudah terdaftar.' });
     }
 
@@ -309,11 +130,11 @@ app.post('/api/auth/register', async (req, res) => {
       createdAt: new Date().toISOString()
     };
 
-    await dbAdapter.set('users', docId, newUser);
+    await setDoc(docRef, newUser);
 
     // Write audit log
     const auditId = `AUD-REG-${Date.now()}`;
-    await dbAdapter.set('audits', auditId, cleanObjectForFirestore({
+    await setDoc(doc(db, 'audits', auditId), cleanObjectForFirestore({
       id: auditId,
       userName: name,
       userRole: role,
@@ -337,15 +158,18 @@ app.post('/api/auth/login', async (req, res) => {
     await seedUsersIfEmpty();
 
     // 1. Try to fetch direct
+    const docRef = doc(db, 'users', email);
+    let docSnap = await getDoc(docRef);
     let user: any = null;
-    const directUser = await dbAdapter.get('users', email);
 
-    if (directUser && !directUser.deleted) {
-      user = directUser;
+    if (docSnap.exists() && !docSnap.data().deleted) {
+      user = docSnap.data();
     } else {
       // 2. Query all users (fallback for phone number comparison or lowercased email)
-      const users = await dbAdapter.list('users');
-      users.forEach((u) => {
+      const colRef = collection(db, 'users');
+      const snap = await getDocs(colRef);
+      snap.forEach(d => {
+        const u = d.data();
         if (!u.deleted) {
           if (u.phone === email || u.email?.toLowerCase() === email.toLowerCase()) {
             user = u;
@@ -387,8 +211,9 @@ app.post('/api/auth/forgot-password/challenge', async (req, res) => {
   const { email } = req.body;
   try {
     await seedUsersIfEmpty();
-    const user = await dbAdapter.get('users', email);
-    if (!user || user.deleted) {
+    const docRef = doc(db, 'users', email);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists() || docSnap.data().deleted) {
       return res.status(404).json({ success: false, message: 'Alamat email tidak terdaftar.' });
     }
     res.json({
@@ -404,8 +229,9 @@ app.post('/api/auth/forgot-password/challenge', async (req, res) => {
 app.post('/api/auth/forgot-password/reset', async (req, res) => {
   const { email, answer, newPassword } = req.body;
   try {
-    const user = await dbAdapter.get('users', email);
-    if (!user || user.deleted) {
+    const docRef = doc(db, 'users', email);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists() || docSnap.data().deleted) {
       return res.status(404).json({ success: false, message: 'Alamat email tidak terdaftar.' });
     }
     
@@ -413,7 +239,7 @@ app.post('/api/auth/forgot-password/reset', async (req, res) => {
     const isCorrect = cleanAnswer.includes('josephsinaga') || cleanAnswer.includes('sinaga') || cleanAnswer.includes('joseph');
     
     if (isCorrect) {
-      await dbAdapter.update('users', email, { password: newPassword });
+      await updateDoc(docRef, { password: newPassword });
       res.json({ success: true, message: 'Password berhasil diatur ulang.' });
     } else {
       res.status(400).json({ success: false, message: 'Jawaban keamanan salah.' });
@@ -428,8 +254,15 @@ app.post('/api/auth/forgot-password/reset', async (req, res) => {
 app.get('/api/data/:colName', async (req, res) => {
   const { colName } = req.params;
   try {
-    const docs = await dbAdapter.list(colName);
-    const items = docs.filter((data) => !data.deleted);
+    const colRef = collection(db, colName);
+    const snap = await getDocs(colRef);
+    const items: any[] = [];
+    snap.forEach(docSnap => {
+      const data = docSnap.data();
+      if (!data.deleted) {
+        items.push(data);
+      }
+    });
     res.json(items);
   } catch (error: any) {
     console.error(`Error fetching collection ${colName}:`, error);
@@ -442,8 +275,9 @@ app.post('/api/data/:colName/:id', async (req, res) => {
   const { colName, id } = req.params;
   const payload = req.body;
   try {
+    const docRef = doc(db, colName, id);
     const cleaned = cleanObjectForFirestore(payload);
-    await dbAdapter.set(colName, id, cleaned);
+    await setDoc(docRef, cleaned);
     res.json({ success: true });
   } catch (error: any) {
     console.error(`Error writing document ${colName}/${id}:`, error);
@@ -456,8 +290,9 @@ app.put('/api/data/:colName/:id', async (req, res) => {
   const { colName, id } = req.params;
   const payload = req.body;
   try {
+    const docRef = doc(db, colName, id);
     const cleaned = cleanObjectForFirestore(payload);
-    await dbAdapter.update(colName, id, cleaned);
+    await updateDoc(docRef, cleaned);
     res.json({ success: true });
   } catch (error: any) {
     console.error(`Error updating document ${colName}/${id}:`, error);
@@ -469,12 +304,13 @@ app.put('/api/data/:colName/:id', async (req, res) => {
 app.delete('/api/data/:colName/:id', async (req, res) => {
   const { colName, id } = req.params;
   try {
-    await dbAdapter.update(colName, id, { deleted: true, deletedAt: new Date().toISOString() });
+    const docRef = doc(db, colName, id);
+    await updateDoc(docRef, { deleted: true, deletedAt: new Date().toISOString() });
     res.json({ success: true });
   } catch (error: any) {
     try {
       // fallback delete for non-soft records if needed
-      await dbAdapter.delete(colName, id);
+      await deleteDoc(doc(db, colName, id));
       res.json({ success: true });
     } catch (fallbackError: any) {
       console.error(`Error hard/soft deleting document ${colName}/${id}:`, fallbackError);
@@ -492,7 +328,7 @@ app.post('/api/finance/sync', async (req, res) => {
     const newBalance = currentBalanceBeforeTx + delta;
 
     // 1. Write the Transaction record
-    await dbAdapter.set('transactions', tx.id, cleanObjectForFirestore({
+    await setDoc(doc(db, 'transactions', tx.id), cleanObjectForFirestore({
       ...tx,
       createdBy: operatorName,
       createdAt: new Date().toISOString(),
@@ -500,7 +336,7 @@ app.post('/api/finance/sync', async (req, res) => {
     }));
 
     // 2. Set/update the 'kas' snapshot document
-    await dbAdapter.set('kas', 'main', cleanObjectForFirestore({
+    await setDoc(doc(db, 'kas', 'main'), cleanObjectForFirestore({
       id: 'main',
       balance: newBalance,
       lastUpdated: new Date().toISOString(),
@@ -511,7 +347,7 @@ app.post('/api/finance/sync', async (req, res) => {
     const auditId = `AUD-FIN-${Date.now()}`;
     const actionText = `[Sistem Atomik Keuangan] Entry Transaksi ${tx.id} (${tx.type}) senilai Rp ${tx.amount.toLocaleString('id-ID')} tersimpan (${tx.status}). Sisa kas: Rp ${newBalance.toLocaleString('id-ID')}`;
     
-    await dbAdapter.set('audits', auditId, cleanObjectForFirestore({
+    await setDoc(doc(db, 'audits', auditId), cleanObjectForFirestore({
       id: auditId,
       userName: operatorName,
       userRole: operatorRole,

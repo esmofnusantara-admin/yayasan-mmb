@@ -27,7 +27,7 @@ import {
   Compass,
   Download
 } from 'lucide-react';
-import { Member, MemberNote, PrayerRequest, FollowUpLog, SmallGroup } from '../types';
+import { Member, MemberNote, PrayerRequest, FollowUpLog, SmallGroup, InstitutionalProfile } from '../types';
 import { exportToCSV } from '../utils/export';
 
 interface MembersTabProps {
@@ -44,6 +44,7 @@ interface MembersTabProps {
   followUps: FollowUpLog[];
   onAddFollowUp: (fu: FollowUpLog) => void;
   currentRole: string;
+  profile?: InstitutionalProfile;
 }
 
 export default function MembersTab({
@@ -60,6 +61,7 @@ export default function MembersTab({
   followUps,
   onAddFollowUp,
   currentRole,
+  profile,
 }: MembersTabProps) {
   // Navigation within sub-tabs in Members
   const [subTab, setSubTab] = useState<'directory' | 'notes' | 'prayers' | 'followup' | 'import'>('directory');
@@ -89,12 +91,12 @@ export default function MembersTab({
   const [education, setEducation] = useState('');
   const [occupation, setOccupation] = useState('');
   
-  const [component, setComponent] = useState<'Siswa' | 'Mahasiswa' | 'Alumni' | 'Umum'>('Mahasiswa');
-  const [region, setRegion] = useState('Yogyakarta');
+  const [component, setComponent] = useState<'Siswa' | 'Mahasiswa' | 'Alumni' | 'Umum'>((profile?.memberComponents?.[0] as any) || 'Mahasiswa');
+  const [region, setRegion] = useState(profile?.regions?.[0] || 'Yogyakarta');
   const [smallGroupId, setSmallGroupId] = useState('');
   const [staffAdvisor, setStaffAdvisor] = useState('');
   const [mentor, setMentor] = useState('');
-  const [statusKeaktifan, setStatusKeaktifan] = useState<'Aktif' | 'Pasif' | 'Cuti' | 'Pindah'>('Aktif');
+  const [statusKeaktifan, setStatusKeaktifan] = useState<'Aktif' | 'Pasif' | 'Cuti' | 'Pindah'>((profile?.memberKeaktifanStatuses?.[0] as any) || 'Aktif');
 
   // Sub-tab States: Adding counseling note
   const [noteCategory, setNoteCategory] = useState('Konseling Akademik');
@@ -135,12 +137,12 @@ export default function MembersTab({
     setOriginalChurch('');
     setEducation('');
     setOccupation('');
-    setComponent('Mahasiswa');
-    setRegion('Yogyakarta');
+    setComponent((profile?.memberComponents?.[0] as any) || 'Mahasiswa');
+    setRegion(profile?.regions?.[0] || 'Yogyakarta');
     setSmallGroupId('');
     setStaffAdvisor('');
     setMentor('');
-    setStatusKeaktifan('Aktif');
+    setStatusKeaktifan((profile?.memberKeaktifanStatuses?.[0] as any) || 'Aktif');
     setIsFormOpen(true);
   };
 
@@ -494,9 +496,9 @@ export default function MembersTab({
                     className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   >
                     <option value="Semua">Semua Tingkat (Kader)</option>
-                    <option value="Siswa">Siswa (Encounter)</option>
-                    <option value="Mahasiswa">Mahasiswa (Explore)</option>
-                    <option value="Alumni">Alumni (Connect)</option>
+                    {(profile?.memberComponents || ["Siswa", "Mahasiswa", "Alumni", "Umum"]).map((comp, idx) => (
+                      <option key={idx} value={comp}>{comp}</option>
+                    ))}
                   </select>
                   <button
                     onClick={handleExportCSV}
@@ -1230,10 +1232,9 @@ export default function MembersTab({
                       onChange={(e) => setComponent(e.target.value as any)}
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
                     >
-                      <option value="Siswa">Siswa (Encounter)</option>
-                      <option value="Mahasiswa">Mahasiswa (Explore)</option>
-                      <option value="Alumni">Alumni (Connect)</option>
-                      <option value="Umum">Umum (Pihak Luar)</option>
+                      {(profile?.memberComponents || ["Siswa", "Mahasiswa", "Alumni", "Umum"]).map((comp, idx) => (
+                        <option key={idx} value={comp}>{comp}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -1243,11 +1244,9 @@ export default function MembersTab({
                       onChange={(e) => setRegion(e.target.value)}
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
                     >
-                      <option value="Yogyakarta">Yogyakarta</option>
-                      <option value="Surabaya">Surabaya</option>
-                      <option value="Jakarta">Jakarta</option>
-                      <option value="Bandung">Bandung</option>
-                      <option value="Medan">Medan</option>
+                      {(profile?.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]).map((r, idx) => (
+                        <option key={idx} value={r}>{r}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -1291,10 +1290,9 @@ export default function MembersTab({
                       onChange={(e) => setStatusKeaktifan(e.target.value as any)}
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
                     >
-                      <option value="Aktif">Aktif</option>
-                      <option value="Pasif">Pasif</option>
-                      <option value="Cuti">Cuti</option>
-                      <option value="Pindah">Pindah wilayah</option>
+                      {(profile?.memberKeaktifanStatuses || ["Aktif", "Pasif", "Cuti", "Pindah"]).map((stat, idx) => (
+                        <option key={idx} value={stat}>{stat}</option>
+                      ))}
                     </select>
                   </div>
                 </div>

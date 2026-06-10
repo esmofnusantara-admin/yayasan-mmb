@@ -26,7 +26,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
-import { Staff, CustomPayrollField, ApprovalRequest, StaffSalary, SalaryComponent } from '../types';
+import { Staff, CustomPayrollField, ApprovalRequest, StaffSalary, SalaryComponent, InstitutionalProfile } from '../types';
 import { exportToCSV, exportSlipToPDF } from '../utils/export';
 
 interface PayrollTabProps {
@@ -38,6 +38,7 @@ interface PayrollTabProps {
   onAddTransaction: (tx: any) => Promise<void>;
   salaries?: StaffSalary[];
   onUpdateSalary?: (s: StaffSalary) => void;
+  profile?: InstitutionalProfile;
 }
 
 const DEFAULT_PUBLIC_FIELDS = [
@@ -60,6 +61,7 @@ export default function PayrollTab({
   onAddTransaction,
   salaries = [],
   onUpdateSalary,
+  profile,
 }: PayrollTabProps) {
   const [editingSalary, setEditingSalary] = useState<StaffSalary | null>(null);
   const [publicFields, setPublicFields] = useState<any[]>(() => {
@@ -160,10 +162,10 @@ export default function PayrollTab({
   // Derive payroll logs directly from live global Firestore Transactions ledger!
   const paymentLogs = useMemo(() => {
     return transactions
-      .filter(t => t.id.startsWith('TX-PAY-') && t.status === 'Approved')
+      .filter(t => (t.id.startsWith('TX-PAY-') || t.category === 'Payroll Staff & BPJS') && t.status === 'Approved')
       .map(t => {
         let termLabel = 'Termin';
-        if (t.description.includes('Lunas 100%')) {
+        if (t.description.includes('Lunas 100%') || t.description.includes('Periode') || t.description.includes('Gaji')) {
           termLabel = 'Lunas 100%';
         } else if (t.description.includes('Termin')) {
           const match = t.description.match(/Termin \(([^)]+)\)/);
@@ -558,9 +560,9 @@ export default function PayrollTab({
       </div>
 
       {/* Financial aggregate metrics dashboard */}
-      <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {/* Card 1: Total Staf */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-150 shadow-sm flex flex-col justify-between h-28">
+        <div className="bg-white p-4 rounded-2xl border border-slate-150 shadow-sm flex flex-col justify-between min-h-[7rem]">
           <div className="flex items-center justify-between">
             <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider font-mono">Total Staff</span>
             <div className="bg-slate-50 p-1.5 rounded-lg text-slate-600">
@@ -574,11 +576,11 @@ export default function PayrollTab({
         </div>
 
         {/* Card 2: Total Gaji THP Staff */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-150 shadow-sm flex flex-col justify-between h-28">
+        <div className="bg-white p-4 rounded-2xl border border-slate-150 shadow-sm flex flex-col justify-between min-h-[7rem]">
           <div className="flex items-center justify-between">
             <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider font-mono">Total Gaji THP</span>
             <div className="bg-indigo-55/40 p-1.5 rounded-lg text-indigo-600">
-              <Calculator className="w-4 h-4 text-indigo-650" />
+              <Calculator className="w-4 h-4 text-indigo-655" />
             </div>
           </div>
           <div className="mt-1">
@@ -590,7 +592,7 @@ export default function PayrollTab({
         </div>
 
         {/* Card 3: Tanggal Penggajian Berikutnya */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-150 shadow-sm flex flex-col justify-between h-28">
+        <div className="bg-white p-4 rounded-2xl border border-slate-150 shadow-sm flex flex-col justify-between min-h-[7rem]">
           <div className="flex items-center justify-between">
             <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider font-mono">Gajian Berikutnya</span>
             <div className="bg-amber-50 p-1.5 rounded-lg text-amber-600">
@@ -614,7 +616,7 @@ export default function PayrollTab({
         </div>
 
         {/* Card 4: Dana Gaji Terbayar */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-150 shadow-sm flex flex-col justify-between h-28">
+        <div className="bg-white p-4 rounded-2xl border border-slate-150 shadow-sm flex flex-col justify-between min-h-[7rem]">
           <div className="flex items-center justify-between">
             <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider font-mono">Gaji Terbayar</span>
             <div className={`p-1.5 rounded-lg ${totalNetPaid >= totalNetPayout ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-600'}`}>
@@ -644,7 +646,7 @@ export default function PayrollTab({
         </div>
 
         {/* Card 5: Saldo Saat Ini (Dynamic Red/Green depending on sufficiency) */}
-        <div className={`p-4 rounded-2xl border-2 shadow-sm flex flex-col justify-between h-28 transition-all ${
+        <div className={`p-4 rounded-2xl border-2 shadow-sm flex flex-col justify-between min-h-[7rem] transition-all ${
           isBalanceSufficient 
             ? 'bg-emerald-50 border-emerald-300 text-emerald-950' 
             : 'bg-rose-50 border-rose-300 text-rose-950'
@@ -688,12 +690,6 @@ export default function PayrollTab({
               Pilih karyawan yang ingin diproses gajinya pada termin ini, masukkan porsi persentase cicilan atau pelunasan penuh, dan sistem akan mengalkulasikan sisa kewajiban yayasan secara otomatis.
             </p>
           </div>
-          <button 
-            onClick={handleResetPayments}
-            className="px-3 py-1 bg-white hover:bg-slate-100 border border-slate-250 hover:border-slate-300 rounded-lg text-[10px] font-bold flex items-center gap-1 text-slate-650 transition-colors"
-          >
-            <RefreshCw className="w-3 h-3 text-slate-500" /> Reset Cicilan Bulan Ini
-          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -1162,7 +1158,7 @@ export default function PayrollTab({
                             const config = getStaffSalaryConfig(stf.nik, stf.salaryBase);
                             setEditingSalary(JSON.parse(JSON.stringify(config)));
                           }}
-                          className="px-2.5 py-1 bg-white hover:bg-slate-50 text-indigo-700 border border-slate-205 rounded-xl text-[10px] font-semibold cursor-pointer flex items-center gap-1 shadow-xs transition-colors"
+                          className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-750 border border-indigo-200 rounded-xl text-[10px] font-semibold cursor-pointer flex items-center gap-1 shadow-xs transition-colors"
                         >
                           <Calculator className="w-3.5 h-3.5" /> Atur Slip Manual
                         </button>
@@ -1424,138 +1420,95 @@ export default function PayrollTab({
             {/* Header info */}
             <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4">
               <div>
-                <dt className="text-md font-bold text-slate-900 uppercase">Yayasan Evangelical Student Movement (ESM)</dt>
-                <dd className="text-xs text-slate-500 mt-1 max-w-md">Jl. Diponegoro No. 84, Menteng, Jakarta Pusat, DKI Jakarta 10103 &bull; NPWP: 01.234.567.8-012.000</dd>
+                <dt className="text-base font-extrabold text-slate-900 uppercase tracking-tight">{profile?.name || 'Yayasan Evangelical Student Movement (ESM)'}</dt>
+                <dd className="text-[11px] text-slate-500 mt-1 max-w-md leading-relaxed">
+                  {profile?.address || 'Jl. Diponegoro No. 84, Menteng, Jakarta Pusat, DKI Jakarta 10103'} 
+                  {profile?.phone && ` • Telp: ${profile.phone}`}
+                  {profile?.email && ` • Email: ${profile.email}`}
+                  <br />
+                  <span className="font-semibold text-slate-700">NPWP: {profile?.npwp || '01.234.567.8-012.000'}</span> &bull; SK Kemenkumham: {profile?.legalReg || 'AHU-00123.AH.01.04'}
+                </dd>
               </div>
-              <div className="text-right">
-                <dt className="text-sm font-bold text-indigo-700 uppercase font-mono tracking-wide">Slip Gaji Karyawan</dt>
-                <dd className="text-xs text-slate-400 font-medium font-mono mt-0.5">{new Date().toLocaleString('id-ID', { month: 'long', year: 'numeric' })}</dd>
+              <div className="text-right shrink-0">
+                <dt className="text-xs font-bold text-indigo-700 uppercase font-mono tracking-wider">Slip Gaji Resmi</dt>
+                <dd className="text-xs text-slate-500 font-bold font-mono mt-1">{new Date().toLocaleString('id-ID', { month: 'long', year: 'numeric' })}</dd>
+                <dd className="text-[9px] text-slate-400 font-mono mt-0.5">SLIP/{activeSlipStaff.nik}/{new Date().getFullYear()}</dd>
               </div>
             </div>
 
             {/* Employee metadata */}
-            <div className="grid grid-cols-2 text-xs gap-3 py-1 text-slate-800">
+            <div className="grid grid-cols-2 text-xs gap-x-6 gap-y-3 py-1 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
               <div>
-                <span className="text-slate-400 block text-[10px]">NIK KARYAWAN:</span>
+                <span className="text-slate-400 block text-[9px] font-bold uppercase tracking-wider">NIK Karyawan:</span>
                 <span className="font-mono font-bold text-slate-900">{activeSlipStaff.nik}</span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[10px]">NAMA PENERIMA:</span>
-                <span className="font-bold text-slate-900">{activeSlipStaff.name}</span>
+                <span className="text-slate-400 block text-[9px] font-bold uppercase tracking-wider">Nama Penerima:</span>
+                <span className="font-bold text-slate-950 text-sm">{activeSlipStaff.name}</span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[10px]">JABATAN STRUKTURAL:</span>
-                <span className="font-medium text-slate-800">{activeSlipStaff.position}</span>
+                <span className="text-slate-400 block text-[9px] font-bold uppercase tracking-wider">Jabatan Struktural:</span>
+                <span className="font-bold text-slate-800">{activeSlipStaff.position}</span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[10px]">DIVISI / STATUS:</span>
-                <span className="font-medium text-indigo-750">{activeSlipStaff.division} ({activeSlipStaff.status})</span>
+                <span className="text-slate-400 block text-[9px] font-bold uppercase tracking-wider">Divisi Utama & Status:</span>
+                <span className="font-medium text-slate-800">{activeSlipStaff.division} <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold ml-1">{activeSlipStaff.status}</span></span>
               </div>
             </div>
 
             {/* Income and Deductions details ledger split columns */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t-2 border-b-2 border-slate-100 py-4 font-mono text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-b border-slate-100 py-4 font-mono text-xs">
               
               {/* Income Columns (Standard + Custom Allowances) */}
               <div className="space-y-1.5 border-r border-slate-100 pr-4">
-                <h4 className="font-bold text-indigo-900 text-[11px] mb-3 uppercase tracking-wider">A. Rincian Gaji & Tunjangan</h4>
+                <h4 className="font-bold text-indigo-900 text-[10px] mb-3 uppercase tracking-wider border-b pb-1 border-slate-100">A. Gaji & Tunjangan (Debet)</h4>
                 
-                <div className="flex justify-between">
+                <div className="flex justify-between text-slate-700">
                   <span>Gaji Pokok Base :</span>
-                  <span>Rp {activeSlipStaff.salaryBase.toLocaleString('id-ID')}</span>
+                  <span>Rp {getStaffSalaryConfig(activeSlipStaff.nik, activeSlipStaff.salaryBase).salaryBase.toLocaleString('id-ID')}</span>
                 </div>
 
                 {(() => {
-                  const publicFieldIds = new Set(publicFields.map(pf => pf.id));
-                  
-                  const publicAllowances = publicFields.filter(f => f.type === 'allowance');
-                  const publicList = publicAllowances.map(field => {
-                    let value = 0;
-                    if (field.property) {
-                      value = Number(activeSlipStaff[field.property as keyof Staff]) || 0;
-                    } else {
-                      const found = activeSlipStaff.customFields?.find(cf => cf.id === field.id);
-                      value = found ? found.amount : 0;
-                    }
-
-                    if (value <= 0) return null;
-                    return (
-                      <div key={field.id} className="flex justify-between">
-                        <span>{field.name} :</span>
-                        <span>+Rp {value.toLocaleString('id-ID')}</span>
+                  const salConfig = getStaffSalaryConfig(activeSlipStaff.nik, activeSlipStaff.salaryBase);
+                  return salConfig.components
+                    .filter(comp => comp.type === 'allowance' && comp.amount > 0)
+                    .map(comp => (
+                      <div key={comp.id} className="flex justify-between text-slate-700">
+                        <span>{comp.name} :</span>
+                        <span>+Rp {comp.amount.toLocaleString('id-ID')}</span>
                       </div>
-                    );
-                  });
-
-                  const individualAllowances = activeSlipStaff.customFields?.filter(f => f.type === 'allowance' && !publicFieldIds.has(f.id)) || [];
-                  const individualList = individualAllowances.map(field => (
-                    <div key={field.id} className="flex justify-between text-indigo-700 font-bold bg-indigo-50/20 px-1 py-0.5 rounded">
-                      <span>{field.name} (Man) :</span>
-                      <span>+Rp {field.amount.toLocaleString('id-ID')}</span>
-                    </div>
-                  ));
-
-                  return (
-                    <>
-                      {publicList}
-                      {individualList}
-                    </>
-                  );
+                    ));
                 })()}
                 
                 <div className="h-4"></div>
                 
-                <div className="bg-slate-50 p-2 rounded-lg font-bold flex justify-between uppercase text-[10px] text-slate-800">
-                  <span>Total Gross (Bruto):</span>
-                  <span>Rp {getStaffFinancialBreakdown(activeSlipStaff).totalAllowanceCombined.toLocaleString('id-ID')}</span>
+                <div className="bg-slate-100 p-2 rounded-lg font-bold flex justify-between uppercase text-[10px] text-slate-800 border border-slate-205">
+                  <span>Total Bruto:</span>
+                  <span>Rp {(getStaffSalaryConfig(activeSlipStaff.nik, activeSlipStaff.salaryBase).salaryBase + getStaffFinancialBreakdown(activeSlipStaff).totalAllowanceCombined).toLocaleString('id-ID')}</span>
                 </div>
               </div>
 
               {/* Deductions Columns (Standard + Custom Deductions) */}
               <div className="space-y-1.5 pl-4">
-                <h4 className="font-bold text-red-900 text-[11px] mb-3 uppercase tracking-wider">B. Rincian Potongan Slip</h4>
+                <h4 className="font-bold text-red-900 text-[10px] mb-3 uppercase tracking-wider border-b pb-1 border-slate-100">B. Potongan Tabungan & BPJS (Kredit)</h4>
                 
                 {(() => {
-                  const publicFieldIds = new Set(publicFields.map(pf => pf.id));
-                  
-                  const publicDeductions = publicFields.filter(f => f.type === 'deduction');
-                  const publicList = publicDeductions.map(field => {
-                    let value = 0;
-                    if (field.property) {
-                      value = Number(activeSlipStaff[field.property as keyof Staff]) || 0;
-                    } else {
-                      const found = activeSlipStaff.customFields?.find(cf => cf.id === field.id);
-                      value = found ? found.amount : 0;
-                    }
-
-                    if (value <= 0) return null;
-                    return (
-                      <div key={field.id} className="flex justify-between text-rose-900">
-                        <span>{field.name} :</span>
-                        <span>-Rp {value.toLocaleString('id-ID')}</span>
-                      </div>
-                    );
-                  });
-
-                  const individualDeductions = activeSlipStaff.customFields?.filter(f => f.type === 'deduction' && !publicFieldIds.has(f.id)) || [];
-                  const individualList = individualDeductions.map(field => (
-                    <div key={field.id} className="flex justify-between text-rose-700 font-bold bg-rose-50/30 px-1 py-0.5 rounded">
-                      <span>{field.name} (Man) :</span>
-                      <span>-Rp {field.amount.toLocaleString('id-ID')}</span>
+                  const salConfig = getStaffSalaryConfig(activeSlipStaff.nik, activeSlipStaff.salaryBase);
+                  const list = salConfig.components.filter(comp => comp.type === 'deduction' && comp.amount > 0);
+                  if (list.length === 0) {
+                    return <div className="text-slate-400 italic text-[10px] py-1">Tidak ada potongan.</div>;
+                  }
+                  return list.map(comp => (
+                    <div key={comp.id} className="flex justify-between text-rose-900">
+                      <span>{comp.name} :</span>
+                      <span>-Rp {comp.amount.toLocaleString('id-ID')}</span>
                     </div>
                   ));
-
-                  return (
-                    <>
-                      {publicList}
-                      {individualList}
-                    </>
-                  );
                 })()}
 
-                <div className="h-8"></div>
+                <div className="h-4"></div>
 
-                <div className="bg-rose-50 p-2 rounded-lg font-bold flex justify-between uppercase text-[10px] text-rose-800">
+                <div className="bg-rose-50 p-2 rounded-lg font-bold flex justify-between uppercase text-[10px] text-rose-800 border border-rose-100">
                   <span>Total Potongan :</span>
                   <span>Rp {getStaffFinancialBreakdown(activeSlipStaff).totalDeductionCombined.toLocaleString('id-ID')}</span>
                 </div>
@@ -1563,18 +1516,63 @@ export default function PayrollTab({
 
             </div>
 
+            {/* PAYMENT REALIZATION AND TERM STATUS BLOCK (SISA KEKURANGAN) */}
+            {(() => {
+              const netSalaryVal = getStaffNetSalary(activeSlipStaff);
+              const paidAmountVal = staffPaidAmounts[activeSlipStaff.nik] || 0;
+              const sisaKekuranganVal = Math.max(0, netSalaryVal - paidAmountVal);
+              
+              return (
+                <div className="p-4 rounded-xl border border-dashed border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Status Realisasi Gaji</span>
+                    <span className={`text-xs font-bold inline-flex items-center gap-1.5 mt-0.5 ${
+                      sisaKekuranganVal === 0 ? 'text-emerald-700' :
+                      paidAmountVal > 0 ? 'text-amber-700' : 'text-red-700'
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full ${
+                        sisaKekuranganVal === 0 ? 'bg-emerald-500' :
+                        paidAmountVal > 0 ? 'bg-amber-500' : 'bg-red-500'
+                      }`} />
+                      {sisaKekuranganVal === 0 ? '✓ REKENING LUNAS (100% SELESAI)' :
+                       paidAmountVal > 0 ? `⚠ PEMBAYARAN TERMIN (Belum Lunas)` : '✗ ANTRIAN CHROME (Belum Dicairkan)'}
+                    </span>
+                  </div>
+                  <div className="text-right text-[11px] font-mono shrink-0 space-y-0.5">
+                    <div>
+                      <span className="text-slate-400">Total Take-Home Pay:</span> 
+                      <span className="font-bold text-slate-800 ml-1.5">Rp {netSalaryVal.toLocaleString('id-ID')}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Sudah Dibayarkan:</span> 
+                      <span className="font-bold text-emerald-600 ml-1.5">Rp {paidAmountVal.toLocaleString('id-ID')}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-rose-700 font-semibold">Sisa Kekurangan:</span> 
+                      <span className="font-extrabold text-rose-600 ml-1.5">Rp {sisaKekuranganVal.toLocaleString('id-ID')}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Calculated take home net salary highlighted box */}
             <div className="bg-slate-900 text-white rounded-2xl p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
               <div>
-                <span className="text-[10px] uppercase font-mono tracking-widest text-[#94A3B8] font-bold block">Total Take-Home Pay (Gaji Bersih)</span>
+                <span className="text-[10px] uppercase font-mono tracking-widest text-slate-400 font-bold block">Bersih Diterima Penerima Manfaat</span>
                 <h3 className="text-2xl font-bold font-mono text-emerald-400 mt-1">
-                  Rp {getStaffNetSalary(activeSlipStaff).toLocaleString('id-ID')}
+                  Rp {(staffPaidAmounts[activeSlipStaff.nik] || 0) > 0 ? (staffPaidAmounts[activeSlipStaff.nik] || 0).toLocaleString('id-ID') : getStaffNetSalary(activeSlipStaff).toLocaleString('id-ID')}
                 </h3>
+                <span className="text-[9px] text-slate-400 block mt-0.5 italic">
+                  {(staffPaidAmounts[activeSlipStaff.nik] || 0) < getStaffNetSalary(activeSlipStaff) && (staffPaidAmounts[activeSlipStaff.nik] || 0) > 0 
+                  ? '*Jumlah nominal termin yang telah dicarikan saat ini' 
+                  : '*Jumlah nominal hak take home pay penuh'}
+                </span>
               </div>
-              <div className="text-center sm:text-right font-sans text-xs">
-                <dt className="text-slate-400 text-[10px]">AUTHORIZED VERIFIER :</dt>
-                <dd className="font-bold text-slate-200 mt-1">Bendahara Yayasan ESM</dd>
-                <dd className="text-[9px] text-slate-400">NPWP. {new Date().getFullYear()}A-0120</dd>
+              <div className="text-center sm:text-right font-sans text-xs shrink-0 border-l border-slate-800 pl-4">
+                <dt className="text-slate-450 text-[9px] font-bold tracking-wider">AUTHORIZED VERIFIER</dt>
+                <dd className="font-bold text-slate-200 mt-1 text-sm">{profile?.name ? `Bendahara ${profile.name}` : 'Bendahara Yayasan ESM'}</dd>
+                <dd className="text-[10px] text-slate-400 font-mono mt-0.5">NPWP: {profile?.npwp || '01.234.567.8-012.000'}</dd>
               </div>
             </div>
 
@@ -1582,22 +1580,24 @@ export default function PayrollTab({
             <div className="flex justify-end gap-3 pt-4">
               <button 
                 onClick={() => setActiveSlipStaff(null)}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-slate-755 text-xs font-semibold cursor-pointer hover:bg-slate-50 transition-colors"
+                className="px-4 py-2 border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-700 text-xs font-bold cursor-pointer transition-colors shadow-2xs"
                 id="close-slip-button"
               >
-                Batal / Tutup Slip
+                Tutup Dokumen
               </button>
               <button 
                 onClick={() => {
                   exportSlipToPDF(
                     activeSlipStaff, 
                     publicFields, 
-                    getStaffSalaryConfig(activeSlipStaff.nik, activeSlipStaff.salaryBase)
+                    getStaffSalaryConfig(activeSlipStaff.nik, activeSlipStaff.salaryBase),
+                    profile,
+                    staffPaidAmounts[activeSlipStaff.nik] || 0
                   );
                 }}
-                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer transition-colors"
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer transition-colors"
               >
-                <Printer className="w-4 h-4" /> Cetak Slip Fisik (PDF)
+                <Printer className="w-4 h-4 text-white" /> Unduh Dokumen PDF Resmi
               </button>
             </div>
 

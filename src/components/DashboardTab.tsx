@@ -6,7 +6,7 @@
 import React from 'react';
 import { 
   Users, 
-  DollarSign, 
+  Coins, 
   TrendingUp, 
   TrendingDown, 
   BookOpen, 
@@ -83,8 +83,8 @@ export default function DashboardTab({
       {/* Upper Welcoming Banner */}
       <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl p-6 shadow-sm border border-slate-700/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all duration-300">
         <div>
-          <h1 className="text-2xl font-bold font-sans tracking-tight">Executive Dashboard</h1>
-          <p className="text-slate-300 text-sm mt-1">Foundation Management System (FMS) for Evangelical Student Movement (ESM)</p>
+          <h1 className="text-2xl font-bold font-sans tracking-tight">Pusat Kendali & Ringkasan Yayasan</h1>
+          <p className="text-slate-300 text-sm mt-1">Sistem Pengelolaan Informasi Terpadu - Yayasan Gerakan Siswa Injili (ESM)</p>
         </div>
         <div className="flex gap-2.5">
           <button 
@@ -105,92 +105,92 @@ export default function DashboardTab({
       {/* Primary Key Performance Indicators */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KPI: Saldo Kas */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] hover:shadow-md transition-all flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <div>
-              <span className="text-xs font-medium text-slate-500 uppercase tracking-widest font-mono">Saldo Kas Yayasan</span>
-              <h2 className="text-xl font-bold text-slate-800 tracking-tight mt-1">
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] hover:shadow-md transition-all flex flex-col justify-between overflow-hidden min-w-0">
+          <div className="flex justify-between items-start gap-3 min-w-0">
+            <div className="min-w-0 flex-1">
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-widest font-mono block truncate">Saldo Kas Yayasan</span>
+              <h2 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight mt-1 break-words">
                 Rp {netBalance.toLocaleString('id-ID')}
               </h2>
             </div>
-            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-              <DollarSign className="w-5 h-5" />
+            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl shrink-0">
+              <Coins className="w-5 h-5" />
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-500">
-            <span className="flex items-center gap-1 text-emerald-600 font-medium">
-              <ArrowUpRight className="w-3.5 h-3.5" /> Rp {activeIncome.toLocaleString('id-ID')} msk
+          <div className="mt-4 pt-4 border-t border-slate-50 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 min-w-0">
+            <span className="flex items-center gap-1 text-emerald-600 font-medium truncate">
+              <ArrowUpRight className="w-3.5 h-3.5 shrink-0" /> Rp {activeIncome.toLocaleString('id-ID')} msk
             </span>
-            <span className="flex items-center gap-1 text-rose-500 font-medium">
-              <ArrowDownRight className="w-3.5 h-3.5" /> Rp {activeExpense.toLocaleString('id-ID')} kel
+            <span className="flex items-center gap-1 text-rose-500 font-medium truncate">
+              <ArrowDownRight className="w-3.5 h-3.5 shrink-0" /> Rp {activeExpense.toLocaleString('id-ID')} kel
             </span>
           </div>
         </div>
 
         {/* KPI: Total Anggota */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] hover:shadow-md transition-all flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <div>
-              <span className="text-xs font-medium text-slate-500 uppercase tracking-widest font-mono">Kaderisasi Anggota</span>
-              <h2 className="text-xl font-bold text-slate-800 tracking-tight mt-1">
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] hover:shadow-md transition-all flex flex-col justify-between overflow-hidden min-w-0">
+          <div className="flex justify-between items-start gap-3 min-w-0">
+            <div className="min-w-0 flex-1">
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-widest font-mono block truncate">Kaderisasi Anggota</span>
+              <h2 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight mt-1 break-words">
                 {totalMembers} Orang
               </h2>
             </div>
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0">
               <Users className="w-5 h-5" />
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-500">
-            <span className="font-medium text-slate-700">
+          <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between gap-2 text-xs text-slate-500 min-w-0">
+            <span className="font-medium text-slate-700 truncate">
               {activeMembersCount} Aktif Melayani
             </span>
-            <span className="text-blue-600 font-semibold cursor-pointer flex items-center" onClick={() => setTab('members')}>
+            <span className="text-blue-600 font-semibold cursor-pointer flex items-center shrink-0" onClick={() => setTab('members')}>
               Kelola <ChevronRight className="w-3 h-3" />
             </span>
           </div>
         </div>
 
         {/* KPI: Kelompok Kecil */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] hover:shadow-md transition-all flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <div>
-              <span className="text-xs font-medium text-slate-500 uppercase tracking-widest font-mono">Kelompok Kecil (CG)</span>
-              <h2 className="text-xl font-bold text-slate-800 tracking-tight mt-1">
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] hover:shadow-md transition-all flex flex-col justify-between overflow-hidden min-w-0">
+          <div className="flex justify-between items-start gap-3 min-w-0">
+            <div className="min-w-0 flex-1">
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-widest font-mono block truncate">Kelompok Kecil (CG)</span>
+              <h2 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight mt-1 break-words">
                 {smallGroups.length} Kelompok
               </h2>
             </div>
-            <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+            <div className="p-3 bg-amber-50 text-amber-600 rounded-xl shrink-0">
               <BookOpen className="w-5 h-5" />
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-500">
-            <span className="text-slate-600">
+          <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between gap-2 text-xs text-slate-500 min-w-0">
+            <span className="text-slate-600 truncate">
               Di 4 Wilayah Pelayanan
             </span>
-            <span className="text-amber-600 font-semibold cursor-pointer flex items-center" onClick={() => setTab('small_groups')}>
+            <span className="text-amber-600 font-semibold cursor-pointer flex items-center shrink-0" onClick={() => setTab('small_groups')}>
               Detail <ChevronRight className="w-3 h-3" />
             </span>
           </div>
         </div>
 
         {/* KPI: Fundraising & Mitra */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] hover:shadow-md transition-all flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <div>
-              <span className="text-xs font-medium text-slate-500 uppercase tracking-widest font-mono">Mitra Pendukung</span>
-              <h2 className="text-xl font-bold text-slate-800 tracking-tight mt-1">
-                {activePartners.length} Aktif <span className="text-xs font-normal text-slate-400">({prospectivePartners.length} prospek)</span>
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] hover:shadow-md transition-all flex flex-col justify-between overflow-hidden min-w-0">
+          <div className="flex justify-between items-start gap-3 min-w-0">
+            <div className="min-w-0 flex-1">
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-widest font-mono block truncate">Mitra Pendukung</span>
+              <h2 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight mt-1 break-words">
+                {activePartners.length} Aktif <span className="text-[10px] font-normal text-slate-450 block truncate">({prospectivePartners.length} prospek)</span>
               </h2>
             </div>
-            <div className="p-3 bg-violet-50 text-violet-600 rounded-xl">
+            <div className="p-3 bg-violet-50 text-violet-600 rounded-xl shrink-0">
               <HeartHandshake className="w-5 h-5" />
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-500">
-            <span className="text-violet-700 font-medium">
-              Komitmen Rp {(activeCommitmentsTotal / 12).toLocaleString('id-ID')}/bln
+          <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between gap-2 text-xs text-slate-500 min-w-0">
+            <span className="text-violet-700 font-medium truncate flex-1 min-w-0">
+              Rp {(activeCommitmentsTotal / 12).toLocaleString('id-ID')}/bln
             </span>
-            <span className="text-violet-600 font-semibold cursor-pointer flex items-center" onClick={() => setTab('partners')}>
+            <span className="text-violet-600 font-semibold cursor-pointer flex items-center shrink-0" onClick={() => setTab('partners')}>
               Mitra <ChevronRight className="w-3 h-3" />
             </span>
           </div>
@@ -270,7 +270,7 @@ export default function DashboardTab({
                       {/* Income Bar */}
                       <div 
                         style={{ height: `${incHeight}%` }} 
-                        className="w-3.5 bg-emerald-500 rounded-t-sm transition-all duration-500 relative group-hover:bg-emerald-400"
+                        className="w-3.5 bg-emerald-500 rounded-t-sm transition-all duration-500 relative group-hover:bg-emerald-400 animate-slide-up"
                       >
                         <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1 px-1.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity font-mono whitespace-nowrap z-30 shadow-md">
                           Inc: Rp {Math.round(item.inc/1000)}k
@@ -279,7 +279,7 @@ export default function DashboardTab({
                       {/* Expense Bar */}
                       <div 
                         style={{ height: `${expHeight}%` }} 
-                        className="w-3.5 bg-rose-400 rounded-t-sm transition-all duration-500 relative group-hover:bg-rose-300"
+                        className="w-3.5 bg-rose-400 rounded-t-sm transition-all duration-500 relative group-hover:bg-rose-300 animate-slide-up"
                       >
                         <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1 px-1.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity font-mono whitespace-nowrap z-30 shadow-md">
                           Exp: Rp {Math.round(item.exp/1000)}k
@@ -292,8 +292,8 @@ export default function DashboardTab({
               })}
             </div>
           </div>
-          <div className="flex items-center justify-between text-xs text-slate-400 mt-3 pt-1">
-            <span>* Skala Visualmaksimum: Rp 30.000.000</span>
+          <div className="flex items-center justify-between text-xs text-slate-400 mt-2.5">
+            <span>* Skala Visual maksimum: Rp 30.000.000</span>
             <span>Update Terakhir: {new Date().toLocaleDateString('id-ID')}</span>
           </div>
         </div>
@@ -343,6 +343,81 @@ export default function DashboardTab({
 
       </div>
 
+      {/* Standalone Monthly Financial Summary Row */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+        <h4 className="text-sm font-bold text-slate-800 mb-3.5 uppercase tracking-wide font-sans">Rincian Nominal Bulanan</h4>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[
+            { month: 'Januari', inc: 12000000, exp: 8000000 },
+            { month: 'Februari', inc: 15400000, exp: 9500000 },
+            { month: 'Maret', inc: 18000000, exp: 12100000 },
+            { month: 'April', inc: 11200000, exp: 10500000 },
+            { month: 'Mei', inc: 23000000, exp: 23650000 },
+            { month: 'Juni (Aktif)', inc: activeIncome, exp: activeExpense },
+          ].map((item, idx) => {
+            const net = item.inc - item.exp;
+            const isMei = idx === 4;
+            const isActive = item.month.includes('Aktif');
+            
+            return (
+              <div 
+                key={idx} 
+                className={`p-4 rounded-xl border flex flex-col justify-between transition-all duration-200 relative ${
+                  isMei 
+                    ? 'bg-slate-900 text-white border-slate-950 shadow-md ring-1 ring-slate-850' 
+                    : isActive
+                      ? 'bg-indigo-50/60 border-indigo-200 text-indigo-950 hover:bg-slate-50'
+                      : 'bg-white border-slate-200 text-slate-850 hover:border-slate-350 hover:bg-slate-50/20'
+                }`}
+              >
+                <div className="flex items-center justify-between pb-1.5 border-b border-dashed border-slate-100/10">
+                  <span className={`text-[10px] font-extrabold uppercase font-mono tracking-wider ${
+                    isMei ? 'text-slate-300' : isActive ? 'text-indigo-800' : 'text-slate-500'
+                  }`}>
+                    {item.month}
+                  </span>
+                  {isMei && (
+                    <span className="bg-emerald-500 text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider font-mono">
+                      FOCUSED
+                    </span>
+                  )}
+                </div>
+                
+                <div className="mt-3.5 space-y-2 text-[10px]">
+                  <div className="flex justify-between items-center font-sans">
+                    <span className={isMei ? 'text-slate-400 font-medium' : 'text-slate-500 font-medium'}>DEBET (Masuk):</span>
+                    <span className={`font-mono font-bold ${isMei ? 'text-emerald-450' : 'text-emerald-600'}`}>
+                      Rp {item.inc.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center font-sans">
+                    <span className={isMei ? 'text-slate-400 font-medium' : 'text-slate-500 font-medium'}>KREDIT (Keluar):</span>
+                    <span className={`font-mono font-bold ${isMei ? 'text-rose-405' : 'text-rose-500'}`}>
+                      Rp {item.exp.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  
+                  <div className={`flex justify-between items-center pt-2 mt-2 border-t font-mono font-bold ${
+                    isMei ? 'border-slate-800' : 'border-slate-200/60'
+                  }`}>
+                    <span className={`font-sans text-[9px] font-bold ${isMei ? 'text-slate-300' : 'text-slate-650'}`}>
+                      {net >= 0 ? 'SURPLUS' : 'DEFISIT'}:
+                    </span>
+                    <span className={`font-bold ${
+                      net >= 0 
+                        ? isMei ? 'text-emerald-400' : 'text-emerald-700' 
+                        : isMei ? 'text-rose-400' : 'text-rose-600'
+                    }`}>
+                      {net >= 0 ? '+' : '-'}{`Rp ${Math.abs(net).toLocaleString('id-ID')}`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Bottom Grid: Recent Transactions and Audit Trials */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
@@ -350,7 +425,7 @@ export default function DashboardTab({
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h3 className="text-md font-semibold text-slate-800">Ledger Hari Ini</h3>
+              <h3 className="text-md font-semibold text-slate-800">Mutasi Kas Hari Ini</h3>
               <p className="text-slate-400 text-xs">Mutasi transaksi finansial yayasan terakhir</p>
             </div>
             <button 
@@ -361,29 +436,34 @@ export default function DashboardTab({
             </button>
           </div>
 
-          <div className="divide-y divide-slate-50 max-h-80 overflow-y-auto">
+          <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
             {transactions.slice(0, 5).map((tx) => (
-              <div key={tx.id} className="py-3 flex items-center justify-between hover:bg-slate-50/50 px-2 rounded-lg transition-all">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-xl text-xs font-mono font-bold ${
+              <div key={tx.id} className="py-3.5 hover:bg-slate-50/50 px-2 rounded-lg transition-all space-y-2">
+                <div className="flex items-start gap-3">
+                  <div className={`p-2 rounded-xl text-xs font-mono font-bold shrink-0 ${
                     tx.type === 'Income' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
                   }`}>
                     {tx.type === 'Income' ? '+IN' : '-EXP'}
                   </div>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <h4 className="text-xs font-semibold text-slate-800 line-clamp-1">{tx.description}</h4>
                     <p className="text-[10px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
-                      <span>{tx.date}</span>&bull;<span>Category: {tx.category}</span>
+                      <span>{tx.date}</span>&bull;<span>Kat: {tx.category}</span>
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className={`text-xs font-bold font-mono ${
-                    tx.type === 'Income' ? 'text-emerald-600' : 'text-slate-800'
-                  }`}>
-                    {tx.type === 'Income' ? '+' : '-'}Rp {tx.amount.toLocaleString('id-ID')}
-                  </span>
-                  <div className="mt-0.5">
+
+                {/* Amount and Status wrapped under */}
+                <div className="pl-11 pt-1.5 flex justify-between items-center text-xs border-t border-slate-50">
+                  <div className="flex items-center gap-1.5 font-mono">
+                    <span className="text-[10px] text-slate-400 font-semibold uppercase">Nominal:</span>
+                    <span className={`font-bold ${
+                      tx.type === 'Income' ? 'text-emerald-600' : 'text-slate-850'
+                    }`}>
+                      {tx.type === 'Income' ? '+' : '-'}Rp {tx.amount.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <div>
                     <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
                       tx.status === 'Approved' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 
                       tx.status === 'Pending Approval' ? 'bg-amber-50 text-amber-600 border border-amber-100' :

@@ -26,7 +26,13 @@ export function exportToCSV(data: any[], headers: string[], keys: string[], file
   document.body.removeChild(link);
 }
 
-export function exportSlipToPDF(staff: Staff, publicFields: PublicField[] = [], salaryConfig?: StaffSalary) {
+export function exportSlipToPDF(
+  staff: Staff, 
+  publicFields: PublicField[] = [], 
+  salaryConfig?: StaffSalary,
+  profile?: any,
+  paidAmount: number = 0
+) {
   const fieldsToUse = publicFields && publicFields.length > 0 ? publicFields : [
     { id: '1', name: 'Tunjangan Jabatan', type: 'allowance', property: 'allowancePosition' },
     { id: '2', name: 'Tunjangan Perumahan', type: 'allowance', property: 'allowanceHousing' },
@@ -46,33 +52,44 @@ export function exportSlipToPDF(staff: Staff, publicFields: PublicField[] = [], 
   });
 
   // Color Palette
-  const primaryColor = [12, 74, 96]; // Dark slate cyan/teal
+  const primaryColor = [15, 23, 42]; // Slate 900
   const secondaryColor = [79, 70, 229]; // Indigo
   const textDark = [30, 41, 59]; // Slate 800
   const textLight = [100, 116, 139]; // Slate 500
   const lightBg = [248, 250, 252]; // Slate 50
 
-  // 1. Header (Corporate / Yayasan ESM style)
+  // 1. Header (Corporate Organization Style)
   doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(22);
+  doc.setFontSize(14);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.text('YAYASAN EL-SHADDAI MITRA (ESM)', 20, 25);
+  
+  const orgName = (profile?.name || 'YAYASAN EVANGELICAL STUDENT MOVEMENT (ESM)').toUpperCase();
+  doc.text(orgName, 20, 22);
   
   doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setTextColor(textLight[0], textLight[1], textLight[2]);
-  doc.text('Kompleks Perkantoran Yayasan ESM • Email: info@yayasan-esm.org • Telp: (021) 8888-ESM', 20, 31);
   
-  // Divider line
-  doc.setDrawColor(226, 232, 240); // slate-200
-  doc.setLineWidth(0.5);
+  const orgAddress = profile?.address || 'Jl. Diponegoro No. 84, Menteng, Jakarta Pusat, DKI Jakarta 10103';
+  const orgNpwp = profile?.npwp ? `NPWP: ${profile.npwp}` : 'NPWP: 01.234.567.8-012.000';
+  const orgPhone = profile?.phone ? `Telp: ${profile.phone}` : 'Telp: (021) 8888-ESM';
+  const orgEmail = profile?.email ? `Email: ${profile.email}` : 'Email: info@yayasan-esm.org';
+  
+  doc.text(`${orgAddress} • ${orgNpwp}`, 20, 27);
+  doc.text(`${orgPhone} • ${orgEmail}`, 20, 32);
+  
+  // Double Divider lines for Kop Surat Formal
+  doc.setDrawColor(30, 41, 59); // slate-800
+  doc.setLineWidth(0.6);
   doc.line(20, 35, 190, 35);
+  doc.setLineWidth(0.2);
+  doc.line(20, 36.2, 190, 36.2);
   
   // Title
   doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-  doc.text('SLIP GAJI BULANAN KARYAWAN', 20, 46);
+  doc.setFontSize(13);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.text('SLIP GAJI RESMI KARYAWAN', 20, 45);
   
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(9);
@@ -80,72 +97,59 @@ export function exportSlipToPDF(staff: Staff, publicFields: PublicField[] = [], 
   const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
   const currentDate = new Date();
   const dateStr = `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
-  doc.text(`Periode Cetak: ${dateStr}`, 20, 52);
+  
+  const docNo = `No. Dokumen: SLIP/${staff.nik}/${currentDate.getFullYear()}/${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+  doc.text(`Periode Pelayanan: ${dateStr}`, 20, 50);
+  doc.text(docNo, 110, 50);
 
-  // Metadata Box / Grid
+  // Metadata Box / Grid (Adjusted compact height as NPWP Lembaga is removed from Col 2)
   doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
-  doc.roundedRect(20, 58, 170, 34, 3, 3, 'F');
+  doc.setDrawColor(226, 232, 240); // slate-200
+  doc.setLineWidth(0.3);
+  doc.roundedRect(20, 55, 170, 26, 2, 2, 'FD');
   
   doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+  doc.setFontSize(9.5);
+  doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
   
   // Col 1 metadata
-  doc.text('DATA KARYAWAN', 25, 65);
+  doc.text('A. DATA PENERIMA MANFAAT', 25, 61);
   doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text(`Nama Lengkap :  ${staff.name}`, 25, 71);
-  doc.text(`NIK Karyawan  :  ${staff.nik}`, 25, 77);
-  doc.text(`Status Kerja   :  ${staff.status}`, 25, 83);
+  doc.setFontSize(8.5);
+  doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+  doc.text(`Nama Lengkap :  ${staff.name}`, 25, 67);
+  doc.text(`NIK Karyawan  :  ${staff.nik}`, 25, 73);
   
   // Col 2 metadata
   doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text('STRUKTUR ORGANISASI', 110, 65);
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text(`Jabatan / Posisi :  ${staff.position}`, 110, 71);
-  doc.text(`Divisi Struktur   :  ${staff.division}`, 110, 77);
-  doc.text(`NPWP Verifikasi  :  ${currentDate.getFullYear()}A-0120`, 110, 83);
-
-  // Salaries & Deductions Sections
-  const formatIDR = (val: number) => `Rp ${val.toLocaleString('id-ID')}`;
-  
-  // A. Penerimaan List
-  let y = 104;
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(12, 74, 96); // Slate Teal
-  doc.text('A. RINCIAN GAJI & TUNJANGAN (PENERIMAAN)', 20, y);
-  
-  doc.setFont('Helvetica', 'normal');
   doc.setFontSize(9.5);
+  doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+  doc.text('B. POSISI & STRUKTURAL YAYASAN', 110, 61);
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(8.5);
   doc.setTextColor(textDark[0], textDark[1], textDark[2]);
-  
-  const addRow = (label: string, value: number, isAddition: boolean) => {
-    y += 6;
-    doc.text(label, 25, y);
-    const prefix = isAddition ? '+' : '-';
-    doc.text(`${prefix}${formatIDR(value)}`, 150, y);
-  };
-  
+  doc.text(`Jabatan Pokok :  ${staff.position}`, 110, 67);
+  doc.text(`Divisi / Sektor :  ${staff.division}`, 110, 73);
+
+  // Salaries & Deductions Sections side-by-side
+  const formatIDR = (val: number) => `Rp ${val.toLocaleString('id-ID')}`;
+
+  // Gather left items (Allowances / Debet)
+  const leftItems: { label: string; amount: number }[] = [];
   const baseSalary = salaryConfig ? salaryConfig.salaryBase : staff.salaryBase;
-  addRow('Gaji Pokok Base', baseSalary, true);
+  leftItems.push({ label: 'Gaji Pokok Utama (Base)', amount: baseSalary });
 
   let totalGross = baseSalary;
-  let totalDeds = 0;
-
   if (salaryConfig) {
     salaryConfig.components.forEach(comp => {
       if (comp.amount > 0 && comp.type === 'allowance') {
-        addRow(comp.name, comp.amount, true);
+        leftItems.push({ label: comp.name, amount: comp.amount });
         totalGross += comp.amount;
       }
     });
   } else {
     const publicFieldIds = new Set(fieldsToUse.map(pf => pf.id));
 
-    // Render configured public allowances
     fieldsToUse.filter(f => f.type === 'allowance').forEach(field => {
       let value = 0;
       if (field.property) {
@@ -155,49 +159,32 @@ export function exportSlipToPDF(staff: Staff, publicFields: PublicField[] = [], 
         value = found ? found.amount : 0;
       }
       if (value > 0) {
-        addRow(field.name, value, true);
+        leftItems.push({ label: field.name, amount: value });
         totalGross += value;
       }
     });
 
-    // Custom individual allowances
     if (staff.customFields) {
       staff.customFields.filter(f => f.type === 'allowance' && !publicFieldIds.has(f.id)).forEach(f => {
-        addRow(`${f.name} (Tambahan Mandiri)`, f.amount, true);
+        leftItems.push({ label: f.name, amount: f.amount });
         totalGross += f.amount;
       });
     }
   }
 
-  // Draw Line for Gross Total
-  y += 5;
-  doc.setDrawColor(241, 245, 249);
-  doc.line(25, y, 185, y);
-  
-  y += 5;
-  doc.setFont('Helvetica', 'bold');
-  doc.text('TOTAL SELURUH PENERIMAAN (BRUTO)', 25, y);
-  doc.text(formatIDR(totalGross), 150, y);
-
-  // B. Potongan List
-  y += 12;
-  doc.setTextColor(153, 27, 27); // Dark Red
-  doc.text('B. RINCIAN POTONGAN SLIP GAJI', 20, y);
-  
-  doc.setFont('Helvetica', 'normal');
-  doc.setTextColor(textDark[0], textDark[1], textDark[2]);
-  
+  // Gather right items (Deductions / Kredit)
+  const rightItems: { label: string; amount: number }[] = [];
+  let totalDeds = 0;
   if (salaryConfig) {
     salaryConfig.components.forEach(comp => {
       if (comp.amount > 0 && comp.type === 'deduction') {
-        addRow(comp.name, comp.amount, false);
+        rightItems.push({ label: comp.name, amount: comp.amount });
         totalDeds += comp.amount;
       }
     });
   } else {
     const publicFieldIds = new Set(fieldsToUse.map(pf => pf.id));
 
-    // Render configured public deductions
     fieldsToUse.filter(f => f.type === 'deduction').forEach(field => {
       let value = 0;
       if (field.property) {
@@ -207,89 +194,164 @@ export function exportSlipToPDF(staff: Staff, publicFields: PublicField[] = [], 
         value = found ? found.amount : 0;
       }
       if (value > 0) {
-        addRow(field.name, value, false);
+        rightItems.push({ label: field.name, amount: value });
         totalDeds += value;
       }
     });
 
-    // Custom deductions
     if (staff.customFields) {
       staff.customFields.filter(f => f.type === 'deduction' && !publicFieldIds.has(f.id)).forEach(f => {
-        addRow(`${f.name} (Potongan Mandiri)`, f.amount, false);
+        rightItems.push({ label: f.name, amount: f.amount });
         totalDeds += f.amount;
       });
     }
   }
 
-  // Draw Line for Deductions Total
-  y += 5;
-  doc.setDrawColor(241, 245, 249);
-  doc.line(25, y, 185, y);
+  // Symmetrical Side-by-Side Drawing
+  let y = 92;
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  
+  doc.text('1. GAJI & TUNJANGAN (DEBET)', 20, y);
+  doc.text('2. POTONGAN & IURAN (KREDIT)', 110, y);
 
-  // Deductions Total calculation
-  if (salaryConfig) {
-    // Already calculated within the component mapping
-  } else {
-    const publicFieldIds = new Set(fieldsToUse.map(pf => pf.id));
-    totalDeds = fieldsToUse.filter(f => f.type === 'deduction').reduce((sum, field) => {
-      let value = 0;
-      if (field.property) {
-        value = Number(staff[field.property as keyof Staff]) || 0;
-      } else {
-        const found = staff.customFields?.find(cf => cf.id === field.id);
-        value = found ? found.amount : 0;
-      }
-      return sum + value;
-    }, 0) +
-    (staff.customFields?.filter(f => f.type === 'deduction' && !publicFieldIds.has(f.id)).reduce((sum, f) => sum + f.amount, 0) || 0);
+  y += 2.5;
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.line(20, y, 100, y);
+  doc.line(110, y, 190, y);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(8.2);
+  doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+
+  const maxRows = Math.max(leftItems.length, rightItems.length);
+  let currentY = y;
+
+  for (let i = 0; i < maxRows; i++) {
+    currentY += 5.5;
+
+    // Left Column allowance (aligning content inside grid x:20 to x:100)
+    if (i < leftItems.length) {
+      const item = leftItems[i];
+      doc.text(item.label, 21, currentY);
+      // No +/- prepended signs
+      doc.text(formatIDR(item.amount), 99, currentY, { align: 'right' });
+    }
+
+    // Right Column deductions (aligning content inside grid x:110 to x:190)
+    if (i < rightItems.length) {
+      const item = rightItems[i];
+      doc.text(item.label, 111, currentY);
+      // No +/- prepended signs
+      doc.text(formatIDR(item.amount), 189, currentY, { align: 'right' });
+    }
   }
 
-  y += 5;
-  doc.setFont('Helvetica', 'bold');
-  doc.text('TOTAL SELURUH POTONGAN SLIP', 25, y);
-  doc.text(formatIDR(totalDeds), 150, y);
+  // Draw Line for Totals
+  currentY += 4;
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.2);
+  doc.line(20, currentY, 190, currentY);
 
-  // Take Home Pay highlighted Box
-  y += 12;
-  doc.setFillColor(15, 23, 42); // slate 900
-  doc.roundedRect(20, y, 170, 18, 3, 3, 'F');
-  
-  y += 11;
+  // Totals side-by-side
+  currentY += 4.5;
+  doc.setFont('Helvetica', 'bold');
+  doc.text('TOTAL DEBET (BRUTO)', 21, currentY);
+  doc.text(formatIDR(totalGross), 99, currentY, { align: 'right' });
+
+  doc.text('TOTAL KREDIT (POTONGAN)', 111, currentY);
+  doc.text(formatIDR(totalDeds), 189, currentY, { align: 'right' });
+
+  currentY += 2.5;
+  doc.setDrawColor(203, 213, 225); // slate-300
+  doc.setLineWidth(0.3);
+  doc.line(20, currentY, 190, currentY);
+
+  const netSalary = totalGross - totalDeds;
+  const remaining = Math.max(0, netSalary - paidAmount);
+
+  // Take Home Pay - Elegant Formal Black & White Box (as per requirement 6)
+  let ySum = currentY + 7;
+  const isLunas = (remaining <= 0);
+  const boxHeight = isLunas ? 12 : 23;
+
+  // Draw clean B&W double border/sleek container outlines
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(15, 23, 42); // slate-900 border
+  doc.setLineWidth(0.4);
+  doc.rect(20, ySum, 170, boxHeight, 'D'); // Outline only
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.text('TAKE-HOME PAY (TOTAL GAJI BERSIH DITERIMA)', 25, ySum + 7.5);
+
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(11);
-  doc.setTextColor(255, 255, 255);
-  doc.text('TAKE-HOME PAY (GAJI BERSIH DITERIMA)', 25, y);
-  
-  const netSalary = totalGross - totalDeds;
-  doc.setTextColor(52, 211, 153); // emerald 400
-  doc.setFontSize(13);
-  doc.text(formatIDR(netSalary), 150, y);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.text(formatIDR(netSalary), 185, ySum + 7.5, { align: 'right' });
+
+  // Status Realisasi: if unpaid/termin display it. If fully lunas (paid), delete it entirely (as per requirement 5)
+  if (!isLunas) {
+    let statusLabel = '';
+    let paymentDetail = '';
+    if (paidAmount === 0) {
+      statusLabel = 'BELUM DIBAYAR';
+      paymentDetail = `SISA KEKURANGAN: ${formatIDR(netSalary)}`;
+    } else {
+      statusLabel = 'PEMBAYARAN TERMIN GANTUNG';
+      paymentDetail = `SUDAH DIBAYARKAN: ${formatIDR(paidAmount)}   •   SISA KEKURANGAN: ${formatIDR(remaining)}`;
+    }
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+    doc.text('STATUS REALISASI CAIR  :', 25, ySum + 13.5);
+
+    doc.setFont('Helvetica', 'bold');
+    doc.text(statusLabel, 64, ySum + 13.5);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+    doc.text(paymentDetail, 25, ySum + 18.5);
+  }
 
   // Signatures / Footers
-  y += 24;
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(textLight[0], textLight[1], textLight[2]);
-  doc.text('Dibuat & Diverifikasi Oleh,', 25, y);
-  doc.text('Penerima Manfaat Gaji,', 130, y);
-  
-  y += 15;
-  doc.setFont('Helvetica', 'bold');
-  doc.setTextColor(textDark[0], textDark[1], textDark[2]);
-  doc.text('Bendahara Yayasan ESM', 25, y);
-  doc.text(staff.name, 130, y);
+  // Added substantial spacing between THP and signatures block (as per requirement 8)
+  let ySign = ySum + boxHeight + 25; 
 
-  // Signature lines
-  doc.setDrawColor(203, 213, 225); // slate-300
-  doc.line(25, y + 1, 65, y + 1);
-  doc.line(130, y + 1, 170, y + 1);
-
-  // Footer text
-  y += 8;
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(textLight[0], textLight[1], textLight[2]);
-  doc.text('Dokumen ini sah diterbitkan secara elektronik oleh Yayasan ESM dan diakui secara kontitusi.', 20, y);
+  
+  const formattedToday = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  doc.text(`Dikeluarkan di Jakarta, ${formattedToday}`, 25, ySign);
+  doc.text('Petugas verifikasi keuangan,', 25, ySign + 5);
+  doc.text('Penerima gaji struktural,', 130, ySign + 5);
+
+  // Render Bendahara uploaded signature (Requirement 7)
+  if (profile?.signatureUrl && profile.signatureUrl.startsWith('data:image')) {
+    try {
+      doc.addImage(profile.signatureUrl, 'PNG', 25, ySign + 7, 35, 13);
+    } catch (e) {
+      console.error('Failed to draw signature image onto PDF:', e);
+    }
+  }
+
+  ySign += 22;
+  doc.setFont('Helvetica', 'bold');
+  doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+  doc.text('BENDAHARA YAYASAN', 25, ySign);
+  doc.text(staff.name.toUpperCase(), 130, ySign);
+
+  // Underline signature rows
+  doc.setDrawColor(203, 213, 225); // slate-300
+  doc.setLineWidth(0.25);
+  doc.line(25, ySign + 1, 65, ySign + 1);
+  doc.line(130, ySign + 1, 170, ySign + 1);
 
   // Download PDF file
   doc.save(`slip_gaji_${staff.nik}_${staff.name.replace(/\s+/g, '_').toLowerCase()}.pdf`);

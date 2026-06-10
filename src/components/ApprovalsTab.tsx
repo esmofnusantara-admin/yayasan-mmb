@@ -12,7 +12,7 @@ import {
   Search, 
   AlertTriangle, 
   Inbox, 
-  DollarSign, 
+  Banknote, 
   FileText, 
   Award,
   Wallet,
@@ -105,7 +105,7 @@ export default function ApprovalsTab({
               // Icon selector
               let modIcon = <FileText className="w-5 h-5 text-indigo-600" />;
               if (req.module === 'Keuangan' || req.module === 'Event Budget') {
-                modIcon = <DollarSign className="w-5 h-5 text-emerald-600" />;
+                modIcon = <Banknote className="w-5 h-5 text-emerald-600" />;
               } else if (req.module === 'Payroll') {
                 modIcon = <Wallet className="w-5 h-5 text-purple-600" />;
               }

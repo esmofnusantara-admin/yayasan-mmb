@@ -73,7 +73,8 @@ import {
   INITIAL_OUTWARD_LETTERS,
   INITIAL_DOCUMENTS,
   INITIAL_APPROVALS,
-  INITIAL_AUDITS 
+  INITIAL_AUDITS,
+  INITIAL_DONATIONS
 } from './data/initialData';
 
 interface AuthUser {
@@ -201,7 +202,34 @@ export default function App() {
         const freshData = await freshRes.json();
         setter(freshData);
       } else {
-        setter(data);
+        // Dynamic Incremental Auto-Seeding to support new default template entries safely
+        let didSeedNewItem = false;
+        for (const item of initialData) {
+          const id = item.id || item.nik;
+          if (id) {
+            const exists = data.some((x: any) => (x.id === id || x.nik === id));
+            if (!exists) {
+              await fetch(`/api/data/${colName}/${id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  ...item,
+                  deleted: false,
+                  createdAt: item.createdAt || new Date().toISOString(),
+                  createdBy: item.createdBy || 'System Dynamic Incremental Seed'
+                })
+              });
+              didSeedNewItem = true;
+            }
+          }
+        }
+        if (didSeedNewItem) {
+          const freshRes = await fetch(`/api/data/${colName}`);
+          const freshData = await freshRes.json();
+          setter(freshData);
+        } else {
+          setter(data);
+        }
       }
     } catch (err) {
       console.error(`Failed to load/seed collection ${colName}:`, err);
@@ -255,7 +283,7 @@ export default function App() {
       loadCollection('documents', INITIAL_DOCUMENTS, setDocuments),
       loadCollection('approvals', INITIAL_APPROVALS, setApprovals),
       loadCollection('audits', INITIAL_AUDITS, setAuditLogs),
-      loadCollection('donations', [], setDonations),
+      loadCollection('donations', INITIAL_DONATIONS, setDonations),
     ]);
   };
 
@@ -503,6 +531,38 @@ export default function App() {
     }
   };
 
+  const handleAddMaterial = async (mat: MaterialInfo) => {
+    try {
+      const payload = {
+        ...mat,
+        createdBy: `${currentRole} Operator`,
+        createdAt: new Date().toISOString(),
+        deleted: false
+      };
+      await fetch(`/api/data/materials/${mat.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      await logAudit(`Mengunggah Kurikulum/Materi Baru ID: ${mat.id}`, 'Kurikulum');
+      loadCollection('materials', INITIAL_MATERIALS, setMaterials);
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteMaterial = async (id: string) => {
+    try {
+      await fetch(`/api/data/materials/${id}`, {
+        method: 'DELETE'
+      });
+      await logAudit(`Menghapus Kurikulum/Materi ID: ${id} (Soft-Delete)`, 'Kurikulum');
+      loadCollection('materials', INITIAL_MATERIALS, setMaterials);
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
   // 3. Finance Handlers
   const handleAddTransaction = async (tx: Transaction) => {
     try {
@@ -604,11 +664,57 @@ export default function App() {
       await fetch(`/api/data/transactions/${id}`, {
         method: 'DELETE'
       });
-      await logAudit(`Menghapus Transaksi Ledger ID: ${id} (Soft-Delete)`, 'Keuangan');
+      await logAudit(`Menghapus Transaksi Kas ID: ${id} (Soft-Delete)`, 'Keuangan');
       
       await loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions);
       await loadCollection('audits', INITIAL_AUDITS, setAuditLogs);
     } catch (e: any) {
+      console.error(e);
+    }
+  };
+
+  const handleAddCategory = async (cat: FinancialCategory) => {
+    try {
+      await fetch(`/api/data/categories/${cat.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...cat, deleted: false, createdAt: new Date().toISOString() })
+      });
+      await logAudit(`Menambah Kategori Kas Baru: ${cat.name}`, 'Keuangan');
+      await loadCollection('categories', INITIAL_CATEGORIES, setCategories);
+      await loadCollection('audits', INITIAL_AUDITS, setAuditLogs);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleUpdateCategory = async (cat: FinancialCategory) => {
+    try {
+      await fetch(`/api/data/categories/${cat.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cat)
+      });
+      await logAudit(`Mengubah Batas Anggaran Kategori: ${cat.name}`, 'Keuangan');
+      await loadCollection('categories', INITIAL_CATEGORIES, setCategories);
+      await loadCollection('audits', INITIAL_AUDITS, setAuditLogs);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    try {
+      const match = categories.find(c => c.id === id);
+      await fetch(`/api/data/categories/${id}`, {
+        method: 'DELETE'
+      });
+      if (match) {
+        await logAudit(`Menghapus Kategori Kas: ${match.name}`, 'Keuangan');
+      }
+      await loadCollection('categories', INITIAL_CATEGORIES, setCategories);
+      await loadCollection('audits', INITIAL_AUDITS, setAuditLogs);
+    } catch (e) {
       console.error(e);
     }
   };
@@ -656,7 +762,7 @@ export default function App() {
         })
       });
 
-      await loadCollection('donations', [], setDonations);
+      await loadCollection('donations', INITIAL_DONATIONS, setDonations);
       await loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions);
       await loadCollection('audits', INITIAL_AUDITS, setAuditLogs);
     } catch (e: any) {
@@ -979,17 +1085,17 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans text-slate-900 antialiased selection:bg-blue-600 selection:text-white">
+    <div className="h-screen bg-[#F8FAFC] flex flex-col font-sans text-slate-900 antialiased selection:bg-blue-600 selection:text-white overflow-hidden">
       
       {/* Upper Navigation Control header bar (Global) - Geometric Balance Theme Accent */}
-      <header className="sticky top-0 z-40 bg-white text-slate-800 px-6 py-3 border-b border-slate-200 shadow-sm flex justify-between items-center">
+      <header className="sticky top-0 z-40 bg-white text-slate-800 px-6 py-3 border-b border-slate-200 shadow-sm flex justify-between items-center shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="bg-[#2563EB] p-2 rounded-xl text-white shadow-sm shadow-blue-500/20">
             <Building2 className="w-5 h-5 text-white animate-pulse" />
           </div>
           <div>
-            <h1 className="font-extrabold text-sm tracking-tight text-slate-900 leading-none">ESM FMS</h1>
-            <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-widest block font-mono mt-1">Institutional Executive ERP</span>
+            <h1 id="header-system-title" className="font-extrabold text-sm tracking-tight text-slate-900 leading-none">{profile.systemTitle || 'ESM FMS'}</h1>
+            <span id="header-dashboard-title" className="text-[9px] text-[#64748B] font-bold uppercase tracking-widest block font-mono mt-1">{profile.dashboardTitle || 'Institutional Executive ERP'}</span>
           </div>
         </div>
 
@@ -1038,10 +1144,10 @@ export default function App() {
       </header>
 
       {/* Main Grid: Left Navigation Rail & Right Center Layout panel content */}
-      <div className="flex-1 flex flex-col sm:flex-row relative">
+      <div className="flex-1 flex flex-col sm:flex-row relative h-[calc(100vh-61px)] overflow-hidden">
         
         {/* SIDE BAR NAVIGATION RAIL (Left column - Geometric Slate-900 Dark Theme) */}
-        <nav className={`sm:w-60 bg-[#0F172A] border-r border-[#1E293B] p-4 shrink-0 flex flex-col justify-between absolute sm:relative inset-y-0 left-0 z-30 transition-transform duration-300 transform sm:translate-x-0 ${
+        <nav className={`sm:w-60 bg-[#0F172A] border-r border-[#1E293B] p-4 shrink-0 flex flex-col justify-between absolute sm:relative inset-y-0 left-0 z-30 transition-transform duration-300 transform sm:translate-x-0 overflow-y-auto ${
           isMobileMenuOpen ? 'translate-x-0 w-60 shadow-2xl' : '-translate-x-full sm:translate-x-0'
         }`}>
           
@@ -1214,14 +1320,14 @@ export default function App() {
 
           {/* Footer of Sidebar */}
           <div className="pt-4 border-t border-[#1E293B] text-[10px] text-[#475569] leading-relaxed font-sans shrink-0">
-            <span className="font-bold text-slate-400">Yayasan ESM Indonesia</span>
+            <span className="font-bold text-slate-400">{profile.name || 'Yayasan ESM Indonesia'}</span>
             <p className="mt-1">Geometric Balance &bull; v1.3</p>
           </div>
 
         </nav>
 
         {/* WORKSPACE CENTRAL AREA PANEL (Right side view container) */}
-        <main className="flex-1 p-6 sm:p-8 max-w-full overflow-hidden block">
+        <main className="flex-1 p-6 sm:p-8 max-w-full h-full overflow-y-auto block">
           
           {/* Main conditional module tabs switching renderer */}
           <div className="max-w-7xl mx-auto space-y-6">
@@ -1255,6 +1361,7 @@ export default function App() {
                 followUps={followUps}
                 onAddFollowUp={handleAddFollowUp}
                 currentRole={currentRole}
+                profile={profile}
               />
             )}
 
@@ -1267,6 +1374,9 @@ export default function App() {
                 onAddGroup={handleAddSmallGroup}
                 onDeleteGroup={handleDeleteSmallGroup}
                 onAddMeeting={handleAddGroupMeeting}
+                onAddMaterial={handleAddMaterial}
+                onDeleteMaterial={handleDeleteMaterial}
+                profile={profile}
               />
             )}
 
@@ -1278,6 +1388,10 @@ export default function App() {
                 onUpdateTransaction={handleUpdateTransaction}
                 onDeleteTransaction={handleDeleteTransaction}
                 currentRole={currentRole}
+                onAddCategory={handleAddCategory}
+                onUpdateCategory={handleUpdateCategory}
+                onDeleteCategory={handleDeleteCategory}
+                profile={profile}
               />
             )}
 
@@ -1290,6 +1404,7 @@ export default function App() {
                 currentRole={currentRole}
                 donations={donations}
                 onAddDonation={handleAddDonation}
+                profile={profile}
               />
             )}
 
@@ -1313,6 +1428,7 @@ export default function App() {
                 onAddTransaction={handleAddTransaction}
                 salaries={salaries}
                 onUpdateSalary={handleUpdateSalary}
+                profile={profile}
               />
             )}
 

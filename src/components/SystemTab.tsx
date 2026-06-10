@@ -43,14 +43,14 @@ export default function SystemTab({
   onUpdateProfile,
   currentRole,
 }: SystemTabProps) {
-  const [activeSubView, setActiveSubView] = useState<'profile' | 'structure' | 'operators' | 'audit'>('profile');
+  const [activeSubView, setActiveSubView] = useState<'profile' | 'structure' | 'operators' | 'audit' | 'variables'>('profile');
   const [activeNodeId, setActiveNodeId] = useState<string>('ketua');
   
   // Dynamic Organizational Structure State
   const [orgTree, setOrgTree] = useState<any[]>([
     { id: 'ketua', title: 'Ketua Dewan Pembina', name: 'Dr. (H.C.) Dr. Joseph Sinaga', sub: 'Pembuat Keputusan Tertinggi', order: 10, deleted: false },
     { id: 'sekretaris', title: 'Sekretaris Eksekutif', name: 'Pdt. Johannes Lie, M.Th.', sub: 'Administrasi & Legalitas Lembaga', order: 20, deleted: false },
-    { id: 'bendahara', title: 'Bendahara Umum', name: 'Ibu Ruth Sitorus, S.E.', sub: 'Jurnal Kas, Ledger & Audit', order: 30, deleted: false },
+    { id: 'bendahara', title: 'Bendahara Umum', name: 'Ibu Ruth Sitorus, S.E.', sub: 'Jurnal Kas, Transaksi & Audit', order: 30, deleted: false },
     { id: 'korwil', title: 'Koordinator Wilayah DIY', name: 'Ahmad Faisal, S.Th.', sub: 'Lapangan & Persekutuan Cabang', order: 40, deleted: false },
     { id: 'staff', title: 'Staf Lapangan & Kelompok Kecil', name: 'Simpatisan Mitra Aliansi', sub: 'Pendamping Siswa & Pelayanan', order: 50, deleted: false },
   ]);
@@ -83,7 +83,7 @@ export default function SystemTab({
           const defaultNodes = [
             { id: 'ketua', title: 'Ketua Dewan Pembina', name: 'Dr. (H.C.) Dr. Joseph Sinaga', sub: 'Pembuat Keputusan Tertinggi', order: 10, deleted: false },
             { id: 'sekretaris', title: 'Sekretaris Eksekutif', name: 'Pdt. Johannes Lie, M.Th.', sub: 'Administrasi & Legalitas Lembaga', order: 20, deleted: false },
-            { id: 'bendahara', title: 'Bendahara Umum', name: 'Ibu Ruth Sitorus, S.E.', sub: 'Jurnal Kas, Ledger & Audit', order: 30, deleted: false },
+            { id: 'bendahara', title: 'Bendahara Umum', name: 'Ibu Ruth Sitorus, S.E.', sub: 'Jurnal Kas, Transaksi & Audit', order: 30, deleted: false },
             { id: 'korwil', title: 'Koordinator Wilayah DIY', name: 'Ahmad Faisal, S.Th.', sub: 'Lapangan & Persekutuan Cabang', order: 40, deleted: false },
             { id: 'staff', title: 'Staf Lapangan & Kelompok Kecil', name: 'Simpatisan Mitra Aliansi', sub: 'Pendamping Siswa & Pelayanan', order: 50, deleted: false },
           ];
@@ -343,6 +343,27 @@ export default function SystemTab({
     }
   }, [activeNodeId, orgTree]);
 
+  useEffect(() => {
+    setName(profile.name);
+    setAddress(profile.address);
+    setPhone(profile.phone || '');
+    setEmail(profile.email || '');
+    setWebsite(profile.website || '');
+    setNpwp(profile.npwp || '');
+    setSkLegal(profile.legalReg || '');
+    setSignatureUrl(profile.signatureUrl || '');
+    setSystemTitle(profile.systemTitle || 'ESM FMS');
+    setDashboardTitle(profile.dashboardTitle || 'Institutional Executive ERP');
+    setRegions(profile.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]);
+    setMaterialCategories(profile.materialCategories || ["Materi Dasar / Siswa", "Siswa & Mahasiswa", "Alumni", "Pelatihan Pemimpin (PKK)", "Materi Umum / Publik"]);
+    setIncomeAllocations(profile.incomeAllocations || ["Gaji / Operasional", "Peralatan", "Kegiatan Khusus", "Lainnya"]);
+    setMeetingDays(profile.meetingDays || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]);
+    setMemberKeaktifanStatuses(profile.memberKeaktifanStatuses || ["Aktif", "Pasif", "Cuti", "Pindah"]);
+    setMemberComponents(profile.memberComponents || ["Siswa", "Mahasiswa", "Alumni", "Umum"]);
+    setPartnerStatuses(profile.partnerStatuses || ["Prospek", "Kontak Awal", "Presentasi", "Komitmen", "Donasi Pertama", "Aktif", "Tidak Aktif"]);
+    setPartnerTypes(profile.partnerTypes || ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]);
+  }, [profile]);
+
   // Form profile
   const [name, setName] = useState(profile.name);
   const [address, setAddress] = useState(profile.address);
@@ -351,6 +372,31 @@ export default function SystemTab({
   const [website, setWebsite] = useState(profile.website || '');
   const [npwp, setNpwp] = useState(profile.npwp || '');
   const [skLegal, setSkLegal] = useState(profile.legalReg || '');
+  const [signatureUrl, setSignatureUrl] = useState(profile.signatureUrl || '');
+
+  // Dynamic system and dashboard titles
+  const [systemTitle, setSystemTitle] = useState(profile.systemTitle || 'ESM FMS');
+  const [dashboardTitle, setDashboardTitle] = useState(profile.dashboardTitle || 'Institutional Executive ERP');
+
+  // Dynamic dropdown lists
+  const [regions, setRegions] = useState<string[]>(profile.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]);
+  const [materialCategories, setMaterialCategories] = useState<string[]>(profile.materialCategories || ["Materi Dasar / Siswa", "Siswa & Mahasiswa", "Alumni", "Pelatihan Pemimpin (PKK)", "Materi Umum / Publik"]);
+  const [incomeAllocations, setIncomeAllocations] = useState<string[]>(profile.incomeAllocations || ["Gaji / Operasional", "Peralatan", "Kegiatan Khusus", "Lainnya"]);
+  const [meetingDays, setMeetingDays] = useState<string[]>(profile.meetingDays || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]);
+  const [memberKeaktifanStatuses, setMemberKeaktifanStatuses] = useState<string[]>(profile.memberKeaktifanStatuses || ["Aktif", "Pasif", "Cuti", "Pindah"]);
+  const [memberComponents, setMemberComponents] = useState<string[]>(profile.memberComponents || ["Siswa", "Mahasiswa", "Alumni", "Umum"]);
+  const [partnerStatuses, setPartnerStatuses] = useState<string[]>(profile.partnerStatuses || ["Prospek", "Kontak Awal", "Presentasi", "Komitmen", "Donasi Pertama", "Aktif", "Tidak Aktif"]);
+  const [partnerTypes, setPartnerTypes] = useState<string[]>(profile.partnerTypes || ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]);
+
+  // Temporary single input text fields for adding items
+  const [newRegion, setNewRegion] = useState('');
+  const [newMaterialCat, setNewMaterialCat] = useState('');
+  const [newAllocation, setNewAllocation] = useState('');
+  const [newMeetingDay, setNewMeetingDay] = useState('');
+  const [newKeaktifanStatus, setNewKeaktifanStatus] = useState('');
+  const [newMemberComponent, setNewMemberComponent] = useState('');
+  const [newPartnerStatus, setNewPartnerStatus] = useState('');
+  const [newPartnerType, setNewPartnerType] = useState('');
 
   // Operators & Checklist Database States
   const [operators, setOperators] = useState<any[]>([]);
@@ -410,6 +456,7 @@ export default function SystemTab({
       return;
     }
     const updated: InstitutionalProfile = {
+      ...profile,
       id: profile.id,
       name,
       address,
@@ -417,10 +464,42 @@ export default function SystemTab({
       email,
       website,
       npwp,
-      legalReg: skLegal
+      legalReg: skLegal,
+      signatureUrl
     };
     onUpdateProfile(updated);
     alert('Informasi legalitas profil institusi ESM berhasil diperbarui & dicadangkan.');
+  };
+
+  const handleSaveVariables = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (currentRole !== 'Super Admin' && currentRole !== 'Ketua Yayasan') {
+      alert('Akses Terbatas: Hanya Super Admin / Ketua Yayasan yang berhak memodifikasi parameter utilitas sistem.');
+      return;
+    }
+    const updated: InstitutionalProfile = {
+      ...profile,
+      name,
+      address,
+      phone,
+      email,
+      website,
+      npwp,
+      legalReg: skLegal,
+      signatureUrl,
+      systemTitle,
+      dashboardTitle,
+      regions,
+      materialCategories,
+      incomeAllocations,
+      meetingDays,
+      memberKeaktifanStatuses,
+      memberComponents,
+      partnerStatuses,
+      partnerTypes
+    };
+    onUpdateProfile(updated);
+    alert('Sukses: Konfigurasi variabel kustom dan utilitas judul berhasil diperbarui & disimpan!');
   };
 
   const handleCreateOperator = async (e: React.FormEvent) => {
@@ -669,6 +748,15 @@ export default function SystemTab({
           <UserCheck className="w-3.5 h-3.5 text-indigo-505" /> Hak Akses Operator & Checklist
         </button>
         <button 
+          onClick={() => setActiveSubView('variables')}
+          className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-all ${
+            activeSubView === 'variables' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+          }`}
+          title="Konfigurasi Dapatkan dropdown dinamis & ubah judul sistem"
+        >
+          <Sliders className="w-3.5 h-3.5 text-indigo-505" /> Variabel & Utilitas Judul
+        </button>
+        <button 
           onClick={() => setActiveSubView('audit')}
           className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1 transition-all ${
             activeSubView === 'audit' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
@@ -746,6 +834,64 @@ export default function SystemTab({
                 className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-850"
                 required
               />
+            </div>
+
+            <div className="sm:col-span-2 border-t border-slate-100/70 pt-4 mt-2">
+              <label className="text-slate-700 block mb-1 font-bold text-xs uppercase tracking-wide">Tanda Tangan Digital Bendahara (untuk Slip Gaji PDF) :</label>
+              <p className="text-slate-500 mb-3 text-[10px]">Unggah gambar tanda tangan transparan (.png/.jpg) untuk disisipkan langsung pada slip gaji cetak.</p>
+              
+              <div className="flex flex-col sm:flex-row items-center gap-6">
+                {signatureUrl ? (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col items-center gap-2 select-none relative group max-w-[200px]">
+                    <img 
+                      src={signatureUrl} 
+                      alt="Tanda Tangan Bendahara" 
+                      className="max-h-20 max-w-full object-contain"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setSignatureUrl('')}
+                      className="absolute -top-2 -right-2 bg-rose-550 text-white p-1 rounded-full hover:bg-rose-600 transition-colors cursor-pointer shadow-xs flex items-center justify-center"
+                      title="Hapus tanda tangan"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                    <span className="text-[9px] text-slate-400 font-mono tracking-wider">Bendahara Aktif</span>
+                  </div>
+                ) : (
+                  <div className="w-full sm:w-[200px] h-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 bg-slate-50 hover:bg-slate-100/50 transition-colors relative cursor-pointer group">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            if (event.target?.result) {
+                              setSignatureUrl(event.target.result as string);
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    />
+                    <Building className="w-6 h-6 mb-1 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                    <span className="text-[10px] font-semibold text-slate-500">Pilih / Seret Gambar</span>
+                    <span className="text-[8px] text-slate-400">PNG transparan direkomendasikan</span>
+                  </div>
+                )}
+                
+                <div className="flex-1 text-left space-y-1.5">
+                  <div className="text-[11px] text-slate-650 font-medium">Spesifikasi unggahan:</div>
+                  <ul className="list-disc pl-4 text-[10px] text-slate-500 space-y-0.5 font-sans">
+                    <li>Rasio yang ideal adalah horisontal (panjang kesamping)</li>
+                    <li>Gunakan latar belakang transparan (.png) agar terlihat menyatu dengan dokumen PDF</li>
+                    <li>Sistem mengenkripsi gambar langsung di peramban secara aman</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1297,6 +1443,460 @@ export default function SystemTab({
               </form>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* SUBVIEW: VARIABLES & UTILITY TITLES */}
+      {activeSubView === 'variables' && (
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6 text-xs text-left">
+          <div>
+            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5"><Sliders className="w-4 h-4 text-indigo-650" /> Variabel Dropdown Dinamis & Utilitas Judul</h3>
+            <p className="text-slate-500 text-[11px] mt-0.5">Semua data dropdown untuk isian formulir di sistem dapat diedit, ditambah, atau dihapus secara langsung di sini oleh operator Super Admin atau Ketua Yayasan.</p>
+          </div>
+
+          <form onSubmit={handleSaveVariables} className="space-y-6">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-slate-600 block mb-1 font-bold">Judul Singkat Sistem (Header Atas) :</label>
+                <input 
+                  type="text" 
+                  value={systemTitle}
+                  onChange={(e) => setSystemTitle(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-850 font-extrabold text-sm bg-white"
+                  placeholder="Contoh: ESM FMS"
+                  required
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Muncul sebagai label utama di pojok kiri atas dasbor.</p>
+              </div>
+              <div>
+                <label className="text-slate-600 block mb-1 font-bold">Deskripsi / Sub-Judul Dashboard :</label>
+                <input 
+                  type="text" 
+                  value={dashboardTitle}
+                  onChange={(e) => setDashboardTitle(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-850 bg-white"
+                  placeholder="Contoh: Institutional Executive ERP"
+                  required
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Naskah deskripsi penjelasan di bawah logo dasbor atas.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">📍 Daftar Wilayah & Cabang ({regions.length})</h4>
+                  <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto">
+                    {regions.map((reg, index) => (
+                      <span key={index} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-lg text-[11px] font-semibold border border-blue-100">
+                        {reg}
+                        <button 
+                          type="button"
+                          onClick={() => setRegions(prev => prev.filter(r => r !== reg))}
+                          className="hover:text-red-650 font-extrabold ml-1 text-xs cursor-pointer focus:outline-none"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <input 
+                    type="text"
+                    value={newRegion}
+                    onChange={(e) => setNewRegion(e.target.value)}
+                    placeholder="Tambah wilayah baru..."
+                    className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1 text-xs"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (newRegion.trim() && !regions.includes(newRegion.trim())) {
+                          setRegions(prev => [...prev, newRegion.trim()]);
+                          setNewRegion('');
+                        }
+                      }
+                    }}
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (newRegion.trim() && !regions.includes(newRegion.trim())) {
+                        setRegions(prev => [...prev, newRegion.trim()]);
+                        setNewRegion('');
+                      }
+                    }}
+                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">📚 Kategori Sasaran Kurikulum ({materialCategories.length})</h4>
+                  <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto">
+                    {materialCategories.map((cat, index) => (
+                      <span key={index} className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 px-2 py-1 rounded-lg text-[11px] font-semibold border border-amber-100">
+                        {cat}
+                        <button 
+                          type="button"
+                          onClick={() => setMaterialCategories(prev => prev.filter(c => c !== cat))}
+                          className="hover:text-red-650 font-extrabold ml-1 text-xs cursor-pointer focus:outline-none"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <input 
+                    type="text"
+                    value={newMaterialCat}
+                    onChange={(e) => setNewMaterialCat(e.target.value)}
+                    placeholder="Tambah sasaran kurikulum..."
+                    className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1 text-xs"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (newMaterialCat.trim() && !materialCategories.includes(newMaterialCat.trim())) {
+                          setMaterialCategories(prev => [...prev, newMaterialCat.trim()]);
+                          setNewMaterialCat('');
+                        }
+                      }
+                    }}
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (newMaterialCat.trim() && !materialCategories.includes(newMaterialCat.trim())) {
+                        setMaterialCategories(prev => [...prev, newMaterialCat.trim()]);
+                        setNewMaterialCat('');
+                      }
+                    }}
+                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">💼 Tujuan Peruntukan Pemasukan ({incomeAllocations.length})</h4>
+                  <p className="text-[10px] text-slate-400 mb-2">Pilihan alokasi opsional transaksi pemasukan: Gaji/Operasional, Peralatan, dll.</p>
+                  <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto">
+                    {incomeAllocations.map((alloc, index) => (
+                      <span key={index} className="inline-flex items-center gap-1 bg-purple-50 text-purple-800 px-2 py-1 rounded-lg text-[11px] font-semibold border border-purple-100">
+                        {alloc}
+                        <button 
+                          type="button"
+                          onClick={() => setIncomeAllocations(prev => prev.filter(a => a !== alloc))}
+                          className="hover:text-red-650 font-extrabold ml-1 text-xs cursor-pointer focus:outline-none"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <input 
+                    type="text"
+                    value={newAllocation}
+                    onChange={(e) => setNewAllocation(e.target.value)}
+                    placeholder="Tambah tujuan baru..."
+                    className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1 text-xs"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (newAllocation.trim() && !incomeAllocations.includes(newAllocation.trim())) {
+                          setIncomeAllocations(prev => [...prev, newAllocation.trim()]);
+                          setNewAllocation('');
+                        }
+                      }
+                    }}
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (newAllocation.trim() && !incomeAllocations.includes(newAllocation.trim())) {
+                        setIncomeAllocations(prev => [...prev, newAllocation.trim()]);
+                        setNewAllocation('');
+                      }
+                    }}
+                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">📅 Opsi Hari Pertemuan ({meetingDays.length})</h4>
+                  <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto">
+                    {meetingDays.map((day, index) => (
+                      <span key={index} className="inline-flex items-center gap-1 bg-teal-50 text-teal-800 px-2 py-1 rounded-lg text-[11px] font-semibold border border-teal-100">
+                        {day}
+                        <button 
+                          type="button"
+                          onClick={() => setMeetingDays(prev => prev.filter(d => d !== day))}
+                          className="hover:text-red-650 font-extrabold ml-1 text-xs cursor-pointer focus:outline-none"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <input 
+                    type="text"
+                    value={newMeetingDay}
+                    onChange={(e) => setNewMeetingDay(e.target.value)}
+                    placeholder="Tambah hari..."
+                    className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1 text-xs"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (newMeetingDay.trim() && !meetingDays.includes(newMeetingDay.trim())) {
+                          setMeetingDays(prev => [...prev, newMeetingDay.trim()]);
+                          setNewMeetingDay('');
+                        }
+                      }
+                    }}
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (newMeetingDay.trim() && !meetingDays.includes(newMeetingDay.trim())) {
+                        setMeetingDays(prev => [...prev, newMeetingDay.trim()]);
+                        setNewMeetingDay('');
+                      }
+                    }}
+                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">🟢 Status Keaktifan Anggota ({memberKeaktifanStatuses.length})</h4>
+                  <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto">
+                    {memberKeaktifanStatuses.map((stat, index) => (
+                      <span key={index} className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-1 rounded-lg text-[11px] font-semibold border border-emerald-100">
+                        {stat}
+                        <button 
+                          type="button"
+                          onClick={() => setMemberKeaktifanStatuses(prev => prev.filter(s => s !== stat))}
+                          className="hover:text-red-650 font-extrabold ml-1 text-xs cursor-pointer focus:outline-none"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <input 
+                    type="text"
+                    value={newKeaktifanStatus}
+                    onChange={(e) => setNewKeaktifanStatus(e.target.value)}
+                    placeholder="Tambah status..."
+                    className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1 text-xs"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (newKeaktifanStatus.trim() && !memberKeaktifanStatuses.includes(newKeaktifanStatus.trim())) {
+                          setMemberKeaktifanStatuses(prev => [...prev, newKeaktifanStatus.trim()]);
+                          setNewKeaktifanStatus('');
+                        }
+                      }
+                    }}
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (newKeaktifanStatus.trim() && !memberKeaktifanStatuses.includes(newKeaktifanStatus.trim())) {
+                        setMemberKeaktifanStatuses(prev => [...prev, newKeaktifanStatus.trim()]);
+                        setNewKeaktifanStatus('');
+                      }
+                    }}
+                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">👥 Komponen Pembinaan ESM ({memberComponents.length})</h4>
+                  <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto">
+                    {memberComponents.map((comp, index) => (
+                      <span key={index} className="inline-flex items-center gap-1 bg-sky-50 text-sky-700 px-2 py-1 rounded-lg text-[11px] font-semibold border border-sky-100">
+                        {comp}
+                        <button 
+                          type="button"
+                          onClick={() => setMemberComponents(prev => prev.filter(c => c !== comp))}
+                          className="hover:text-red-650 font-extrabold ml-1 text-xs cursor-pointer focus:outline-none"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <input 
+                    type="text"
+                    value={newMemberComponent}
+                    onChange={(e) => setNewMemberComponent(e.target.value)}
+                    placeholder="Tambah komponen..."
+                    className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1 text-xs"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (newMemberComponent.trim() && !memberComponents.includes(newMemberComponent.trim())) {
+                          setMemberComponents(prev => [...prev, newMemberComponent.trim()]);
+                          setNewMemberComponent('');
+                        }
+                      }
+                    }}
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (newMemberComponent.trim() && !memberComponents.includes(newMemberComponent.trim())) {
+                        setMemberComponents(prev => [...prev, newMemberComponent.trim()]);
+                        setNewMemberComponent('');
+                      }
+                    }}
+                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">🤝 Status Komitmen Mitra ({partnerStatuses.length})</h4>
+                  <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto">
+                    {partnerStatuses.map((pStat, index) => (
+                      <span key={index} className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 px-2 py-1 rounded-lg text-[11px] font-semibold border border-rose-100">
+                        {pStat}
+                        <button 
+                          type="button"
+                          onClick={() => setPartnerStatuses(prev => prev.filter(s => s !== pStat))}
+                          className="hover:text-red-650 font-extrabold ml-1 text-xs cursor-pointer focus:outline-none"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <input 
+                    type="text"
+                    value={newPartnerStatus}
+                    onChange={(e) => setNewPartnerStatus(e.target.value)}
+                    placeholder="Tambah status mitra..."
+                    className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1 text-xs"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (newPartnerStatus.trim() && !partnerStatuses.includes(newPartnerStatus.trim())) {
+                          setPartnerStatuses(prev => [...prev, newPartnerStatus.trim()]);
+                          setNewPartnerStatus('');
+                        }
+                      }
+                    }}
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (newPartnerStatus.trim() && !partnerStatuses.includes(newPartnerStatus.trim())) {
+                        setPartnerStatuses(prev => [...prev, newPartnerStatus.trim()]);
+                        setNewPartnerStatus('');
+                      }
+                    }}
+                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">🏢 Jenis/Tipe Profil Mitra ({partnerTypes.length})</h4>
+                  <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto">
+                    {partnerTypes.map((pType, index) => (
+                      <span key={index} className="inline-flex items-center gap-1 bg-orange-50 text-orange-700 px-2 py-1 rounded-lg text-[11px] font-semibold border border-orange-100">
+                        {pType}
+                        <button 
+                          type="button"
+                          onClick={() => setPartnerTypes(prev => prev.filter(t => t !== pType))}
+                          className="hover:text-red-650 font-extrabold ml-1 text-xs cursor-pointer focus:outline-none"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <input 
+                    type="text"
+                    value={newPartnerType}
+                    onChange={(e) => setNewPartnerType(e.target.value)}
+                    placeholder="Tambah jenis mitra..."
+                    className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1 text-xs"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (newPartnerType.trim() && !partnerTypes.includes(newPartnerType.trim())) {
+                          setPartnerTypes(prev => [...prev, newPartnerType.trim()]);
+                          setNewPartnerType('');
+                        }
+                      }
+                    }}
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (newPartnerType.trim() && !partnerTypes.includes(newPartnerType.trim())) {
+                        setPartnerTypes(prev => [...prev, newPartnerType.trim()]);
+                        setNewPartnerType('');
+                      }
+                    }}
+                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 flex justify-end">
+              <button 
+                type="submit"
+                disabled={!(currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan')}
+                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Simpan & Sinkronisasi Variabel Sistem
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

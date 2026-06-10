@@ -114,6 +114,7 @@ export interface MaterialInfo {
   category: string;
   description: string;
   fileSize?: string;
+  pdfData?: string;
 }
 
 export interface Transaction {
@@ -126,6 +127,7 @@ export interface Transaction {
   sourceOrRecipient: string; // e.g. Donatur A, Gaji Staff X
   approvedBy?: string;
   status: 'Draft' | 'Pending Approval' | 'Approved' | 'Rejected';
+  allocationObjective?: string; // e.g. Gaji/Operasional, Peralatan, Kegiatan Khusus, dll.
 }
 
 export interface FinancialCategory {
@@ -285,12 +287,23 @@ export interface InstitutionalProfile {
   id: string;
   name: string;
   logoUrl?: string;
+  signatureUrl?: string;
   address: string;
   npwp: string;
   website: string;
   email: string;
   phone: string;
   legalReg: string; // Legalitas/SK Kemenkumham
+  systemTitle?: string;
+  dashboardTitle?: string;
+  regions?: string[];
+  materialCategories?: string[];
+  incomeAllocations?: string[];
+  meetingDays?: string[];
+  memberKeaktifanStatuses?: string[];
+  memberComponents?: string[];
+  partnerStatuses?: string[];
+  partnerTypes?: string[];
 }
 
 export interface AuditLog {

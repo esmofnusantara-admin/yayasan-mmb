@@ -51,6 +51,11 @@ export default function StaffTab({
   const [sPosition, setSPosition] = useState('');
   const [sDivision, setSDivision] = useState('Pelayanan Wilayah');
   const [sStatus, setSStatus] = useState<'Tetap' | 'Kontrak' | 'Magang' | 'Resigned'>('Tetap');
+  const [sContractEndDate, setSContractEndDate] = useState('');
+  
+  // Re-hire inline panel state
+  const [isRehireOpen, setIsRehireOpen] = useState(false);
+  const [rehireDate, setRehireDate] = useState('');
   
   // Base constants when registering a new staff
   const [baseSalary, setBaseSalary] = useState<number>(4500000);
@@ -58,6 +63,68 @@ export default function StaffTab({
   // Security authorizations for HR Directory
   const canViewHRDetails = ['Super Admin', 'Ketua Yayasan', 'Staff', 'Bendahara', 'Sekretaris'].includes(currentRole);
   const canModifyHR = ['Super Admin', 'Ketua Yayasan'].includes(currentRole);
+
+  const calculateDurationOfService = (joinedDateStr?: string) => {
+    if (!joinedDateStr) return '0 Hari';
+    const joined = new Date(joinedDateStr);
+    const today = new Date('2026-06-10'); // Unified system date or current context date
+    
+    let years = today.getFullYear() - joined.getFullYear();
+    let months = today.getMonth() - joined.getMonth();
+    let days = today.getDate() - joined.getDate();
+    
+    if (days < 0) {
+      months -= 1;
+      const prevMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+      days += prevMonth.getDate();
+    }
+    
+    if (months < 0) {
+      years -= 1;
+      months += 12;
+    }
+    
+    const parts = [];
+    if (years > 0) parts.push(`${years} Tahun`);
+    if (months > 0) parts.push(`${months} Bulan`);
+    if (days > 0 || parts.length === 0) parts.push(`${days} Hari`);
+    
+    return parts.join(' ');
+  };
+
+  const getExpirationStatus = (dateStr?: string) => {
+    if (!dateStr) return { color: 'text-slate-400', label: 'Selamanya (Tetap)', badgeClass: 'bg-emerald-50 text-emerald-700' };
+    const targetDate = new Date(dateStr);
+    const today = new Date('2026-06-10');
+    today.setHours(0,0,0,0);
+    targetDate.setHours(0,0,0,0);
+    
+    const diffTime = targetDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      return { color: 'text-red-650 font-bold', label: `Selesai (${Math.abs(diffDays)} hari lalu)`, expired: true, daysLeft: diffDays, badgeClass: 'bg-red-50 text-red-700 border border-red-200' };
+    } else if (diffDays === 0) {
+      return { color: 'text-amber-600 font-bold animate-pulse', label: 'Selesai hari ini', expired: false, warning: true, daysLeft: 0, badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200' };
+    } else if (diffDays <= 30) {
+      return { color: 'text-amber-650 font-medium', label: `${diffDays} hari lagi`, expired: false, warning: true, daysLeft: diffDays, badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200' };
+    } else {
+      return { color: 'text-slate-600', label: dateStr, expired: false, daysLeft: diffDays, badgeClass: 'bg-slate-50 text-slate-750 font-mono text-[11px]' };
+    }
+  };
+
+  const handleSaveRehire = () => {
+    if (!selectedStaff || !rehireDate) return;
+    const updated: Staff = {
+      ...selectedStaff,
+      contractEndDate: rehireDate,
+      status: selectedStaff.status === 'Resigned' ? 'Kontrak' : selectedStaff.status
+    };
+    onUpdateStaff(updated);
+    setSelectedStaff(updated);
+    setIsRehireOpen(false);
+    alert(`Sukses: Komitmen pelayanan ${selectedStaff.name} berhasil diperpanjang hingga tanggal ${rehireDate}!`);
+  };
 
   const openAddForm = () => {
     setEditingStaff(null);
@@ -69,6 +136,7 @@ export default function StaffTab({
     setSPosition('');
     setSDivision('Pelayanan Wilayah');
     setSStatus('Tetap');
+    setSContractEndDate('');
     setBaseSalary(4500000);
     setIsFormOpen(true);
   };
@@ -83,6 +151,7 @@ export default function StaffTab({
     setSPosition(stf.position || '');
     setSDivision(stf.division || 'Pelayanan Wilayah');
     setSStatus(stf.status || 'Tetap');
+    setSContractEndDate(stf.contractEndDate || '');
     setBaseSalary(stf.salaryBase || 4500000);
     setIsFormOpen(true);
   };
@@ -104,6 +173,7 @@ export default function StaffTab({
       division: sDivision,
       status: sStatus,
       joinedDate: editingStaff ? editingStaff.joinedDate : new Date().toISOString().split('T')[0],
+      contractEndDate: sContractEndDate || undefined,
       salaryBase: Number(baseSalary),
       // Retain or set standard empty defaults which can be customised in Payroll panel
       allowancePosition: editingStaff ? editingStaff.allowancePosition : 300000,
@@ -122,6 +192,10 @@ export default function StaffTab({
 
     if (editingStaff) {
       onUpdateStaff(compiled);
+      // Keep selected state in sync
+      if (selectedStaff && selectedStaff.nik === compiled.nik) {
+        setSelectedStaff(compiled);
+      }
     } else {
       onAddStaff(compiled);
     }
@@ -222,7 +296,8 @@ export default function StaffTab({
                     <th className="p-4">Struktural Jabatan</th>
                     <th className="p-4">Divisi Kerja</th>
                     <th className="p-4">Status Hubungan Kerja</th>
-                    <th className="p-4 border-r-0">Mulai Mengabdi</th>
+                    <th className="p-4">Mulai Mengabdi</th>
+                    <th className="p-4">Akhir Masa Pengabdian</th>
                     {canModifyHR && <th className="p-4 text-center">Aksi Pelayanan</th>}
                   </tr>
                 </thead>
@@ -249,12 +324,26 @@ export default function StaffTab({
                         </span>
                       </td>
                       <td className="p-4 text-slate-500 font-medium">{staff.joinedDate}</td>
+                      <td className="p-4">
+                        {staff.contractEndDate ? (
+                          <div className="flex flex-col">
+                            <span className={`font-mono text-[11px] font-bold ${getExpirationStatus(staff.contractEndDate).color}`}>
+                              {staff.contractEndDate}
+                            </span>
+                            <span className="text-[9px] text-slate-400 font-medium">
+                              ({getExpirationStatus(staff.contractEndDate).label})
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-emerald-700 font-semibold text-[11px]">Selamanya (Tetap)</span>
+                        )}
+                      </td>
                       {canModifyHR && (
                         <td className="p-4 text-center animate-none" onClick={(e) => e.stopPropagation()}>
                           <div className="flex gap-1.5 justify-center">
                             <button 
                               onClick={() => openEditForm(staff)}
-                              className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-205 rounded-lg text-[10px] font-semibold cursor-pointer shadow-xs"
+                              className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-750 border border-indigo-200 rounded-lg text-[10px] font-bold cursor-pointer shadow-xs transition-colors"
                             >
                               Edit
                             </button>
@@ -264,7 +353,7 @@ export default function StaffTab({
                                   onDeleteStaff(staff.nik);
                                 }
                               }}
-                              className="p-1 px-2 hover:bg-red-50 text-red-500 border border-transparent rounded-lg text-[10px] cursor-pointer"
+                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-150 text-rose-750 border border-rose-200 rounded-lg text-[10px] font-bold cursor-pointer shadow-xs transition-colors"
                             >
                               Hapus
                             </button>
@@ -317,13 +406,105 @@ export default function StaffTab({
                           <span className="text-[9px] text-slate-400 block mt-0.5">Penempatan: {selectedStaff.division}</span>
                         </div>
                       </div>
-                      <p className="text-[10px] leading-relaxed text-slate-500">Mulai Mengabdi: {selectedStaff.joinedDate}. Setiap mutasi ataupun perubahan divisi wajib diproses dengan surat keputusan legalitas dari Ketua Yayasan.</p>
+                      <p className="text-[10px] leading-relaxed text-slate-500">Mulai Mengabdi: {selectedStaff.joinedDate}. <strong>Lama Mengabdi: {calculateDurationOfService(selectedStaff.joinedDate)}</strong>. Setiap mutasi ataupun perubahan divisi wajib diproses dengan surat keputusan legalitas dari Ketua Yayasan.</p>
                     </div>
                   ) : (
                     <div className="p-4 bg-slate-50 border border-slate-200/50 rounded-xl text-center text-slate-400 flex flex-col items-center gap-1 shadow-inner">
                       <Lock className="w-5 h-5 text-slate-300" />
                       <span className="font-semibold text-slate-600 text-[11px]">Strict Security Access</span>
                       <p className="text-[10px] px-2 text-slate-400 leading-relaxed">Sesuai SOP keamanan Yayasan, akses dibatasi khusus untuk Staf, Ketua, dan Super Admin.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono mb-2">Komitmen & Masa Akhir Pengabdian</h4>
+                  {canViewHRDetails ? (
+                    <div className="space-y-3">
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-2">
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-500 font-medium">Akhir Masa Pengabdian :</span>
+                          {selectedStaff.contractEndDate ? (
+                            <span className={`font-bold font-mono px-2 py-0.5 rounded text-[11px] ${
+                              getExpirationStatus(selectedStaff.contractEndDate).badgeClass
+                            }`}>
+                              {selectedStaff.contractEndDate}
+                            </span>
+                          ) : (
+                            <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[11px]">
+                              Selamanya (Tetap)
+                            </span>
+                          )}
+                        </div>
+                        {selectedStaff.contractEndDate && (
+                          <div className="text-[11px] pt-1 border-t border-slate-100 flex justify-between items-center text-slate-650">
+                            <span>Status Komitmen :</span>
+                            <span className={`font-semibold ${getExpirationStatus(selectedStaff.contractEndDate).color}`}>
+                              {getExpirationStatus(selectedStaff.contractEndDate).label}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Re-hire or Extend Section */}
+                      {canModifyHR && (
+                        <div className="p-3 bg-indigo-50/40 border border-indigo-100/50 rounded-xl space-y-2">
+                          {isRehireOpen ? (
+                            <div className="space-y-2">
+                              <label className="block text-[10px] font-bold text-slate-650 uppercase">
+                                Tentukan Masa Akhir Pengabdian Baru (Re-hire):
+                              </label>
+                              <div className="flex gap-2">
+                                <input 
+                                  type="date"
+                                  value={rehireDate}
+                                  onChange={(e) => setRehireDate(e.target.value)}
+                                  className="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleSaveRehire}
+                                  disabled={!rehireDate}
+                                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 font-bold text-white rounded-lg transition-colors cursor-pointer text-[11px] disabled:opacity-50"
+                                >
+                                  Simpan
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setIsRehireOpen(false)}
+                                  className="p-1 text-slate-400 hover:text-slate-600"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-1.5">
+                              {selectedStaff.contractEndDate && (getExpirationStatus(selectedStaff.contractEndDate).expired || getExpirationStatus(selectedStaff.contractEndDate).daysLeft <= 30) && (
+                                <div className="p-2 bg-amber-50 text-amber-850 text-[10px] rounded border border-amber-100 leading-relaxed font-semibold">
+                                  ⚠️ Masa komitmen pelayanan hampir selesai atau sudah habis. Silakan perbarui masa pengabdian staf ini.
+                                </div>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const cur = selectedStaff.contractEndDate ? new Date(selectedStaff.contractEndDate) : new Date('2026-06-10');
+                                  cur.setFullYear(cur.getFullYear() + 1);
+                                  setRehireDate(cur.toISOString().split('T')[0]);
+                                  setIsRehireOpen(true);
+                                }}
+                                className="w-full text-center py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs cursor-pointer shadow-xs transition-colors"
+                              >
+                                {selectedStaff.contractEndDate ? 'Re-hire / Perbarui Masa Pengabdian' : 'Atur Komitmen Batas Kontrak'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-slate-50 rounded-xl text-center text-slate-400 text-[10px]">
+                      Akses dibatasi.
                     </div>
                   )}
                 </div>
@@ -427,7 +608,13 @@ export default function StaffTab({
                     <label className="text-slate-500 block mb-1">Status Kepegawaian :</label>
                     <select 
                       value={sStatus}
-                      onChange={(e) => setSStatus(e.target.value as any)}
+                      onChange={(e) => {
+                        const val = e.target.value as any;
+                        setSStatus(val);
+                        if (val === 'Tetap') {
+                          setSContractEndDate('');
+                        }
+                      }}
                       className="w-full border border-slate-200 rounded-xl px-2.5 py-2 bg-white text-slate-800"
                     >
                       <option value="Tetap">Karyawan Tetap</option>
@@ -438,13 +625,28 @@ export default function StaffTab({
                   </div>
 
                   <div>
-                    <label className="text-slate-500 block mb-1 font-semibold text-indigo-700">Gaji Pokok Awal (Base) :</label>
+                    <label className="text-slate-500 block mb-1 font-semibold text-indigo-705">Gaji Pokok Awal (Base) :</label>
                     <input 
                       type="number" 
                       value={baseSalary}
                       onChange={(e) => setBaseSalary(Number(e.target.value))}
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono font-bold bg-white"
                     />
+                  </div>
+
+                  <div className="sm:col-span-2 bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50 space-y-1">
+                    <label className="text-slate-650 block font-bold text-[11px]">Batas Akhir Pelayanan / Komitmen Pengabdian :</label>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <input 
+                        type="date" 
+                        value={sContractEndDate}
+                        onChange={(e) => setSContractEndDate(e.target.value)}
+                        className="border border-slate-200 rounded-xl px-3 py-2 text-slate-800 bg-white font-mono flex-1 focus:outline-none text-xs"
+                      />
+                      <span className="text-[10px] text-slate-400 self-center max-w-xs block leading-relaxed">
+                        Kosongkan jika berstatus Karyawan Tetap. Isi tanggal ini untuk memantau waktu jatuh tempo masa pengabdian & mengaktifkan opsi asisten Re-hire otomatis.
+                      </span>
+                    </div>
                   </div>
                 </div>
 

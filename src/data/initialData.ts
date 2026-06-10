@@ -35,7 +35,17 @@ export const INITIAL_PROFILE: InstitutionalProfile = {
   website: 'https://esm-student.or.id',
   email: 'info@esm-student.or.id',
   phone: '+62 21-3456-7890',
-  legalReg: 'AHU-0012345.AH.01.04.Tahun 2024'
+  legalReg: 'AHU-0012345.AH.01.04.Tahun 2024',
+  systemTitle: 'ESM FMS',
+  dashboardTitle: 'Institutional Executive ERP',
+  regions: ["Yogyakarta", "Solo", "Semarang", "Purwokerto"],
+  materialCategories: ["Materi Dasar / Siswa", "Siswa & Mahasiswa", "Alumni", "Pelatihan Pemimpin (PKK)", "Materi Umum / Publik"],
+  incomeAllocations: ["Gaji / Operasional", "Peralatan", "Kegiatan Khusus", "Lainnya"],
+  meetingDays: ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"],
+  memberKeaktifanStatuses: ["Aktif", "Pasif", "Cuti", "Pindah"],
+  memberComponents: ["Siswa", "Mahasiswa", "Alumni", "Umum"],
+  partnerStatuses: ["Prospek", "Kontak Awal", "Presentasi", "Komitmen", "Donasi Pertama", "Aktif", "Tidak Aktif"],
+  partnerTypes: ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]
 };
 
 export const INITIAL_MEMBERS: Member[] = [
@@ -447,6 +457,16 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     type: 'Expense',
     sourceOrRecipient: 'Grace Natalia',
     status: 'Pending Approval'
+  },
+  {
+    id: 'TX-2026-00008',
+    date: '2026-05-10',
+    category: 'Dukungan Mitra Bulanan',
+    description: 'Penerimaan donasi tahunan GKI Manyar Surabaya',
+    amount: 12000000,
+    type: 'Income',
+    sourceOrRecipient: 'GKI Manyar Surabaya',
+    status: 'Approved'
   }
 ];
 
@@ -550,7 +570,8 @@ export const INITIAL_STAFF: Staff[] = [
     taxDeduction: 250000,
     bpjsDeduction: 150000,
     kasbonDeduction: 0,
-    otherDeduction: 0
+    otherDeduction: 0,
+    paidAmount: 11450000
   },
   {
     nik: 'NIK-1002',
@@ -573,7 +594,8 @@ export const INITIAL_STAFF: Staff[] = [
     taxDeduction: 150000,
     bpjsDeduction: 120000,
     kasbonDeduction: 0,
-    otherDeduction: 0
+    otherDeduction: 0,
+    paidAmount: 8530000
   },
   {
     nik: 'NIK-1003',
@@ -597,7 +619,8 @@ export const INITIAL_STAFF: Staff[] = [
     taxDeduction: 100000,
     bpjsDeduction: 100000,
     kasbonDeduction: 400000, // Kasbon potongan
-    otherDeduction: 0
+    otherDeduction: 0,
+    paidAmount: 3670000
   }
 ];
 
@@ -746,4 +769,10 @@ export const INITIAL_SALARIES: StaffSalary[] = [
       { id: 'kasbonDeduction', name: 'Kasbon / Angsuran', amount: 400000, type: 'deduction' }
     ]
   }
+];
+
+export const INITIAL_DONATIONS: CampaignDonation[] = [
+  { id: 'DON-01', partnerId: 'PTR-01', partnerName: 'Bapak Hendra Wijaya', amount: 1500000, date: '2026-06-01', channel: 'Transfer Bank Mandiri' },
+  { id: 'DON-02', partnerId: 'PTR-02', partnerName: 'GKI Manyar Surabaya', amount: 12000000, date: '2026-05-10', channel: 'BCA Yayasan' },
+  { id: 'DON-03', partnerId: 'PTR-03', partnerName: 'PT Berkah Abadi', amount: 10000000, date: '2026-06-02', channel: 'BCA Yayasan' }
 ];

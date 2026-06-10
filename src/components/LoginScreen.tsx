@@ -267,7 +267,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
             Sistem ERP Eksekutif Yayasan Evangelical Student Movement (ESM) Indonesia. 
             Membantu memanajemen jemaat, asrama mahasiswa, kelompok kecil (KTB), anggaran 
-            jurnal kas atomic, fundraising kemitraan, ledger payroll gaji, serta tata persuratan resmi yayasan secara terintegrasi dan aman.
+            jurnal kas, penggalangan dana kemitraan, riwayat penggajian staf, serta tata persuratan resmi yayasan secara terintegrasi dan aman.
           </p>
 
           {/* Real-time Connection Status & Policy (No Mock Predefined Grid) */}

@@ -24,7 +24,7 @@ import {
   KanbanSquare,
   Download
 } from 'lucide-react';
-import { Partner, CampaignDonation } from '../types';
+import { Partner, CampaignDonation, InstitutionalProfile } from '../types';
 import { exportToCSV } from '../utils/export';
 
 interface PartnersTabProps {
@@ -35,6 +35,7 @@ interface PartnersTabProps {
   currentRole: string;
   donations: CampaignDonation[];
   onAddDonation: (d: CampaignDonation) => Promise<void>;
+  profile?: InstitutionalProfile;
 }
 
 export default function PartnersTab({
@@ -45,6 +46,7 @@ export default function PartnersTab({
   currentRole,
   donations,
   onAddDonation,
+  profile,
 }: PartnersTabProps) {
   const [subView, setSubView] = useState<'directory' | 'pipeline' | 'donations'>('directory');
   
@@ -62,7 +64,7 @@ export default function PartnersTab({
   const [pBirthDate, setPBirthDate] = useState('');
   const [pOccupation, setPOccupation] = useState('');
   const [pType, setPType] = useState<'Pribadi' | 'Gereja' | 'Perusahaan' | 'Instansi' | 'Yayasan'>('Pribadi');
-  const [pRegion, setPRegion] = useState('Yogyakarta');
+  const [pRegion, setPRegion] = useState(profile?.regions?.[0] || 'Yogyakarta');
   const [pStaff, setPStaff] = useState('Ahmad Faisal');
   const [pStatus, setPStatus] = useState<any>('Prospek');
   
@@ -94,7 +96,7 @@ export default function PartnersTab({
     setPBirthDate('');
     setPOccupation('');
     setPType('Pribadi');
-    setPRegion('Yogyakarta');
+    setPRegion(profile?.regions?.[0] || 'Yogyakarta');
     setPStaff('Ahmad Faisal');
     setPStatus('Prospek');
     setPAmount(500000);
@@ -201,7 +203,7 @@ export default function PartnersTab({
   };
 
   // Pipeline stages Kanban definition
-  const STAGES: any[] = ['Prospek', 'Kontak Awal', 'Presentasi', 'Komitmen', 'Donasi Pertama', 'Aktif'];
+  const STAGES: any[] = profile?.partnerStatuses || ['Prospek', 'Kontak Awal', 'Presentasi', 'Komitmen', 'Donasi Pertama', 'Aktif', 'Tidak Aktif'];
 
   const filteredPartners = partners.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -351,10 +353,9 @@ export default function PartnersTab({
               className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 bg-white"
             >
               <option value="Semua">Semua Klasifikasi Mitra</option>
-              <option value="Pribadi">Sponsor Pribadi</option>
-              <option value="Gereja">Lembaga Gereja</option>
-              <option value="Perusahaan">CSR Perusahaan</option>
-              <option value="Yayasan">Mitra Yayasan / CSO</option>
+              {(profile?.partnerTypes || ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]).map((type, idx) => (
+                <option key={idx} value={type}>{type}</option>
+              ))}
             </select>
           </div>
 
@@ -547,11 +548,9 @@ export default function PartnersTab({
                       onChange={(e) => setPType(e.target.value as any)}
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-850"
                     >
-                      <option value="Pribadi">Pribadi / Perorangan</option>
-                      <option value="Gereja">Donatur Lembaga Gereja</option>
-                      <option value="Perusahaan">CSR Perusahaan / Corporate</option>
-                      <option value="Instansi">Instansi Pemerintah</option>
-                      <option value="Yayasan">Mitra Yayasan / NGO</option>
+                      {(profile?.partnerTypes || ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]).map((type, idx) => (
+                        <option key={idx} value={type}>{type}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -622,11 +621,9 @@ export default function PartnersTab({
                       onChange={(e) => setPRegion(e.target.value)}
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
                     >
-                      <option value="Yogyakarta">Yogyakarta</option>
-                      <option value="Surabaya">Surabaya</option>
-                      <option value="Jakarta">Jakarta</option>
-                      <option value="Bandung">Bandung</option>
-                      <option value="Medan">Medan</option>
+                      {(profile?.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]).map((r, idx) => (
+                        <option key={idx} value={r}>{r}</option>
+                      ))}
                     </select>
                   </div>
                   <div>

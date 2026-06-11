@@ -28,15 +28,17 @@ import {
 
 export const INITIAL_PROFILE: InstitutionalProfile = {
   id: 'PROF-01',
-  name: 'Yayasan Evangelical Student Movement (ESM)',
+  name: 'Yayasan Murid Muda Bermisi (MMB)',
   logoUrl: '',
+  kopTitle: 'EVANGELICAL STUDENT MOVEMENT',
+  kopMotto: 'Kabar baik. Pemuridan. Misi.',
   address: 'Jl. Diponegoro No. 84, Menteng, Jakarta Pusat, DKI Jakarta 10310',
   npwp: '01.234.567.8-012.000',
-  website: 'https://esm-student.or.id',
-  email: 'info@esm-student.or.id',
+  website: 'https://muridmudabermisi.or.id',
+  email: 'info@muridmudabermisi.or.id',
   phone: '+62 21-3456-7890',
   legalReg: 'AHU-0012345.AH.01.04.Tahun 2024',
-  systemTitle: 'ESM FMS',
+  systemTitle: 'Yayasan MMB',
   dashboardTitle: 'Institutional Executive ERP',
   regions: ["Yogyakarta", "Solo", "Semarang", "Purwokerto"],
   materialCategories: ["Materi Dasar / Siswa", "Siswa & Mahasiswa", "Alumni", "Pelatihan Pemimpin (PKK)", "Materi Umum / Publik"],
@@ -45,7 +47,11 @@ export const INITIAL_PROFILE: InstitutionalProfile = {
   memberKeaktifanStatuses: ["Aktif", "Pasif", "Cuti", "Pindah"],
   memberComponents: ["Siswa", "Mahasiswa", "Alumni", "Umum"],
   partnerStatuses: ["Prospek", "Kontak Awal", "Presentasi", "Komitmen", "Donasi Pertama", "Aktif", "Tidak Aktif"],
-  partnerTypes: ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]
+  partnerTypes: ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"],
+  stampUrl: '',
+  signatureChairmanUrl: '',
+  signatureSecretaryUrl: '',
+  signatureTreasurerUrl: '',
 };
 
 export const INITIAL_MEMBERS: Member[] = [

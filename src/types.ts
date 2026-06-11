@@ -260,6 +260,18 @@ export interface LetterOutward {
   content: string;
   author: string;
   status: 'Draft' | 'Pending Approval' | 'Approved' | 'Sent';
+  // Dynamic Signees attributes
+  signLeftType?: 'Ketua' | 'Sekretaris' | 'Bendahara' | 'Custom' | 'None';
+  signLeftName?: string;
+  signLeftTitle?: string;
+  signRightType?: 'Ketua' | 'Sekretaris' | 'Bendahara' | 'Custom' | 'None';
+  signRightName?: string;
+  signRightTitle?: string;
+  showStamp?: boolean;
+  stampTarget?: 'left' | 'right' | 'center';
+  stampOffsetX?: number;
+  stampOffsetY?: number;
+  stampSize?: number;
 }
 
 export interface OrgDocument {
@@ -288,6 +300,8 @@ export interface InstitutionalProfile {
   name: string;
   logoUrl?: string;
   signatureUrl?: string;
+  kopTitle?: string;
+  kopMotto?: string;
   address: string;
   npwp: string;
   website: string;
@@ -304,6 +318,11 @@ export interface InstitutionalProfile {
   memberComponents?: string[];
   partnerStatuses?: string[];
   partnerTypes?: string[];
+  // Stamp and Role-based custom signatures
+  stampUrl?: string;
+  signatureChairmanUrl?: string;
+  signatureSecretaryUrl?: string;
+  signatureTreasurerUrl?: string;
 }
 
 export interface AuditLog {

@@ -18,9 +18,13 @@ import {
   Calendar, 
   Activity,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Printer,
+  Gift,
+  FilePieChart
 } from 'lucide-react';
 import { Member, Transaction, Partner, SmallGroup, ApprovalRequest, AuditLog } from '../types';
+import { exportDashboardSummaryToPDF } from '../utils/export';
 
 interface DashboardTabProps {
   members: Member[];
@@ -32,6 +36,7 @@ interface DashboardTabProps {
   setTab: (tab: string) => void;
   onOpenQuickTx: () => void;
   onOpenQuickMember: () => void;
+  profile?: any;
 }
 
 export default function DashboardTab({
@@ -44,6 +49,7 @@ export default function DashboardTab({
   setTab,
   onOpenQuickTx,
   onOpenQuickMember,
+  profile,
 }: DashboardTabProps) {
   // Financial Calculators
   const approvedTx = transactions.filter(t => t.status === 'Approved');
@@ -72,6 +78,27 @@ export default function DashboardTab({
   // Quick notifications
   const pendingApprovalsCount = approvals.filter(a => a.status === 'Pending').length;
 
+  // Birthdays Filter & Print Summary Handler
+  const currentMonthNumStr = String(new Date().getMonth() + 1).padStart(2, '0');
+  const monthName = new Date().toLocaleDateString('id-ID', { month: 'long' });
+  const upcomingBirthdays = members
+    .filter(m => {
+      if (!m.birthDate) return false;
+      const parts = m.birthDate.split('-');
+      return parts.length >= 2 && parts[1] === currentMonthNumStr;
+    })
+    .sort((a, b) => {
+      const dayA = parseInt(a.birthDate.split('-')[2] || '0', 10);
+      const dayB = parseInt(b.birthDate.split('-')[2] || '0', 10);
+      return dayA - dayB;
+    });
+
+  const pendingApprovals = approvals.filter(a => a.status === 'Pending');
+
+  const handlePrintSummary = () => {
+    exportDashboardSummaryToPDF(upcomingBirthdays, pendingApprovals);
+  };
+
   // Let's build a timeline of transactions for dynamic mini graph
   // Sorting transactions chronologically
   const sortedTx = [...transactions]
@@ -81,12 +108,18 @@ export default function DashboardTab({
   return (
     <div className="space-y-6">
       {/* Upper Welcoming Banner */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl p-6 shadow-sm border border-slate-700/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all duration-300">
+      <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl p-6 shadow-sm border border-slate-700/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all duration-300">
         <div>
           <h1 className="text-2xl font-bold font-sans tracking-tight">Pusat Kendali & Ringkasan Yayasan</h1>
-          <p className="text-slate-300 text-sm mt-1">Sistem Pengelolaan Informasi Terpadu - Yayasan Gerakan Siswa Injili (ESM)</p>
+          <p className="text-slate-300 text-sm mt-1">Sistem Pengelolanan Informasi Terpadu - {profile?.name || 'Yayasan Murid Muda Bermisi (MMB)'}</p>
         </div>
         <div className="flex gap-2.5">
+          <button 
+            onClick={() => setTab('reports')}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-white cursor-pointer shadow-[0_2px_10px_rgba(79,70,229,0.2)]"
+          >
+            <FilePieChart className="w-4 h-4" /> Pusat Laporan
+          </button>
           <button 
             onClick={onOpenQuickMember}
             className="px-4 py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-white cursor-pointer"
@@ -298,46 +331,98 @@ export default function DashboardTab({
           </div>
         </div>
 
-        {/* Member Journey Conversion Widget (Right) */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
-          <div>
-            <h3 className="text-md font-semibold text-slate-800 mb-1">Pipeline Kaderisasi</h3>
-            <p className="text-slate-400 text-xs mb-4">Journey Anggota dari Prospect hingga Alumni Aktif</p>
-            
-            <div className="space-y-3.5">
-              {[
-                { status: 'Prospect', color: 'bg-slate-300', count: members.filter(m => m.component === 'Umum').length + 1 },
-                { status: 'Encounter (Siswa)', color: 'bg-emerald-400', count: members.filter(m => m.component === 'Siswa').length },
-                { status: 'Explore (Mahasiswa)', color: 'bg-indigo-500', count: members.filter(m => m.component === 'Mahasiswa').length },
-                { status: 'Connect (Alumni)', color: 'bg-amber-400', count: members.filter(m => m.component === 'Alumni' && m.statusKeaktifan !== 'Aktif').length },
-                { status: 'Alumni Aktif', color: 'bg-indigo-600', count: members.filter(m => m.component === 'Alumni' && m.statusKeaktifan === 'Aktif').length + 1 },
-              ].map((stage, idx) => {
-                const percentage = Math.max((stage.count / (totalMembers || 1)) * 100, 8);
-                return (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-medium text-slate-700">{stage.status}</span>
-                      <span className="font-semibold text-slate-900 font-mono">{stage.count} org</span>
+        {/* Right Column Grid: Career pipeline and Birthday highlights */}
+        <div className="space-y-6 flex flex-col">
+          {/* Member Journey Conversion Widget */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between flex-1">
+            <div>
+              <h3 className="text-md font-semibold text-slate-800 mb-1">Pipeline Kaderisasi</h3>
+              <p className="text-slate-400 text-xs mb-4">Journey Anggota dari Prospect hingga Alumni Aktif</p>
+              
+              <div className="space-y-3.5">
+                {[
+                  { status: 'Prospect', color: 'bg-slate-300', count: members.filter(m => m.component === 'Umum').length + 1 },
+                  { status: 'Encounter (Siswa)', color: 'bg-emerald-400', count: members.filter(m => m.component === 'Siswa').length },
+                  { status: 'Explore (Mahasiswa)', color: 'bg-indigo-500', count: members.filter(m => m.component === 'Mahasiswa').length },
+                  { status: 'Connect (Alumni)', color: 'bg-amber-400', count: members.filter(m => m.component === 'Alumni' && m.statusKeaktifan !== 'Aktif').length },
+                  { status: 'Alumni Aktif', color: 'bg-indigo-600', count: members.filter(m => m.component === 'Alumni' && m.statusKeaktifan === 'Aktif').length + 1 },
+                ].map((stage, idx) => {
+                  const percentage = Math.max((stage.count / (totalMembers || 1)) * 100, 8);
+                  return (
+                    <div key={idx} className="space-y-1">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-medium text-slate-700">{stage.status}</span>
+                        <span className="font-semibold text-slate-900 font-mono">{stage.count} org</span>
+                      </div>
+                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div 
+                          style={{ width: `${percentage}%` }} 
+                          className={`h-full ${stage.color} transition-all duration-500`}
+                        />
+                      </div>
                     </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                      <div 
-                        style={{ width: `${percentage}%` }} 
-                        className={`h-full ${stage.color} transition-all duration-500`}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-50 mt-4">
+              <button 
+                onClick={() => setTab('Anggota')}
+                className="w-full py-2 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl text-xs font-semibold text-slate-700 flex items-center justify-center gap-1 transition-all cursor-pointer"
+              >
+                Ubah Data Anggota <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-50 mt-4">
-            <button 
-              onClick={() => setTab('Anggota')}
-              className="w-full py-2 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl text-xs font-semibold text-slate-700 flex items-center justify-center gap-1 transition-all cursor-pointer"
-            >
-              Ubah Data Anggota <ChevronRight className="w-4 h-4 text-slate-500" />
-            </button>
+          {/* Birthday highlights of the month */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between gap-1 mb-2">
+                <div className="flex items-center gap-1.5 text-slate-800">
+                  <Gift className="w-4.5 h-4.5 text-rose-500 shrink-0" />
+                  <h3 className="text-sm font-bold">Ulang Tahun Bulan Ini</h3>
+                </div>
+                <span className="bg-rose-50 text-rose-700 px-2.5 py-0.5 rounded-full text-[9px] font-bold font-sans">
+                  {monthName}
+                </span>
+              </div>
+              <p className="text-slate-400 text-[11px] mb-3">Apresiasi hari istimewa dan rencana perayaan pelayan ESM</p>
+              
+              {upcomingBirthdays.length === 0 ? (
+                <div className="text-center py-6 text-slate-400 text-[11px] italic">
+                  Tidak ada ulang tahun di bulan ini.
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-[175px] overflow-y-auto pr-1">
+                  {upcomingBirthdays.map((m) => {
+                    const birthDay = parseInt(m.birthDate.split('-')[2] || '0', 10);
+                    const isToday = birthDay === new Date().getDate();
+                    return (
+                      <div key={m.id} className={`p-2 rounded-xl border flex items-center justify-between gap-3 text-xs transition-all ${
+                        isToday 
+                          ? 'bg-rose-50/40 border-rose-200 ring-1 ring-rose-150' 
+                          : 'bg-slate-50/55 border-slate-100 hover:bg-slate-50'
+                      }`}>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-800 truncate block">{m.fullName}</span>
+                            {isToday && (
+                              <span className="bg-rose-500 text-white font-extrabold text-[8px] px-1 py-0.5 rounded uppercase font-mono leading-none shrink-0">Hari Ini 🎉</span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">
+                            Kak {m.nickName} &bull; {m.component}
+                          </p>
+                        </div>
+                        <span className="text-xs font-bold text-rose-600 font-mono shrink-0">Tgl {birthDay}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

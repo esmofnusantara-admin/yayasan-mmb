@@ -17,7 +17,8 @@ import {
   User,
   Menu,
   X,
-  Coins
+  Coins,
+  FilePieChart
 } from 'lucide-react';
 
 // Import local components
@@ -33,6 +34,7 @@ import ApprovalsTab from './components/ApprovalsTab';
 import SystemTab from './components/SystemTab';
 import LoginScreen from './components/LoginScreen';
 import StaffMeTab from './components/StaffMeTab';
+import ReportsTab from './components/ReportsTab';
 
 // Import state type bindings & seed data
 import { 
@@ -102,11 +104,11 @@ export default function App() {
       return currentUser.features.includes(feature);
     }
     const defaultFeaturesMap: Record<string, string[]> = {
-      'Super Admin': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile'],
-      'Ketua Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile'],
-      'Bendahara': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'staff_profile'],
-      'Sekretaris': ['dashboard', 'members', 'small_groups', 'letters', 'system', 'staff_profile'],
-      'Staff': ['dashboard', 'members', 'small_groups', 'staff_profile']
+      'Super Admin': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports'],
+      'Ketua Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports'],
+      'Bendahara': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'staff_profile', 'reports'],
+      'Sekretaris': ['dashboard', 'members', 'small_groups', 'letters', 'system', 'staff_profile', 'reports'],
+      'Staff': ['dashboard', 'members', 'small_groups', 'staff_profile', 'reports']
     };
     const roleFeatures = defaultFeaturesMap[currentUser.role] || ['dashboard'];
     return roleFeatures.includes(feature);
@@ -176,15 +178,39 @@ export default function App() {
   const [structures, setStructures] = useState<any[]>([]);
 
   // Restful Loader Helper with Auto-Seeding
+  const safeFetchJson = async (url: string, retries = 3, delayMs = 1000): Promise<any> => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`HTTP status ${res.status}`);
+        }
+        const contentType = res.headers.get('content-type') || '';
+        if (
+          contentType.toLowerCase().includes('text/html') || 
+          (contentType.toLowerCase().includes('text/plain') && !contentType.toLowerCase().includes('json'))
+        ) {
+          throw new Error('Received non-JSON response from server (HTML or plain text fallback)');
+        }
+        const data = await res.json();
+        return data;
+      } catch (err: any) {
+        console.warn(`Attempt ${i + 1} to fetch ${url} failed: ${err.message}`);
+        if (i === retries - 1) {
+          throw err;
+        }
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  };
+
   const loadCollection = async <T extends { id?: string; nik?: string; deleted?: boolean; createdAt?: string; createdBy?: string }>(
     colName: string,
     initialData: T[],
     setter: React.Dispatch<React.SetStateAction<T[]>>
   ) => {
     try {
-      const res = await fetch(`/api/data/${colName}?includeDeleted=true&t=${Date.now()}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const rawData = await res.json();
+      const rawData = await safeFetchJson(`/api/data/${colName}?includeDeleted=true&t=${Date.now()}`);
       const activeData = Array.isArray(rawData) ? rawData.filter((x: any) => !x.deleted) : [];
       
       const seededKey = `esm_seeded_${colName}`;
@@ -208,9 +234,8 @@ export default function App() {
           }
         }
         localStorage.setItem(seededKey, 'true');
-        const freshRes = await fetch(`/api/data/${colName}?t=${Date.now()}`);
-        const freshData = await freshRes.json();
-        setter(freshData);
+        const freshData = await safeFetchJson(`/api/data/${colName}?t=${Date.now()}`);
+        setter(freshData || []);
       } else {
         // Dynamic Incremental Auto-Seeding to support new default template entries safely
         // But only lock/run this if we haven't flagged it as seeded, to respect hard-deletes
@@ -237,9 +262,8 @@ export default function App() {
           }
           localStorage.setItem(seededKey, 'true');
           if (didSeedNewItem) {
-            const freshRes = await fetch(`/api/data/${colName}?t=${Date.now()}`);
-            const freshData = await freshRes.json();
-            setter(freshData);
+            const freshData = await safeFetchJson(`/api/data/${colName}?t=${Date.now()}`);
+            setter(freshData || []);
             return;
           }
         }
@@ -252,10 +276,8 @@ export default function App() {
 
   const loadProfile = async () => {
     try {
-      const res = await fetch('/api/data/profiles');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const mainProfile = data.find((p: any) => p.id === 'PROF-01');
+      const data = await safeFetchJson('/api/data/profiles');
+      const mainProfile = Array.isArray(data) ? data.find((p: any) => p.id === 'PROF-01') : null;
       if (!mainProfile) {
         console.log('Seeding profiles via API...');
         await fetch('/api/data/profiles/PROF-01', {
@@ -279,12 +301,9 @@ export default function App() {
 
   const loadStructures = async () => {
     try {
-      const res = await fetch('/api/data/structures');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setStructures(data);
-        }
+      const data = await safeFetchJson('/api/data/structures');
+      if (Array.isArray(data)) {
+        setStructures(data);
       }
     } catch (e) {
       console.error('Failed to load structures:', e);
@@ -1256,8 +1275,14 @@ export default function App() {
       {/* Upper Navigation Control header bar (Global) - Geometric Balance Theme Accent */}
       <header className="sticky top-0 z-40 bg-white text-slate-800 px-6 py-3 border-b border-slate-200 shadow-sm flex justify-between items-center shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="bg-[#2563EB] p-2 rounded-xl text-white shadow-sm shadow-blue-500/20">
-            <Building2 className="w-5 h-5 text-white animate-pulse" />
+          <div className="p-0.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-center overflow-hidden bg-white w-9 h-9 shrink-0">
+            {profile.logoUrl ? (
+              <img src={profile.logoUrl} alt="Logo Yayasan" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="bg-[#2563EB] p-1.5 rounded-lg text-white w-full h-full flex items-center justify-center">
+                <Building2 className="w-4.5 h-4.5 text-white" />
+              </div>
+            )}
           </div>
           <div>
             <h1 id="header-system-title" className="font-extrabold text-sm tracking-tight text-slate-900 leading-none">{profile.systemTitle || 'ESM FMS'}</h1>
@@ -1397,7 +1422,18 @@ export default function App() {
                 </button>
               )}
 
-              {(hasFeatureAccess('partners') || hasFeatureAccess('staff') || hasFeatureAccess('payroll') || hasFeatureAccess('letters') || hasFeatureAccess('approvals')) && (
+              {hasFeatureAccess('reports') && (
+                <button 
+                  onClick={() => { setActiveTab('reports'); setIsMobileMenuOpen(false); }}
+                  className={`w-full text-[13px] font-medium px-3.5 py-2 rounded-lg flex items-center gap-3 transition-colors cursor-pointer text-left ${
+                    activeTab === 'reports' ? 'bg-[#2563EB] text-white shadow-sm shadow-indigo-500/10' : 'text-[#94A3B8] hover:bg-white/5 hover:text-[#F8FAFC]'
+                  }`}
+                >
+                  <FilePieChart className="w-4 h-4 shrink-0" /> Pusat Laporan
+                </button>
+              )}
+
+              {(hasFeatureAccess('partners') || hasFeatureAccess('staff') || hasFeatureAccess('payroll') || hasFeatureAccess('letters') || hasFeatureAccess('approvals') || hasFeatureAccess('reports')) && (
                 <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#475569] block pt-3 pb-2 px-3">Administration</span>
               )}
 
@@ -1523,6 +1559,7 @@ export default function App() {
                 setTab={setActiveTab}
                 onOpenQuickTx={() => { setActiveTab('finance'); setTimeout(() => alert('Silakan klik tombol "Entri Kas" di kanan atas untuk memproses pencatatan jurnal keuangan.'), 400); }}
                 onOpenQuickMember={() => { setActiveTab('members'); setTimeout(() => alert('Silakan klik tombol "Registrasi Anggota" di kanan atas.'), 400); }}
+                profile={profile}
               />
             )}
 
@@ -1623,6 +1660,22 @@ export default function App() {
                 onAddOutwardLetter={handleAddOutwardLetter}
                 onUpdateOutwardStatus={handleUpdateOutwardStatus}
                 currentRole={currentRole}
+                profile={profile}
+                structures={structures}
+              />
+            )}
+
+            {activeTab === 'reports' && (
+              <ReportsTab 
+                members={members}
+                transactions={transactions}
+                partners={partners}
+                smallGroups={smallGroups}
+                meetings={meetings}
+                staffs={staffs}
+                donations={donations}
+                profile={profile}
+                structures={structures}
               />
             )}
 

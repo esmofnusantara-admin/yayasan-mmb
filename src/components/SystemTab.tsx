@@ -29,7 +29,8 @@ import {
   EyeOff,
   Edit,
   RotateCw,
-  RotateCcw
+  RotateCcw,
+  Image
 } from 'lucide-react';
 import { InstitutionalProfile, AuditLog } from '../types';
 
@@ -346,27 +347,87 @@ export default function SystemTab({
     }
   }, [activeNodeId, orgTree]);
 
-  useEffect(() => {
-    setName(profile.name);
-    setAddress(profile.address);
-    setPhone(profile.phone || '');
-    setEmail(profile.email || '');
-    setWebsite(profile.website || '');
-    setNpwp(profile.npwp || '');
-    setSkLegal(profile.legalReg || '');
-    setSignatureUrl(profile.signatureUrl || '');
-    setIsSignatureDirty(false);
-    setSystemTitle(profile.systemTitle || 'ESM FMS');
-    setDashboardTitle(profile.dashboardTitle || 'Institutional Executive ERP');
-    setRegions(profile.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]);
-    setMaterialCategories(profile.materialCategories || ["Materi Dasar / Siswa", "Siswa & Mahasiswa", "Alumni", "Pelatihan Pemimpin (PKK)", "Materi Umum / Publik"]);
-    setIncomeAllocations(profile.incomeAllocations || ["Gaji / Operasional", "Peralatan", "Kegiatan Khusus", "Lainnya"]);
-    setMeetingDays(profile.meetingDays || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]);
-    setMemberKeaktifanStatuses(profile.memberKeaktifanStatuses || ["Aktif", "Pasif", "Cuti", "Pindah"]);
-    setMemberComponents(profile.memberComponents || ["Siswa", "Mahasiswa", "Alumni", "Umum"]);
-    setPartnerStatuses(profile.partnerStatuses || ["Prospek", "Kontak Awal", "Presentasi", "Komitmen", "Donasi Pertama", "Aktif", "Tidak Aktif"]);
-    setPartnerTypes(profile.partnerTypes || ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]);
-  }, [profile]);
+
+
+  // Helper to optimize and compress image before setting to state to avoid Firestore document limits (max 1MB per document)
+  const optimizeAndResizeImage = (file: File, maxWidth: number = 300, maxHeight: number = 300, quality: number = 0.75): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (readerEvent) => {
+        const image = new window.Image();
+        image.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = image.width;
+          let height = image.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(readerEvent.target?.result as string);
+            return;
+          }
+
+          // Handle transparency for PNG
+          ctx.clearRect(0, 0, width, height);
+          ctx.drawImage(image, 0, 0, width, height);
+
+          // Automatic background removal: filter out white / near-white pixels to make it transparent
+          try {
+            const imgData = ctx.getImageData(0, 0, width, height);
+            const data = imgData.data;
+            for (let i = 0; i < data.length; i += 4) {
+              const r = data[i];
+              const g = data[i + 1];
+              const b = data[i + 2];
+              // If pixel is near-white (all channels above 210)
+              if (r > 210 && g > 210 && b > 210) {
+                // Calculate average brightness
+                const brightness = (r + g + b) / 3;
+                if (brightness > 245) {
+                  data[i + 3] = 0; // completely transparent
+                } else {
+                  // smooth alpha transition for edges
+                  const factor = (245 - brightness) / 35; // 0 to 1
+                  data[i + 3] = Math.max(0, Math.min(255, Math.round(data[i + 3] * factor)));
+                }
+              }
+            }
+            ctx.putImageData(imgData, 0, 0);
+          } catch (e) {
+            console.warn("Background removal skipped due to secure canvas or error:", e);
+          }
+
+          // Keep PNG as original file to preserve transparency, otherwise JPEG for high compression
+          const isPng = file.type === 'image/png' || file.name.endsWith('.png');
+          const outputType = 'image/png'; // Always output PNG to preserve transparency now that background is removed
+          const dataUrl = canvas.toDataURL(outputType);
+          resolve(dataUrl);
+        };
+        image.onerror = () => {
+          resolve(readerEvent.target?.result as string);
+        };
+        image.src = readerEvent.target?.result as string;
+      };
+      reader.onerror = () => {
+        resolve('');
+      };
+      reader.readAsDataURL(file);
+    });
+  };
 
   // Form profile
   const [name, setName] = useState(profile.name);
@@ -377,6 +438,13 @@ export default function SystemTab({
   const [npwp, setNpwp] = useState(profile.npwp || '');
   const [skLegal, setSkLegal] = useState(profile.legalReg || '');
   const [signatureUrl, setSignatureUrl] = useState(profile.signatureUrl || '');
+  const [stampUrl, setStampUrl] = useState(profile.stampUrl || '');
+  const [logoUrl, setLogoUrl] = useState(profile.logoUrl || '');
+  const [signatureChairmanUrl, setSignatureChairmanUrl] = useState(profile.signatureChairmanUrl || '');
+  const [signatureSecretaryUrl, setSignatureSecretaryUrl] = useState(profile.signatureSecretaryUrl || '');
+  const [signatureTreasurerUrl, setSignatureTreasurerUrl] = useState(profile.signatureTreasurerUrl || '');
+  const [kopTitle, setKopTitle] = useState(profile.kopTitle || 'EVANGELICAL STUDENT MOVEMENT');
+  const [kopMotto, setKopMotto] = useState(profile.kopMotto || 'Kabar baik. Pemuridan. Misi.');
   const [isSignatureDirty, setIsSignatureDirty] = useState(false);
 
   // Dynamic system and dashboard titles
@@ -402,6 +470,105 @@ export default function SystemTab({
   const [newMemberComponent, setNewMemberComponent] = useState('');
   const [newPartnerStatus, setNewPartnerStatus] = useState('');
   const [newPartnerType, setNewPartnerType] = useState('');
+
+  const lastSyncedProfileRef = React.useRef<any>(null);
+
+  useEffect(() => {
+    const isFirstLoad = !lastSyncedProfileRef.current;
+    
+    // Check if the current local state matches what we last synced (to detect local edits)
+    let isSameAsLastSynced = true;
+    if (lastSyncedProfileRef.current) {
+      const last = lastSyncedProfileRef.current;
+      isSameAsLastSynced = 
+        name === last.name &&
+        address === last.address &&
+        phone === (last.phone || '') &&
+        email === (last.email || '') &&
+        website === (last.website || '') &&
+        npwp === (last.npwp || '') &&
+        skLegal === (last.legalReg || '') &&
+        kopTitle === (last.kopTitle || '') &&
+        kopMotto === (last.kopMotto || '') &&
+        signatureUrl === (last.signatureUrl || '') &&
+        signatureChairmanUrl === (last.signatureChairmanUrl || '') &&
+        signatureSecretaryUrl === (last.signatureSecretaryUrl || '') &&
+        signatureTreasurerUrl === (last.signatureTreasurerUrl || '') &&
+        stampUrl === (last.stampUrl || '') &&
+        logoUrl === (last.logoUrl || '') &&
+        systemTitle === (last.systemTitle || 'ESM FMS') &&
+        dashboardTitle === (last.dashboardTitle || 'Institutional Executive ERP') &&
+        JSON.stringify(regions) === JSON.stringify(last.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]) &&
+        JSON.stringify(materialCategories) === JSON.stringify(last.materialCategories || ["Materi Dasar / Siswa", "Siswa & Mahasiswa", "Alumni", "Pelatihan Pemimpin (PKK)", "Materi Umum / Publik"]) &&
+        JSON.stringify(incomeAllocations) === JSON.stringify(last.incomeAllocations || ["Gaji / Operasional", "Peralatan", "Kegiatan Khusus", "Lainnya"]) &&
+        JSON.stringify(meetingDays) === JSON.stringify(last.meetingDays || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]) &&
+        JSON.stringify(memberKeaktifanStatuses) === JSON.stringify(last.memberKeaktifanStatuses || ["Aktif", "Pasif", "Cuti", "Pindah"]) &&
+        JSON.stringify(memberComponents) === JSON.stringify(last.memberComponents || ["Siswa", "Mahasiswa", "Alumni", "Umum"]) &&
+        JSON.stringify(partnerStatuses) === JSON.stringify(last.partnerStatuses || ["Prospek", "Kontak Awal", "Presentasi", "Komitmen", "Donasi Pertama", "Aktif", "Tidak Aktif"]) &&
+        JSON.stringify(partnerTypes) === JSON.stringify(last.partnerTypes || ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]);
+    }
+
+    // Check if the current local state matches the incoming profile prop (e.g. after a successful save)
+    const matchesCurrentProfileProp = 
+      name === profile.name &&
+      address === profile.address &&
+      phone === (profile.phone || '') &&
+      email === (profile.email || '') &&
+      website === (profile.website || '') &&
+      npwp === (profile.npwp || '') &&
+      skLegal === (profile.legalReg || '') &&
+      kopTitle === (profile.kopTitle || 'EVANGELICAL STUDENT MOVEMENT') &&
+      kopMotto === (profile.kopMotto || 'Kabar baik. Pemuridan. Misi.') &&
+      signatureUrl === (profile.signatureUrl || '') &&
+      signatureChairmanUrl === (profile.signatureChairmanUrl || '') &&
+      signatureSecretaryUrl === (profile.signatureSecretaryUrl || '') &&
+      signatureTreasurerUrl === (profile.signatureTreasurerUrl || '') &&
+      stampUrl === (profile.stampUrl || '') &&
+      logoUrl === (profile.logoUrl || '') &&
+      systemTitle === (profile.systemTitle || 'ESM FMS') &&
+      dashboardTitle === (profile.dashboardTitle || 'Institutional Executive ERP') &&
+      JSON.stringify(regions) === JSON.stringify(profile.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]) &&
+      JSON.stringify(materialCategories) === JSON.stringify(profile.materialCategories || ["Materi Dasar / Siswa", "Siswa & Mahasiswa", "Alumni", "Pelatihan Pemimpin (PKK)", "Materi Umum / Publik"]) &&
+      JSON.stringify(incomeAllocations) === JSON.stringify(profile.incomeAllocations || ["Gaji / Operasional", "Peralatan", "Kegiatan Khusus", "Lainnya"]) &&
+      JSON.stringify(meetingDays) === JSON.stringify(profile.meetingDays || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]) &&
+      JSON.stringify(memberKeaktifanStatuses) === JSON.stringify(profile.memberKeaktifanStatuses || ["Aktif", "Pasif", "Cuti", "Pindah"]) &&
+      JSON.stringify(memberComponents) === JSON.stringify(profile.memberComponents || ["Siswa", "Mahasiswa", "Alumni", "Umum"]) &&
+      JSON.stringify(partnerStatuses) === JSON.stringify(profile.partnerStatuses || ["Prospek", "Kontak Awal", "Presentasi", "Komitmen", "Donasi Pertama", "Aktif", "Tidak Aktif"]) &&
+      JSON.stringify(partnerTypes) === JSON.stringify(profile.partnerTypes || ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]);
+
+    if (isFirstLoad || isSameAsLastSynced) {
+      setName(profile.name);
+      setAddress(profile.address);
+      setPhone(profile.phone || '');
+      setEmail(profile.email || '');
+      setWebsite(profile.website || '');
+      setNpwp(profile.npwp || '');
+      setSkLegal(profile.legalReg || '');
+      setKopTitle(profile.kopTitle || 'EVANGELICAL STUDENT MOVEMENT');
+      setKopMotto(profile.kopMotto || 'Kabar baik. Pemuridan. Misi.');
+      setSignatureUrl(profile.signatureUrl || '');
+      setSignatureChairmanUrl(profile.signatureChairmanUrl || '');
+      setSignatureSecretaryUrl(profile.signatureSecretaryUrl || '');
+      setSignatureTreasurerUrl(profile.signatureTreasurerUrl || '');
+      setStampUrl(profile.stampUrl || '');
+      setLogoUrl(profile.logoUrl || '');
+      setIsSignatureDirty(false);
+      setSystemTitle(profile.systemTitle || 'ESM FMS');
+      setDashboardTitle(profile.dashboardTitle || 'Institutional Executive ERP');
+      setRegions(profile.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]);
+      setMaterialCategories(profile.materialCategories || ["Materi Dasar / Siswa", "Siswa & Mahasiswa", "Alumni", "Pelatihan Pemimpin (PKK)", "Materi Umum / Publik"]);
+      setIncomeAllocations(profile.incomeAllocations || ["Gaji / Operasional", "Peralatan", "Kegiatan Khusus", "Lainnya"]);
+      setMeetingDays(profile.meetingDays || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]);
+      setMemberKeaktifanStatuses(profile.memberKeaktifanStatuses || ["Aktif", "Pasif", "Cuti", "Pindah"]);
+      setMemberComponents(profile.memberComponents || ["Siswa", "Mahasiswa", "Alumni", "Umum"]);
+      setPartnerStatuses(profile.partnerStatuses || ["Prospek", "Kontak Awal", "Presentasi", "Komitmen", "Donasi Pertama", "Aktif", "Tidak Aktif"]);
+      setPartnerTypes(profile.partnerTypes || ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]);
+      
+      lastSyncedProfileRef.current = profile;
+    } else if (matchesCurrentProfileProp) {
+      lastSyncedProfileRef.current = profile;
+    }
+  }, [profile]);
 
   // Operators & Checklist Database States
   const [operators, setOperators] = useState<any[]>([]);
@@ -454,9 +621,13 @@ export default function SystemTab({
     fetchOperators();
   }, [activeSubView]);
 
-  const handleRotateSignature = (direction: 'cw' | 'ccw' = 'cw') => {
-    if (!signatureUrl) return;
-    const img = new Image();
+  const handleRotateImage = (
+    currentUrl: string,
+    setter: (val: string) => void,
+    direction: 'cw' | 'ccw' = 'cw'
+  ) => {
+    if (!currentUrl) return;
+    const img = new window.Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       const canvas = document.createElement('canvas');
@@ -471,11 +642,15 @@ export default function SystemTab({
           ctx.rotate((-90 * Math.PI) / 180);
         }
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
-        setSignatureUrl(canvas.toDataURL('image/png'));
+        setter(canvas.toDataURL('image/png'));
         setIsSignatureDirty(true);
       }
     };
-    img.src = signatureUrl;
+    img.src = currentUrl;
+  };
+
+  const handleRotateSignature = (direction: 'cw' | 'ccw' = 'cw') => {
+    handleRotateImage(signatureUrl, setSignatureUrl, direction);
   };
 
   const handleUpdateProfile = (e: React.FormEvent) => {
@@ -494,7 +669,14 @@ export default function SystemTab({
       website,
       npwp,
       legalReg: skLegal,
-      signatureUrl
+      kopTitle,
+      kopMotto,
+      signatureUrl,
+      stampUrl,
+      signatureChairmanUrl,
+      signatureSecretaryUrl,
+      signatureTreasurerUrl,
+      logoUrl,
     };
     onUpdateProfile(updated);
     setIsSignatureDirty(false);
@@ -516,7 +698,14 @@ export default function SystemTab({
       website,
       npwp,
       legalReg: skLegal,
+      kopTitle,
+      kopMotto,
       signatureUrl,
+      stampUrl,
+      signatureChairmanUrl,
+      signatureSecretaryUrl,
+      signatureTreasurerUrl,
+      logoUrl,
       systemTitle,
       dashboardTitle,
       regions,
@@ -869,6 +1058,9 @@ export default function SystemTab({
     }
   };
 
+  const ketuaNode = orgTree?.find(n => n?.id === 'ketua' || n?.title?.toLowerCase().includes('ketua') || n?.id === 'ketua_yayasan');
+  const ketuaNameResolved = ketuaNode?.name || 'Yusuf Raja Tamba';
+
   return (
     <div className="space-y-6">
       
@@ -988,123 +1180,507 @@ export default function SystemTab({
               />
             </div>
 
-            <div className="sm:col-span-2 border-t border-slate-100/70 pt-4 mt-2">
-              <label className="text-slate-700 block mb-1 font-bold text-xs uppercase tracking-wide">Tanda Tangan Digital Bendahara (untuk Slip Gaji PDF) :</label>
-              <p className="text-slate-500 mb-3 text-[10px]">Unggah gambar tanda tangan transparan (.png/.jpg) untuk disisipkan langsung pada slip gaji cetak.</p>
+            {/* CONFIG KOP SURAT DYNAMIC FIELDS */}
+            <div className="sm:col-span-2 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/70 space-y-3 mt-2">
+              <h4 className="font-bold text-slate-850 text-xs flex items-center gap-1.5 uppercase tracking-wide">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 block animate-pulse"></span>
+                Kustomisasi Kop Surat Resmi (Letterhead PDF Headings)
+              </h4>
+              <p className="text-slate-500 text-[10px] sm:text-[11px]">
+                Ubah isi teks Baris 1 & Baris 2 (Motto) pada kop surat di PDF secara instan ("non-static"). Bagian logo, alamat, email, telepon, dan website di atas juga otomatis berubah menyesuaikan identitas hukum ini.
+              </p>
               
-              <div className="flex flex-col sm:flex-row items-center gap-6">
-                {signatureUrl ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center select-none relative group w-[200px] h-24 overflow-hidden">
-                      <img 
-                        src={signatureUrl} 
-                        alt="Tanda Tangan Bendahara" 
-                        className="max-h-16 max-w-full object-contain"
-                      />
-                      
-                      {/* Hover overlay to change the signature easily with one click */}
-                      <label className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200 cursor-pointer text-[10px] font-bold gap-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="text-slate-600 block mb-1 font-semibold text-[10px]">Nama Organisasi Kop Surat (Baris 1):</label>
+                  <input 
+                    type="text" 
+                    value={kopTitle}
+                    onChange={(e) => setKopTitle(e.target.value)}
+                    placeholder="EVANGELICAL STUDENT MOVEMENT"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-600 block mb-1 font-semibold text-[10px]">Motto / Tagline Organisasi (Baris 2):</label>
+                  <input 
+                    type="text" 
+                    value={kopMotto}
+                    onChange={(e) => setKopMotto(e.target.value)}
+                    placeholder="Kabar baik. Pemuridan. Misi."
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-850 bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="sm:col-span-2 border-t border-slate-100/70 pt-4 mt-2 space-y-6">
+              <div>
+                <label className="text-slate-800 block mb-1 font-bold text-xs uppercase tracking-wide">
+                  Media, Stempel Resmi, & Tanda Tangan Lembaga
+                </label>
+                <p className="text-slate-500 text-[11px]">
+                  Unggah berkas gambar transparan (.png / .jpg) untuk disisipkan otomatis di kop surat, slip gaji, dan dokumen resmi lainnya.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* LOGO RESMI YAYASAN */}
+                <div className="bg-slate-50/50 p-4 border border-slate-200/60 rounded-2xl flex flex-col justify-between">
+                  <div>
+                    <label className="text-slate-700 block mb-1 font-bold text-[11px] uppercase tracking-wide flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block"></span>
+                      Logo Resmi Yayasan / Organisasi
+                    </label>
+                    <p className="text-slate-400 text-[10px] mb-3">Ditampilkan di header sistem & Kop Surat resmi.</p>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    {logoUrl ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-center relative group w-32 h-24 overflow-hidden shadow-sm">
+                          <img src={logoUrl} alt="Logo Resmi" className="max-h-20 max-w-full object-contain" referrerPolicy="no-referrer" />
+                          <label className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200 cursor-pointer text-[10px] font-bold gap-1">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const optimizedUrl = await optimizeAndResizeImage(file);
+                                  setLogoUrl(optimizedUrl);
+                                  setIsSignatureDirty(true);
+                                }
+                              }}
+                              className="hidden"
+                            />
+                            <Edit className="w-3.5 h-3.5 text-white" />
+                            Ganti Logo
+                          </label>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1 font-semibold text-[9px] text-slate-500">
+                          <button
+                            type="button"
+                            onClick={() => handleRotateImage(logoUrl, setLogoUrl, 'ccw')}
+                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            title="Putar CCW"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRotateImage(logoUrl, setLogoUrl, 'cw')}
+                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            title="Putar CW"
+                          >
+                            <RotateCw className="w-3 h-3" />
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => { setLogoUrl(''); setIsSignatureDirty(true); }}
+                            className="p-1 text-red-600 hover:bg-red-50 hover:text-red-700 rounded cursor-pointer font-bold"
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-32 h-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-100/50 transition-colors relative cursor-pointer group">
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (event) => {
-                                if (event.target?.result) {
-                                  setSignatureUrl(event.target.result as string);
-                                  setIsSignatureDirty(true);
-                                }
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                          className="hidden"
-                        />
-                        <Edit className="w-3.5 h-3.5 text-white" />
-                        Ganti Gambar
-                      </label>
-                    </div>
-
-                    {/* Toolbar controls for rotating and deleting */}
-                    <div className="flex flex-col gap-1.5 w-[200px]">
-                      <div className="flex items-center gap-1 w-full">
-                        <button
-                          type="button"
-                          onClick={() => handleRotateSignature('ccw')}
-                          className="flex-1 flex items-center justify-center gap-1 text-[9px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-1.5 py-1.5 rounded-lg border border-slate-200 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                          title="Putar gambar 90 derajat berlawanan arah-jarum-jam (kiri)"
-                        >
-                          <RotateCcw className="w-3 h-3 text-slate-500" />
-                          Putar Kiri
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRotateSignature('cw')}
-                          className="flex-1 flex items-center justify-center gap-1 text-[9px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-1.5 py-1.5 rounded-lg border border-indigo-200 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                          title="Putar gambar 90 derajat searah jarum jam (kanan)"
-                        >
-                          <RotateCw className="w-3 h-3 text-indigo-550" />
-                          Putar Kanan
-                        </button>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => { setSignatureUrl(''); setIsSignatureDirty(true); }}
-                        className="w-full flex items-center justify-center gap-1 text-[9px] font-bold bg-red-50 hover:bg-red-100 text-red-650 py-1.5 rounded-lg border border-red-200 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                        title="Hapus tanda tangan"
-                      >
-                        <X className="w-3 h-3 text-red-500" />
-                        Hapus Gambar
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-full sm:w-[200px] h-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 bg-slate-50 hover:bg-slate-100/50 transition-colors relative cursor-pointer group">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            if (event.target?.result) {
-                              setSignatureUrl(event.target.result as string);
+                              const optimizedUrl = await optimizeAndResizeImage(file);
+                              setLogoUrl(optimizedUrl);
                               setIsSignatureDirty(true);
                             }
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    />
-                    <Building className="w-6 h-6 mb-1 text-slate-400 group-hover:text-indigo-500 transition-colors" />
-                    <span className="text-[10px] font-semibold text-slate-500">Pilih / Seret Gambar</span>
-                    <span className="text-[8px] text-slate-400">PNG transparan direkomendasikan</span>
-                  </div>
-                )}
-                
-                <div className="flex-1 text-left space-y-1.5">
-                  <div className="text-[11px] text-slate-650 font-medium">Spesifikasi & Panduan:</div>
-                  <ul className="list-disc pl-4 text-[10px] text-slate-500 space-y-0.5 font-sans">
-                    <li>Rasio ideal: Horisontal (panjang ke samping seperti tanda tangan biasa)</li>
-                    <li>Latar belakang transparan (.png) agar menyatu dengan dokumen slip gaji</li>
-                    <li>Gunakan tombol <strong>Putar Kiri</strong> / <strong>Putar Kanan</strong> untuk menyesuaikan orientasi jika terbalik/mereng</li>
-                    <li>Sistem menyandikan gambar secara aman</li>
-                  </ul>
-                  {isSignatureDirty && (
-                    <div className="mt-2 p-2.5 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-[10.5px] font-medium flex items-start gap-2 animate-pulse shadow-sm">
-                      <span className="text-sm font-bold leading-none text-amber-600">⚠️</span>
-                      <div>
-                        <strong>Perubahan Belum Disimpan!</strong>
-                        <p className="text-[9.5px] mt-0.5 text-amber-750">Anda harus menekan tombol <strong>"Simpan Identitas Lembaga"</strong> di bagian bawah untuk menyimpan rotasi/gambar tanda tangan yang baru.</p>
+                          }}
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        />
+                        <Image className="w-5 h-5 mb-1 text-slate-400 group-hover:text-indigo-505 transition-colors" />
+                        <span className="text-[10px] font-semibold text-slate-500">Pilih Logo</span>
+                        <span className="text-[7.5px] text-slate-400">PNG / JPG transparan</span>
                       </div>
+                    )}
+                    <div className="flex-1 text-[10px] text-slate-500 leading-snug">
+                      Unggah logo yayasan agar tercetak otomatis di kop surat legal dan kop gaji pegawai yayasan.
                     </div>
-                  )}
+                  </div>
+                </div>
+
+                {/* STEMPEL RESMI YAYASAN */}
+                <div className="bg-slate-50/50 p-4 border border-slate-200/60 rounded-2xl flex flex-col justify-between">
+                  <div>
+                    <label className="text-slate-700 block mb-1 font-bold text-[11px] uppercase tracking-wide flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>
+                      Stempel Resmi Yayasan ESM
+                    </label>
+                    <p className="text-slate-400 text-[10px] mb-3">Akan dicetak di belakang tanda tangan (Pihak Kiri/Ketua) pada PDF.</p>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    {stampUrl ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-center relative group w-32 h-24 overflow-hidden shadow-sm">
+                          <img src={stampUrl} alt="Stempel Resmi" className="max-h-20 max-w-full object-contain" />
+                          <label className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200 cursor-pointer text-[10px] font-bold gap-1">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const optimizedUrl = await optimizeAndResizeImage(file);
+                                  setStampUrl(optimizedUrl);
+                                  setIsSignatureDirty(true);
+                                }
+                              }}
+                              className="hidden"
+                            />
+                            <Edit className="w-3.5 h-3.5 text-white" />
+                            Ganti Stempel
+                          </label>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1 font-semibold text-[9px] text-slate-500">
+                          <button
+                            type="button"
+                            onClick={() => handleRotateImage(stampUrl, setStampUrl, 'ccw')}
+                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            title="Putar CCW"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRotateImage(stampUrl, setStampUrl, 'cw')}
+                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            title="Putar CW"
+                          >
+                            <RotateCw className="w-3 h-3" />
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => { setStampUrl(''); setIsSignatureDirty(true); }}
+                            className="p-1 text-red-600 hover:bg-red-50 hover:text-red-700 rounded cursor-pointer font-bold"
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-32 h-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-100/50 transition-colors relative cursor-pointer group">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const optimizedUrl = await optimizeAndResizeImage(file);
+                              setStampUrl(optimizedUrl);
+                              setIsSignatureDirty(true);
+                            }
+                          }}
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        />
+                        <Image className="w-5 h-5 mb-1 text-slate-400 group-hover:text-indigo-505 transition-colors" />
+                        <span className="text-[10px] font-semibold text-slate-500">Pilih Berkas</span>
+                        <span className="text-[7.5px] text-slate-400">PNG Transparan</span>
+                      </div>
+                    )}
+                    <div className="flex-1 text-[10px] text-slate-500 leading-snug">
+                      Gunakan stempel berwarna biru/ungu berlatar belakang transparan agar menyatu dengan baik pada surat.
+                    </div>
+                  </div>
+                </div>
+
+                {/* KETUA YAYASAN */}
+                <div className="bg-slate-50/50 p-4 border border-slate-200/60 rounded-2xl flex flex-col justify-between">
+                  <div>
+                    <label className="text-slate-700 block mb-1 font-bold text-[11px] uppercase tracking-wide flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+                      Tanda Tangan Ketua ({ketuaNameResolved})
+                    </label>
+                    <p className="text-slate-400 text-[10px] mb-3">Tanda tangan resmi Ketua Yayasan ESM.</p>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    {signatureChairmanUrl ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-center relative group w-32 h-24 overflow-hidden shadow-sm">
+                          <img src={signatureChairmanUrl} alt="TTD Ketua" className="max-h-20 max-w-full object-contain" />
+                          <label className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200 cursor-pointer text-[10px] font-bold gap-1">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const optimizedUrl = await optimizeAndResizeImage(file);
+                                  setSignatureChairmanUrl(optimizedUrl);
+                                  setIsSignatureDirty(true);
+                                }
+                              }}
+                              className="hidden"
+                            />
+                            <Edit className="w-3.5 h-3.5 text-white" />
+                            Ganti TTD
+                          </label>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1 font-semibold text-[9px] text-slate-500">
+                          <button
+                            type="button"
+                            onClick={() => handleRotateImage(signatureChairmanUrl, setSignatureChairmanUrl, 'ccw')}
+                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            title="Putar CCW"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRotateImage(signatureChairmanUrl, setSignatureChairmanUrl, 'cw')}
+                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            title="Putar CW"
+                          >
+                            <RotateCw className="w-3 h-3" />
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => { setSignatureChairmanUrl(''); setIsSignatureDirty(true); }}
+                            className="p-1 text-red-600 hover:bg-red-50 hover:text-red-700 rounded cursor-pointer font-bold"
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-32 h-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-100/50 transition-colors relative cursor-pointer group">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const optimizedUrl = await optimizeAndResizeImage(file);
+                              setSignatureChairmanUrl(optimizedUrl);
+                              setIsSignatureDirty(true);
+                            }
+                          }}
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        />
+                        <Image className="w-5 h-5 mb-1 text-slate-450 group-hover:text-indigo-505 transition-colors" />
+                        <span className="text-[10px] font-semibold text-slate-500">Pilih Berkas</span>
+                        <span className="text-[7.5px] text-slate-400">PNG Transparan</span>
+                      </div>
+                    )}
+                    <div className="flex-1 text-[10px] text-slate-500 leading-snug">
+                      Tanda tangan digital Ketua Yayasan yang akan disisipkan ex-officio pada surat keluar Pihak Kiri.
+                    </div>
+                  </div>
+                </div>
+
+                {/* SEKRETARIS YAYASAN */}
+                <div className="bg-slate-50/50 p-4 border border-slate-200/60 rounded-2xl flex flex-col justify-between">
+                  <div>
+                    <label className="text-slate-700 block mb-1 font-bold text-[11px] uppercase tracking-wide flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-555 inline-block"></span>
+                      Tanda Tangan Sekretaris (Ahmad Faisal)
+                    </label>
+                    <p className="text-slate-400 text-[10px] mb-3">Tanda tangan resmi Sekretaris Yayasan ESM.</p>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    {signatureSecretaryUrl ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-center relative group w-32 h-24 overflow-hidden shadow-sm">
+                          <img src={signatureSecretaryUrl} alt="TTD Sekretaris" className="max-h-20 max-w-full object-contain" />
+                          <label className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200 cursor-pointer text-[10px] font-bold gap-1">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const optimizedUrl = await optimizeAndResizeImage(file);
+                                  setSignatureSecretaryUrl(optimizedUrl);
+                                  setIsSignatureDirty(true);
+                                }
+                              }}
+                              className="hidden"
+                            />
+                            <Edit className="w-3.5 h-3.5 text-white" />
+                            Ganti TTD
+                          </label>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1 font-semibold text-[9px] text-slate-500">
+                          <button
+                            type="button"
+                            onClick={() => handleRotateImage(signatureSecretaryUrl, setSignatureSecretaryUrl, 'ccw')}
+                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            title="Putar CCW"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRotateImage(signatureSecretaryUrl, setSignatureSecretaryUrl, 'cw')}
+                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            title="Putar CW"
+                          >
+                            <RotateCw className="w-3 h-3" />
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => { setSignatureSecretaryUrl(''); setIsSignatureDirty(true); }}
+                            className="p-1 text-red-600 hover:bg-red-50 hover:text-red-700 rounded cursor-pointer font-bold"
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-32 h-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-100/50 transition-colors relative cursor-pointer group">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const optimizedUrl = await optimizeAndResizeImage(file);
+                              setSignatureSecretaryUrl(optimizedUrl);
+                              setIsSignatureDirty(true);
+                            }
+                          }}
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        />
+                        <Image className="w-5 h-5 mb-1 text-slate-450 group-hover:text-indigo-505 transition-colors" />
+                        <span className="text-[10px] font-semibold text-slate-500">Pilih Berkas</span>
+                        <span className="text-[7.5px] text-slate-400">PNG Transparan</span>
+                      </div>
+                    )}
+                    <div className="flex-1 text-[10px] text-slate-500 leading-snug">
+                      Tanda tangan digital Sekretaris yang akan disisipkan ex-officio pada surat keluar Pihak Kanan.
+                    </div>
+                  </div>
+                </div>
+
+                {/* BENDAHARA / SLIP GAJI */}
+                <div className="bg-slate-50/50 p-4 border border-slate-200/60 rounded-2xl flex flex-col justify-between">
+                  <div>
+                    <label className="text-slate-700 block mb-1 font-bold text-[11px] uppercase tracking-wide flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block"></span>
+                      Tanda Tangan Bendahara / Slip Gaji
+                    </label>
+                    <p className="text-slate-400 text-[10px] mb-3">Tanda tangan resmi Bendahara Yayasan (Sarah Sitorus).</p>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    {signatureTreasurerUrl || signatureUrl ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-center relative group w-32 h-24 overflow-hidden shadow-sm">
+                          <img src={signatureTreasurerUrl || signatureUrl} alt="TTD Bendahara" className="max-h-20 max-w-full object-contain" />
+                          <label className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200 cursor-pointer text-[10px] font-bold gap-1">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const optimizedUrl = await optimizeAndResizeImage(file);
+                                  setSignatureTreasurerUrl(optimizedUrl);
+                                  setSignatureUrl(optimizedUrl);
+                                  setIsSignatureDirty(true);
+                                }
+                              }}
+                              className="hidden"
+                            />
+                            <Edit className="w-3.5 h-3.5 text-white" />
+                            Ganti TTD
+                          </label>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1 font-semibold text-[9px] text-slate-500">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const targetVal = signatureTreasurerUrl || signatureUrl;
+                              handleRotateImage(targetVal, (newVal) => {
+                                setSignatureTreasurerUrl(newVal);
+                                setSignatureUrl(newVal);
+                              }, 'ccw');
+                            }}
+                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            title="Putar CCW"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const targetVal = signatureTreasurerUrl || signatureUrl;
+                              handleRotateImage(targetVal, (newVal) => {
+                                setSignatureTreasurerUrl(newVal);
+                                setSignatureUrl(newVal);
+                              }, 'cw');
+                            }}
+                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            title="Putar CW"
+                          >
+                            <RotateCw className="w-3 h-3" />
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => { setSignatureTreasurerUrl(''); setSignatureUrl(''); setIsSignatureDirty(true); }}
+                            className="p-1 text-red-600 hover:bg-red-50 hover:text-red-700 rounded cursor-pointer font-bold"
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-32 h-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-100/50 transition-colors relative cursor-pointer group">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const optimizedUrl = await optimizeAndResizeImage(file);
+                              setSignatureTreasurerUrl(optimizedUrl);
+                              setSignatureUrl(optimizedUrl);
+                              setIsSignatureDirty(true);
+                            }
+                          }}
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        />
+                        <Image className="w-5 h-5 mb-1 text-slate-450 group-hover:text-indigo-505 transition-colors" />
+                        <span className="text-[10px] font-semibold text-slate-500">Pilih Berkas</span>
+                        <span className="text-[7.5px] text-slate-400">PNG Transparan</span>
+                      </div>
+                    )}
+                    <div className="flex-1 text-[10px] text-slate-500 leading-snug">
+                      Tanda tangan digital Bendahara yang akan disisipkan otomatis di lembar slip gaji karyawan.
+                    </div>
+                  </div>
                 </div>
               </div>
+
+              {isSignatureDirty && (
+                <div className="mt-2 p-2.5 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-[10.5px] font-medium flex items-start gap-2 animate-pulse shadow-sm">
+                  <span className="text-sm font-bold leading-none text-amber-605">⚠️</span>
+                  <div>
+                    <strong>Perubahan Belum Disimpan!</strong>
+                    <p className="text-[9.5px] mt-0.5 text-amber-750">
+                      Anda harus menekan tombol <strong>"Simpan Identitas Lembaga"</strong> di bagian bawah untuk menyimpan gambar/media stempel dan tanda tangan baru.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

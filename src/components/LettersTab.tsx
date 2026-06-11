@@ -24,8 +24,8 @@ import {
   Eye,
   FileCheck2
 } from 'lucide-react';
-import { LetterInward, LetterOutward, OrgDocument } from '../types';
-import { exportToCSV } from '../utils/export';
+import { LetterInward, LetterOutward, OrgDocument, InstitutionalProfile } from '../types';
+import { exportToCSV, exportLetterToPDF } from '../utils/export';
 
 interface LettersTabProps {
   inwardLetters: LetterInward[];
@@ -35,6 +35,8 @@ interface LettersTabProps {
   onAddOutwardLetter: (l: LetterOutward) => void;
   onUpdateOutwardStatus: (id: string, status: any) => void;
   currentRole: string;
+  profile: InstitutionalProfile;
+  structures?: any[];
 }
 
 export default function LettersTab({
@@ -45,6 +47,8 @@ export default function LettersTab({
   onAddOutwardLetter,
   onUpdateOutwardStatus,
   currentRole,
+  profile,
+  structures = [],
 }: LettersTabProps) {
   const isEditable = ['Super Admin', 'Ketua Yayasan', 'Sekretaris'].includes(currentRole);
   const [subTab, setSubTab] = useState<'inward' | 'outward' | 'repository'>('outward');
@@ -66,6 +70,78 @@ export default function LettersTab({
   const [outRecipient, setOutRecipient] = useState('');
   const [outSubject, setOutSubject] = useState('');
   const [outContent, setOutContent] = useState('');
+
+  // Dynamic Names from Org Structures
+  const ketuaNode = structures?.find(n => n.id === 'ketua' || n.title?.toLowerCase().includes('ketua') || n.id === 'ketua_yayasan');
+  const ketuaName = ketuaNode?.name || 'Yusuf Raja Tamba';
+
+  const sekretarisNode = structures?.find(n => n.id === 'sekretaris' || n.title?.toLowerCase().includes('sekretaris'));
+  const sekretarisName = sekretarisNode?.name || 'Ahmad Faisal, S.Th.';
+
+  const bendaharaNode = structures?.find(n => n.id === 'bendahara' || n.title?.toLowerCase().includes('bendahara'));
+  const bendaharaName = bendaharaNode?.name || 'Sarah Sitorus';
+
+  // Form states: dynamic signees
+  const [signLeftType, setSignLeftType] = useState<'Ketua' | 'Sekretaris' | 'Bendahara' | 'Custom' | 'None'>('Ketua');
+  const [signLeftName, setSignLeftName] = useState(ketuaName);
+  const [signLeftTitle, setSignLeftTitle] = useState('Ketua Yayasan');
+
+  const [signRightType, setSignRightType] = useState<'Ketua' | 'Sekretaris' | 'Bendahara' | 'Custom' | 'None'>('Sekretaris');
+  const [signRightName, setSignRightName] = useState(sekretarisName);
+  const [signRightTitle, setSignRightTitle] = useState('Sekretaris Yayasan');
+
+  const [showStamp, setShowStamp] = useState<boolean>(true);
+  const [stampTarget, setStampTarget] = useState<'left' | 'right' | 'center'>('left');
+  const [stampOffsetX, setStampOffsetX] = useState<number>(0);
+  const [stampOffsetY, setStampOffsetY] = useState<number>(0);
+  const [stampSize, setStampSize] = useState<number>(22);
+
+  // Auto-sync initial state values when structures load
+  React.useEffect(() => {
+    if (signLeftType === 'Ketua') setSignLeftName(ketuaName);
+    if (signLeftType === 'Sekretaris') setSignLeftName(sekretarisName);
+    if (signLeftType === 'Bendahara') setSignLeftName(bendaharaName);
+  }, [structures, signLeftType, ketuaName, sekretarisName, bendaharaName]);
+
+  React.useEffect(() => {
+    if (signRightType === 'Ketua') setSignRightName(ketuaName);
+    if (signRightType === 'Sekretaris') setSignRightName(sekretarisName);
+    if (signRightType === 'Bendahara') setSignRightName(bendaharaName);
+  }, [structures, signRightType, ketuaName, sekretarisName, bendaharaName]);
+
+  const handleLeftSigneeTypeChange = (val: 'Ketua' | 'Sekretaris' | 'Bendahara' | 'Custom' | 'None') => {
+    setSignLeftType(val);
+    if (val === 'Ketua') {
+      setSignLeftName(ketuaName);
+      setSignLeftTitle('Ketua Yayasan');
+    } else if (val === 'Sekretaris') {
+      setSignLeftName(sekretarisName);
+      setSignLeftTitle('Sekretaris Yayasan');
+    } else if (val === 'Bendahara') {
+      setSignLeftName(bendaharaName);
+      setSignLeftTitle('Bendahara Yayasan');
+    } else if (val === 'None') {
+      setSignLeftName('');
+      setSignLeftTitle('');
+    }
+  };
+
+  const handleRightSigneeTypeChange = (val: 'Ketua' | 'Sekretaris' | 'Bendahara' | 'Custom' | 'None') => {
+    setSignRightType(val);
+    if (val === 'Ketua') {
+      setSignRightName(ketuaName);
+      setSignRightTitle('Ketua Yayasan');
+    } else if (val === 'Sekretaris') {
+      setSignRightName(sekretarisName);
+      setSignRightTitle('Sekretaris Yayasan');
+    } else if (val === 'Bendahara') {
+      setSignRightName(bendaharaName);
+      setSignRightTitle('Bendahara Yayasan');
+    } else if (val === 'None') {
+      setSignRightName('');
+      setSignRightTitle('');
+    }
+  };
 
   // Convert month to Roman numerals
   const getRomanMonth = (monthNumber: number): string => {
@@ -138,7 +214,18 @@ export default function LettersTab({
       date: new Date().toISOString().split('T')[0],
       content: outContent,
       author: currentRole === 'Staff' ? 'Staff Sekretariat' : currentRole,
-      status: resolvedStatus
+      status: resolvedStatus,
+      signLeftType,
+      signLeftName,
+      signLeftTitle,
+      signRightType,
+      signRightName,
+      signRightTitle,
+      showStamp,
+      stampTarget,
+      stampOffsetX,
+      stampOffsetY,
+      stampSize
     };
 
     onAddOutwardLetter(newOut);
@@ -146,6 +233,12 @@ export default function LettersTab({
     setOutRecipient('');
     setOutSubject('');
     setOutContent('');
+    
+    // Reset stamp customization states to default values
+    setStampTarget('left');
+    setStampOffsetX(0);
+    setStampOffsetY(0);
+    setStampSize(22);
 
     if (resolvedStatus === 'Pending Approval') {
       alert('Draft Surat Keluar dikirim ke antrean Approval! Mengingat wewenang akun Anda, Surat ini harus ditandatangani & disetujui Sekretaris/Ketua Yayasan sebelum dikirim.');
@@ -534,6 +627,195 @@ export default function LettersTab({
                 />
               </div>
 
+              {/* PENGATURAN TANDA TANGAN & STEMPEL (DYNAMIC SIGNEES) */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-4 font-sans">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-800 font-bold block text-xs uppercase tracking-wide">Pengaturan Otorisasi & Tanda Tangan PDF</span>
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={showStamp}
+                      onChange={(e) => setShowStamp(e.target.checked)}
+                      className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-500 w-3.5 h-3.5"
+                    />
+                    <span className="text-[11px] font-semibold text-slate-700">Bubuhkan Stempel Lembaga</span>
+                  </label>
+                </div>
+
+                {/* STEMPELS CUSTOM LAYOUT (NON-STATIC SETUP) */}
+                {showStamp && (
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-100 mt-2 space-y-3.5">
+                    <p className="text-[10px] text-slate-600 font-bold uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block"></span>
+                      Kustomisasi Tata Letak Stempel Resmi (Kamera/Gambar Transparan)
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-[10px]">
+                      <div>
+                        <label className="text-slate-600 block mb-1 font-bold">Sasaran Overlap Stempel:</label>
+                        <select
+                          value={stampTarget}
+                          onChange={(e) => setStampTarget(e.target.value as any)}
+                          className="w-full border border-slate-250 rounded-lg p-1.5 bg-white text-slate-800 text-[10px] font-sans focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                        >
+                          <option value="left">Tanda Tangan Kiri (Overlay 1/4 Sisi Kiri)</option>
+                          <option value="right">Tanda Tangan Kanan (Overlay 1/4 Sisi Kiri)</option>
+                          <option value="center">Murni di Tengah Kertas (Center Alignment)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-slate-600 block mb-1 font-bold">Diameter Ukuran Stempel (mm):</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min="10"
+                            max="50"
+                            value={stampSize}
+                            onChange={(e) => setStampSize(Number(e.target.value))}
+                            className="flex-1 accent-indigo-600 cursor-pointer"
+                          />
+                          <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-755 min-w-[28px] text-center font-bold text-[10px]">
+                            {stampSize}mm
+                          </span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-slate-600 block mb-1 font-bold flex justify-between">
+                          <span>Geser Horisontal (X-Offset):</span>
+                          <span className="font-mono text-[9px] text-slate-500">({stampOffsetX > 0 ? `+${stampOffsetX}` : stampOffsetX} mm)</span>
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] text-slate-400">Kiri</span>
+                          <input
+                            type="range"
+                            min="-40"
+                            max="40"
+                            value={stampOffsetX}
+                            onChange={(e) => setStampOffsetX(Number(e.target.value))}
+                            className="flex-1 accent-indigo-600 cursor-pointer"
+                          />
+                          <span className="text-[9px] text-slate-400">Kanan</span>
+                          <button
+                            type="button"
+                            onClick={() => setStampOffsetX(0)}
+                            className="text-[9px] font-semibold text-slate-500 hover:text-indigo-600 bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded cursor-pointer border border-slate-200"
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-slate-600 block mb-1 font-bold flex justify-between">
+                          <span>Geser Vertikal (Y-Offset):</span>
+                          <span className="font-mono text-[9px] text-slate-500">({stampOffsetY > 0 ? `+${stampOffsetY}` : stampOffsetY} mm)</span>
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] text-slate-400">Atas</span>
+                          <input
+                            type="range"
+                            min="-40"
+                            max="40"
+                            value={stampOffsetY}
+                            onChange={(e) => setStampOffsetY(Number(e.target.value))}
+                            className="flex-1 accent-indigo-600 cursor-pointer"
+                          />
+                          <span className="text-[9px] text-slate-400">Bawah</span>
+                          <button
+                            type="button"
+                            onClick={() => setStampOffsetY(0)}
+                            className="text-[9px] font-semibold text-slate-500 hover:text-indigo-600 bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded cursor-pointer border border-slate-200"
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* PENANDATANGAN 1 (KIRI) */}
+                  <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
+                    <label className="text-[11px] font-bold text-slate-600 block">Penandatangan Utama 1 (Kiri):</label>
+                    <select
+                      value={signLeftType}
+                      onChange={(e) => handleLeftSigneeTypeChange(e.target.value as any)}
+                      className="w-full border border-slate-200 rounded-lg p-1.5 bg-white text-slate-800 text-[11px]"
+                    >
+                      <option value="Ketua">Ketua Dewan/Yayasan ({ketuaName})</option>
+                      <option value="Sekretaris">Sekretaris ({sekretarisName})</option>
+                      <option value="Bendahara">Bendahara ({bendaharaName})</option>
+                      <option value="Custom">Kustom (Ketik Manual)</option>
+                      <option value="None">Tanpa Tanda Tangan Kiri</option>
+                    </select>
+
+                    {signLeftType !== 'None' && (
+                      <div className="space-y-1.5 pt-1">
+                        <input
+                          type="text"
+                          value={signLeftName}
+                          onChange={(e) => setSignLeftName(e.target.value)}
+                          placeholder="Nama lengkap penandatangan"
+                          className="w-full border border-slate-200 rounded-lg p-1.5 text-slate-800 text-[10.5px]"
+                          disabled={signLeftType !== 'Custom'}
+                          required
+                        />
+                        <input
+                          type="text"
+                          value={signLeftTitle}
+                          onChange={(e) => setSignLeftTitle(e.target.value)}
+                          placeholder="Jabatan resmi"
+                          className="w-full border border-slate-200 rounded-lg p-1.5 text-slate-500 text-[10.5px]"
+                          disabled={signLeftType !== 'Custom'}
+                          required
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* PENANDATANGAN 2 (KANAN) */}
+                  <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
+                    <label className="text-[11px] font-bold text-slate-600 block">Penandatangan Utama 2 (Kanan):</label>
+                    <select
+                      value={signRightType}
+                      onChange={(e) => handleRightSigneeTypeChange(e.target.value as any)}
+                      className="w-full border border-slate-200 rounded-lg p-1.5 bg-white text-slate-800 text-[11px]"
+                    >
+                      <option value="Sekretaris">Sekretaris ({sekretarisName})</option>
+                      <option value="Ketua">Ketua Dewan/Yayasan ({ketuaName})</option>
+                      <option value="Bendahara">Bendahara ({bendaharaName})</option>
+                      <option value="Custom">Kustom (Ketik Manual)</option>
+                      <option value="None">Tanpa Tanda Tangan Kanan</option>
+                    </select>
+
+                    {signRightType !== 'None' && (
+                      <div className="space-y-1.5 pt-1">
+                        <input
+                          type="text"
+                          value={signRightName}
+                          onChange={(e) => setSignRightName(e.target.value)}
+                          placeholder="Nama lengkap penandatangan"
+                          className="w-full border border-slate-200 rounded-lg p-1.5 text-slate-800 text-[10.5px]"
+                          disabled={signRightType !== 'Custom'}
+                          required
+                        />
+                        <input
+                          type="text"
+                          value={signRightTitle}
+                          onChange={(e) => setSignRightTitle(e.target.value)}
+                          placeholder="Jabatan resmi"
+                          className="w-full border border-slate-200 rounded-lg p-1.5 text-slate-500 text-[10.5px]"
+                          disabled={signRightType !== 'Custom'}
+                          required
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="bg-slate-550/5 p-3 rounded-xl border border-slate-200 text-slate-600 italic">
                 Sesuai parameter di atas, nomor serial yang akan diterbitkan: <strong className="text-slate-800">{generateOutwardLetterNumber(outType)}</strong>
               </div>
@@ -625,12 +907,10 @@ export default function LettersTab({
                 Tutup Dokumen
               </button>
               <button 
-                onClick={() => {
-                  alert('Menyiapkan transfer sinyal nirkabel ke mesin cetak lokal...');
-                }}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
+                onClick={() => exportLetterToPDF(readingLetter, profile, structures)}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
               >
-                <Eye className="w-4 h-4" /> Print out A4 Fisik
+                <Download className="w-4 h-4" /> Unduh Surat (PDF)
               </button>
             </div>
 

@@ -40,6 +40,7 @@ interface PayrollTabProps {
   onUpdateSalary?: (s: StaffSalary) => void;
   profile?: InstitutionalProfile;
   structures?: any[];
+  onLogAudit?: (actionDescription: string, moduleName: string, before?: string, after?: string) => Promise<void>;
 }
 
 const DEFAULT_PUBLIC_FIELDS = [
@@ -64,8 +65,10 @@ export default function PayrollTab({
   onUpdateSalary,
   profile,
   structures = [],
+  onLogAudit,
 }: PayrollTabProps) {
   const [editingSalary, setEditingSalary] = useState<StaffSalary | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [publicFields, setPublicFields] = useState<any[]>(() => {
     const saved = localStorage.getItem('siad_public_payroll_fields');
     if (saved) {
@@ -227,11 +230,11 @@ export default function PayrollTab({
   const finalKasBalance = useMemo(() => {
     const approvedTx = (transactions || []).filter(t => t.status === 'Approved');
     const totalIncome = approvedTx
-      .filter(t => t.type === 'Income')
+      .filter(t => t.type?.toLowerCase() === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
 
     const totalExpense = approvedTx
-      .filter(t => t.type === 'Expense')
+      .filter(t => t.type?.toLowerCase() === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
 
     return totalIncome - totalExpense;
@@ -344,8 +347,8 @@ export default function PayrollTab({
 
   // System treasury balance derived from global transactions
   const approvedTx = transactions.filter(t => t.status === 'Approved');
-  const totalIncome = approvedTx.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0);
-  const totalExpense = approvedTx.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0);
+  const totalIncome = approvedTx.filter(t => t.type?.toLowerCase() === 'income').reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = approvedTx.filter(t => t.type?.toLowerCase() === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const currentSystemBalance = totalIncome - totalExpense;
 
   const isBalanceSufficient = currentSystemBalance >= remainingUnpaidSalary;
@@ -439,23 +442,34 @@ export default function PayrollTab({
     }
   };
 
-  const handleResetPayments = async () => {
-    if (window.confirm('Apakah Anda yakin ingin menyetel ulang rekapitulasi pembayaran gaji dan termin karyawan bulan ini? Semua pencatatan cicilan staf akan dimulai dari 0%.')) {
-      try {
-        for (const s of staffs) {
-          if (s.paidAmount && s.paidAmount > 0) {
-            await onUpdateStaff({
-              ...s,
-              paidAmount: 0
-            });
-          }
+  const executeResetPayments = async () => {
+    try {
+      const resetTargets = staffs.filter(s => s.paidAmount && s.paidAmount > 0);
+      for (const s of staffs) {
+        if (s.paidAmount && s.paidAmount > 0) {
+          await onUpdateStaff({
+            ...s,
+            paidAmount: 0
+          });
         }
-        alert('Rekapitulasi pembayaran gaji berhasil disetel ulang ke 0%!');
-      } catch (err) {
-        console.error(err);
-        alert('Gagal menyetujui penyetelan ulang gaji.');
       }
+      if (onLogAudit) {
+        await onLogAudit(
+          `Menyetel Ulang Rekapitulasi Pembayaran Gaji & Termin Bulanan Karyawan (Pengurangan Seluruh Cicilan Terbayar ke 0%)`,
+          'Staf & HR',
+          JSON.stringify(resetTargets),
+          ''
+        );
+      }
+      alert('Rekapitulasi pembayaran gaji berhasil disetel ulang ke 0%!');
+    } catch (err) {
+      console.error(err);
+      alert('Gagal menyetujui penyetelan ulang gaji.');
     }
+  };
+
+  const handleResetPayments = () => {
+    setShowResetConfirm(true);
   };
 
   // Save the modified payroll fields back to state / Firebase
@@ -1618,6 +1632,37 @@ export default function PayrollTab({
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM MODAL: RESET SELURUH GAJI & TERMIN */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden p-6 space-y-4">
+            <h3 className="text-lg font-bold text-slate-900">Konfirmasi Setel Ulang Pembayaran</h3>
+            <p className="text-slate-500 text-xs leading-relaxed">
+              Apakah Anda yakin ingin menyetel ulang rekapitulasi pembayaran gaji dan termin karyawan bulan ini? Semua pencatatan cicilan staf akan dimulai dari <strong className="text-slate-800 font-bold">0%</strong> kembali.
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setShowResetConfirm(false);
+                  await executeResetPayments();
+                }}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+              >
+                Ya, Setel Ulang Gaji
+              </button>
+            </div>
           </div>
         </div>
       )}

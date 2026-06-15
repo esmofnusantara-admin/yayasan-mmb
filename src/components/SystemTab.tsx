@@ -52,9 +52,9 @@ export default function SystemTab({
   
   // Dynamic Organizational Structure State
   const [orgTree, setOrgTree] = useState<any[]>([
-    { id: 'ketua', title: 'Ketua Dewan Pembina', name: 'Dr. (H.C.) Dr. Joseph Sinaga', sub: 'Pembuat Keputusan Tertinggi', order: 10, deleted: false },
-    { id: 'sekretaris', title: 'Sekretaris Eksekutif', name: 'Pdt. Johannes Lie, M.Th.', sub: 'Administrasi & Legalitas Lembaga', order: 20, deleted: false },
-    { id: 'bendahara', title: 'Bendahara Umum', name: 'Ibu Ruth Sitorus, S.E.', sub: 'Jurnal Kas, Transaksi & Audit', order: 30, deleted: false },
+    { id: 'ketua', title: 'Ketua Dewan Pembina', name: 'Fernandes', sub: 'Pembuat Keputusan Tertinggi', order: 10, deleted: false },
+    { id: 'sekretaris', title: 'Sekretaris Eksekutif', name: 'Yusuf Raja Tamba', sub: 'Administrasi & Legalitas Lembaga', order: 20, deleted: false },
+    { id: 'bendahara', title: 'Bendahara Umum', name: 'Angelina', sub: 'Jurnal Kas, Transaksi & Audit', order: 30, deleted: false },
     { id: 'korwil', title: 'Koordinator Wilayah DIY', name: 'Ahmad Faisal, S.Th.', sub: 'Lapangan & Persekutuan Cabang', order: 40, deleted: false },
     { id: 'staff', title: 'Staf Lapangan & Kelompok Kecil', name: 'Simpatisan Mitra Aliansi', sub: 'Pendamping Siswa & Pelayanan', order: 50, deleted: false },
   ]);
@@ -78,20 +78,27 @@ export default function SystemTab({
   // States for custom modal confirmations
   const [deleteConfirmOp, setDeleteConfirmOp] = useState<{ email: string; role: string; name: string } | null>(null);
   const [deleteConfirmNode, setDeleteConfirmNode] = useState<{ id: string; title: string } | null>(null);
+  const [isCleanseModalOpen, setIsCleanseModalOpen] = useState(false);
+  const [isCleansingInProcess, setIsCleansingInProcess] = useState(false);
 
   const fetchOrgTree = async () => {
     setIsFetchingTree(true);
     try {
       const res = await fetch('/api/data/structures');
       if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
+        const rawData = await res.json();
+        if (Array.isArray(rawData)) {
+          const data = rawData.map(item => ({
+              ...item,
+              name: item.name || ''
+          }));
+
           const activeDocs = data.filter(d => !d.deleted);
           
           const defaultNodes = [
-            { id: 'ketua', title: 'Ketua Dewan Pembina', name: 'Dr. (H.C.) Dr. Joseph Sinaga', sub: 'Pembuat Keputusan Tertinggi', order: 10, deleted: false },
-            { id: 'sekretaris', title: 'Sekretaris Eksekutif', name: 'Pdt. Johannes Lie, M.Th.', sub: 'Administrasi & Legalitas Lembaga', order: 20, deleted: false },
-            { id: 'bendahara', title: 'Bendahara Umum', name: 'Ibu Ruth Sitorus, S.E.', sub: 'Jurnal Kas, Transaksi & Audit', order: 30, deleted: false },
+            { id: 'ketua', title: 'Ketua Dewan Pembina', name: 'Fernandes', sub: 'Pembuat Keputusan Tertinggi', order: 10, deleted: false },
+            { id: 'sekretaris', title: 'Sekretaris Eksekutif', name: 'Yusuf Raja Tamba', sub: 'Administrasi & Legalitas Lembaga', order: 20, deleted: false },
+            { id: 'bendahara', title: 'Bendahara Umum', name: 'Angelina', sub: 'Jurnal Kas, Transaksi & Audit', order: 30, deleted: false },
             { id: 'korwil', title: 'Koordinator Wilayah DIY', name: 'Ahmad Faisal, S.Th.', sub: 'Lapangan & Persekutuan Cabang', order: 40, deleted: false },
             { id: 'staff', title: 'Staf Lapangan & Kelompok Kecil', name: 'Simpatisan Mitra Aliansi', sub: 'Pendamping Siswa & Pelayanan', order: 50, deleted: false },
           ];
@@ -443,6 +450,8 @@ export default function SystemTab({
   const [signatureChairmanUrl, setSignatureChairmanUrl] = useState(profile.signatureChairmanUrl || '');
   const [signatureSecretaryUrl, setSignatureSecretaryUrl] = useState(profile.signatureSecretaryUrl || '');
   const [signatureTreasurerUrl, setSignatureTreasurerUrl] = useState(profile.signatureTreasurerUrl || '');
+  const [customSignatures, setCustomSignatures] = useState<any[]>(profile.customSignatures || []);
+  const [selectedCustomNodeId, setSelectedCustomNodeId] = useState<string>('');
   const [kopTitle, setKopTitle] = useState(profile.kopTitle || 'EVANGELICAL STUDENT MOVEMENT');
   const [kopMotto, setKopMotto] = useState(profile.kopMotto || 'Kabar baik. Pemuridan. Misi.');
   const [isSignatureDirty, setIsSignatureDirty] = useState(false);
@@ -460,6 +469,14 @@ export default function SystemTab({
   const [memberComponents, setMemberComponents] = useState<string[]>(profile.memberComponents || ["Siswa", "Mahasiswa", "Alumni", "Umum"]);
   const [partnerStatuses, setPartnerStatuses] = useState<string[]>(profile.partnerStatuses || ["Prospek", "Kontak Awal", "Presentasi", "Komitmen", "Donasi Pertama", "Aktif", "Tidak Aktif"]);
   const [partnerTypes, setPartnerTypes] = useState<string[]>(profile.partnerTypes || ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]);
+  const [donationChannels, setDonationChannels] = useState<Array<{ name: string; detail: string }>>(
+    profile.donationChannels || [
+      { name: "Transfer Bank Mandiri", detail: "Mandiri Utama 123-00-x" },
+      { name: "BCA Yayasan", detail: "BCA Yayasan 552-x" },
+      { name: "Transfer BNI", detail: "BNI 0928-x" },
+      { name: "Dana Cash (Fisik)", detail: "Tunai / Cash Fisik" }
+    ]
+  );
 
   // Temporary single input text fields for adding items
   const [newRegion, setNewRegion] = useState('');
@@ -470,6 +487,8 @@ export default function SystemTab({
   const [newMemberComponent, setNewMemberComponent] = useState('');
   const [newPartnerStatus, setNewPartnerStatus] = useState('');
   const [newPartnerType, setNewPartnerType] = useState('');
+  const [newChannelName, setNewChannelName] = useState('');
+  const [newChannelDetail, setNewChannelDetail] = useState('');
 
   const lastSyncedProfileRef = React.useRef<any>(null);
 
@@ -496,6 +515,7 @@ export default function SystemTab({
         signatureTreasurerUrl === (last.signatureTreasurerUrl || '') &&
         stampUrl === (last.stampUrl || '') &&
         logoUrl === (last.logoUrl || '') &&
+        JSON.stringify(customSignatures) === JSON.stringify(last.customSignatures || []) &&
         systemTitle === (last.systemTitle || 'ESM FMS') &&
         dashboardTitle === (last.dashboardTitle || 'Institutional Executive ERP') &&
         JSON.stringify(regions) === JSON.stringify(last.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]) &&
@@ -505,7 +525,13 @@ export default function SystemTab({
         JSON.stringify(memberKeaktifanStatuses) === JSON.stringify(last.memberKeaktifanStatuses || ["Aktif", "Pasif", "Cuti", "Pindah"]) &&
         JSON.stringify(memberComponents) === JSON.stringify(last.memberComponents || ["Siswa", "Mahasiswa", "Alumni", "Umum"]) &&
         JSON.stringify(partnerStatuses) === JSON.stringify(last.partnerStatuses || ["Prospek", "Kontak Awal", "Presentasi", "Komitmen", "Donasi Pertama", "Aktif", "Tidak Aktif"]) &&
-        JSON.stringify(partnerTypes) === JSON.stringify(last.partnerTypes || ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]);
+        JSON.stringify(partnerTypes) === JSON.stringify(last.partnerTypes || ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]) &&
+        JSON.stringify(donationChannels) === JSON.stringify(last.donationChannels || [
+          { name: "Transfer Bank Mandiri", detail: "Mandiri Utama 123-00-x" },
+          { name: "BCA Yayasan", detail: "BCA Yayasan 552-x" },
+          { name: "Transfer BNI", detail: "BNI 0928-x" },
+          { name: "Dana Cash (Fisik)", detail: "Tunai / Cash Fisik" }
+        ]);
     }
 
     // Check if the current local state matches the incoming profile prop (e.g. after a successful save)
@@ -525,6 +551,7 @@ export default function SystemTab({
       signatureTreasurerUrl === (profile.signatureTreasurerUrl || '') &&
       stampUrl === (profile.stampUrl || '') &&
       logoUrl === (profile.logoUrl || '') &&
+      JSON.stringify(customSignatures) === JSON.stringify(profile.customSignatures || []) &&
       systemTitle === (profile.systemTitle || 'ESM FMS') &&
       dashboardTitle === (profile.dashboardTitle || 'Institutional Executive ERP') &&
       JSON.stringify(regions) === JSON.stringify(profile.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]) &&
@@ -534,7 +561,13 @@ export default function SystemTab({
       JSON.stringify(memberKeaktifanStatuses) === JSON.stringify(profile.memberKeaktifanStatuses || ["Aktif", "Pasif", "Cuti", "Pindah"]) &&
       JSON.stringify(memberComponents) === JSON.stringify(profile.memberComponents || ["Siswa", "Mahasiswa", "Alumni", "Umum"]) &&
       JSON.stringify(partnerStatuses) === JSON.stringify(profile.partnerStatuses || ["Prospek", "Kontak Awal", "Presentasi", "Komitmen", "Donasi Pertama", "Aktif", "Tidak Aktif"]) &&
-      JSON.stringify(partnerTypes) === JSON.stringify(profile.partnerTypes || ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]);
+      JSON.stringify(partnerTypes) === JSON.stringify(profile.partnerTypes || ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]) &&
+      JSON.stringify(donationChannels) === JSON.stringify(profile.donationChannels || [
+        { name: "Transfer Bank Mandiri", detail: "Mandiri Utama 123-00-x" },
+        { name: "BCA Yayasan", detail: "BCA Yayasan 552-x" },
+        { name: "Transfer BNI", detail: "BNI 0928-x" },
+        { name: "Dana Cash (Fisik)", detail: "Tunai / Cash Fisik" }
+      ]);
 
     if (isFirstLoad || isSameAsLastSynced) {
       setName(profile.name);
@@ -550,6 +583,7 @@ export default function SystemTab({
       setSignatureChairmanUrl(profile.signatureChairmanUrl || '');
       setSignatureSecretaryUrl(profile.signatureSecretaryUrl || '');
       setSignatureTreasurerUrl(profile.signatureTreasurerUrl || '');
+      setCustomSignatures(profile.customSignatures || []);
       setStampUrl(profile.stampUrl || '');
       setLogoUrl(profile.logoUrl || '');
       setIsSignatureDirty(false);
@@ -563,6 +597,12 @@ export default function SystemTab({
       setMemberComponents(profile.memberComponents || ["Siswa", "Mahasiswa", "Alumni", "Umum"]);
       setPartnerStatuses(profile.partnerStatuses || ["Prospek", "Kontak Awal", "Presentasi", "Komitmen", "Donasi Pertama", "Aktif", "Tidak Aktif"]);
       setPartnerTypes(profile.partnerTypes || ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]);
+      setDonationChannels(profile.donationChannels || [
+        { name: "Transfer Bank Mandiri", detail: "Mandiri Utama 123-00-x" },
+        { name: "BCA Yayasan", detail: "BCA Yayasan 552-x" },
+        { name: "Transfer BNI", detail: "BNI 0928-x" },
+        { name: "Dana Cash (Fisik)", detail: "Tunai / Cash Fisik" }
+      ]);
       
       lastSyncedProfileRef.current = profile;
     } else if (matchesCurrentProfileProp) {
@@ -676,6 +716,7 @@ export default function SystemTab({
       signatureChairmanUrl,
       signatureSecretaryUrl,
       signatureTreasurerUrl,
+      customSignatures,
       logoUrl,
     };
     onUpdateProfile(updated);
@@ -705,6 +746,7 @@ export default function SystemTab({
       signatureChairmanUrl,
       signatureSecretaryUrl,
       signatureTreasurerUrl,
+      customSignatures,
       logoUrl,
       systemTitle,
       dashboardTitle,
@@ -715,7 +757,8 @@ export default function SystemTab({
       memberKeaktifanStatuses,
       memberComponents,
       partnerStatuses,
-      partnerTypes
+      partnerTypes,
+      donationChannels
     };
     onUpdateProfile(updated);
     alert('Sukses: Konfigurasi variabel kustom dan utilitas judul berhasil diperbarui & disimpan!');
@@ -1058,8 +1101,14 @@ export default function SystemTab({
     }
   };
 
-  const ketuaNode = orgTree?.find(n => n?.id === 'ketua' || n?.title?.toLowerCase().includes('ketua') || n?.id === 'ketua_yayasan');
-  const ketuaNameResolved = ketuaNode?.name || 'Yusuf Raja Tamba';
+  const ketuaNode = orgTree?.find(n => n?.id === 'ketua' || n?.id === 'ketua_yayasan') || orgTree?.find(n => n?.title?.toLowerCase().includes('ketua'));
+  const ketuaNameResolved = ketuaNode?.name || 'Fernandes';
+
+  const sekretarisNode = orgTree?.find(n => n?.id === 'sekretaris') || orgTree?.find(n => n?.title?.toLowerCase().includes('sekretaris'));
+  const sekretarisNameResolved = sekretarisNode?.name || 'Yusuf Raja Tamba';
+
+  const bendaharaNode = orgTree?.find(n => n?.id === 'bendahara') || orgTree?.find(n => n?.title?.toLowerCase().includes('bendahara'));
+  const bendaharaNameResolved = bendaharaNode?.name || 'Angelina';
 
   return (
     <div className="space-y-6">
@@ -1488,7 +1537,7 @@ export default function SystemTab({
                   <div>
                     <label className="text-slate-700 block mb-1 font-bold text-[11px] uppercase tracking-wide flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-555 inline-block"></span>
-                      Tanda Tangan Sekretaris (Ahmad Faisal)
+                      Tanda Tangan Sekretaris ({sekretarisNameResolved})
                     </label>
                     <p className="text-slate-400 text-[10px] mb-3">Tanda tangan resmi Sekretaris Yayasan ESM.</p>
                   </div>
@@ -1576,7 +1625,7 @@ export default function SystemTab({
                       <span className="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block"></span>
                       Tanda Tangan Bendahara / Slip Gaji
                     </label>
-                    <p className="text-slate-400 text-[10px] mb-3">Tanda tangan resmi Bendahara Yayasan (Sarah Sitorus).</p>
+                    <p className="text-slate-400 text-[10px] mb-3">Tanda tangan resmi Bendahara Yayasan ({bendaharaNameResolved}).</p>
                   </div>
 
                   <div className="flex items-center gap-4">
@@ -1667,6 +1716,196 @@ export default function SystemTab({
                       Tanda tangan digital Bendahara yang akan disisipkan otomatis di lembar slip gaji karyawan.
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* TANDA TANGAN TAMBAHAN CUSTOM */}
+              <div className="border-t border-slate-100/70 pt-6 mt-4 space-y-4">
+                <div>
+                  <h4 className="text-slate-800 font-bold text-xs uppercase tracking-wide">
+                    Tanda Tangan Pengurus Tambahan (Fakultatif)
+                  </h4>
+                  <p className="text-slate-500 text-[10.5px]">
+                    Tambahkan slot tanda tangan digital untuk posisi atau jabatan lain dari Struktur Organisasi (misal: Koordinator Wilayah, Staf Lapangan, dll).
+                  </p>
+                </div>
+
+                {/* List of custom signatures uploaded */}
+                {customSignatures && customSignatures.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {customSignatures.map((cs) => {
+                      const matchedNode = orgTree?.find(node => node.id === cs.nodeId);
+                      const displayTitle = matchedNode?.title || cs.title || 'Jabatan';
+                      const displayName = matchedNode?.name || cs.name || 'Nama';
+
+                      return (
+                        <div key={cs.id} className="bg-slate-50/50 p-4 border border-slate-200/60 rounded-2xl flex flex-col justify-between">
+                          <div className="mb-2">
+                            <label className="text-slate-700 block mb-1 font-bold text-[11px] uppercase tracking-wide flex items-center justify-between">
+                              <span className="flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block"></span>
+                                {displayTitle} ({displayName})
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCustomSignatures(prev => prev.filter(item => item.id !== cs.id));
+                                  setIsSignatureDirty(true);
+                                }}
+                                className="text-red-600 hover:text-red-700 font-bold text-[9px] cursor-pointer transition-colors bg-red-50 hover:bg-red-100/60 px-1.5 py-0.5 rounded uppercase"
+                              >
+                                Hapus Slot
+                              </button>
+                            </label>
+                            <p className="text-slate-400 text-[10px]">Tanda tangan resmi tambahan untuk {displayTitle}.</p>
+                          </div>
+
+                          <div className="flex items-center gap-4">
+                            {cs.signatureUrl ? (
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-center relative group w-32 h-24 overflow-hidden shadow-sm">
+                                  <img src={cs.signatureUrl} alt={`TTD ${displayTitle}`} className="max-h-20 max-w-full object-contain" />
+                                  <label className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200 cursor-pointer text-[10px] font-bold gap-1">
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          const optimizedUrl = await optimizeAndResizeImage(file);
+                                          setCustomSignatures(prev => prev.map(item => item.id === cs.id ? { ...item, signatureUrl: optimizedUrl } : item));
+                                          setIsSignatureDirty(true);
+                                        }
+                                      }}
+                                      className="hidden"
+                                    />
+                                    <Edit className="w-3.5 h-3.5 text-white" />
+                                    Ganti TTD
+                                  </label>
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-1 font-semibold text-[9px] text-slate-500">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleRotateImage(cs.signatureUrl, (newUrl) => {
+                                        setCustomSignatures(prev => prev.map(item => item.id === cs.id ? { ...item, signatureUrl: newUrl } : item));
+                                        setIsSignatureDirty(true);
+                                      }, 'ccw');
+                                    }}
+                                    className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center justify-center"
+                                    title="Putar CCW"
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleRotateImage(cs.signatureUrl, (newUrl) => {
+                                        setCustomSignatures(prev => prev.map(item => item.id === cs.id ? { ...item, signatureUrl: newUrl } : item));
+                                        setIsSignatureDirty(true);
+                                      }, 'cw');
+                                    }}
+                                    className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center justify-center"
+                                    title="Putar CW"
+                                  >
+                                    <RotateCw className="w-3.5 h-3.5" />
+                                  </button>
+                                  <span className="text-slate-300">|</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCustomSignatures(prev => prev.map(item => item.id === cs.id ? { ...item, signatureUrl: '' } : item));
+                                      setIsSignatureDirty(true);
+                                    }}
+                                    className="p-1 text-red-650 hover:bg-red-50 hover:text-red-700 rounded cursor-pointer font-bold"
+                                  >
+                                    Hapus
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="w-32 h-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-100/50 transition-colors relative cursor-pointer group">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      const optimizedUrl = await optimizeAndResizeImage(file);
+                                      setCustomSignatures(prev => prev.map(item => item.id === cs.id ? { ...item, signatureUrl: optimizedUrl } : item));
+                                      setIsSignatureDirty(true);
+                                    }
+                                  }}
+                                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                />
+                                <Image className="w-5 h-5 mb-1 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                                <span className="text-[10px] font-semibold text-slate-500">Pilih Berkas</span>
+                                <span className="text-[7.5px] text-slate-400">PNG Transparan</span>
+                              </div>
+                            )}
+                            <div className="flex-1 text-[10px] text-slate-500 leading-snug">
+                              Tanda tangan digital {displayTitle} yang akan ditarik ex-officio jika dipilih pada modul surat.
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+                    <p className="text-[11px] text-slate-400 font-medium">Belum ada tanda tangan tambahan yang dibuat. Pilih dari jabatan struktur di bawah untuk menambahkan.</p>
+                  </div>
+                )}
+
+                {/* Add Custom Signature input row */}
+                <div className="bg-slate-550/5 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-end gap-3 text-left">
+                  <div className="flex-1 w-full">
+                    <label className="text-[10.5px] font-bold text-slate-705 block mb-1">
+                      PILIH POSISI STRUKTUR UNTUK DIBERIKAN AKSES TANDA TANGAN:
+                    </label>
+                    <select
+                      value={selectedCustomNodeId}
+                      onChange={(e) => setSelectedCustomNodeId(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-none text-slate-700 font-medium h-9"
+                    >
+                      <option value="">-- Pilih dari Struktur Organisasi --</option>
+                      {orgTree && orgTree
+                        .filter(node => node.id !== 'ketua' && node.id !== 'sekretaris' && node.id !== 'bendahara')
+                        .filter(node => !customSignatures.some(cs => cs.nodeId === node.id))
+                        .map(node => (
+                          <option key={node.id} value={node.id}>
+                            {node.title} - {node.name}
+                          </option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!selectedCustomNodeId) {
+                        alert('Silakan pilih salah satu posisi struktur pengurus.');
+                        return;
+                      }
+                      const matchedNode = orgTree?.find(node => node.id === selectedCustomNodeId);
+                      if (!matchedNode) return;
+
+                      const newCustomSig = {
+                        id: `CUSTOM-${Date.now()}`,
+                        nodeId: selectedCustomNodeId,
+                        title: matchedNode.title,
+                        name: matchedNode.name,
+                        signatureUrl: ''
+                      };
+
+                      setCustomSignatures(prev => [...prev, newCustomSig]);
+                      setSelectedCustomNodeId('');
+                      setIsSignatureDirty(true);
+                    }}
+                    className="px-5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-xs cursor-pointer transition-all border border-indigo-100 shrink-0 w-full sm:w-auto h-9 flex items-center justify-center"
+                  >
+                    + Buat Slot Tanda Tangan
+                  </button>
                 </div>
               </div>
 
@@ -2694,6 +2933,73 @@ export default function SystemTab({
                 </div>
               </div>
 
+              {/* Saluran Donasi & Rekening Penerima */}
+              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between col-span-1 sm:col-span-2 md:col-span-3">
+                <div>
+                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5 flex items-center gap-2">💳 Saluran Donasi & Rekening Bank Penerima ({donationChannels.length})</h4>
+                  <p className="text-[11px] text-slate-400 mb-3">Daftar dinamis ini akan otomatis menjadi opsi pilihan di modul pencatatan donasi masuk mitra.</p>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 max-h-56 overflow-y-auto">
+                    {donationChannels.map((channel, idx) => (
+                      <div key={idx} className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex items-start justify-between">
+                        <div className="pr-2">
+                          <p className="font-bold text-slate-800 text-[11px]">{channel.name}</p>
+                          <p className="text-[10px] text-slate-500 font-mono mt-0.5">{channel.detail}</p>
+                        </div>
+                        <button 
+                          type="button"
+                          onClick={() => setDonationChannels(prev => prev.filter((_, i) => i !== idx))}
+                          className="hover:bg-red-50 hover:text-red-650 p-1 rounded font-extrabold text-xs cursor-pointer focus:outline-none transition-colors align-top"
+                          title="Hapus saluran donasi"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 bg-slate-50/50 p-3 rounded-lg border border-slate-100">
+                  <div className="flex-1 text-left">
+                    <label className="text-[10px] text-slate-500 font-bold block mb-1">Nama Saluran / Bank :</label>
+                    <input 
+                      type="text"
+                      value={newChannelName}
+                      onChange={(e) => setNewChannelName(e.target.value)}
+                      placeholder="Contoh: BCA Yayasan"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-800"
+                    />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <label className="text-[10px] text-slate-500 font-bold block mb-1">Detail Rekening / Keterangan :</label>
+                    <input 
+                      type="text"
+                      value={newChannelDetail}
+                      onChange={(e) => setNewChannelDetail(e.target.value)}
+                      placeholder="Contoh: No. Rek 123-xxx-xx"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-800"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        if (newChannelName.trim()) {
+                          setDonationChannels(prev => [...prev, { name: newChannelName.trim(), detail: newChannelDetail.trim() }]);
+                          setNewChannelName('');
+                          setNewChannelDetail('');
+                        } else {
+                          alert('Nama saluran/bank tidak boleh kosong.');
+                        }
+                      }}
+                      className="w-full sm:w-auto px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-xs h-8 cursor-pointer transition-colors"
+                    >
+                      + Tambah Saluran
+                    </button>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
             <div className="pt-4 border-t border-slate-100 flex justify-end">
@@ -2717,29 +3023,13 @@ export default function SystemTab({
                     Pusat Pembersihan Data Kritis (Data Cleansing & Reset)
                   </h4>
                   <p className="text-slate-500 text-[11px] mt-1.5 max-w-xl leading-relaxed">
-                    Sesuai instruksi kebijakan, fitur ini bertujuan menghapus seluruh entitas data testing/percobaan (Keuangan, Anggota, Rekaman Payroll, Surat-menyurat, Dokumen, dll) secara tuntas/cleansing dari Firestore, serta mereset user operator kembali ke 5 akun standar yayasan dengan profil staf yang sinkron.
+                    Sesuai instruksi kebijakan, fitur ini bertujuan melakukan hard delete terhadap seluruh entitas data percobaan di database secara tuntas (cleansing data) dan menyisakan satu-satunya akun utama yang aktif, yaitu Super Admin operator, untuk mulai menginput data real secara manual.
                   </p>
                 </div>
                 
                 <button
                   type="button"
-                  onClick={async () => {
-                    const confirmRes = window.confirm('PERINGATAN KRITIS: Anda akan menghapus seluruh data testing di sistem dan mengembalikan database ke kondisi awal bersih (clean slate). Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin?');
-                    if (!confirmRes) return;
-                    
-                    try {
-                      const res = await fetch('/api/system/cleanse', { method: 'POST' });
-                      const result = await res.json();
-                      if (result.success) {
-                        alert('SUKSES: Database berhasil dibersihkan (cleansing). Aplikasi akan dimuat ulang otomatis untuk menyegarkan data.');
-                        window.location.reload();
-                      } else {
-                        alert('Gagal membersihkan data: ' + result.error);
-                      }
-                    } catch (err: any) {
-                      alert('Error koneksi saat melakukan cleansing: ' + err.message);
-                    }
-                  }}
+                  onClick={() => setIsCleanseModalOpen(true)}
                   className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl cursor-pointer transition-colors text-xs flex items-center gap-2 shrink-0 shadow-sm shadow-rose-200"
                 >
                   <Trash2 className="w-4 h-4" /> Cleansing Data Testing
@@ -2767,6 +3057,18 @@ export default function SystemTab({
                 </div>
                 <div className="text-slate-300 md:flex-1 md:px-3 text-left">
                   {log.action}
+                  {log.beforeValue && (
+                    <div className="text-rose-450 mt-1 max-w-full overflow-x-auto text-[9px] bg-rose-950/40 p-1.5 rounded leading-normal border border-rose-900/30">
+                      <span className="font-bold block text-rose-300 uppercase tracking-wider text-[8px] mb-0.5">SBLM (OLD VALUE):</span>
+                      {log.beforeValue}
+                    </div>
+                  )}
+                  {log.afterValue && (
+                    <div className="text-emerald-450 mt-1 max-w-full overflow-x-auto text-[9px] bg-emerald-950/40 p-1.5 rounded leading-normal border border-emerald-900/30">
+                      <span className="font-bold block text-emerald-300 uppercase tracking-wider text-[8px] mb-0.5">SSDH (NEW VALUE):</span>
+                      {log.afterValue}
+                    </div>
+                  )}
                 </div>
                 <span className="bg-slate-800 text-[10px] text-indigo-400 px-1.5 py-0.5 rounded font-bold self-end sm:self-auto shrink-0 animate-pulse">
                   ROLE: {log.userRole || 'System'}
@@ -2775,7 +3077,18 @@ export default function SystemTab({
             ))}
           </div>
           
-          <p className="text-[9px] text-slate-500">Jurnal audit sistem ini bersifat tertutup, non-destruktif, dan terenkripsi AES-256 otomatis dalam standard audit kepatuhan IT Yayasan.</p>
+          <div className="border-t border-slate-800 pt-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <p className="text-[9px] text-slate-500 max-w-lg leading-normal">Jurnal audit sistem ini bersifat tertutup, non-destruktif, dan terenkripsi AES-256 otomatis dalam standard audit kepatuhan IT Yayasan.</p>
+            {(currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan') && (
+              <button
+                type="button"
+                onClick={() => setIsCleanseModalOpen(true)}
+                className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white font-bold rounded-xl cursor-pointer transition-colors text-[10px] sm:text-xs flex items-center gap-1.5 shrink-0 shadow-sm shadow-rose-900/30 font-sans border border-rose-500/35"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Bersihkan Semua Data Uji
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -2859,6 +3172,85 @@ export default function SystemTab({
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm shadow-red-100"
               >
                 Ya, Hapus Jabatan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Modal Confirmation for Cleansing Database */}
+      {isCleanseModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl border border-rose-100 p-6 md:p-8 max-w-lg w-full shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150 text-left">
+            <div className="flex items-center gap-3.5 text-rose-600">
+              <div className="p-3 bg-rose-50 rounded-2xl border border-rose-100 animate-pulse">
+                <Trash2 className="w-6 h-6 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-none">PEMBERSIHAN DATABASE KRITIS</h3>
+                <span className="text-[10px] text-rose-600 font-extrabold uppercase tracking-widest block mt-1.5 font-mono">Warning: Hard Delete & Clean Slate</span>
+              </div>
+            </div>
+            
+            <div className="space-y-3.5 text-xs text-slate-600 leading-relaxed font-sans">
+              <p>
+                Apakah Anda benar-benar yakin ingin membersihkan data? Sistem akan melakukan <strong className="text-rose-600 font-extrabold">HARD DELETE permanen</strong> terhadap data uji berikut:
+              </p>
+              <div className="bg-rose-50/70 p-3.5 rounded-2xl border border-rose-100 text-[10.5px] leading-relaxed text-rose-950 font-medium space-y-1">
+                <p>⚙️ Keuangan, Saldo Jurnal Kas, dan Semua Transaksi</p>
+                <p>⚙️ Data Pegawai, Rekaman Slip Gaji (Payroll), & Staff Profiles</p>
+                <p>⚙️ Data Mitra, Proposal Donasi & Campaign Fundraising</p>
+                <p>⚙️ Anggota, Kelompok Kecil KTB, Riwayat Log Pertemuan</p>
+                <p>⚙️ Surat Masuk & Surat Keluar Beserta Agendanya</p>
+                <p>⚙️ Akun Operator Lain (Kecuali Super Admin utama Anda)</p>
+              </div>
+              <p className="text-slate-500 text-[11px]">
+                Hanya akun utama <strong className="text-indigo-600 font-bold">superadmin@esm.or.id</strong> yang dipertahankan. Setelah proses selesai, database akan bersih total dan siap digunakan untuk input manual data organisasi yang riil.
+              </p>
+            </div>
+            
+            <div className="flex justify-end gap-2.5 pt-2 font-sans">
+              <button
+                type="button"
+                disabled={isCleansingInProcess}
+                onClick={() => setIsCleanseModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-250 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer disabled:opacity-50"
+              >
+                Batal (Amankan Data)
+              </button>
+              <button
+                type="button"
+                disabled={isCleansingInProcess}
+                onClick={async () => {
+                  setIsCleansingInProcess(true);
+                  try {
+                    const res = await fetch('/api/system/cleanse', { method: 'POST' });
+                    const result = await res.json();
+                    if (result.success) {
+                      setIsCleanseModalOpen(false);
+                      setIsCleansingInProcess(false);
+                      alert('SUKSES: Database berhasil dibersihkan total. Halaman web akan dimuat ulang otomatis untuk menampilkan dashboard kosong yang murni.');
+                      window.location.reload();
+                    } else {
+                      alert('Gagal membersihkan database: ' + result.error);
+                      setIsCleansingInProcess(false);
+                    }
+                  } catch (err: any) {
+                    alert('Error koneksi saat pembersihan data: ' + err.message);
+                    setIsCleansingInProcess(false);
+                  }
+                }}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-md shadow-rose-200 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isCleansingInProcess ? (
+                  <>
+                    <Database className="w-3.5 h-3.5 animate-spin" /> Sedang Menghapus...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" /> Ya, Bersihkan Sekarang
+                  </>
+                )}
               </button>
             </div>
           </div>

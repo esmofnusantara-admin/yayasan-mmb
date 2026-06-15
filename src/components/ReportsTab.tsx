@@ -134,8 +134,8 @@ export default function ReportsTab({
     return true;
   });
 
-  const totalIncome = filteredTransactions.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
-  const totalExpense = filteredTransactions.filter(t => t.type === 'Expense').reduce((s, t) => s + t.amount, 0);
+  const totalIncome = filteredTransactions.filter(t => t.type?.toLowerCase() === 'income').reduce((s, t) => s + t.amount, 0);
+  const totalExpense = filteredTransactions.filter(t => t.type?.toLowerCase() === 'expense').reduce((s, t) => s + t.amount, 0);
   const netWorth = totalIncome - totalExpense;
 
   // Calculations for Activity Report
@@ -607,8 +607,8 @@ export default function ReportsTab({
             const selectedMonths = getMonthsInRange(startDate, endDate);
 
             // Filter approved transactions for calculations
-            const approvedIncomes = transactions.filter(t => t.status === 'Approved' && t.type === 'Income');
-            const approvedExpenses = transactions.filter(t => t.status === 'Approved' && t.type === 'Expense');
+            const approvedIncomes = transactions.filter(t => (t.status === undefined || t.status === 'Approved') && t.type?.toLowerCase() === 'income');
+            const approvedExpenses = transactions.filter(t => (t.status === undefined || t.status === 'Approved') && t.type?.toLowerCase() === 'expense');
 
             // Unique categories
             const incomeCategories = Array.from(new Set(approvedIncomes.map(t => t.category))).sort();

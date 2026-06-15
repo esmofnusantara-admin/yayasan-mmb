@@ -15,6 +15,7 @@ import {
   Search, 
   Save, 
   Trash, 
+  Edit,
   Download, 
   BookMarked, 
   Users, 
@@ -36,6 +37,8 @@ interface SmallGroupsTabProps {
   onAddMeeting: (m: MeetingLog) => void;
   onAddMaterial: (mat: MaterialInfo) => void;
   onDeleteMaterial: (id: string) => void;
+  onUpdateMeeting?: (m: MeetingLog) => void;
+  onDeleteMeeting?: (id: string) => void;
   profile?: InstitutionalProfile;
   currentRole: string;
 }
@@ -50,6 +53,8 @@ export default function SmallGroupsTab({
   onAddMeeting,
   onAddMaterial,
   onDeleteMaterial,
+  onUpdateMeeting,
+  onDeleteMeeting,
   profile,
   currentRole,
 }: SmallGroupsTabProps) {
@@ -68,7 +73,7 @@ export default function SmallGroupsTab({
   const [groupRegion, setGroupRegion] = useState(profile?.regions?.[0] || 'Yogyakarta');
   const [groupStaff, setGroupStaff] = useState('Ahmad Faisal');
   const [groupLeader, setGroupLeader] = useState('');
-  const [groupDay, setGroupDay] = useState('Rabu');
+  const [groupDay, setGroupDay] = useState(profile?.meetingDays?.[0] || 'Rabu');
   const [groupTime, setGroupTime] = useState('17:00');
   const [groupLocation, setGroupLocation] = useState('');
 
@@ -78,10 +83,13 @@ export default function SmallGroupsTab({
   const [meetingMaterial, setMeetingMaterial] = useState('Fondasi Iman Kristen (Buku 1)');
   const [meetingNotes, setMeetingNotes] = useState('');
   const [presentMembers, setPresentMembers] = useState<string[]>([]);
+  const [editingMeeting, setEditingMeeting] = useState<MeetingLog | null>(null);
 
   // Material Form state
   const [isAddMaterialOpen, setIsAddMaterialOpen] = useState(false);
   const [materialTitle, setMaterialTitle] = useState('');
+  const [deleteConfirmMeeting, setDeleteConfirmMeeting] = useState<MeetingLog | null>(null);
+  const [deleteConfirmMaterial, setDeleteConfirmMaterial] = useState<MaterialInfo | null>(null);
   const [materialCategory, setMaterialCategory] = useState(profile?.materialCategories?.[0] || 'Materi Dasar / Siswa');
   const [materialDescription, setMaterialDescription] = useState('');
   const [uploadedFileName, setUploadedFileName] = useState('');
@@ -121,19 +129,59 @@ export default function SmallGroupsTab({
       alert('Pilih Kelompok Kecil terlebih dahulu!');
       return;
     }
-    const newMeeting: MeetingLog = {
-      id: `MEET-${Date.now()}`,
-      groupId: selectedGroup.id,
-      date: meetingDate,
-      materialName: meetingMaterial,
-      attendance: presentMembers,
-      notes: meetingNotes
-    };
-    onAddMeeting(newMeeting);
+    if (editingMeeting) {
+      const updatedMeeting: MeetingLog = {
+        ...editingMeeting,
+        groupId: selectedGroup.id,
+        date: meetingDate,
+        materialName: meetingMaterial,
+        attendance: presentMembers,
+        notes: meetingNotes
+      };
+      if (onUpdateMeeting) {
+        onUpdateMeeting(updatedMeeting);
+      }
+      setEditingMeeting(null);
+      setMeetingNotes('');
+      setPresentMembers([]);
+      alert('Laporan Pertemuan Kelompok Kecil Berhasil Diperbarui.');
+    } else {
+      const newMeeting: MeetingLog = {
+        id: `MEET-${Date.now()}`,
+        groupId: selectedGroup.id,
+        date: meetingDate,
+        materialName: meetingMaterial,
+        attendance: presentMembers,
+        notes: meetingNotes
+      };
+      onAddMeeting(newMeeting);
+      setMeetingNotes('');
+      setPresentMembers([]);
+      setIsAddMeetingOpen(false);
+      alert('Laporan Pertemuan Kelompok Kecil Berhasil Tersimpan.');
+    }
+  };
+
+  const handleEditMeeting = (meet: MeetingLog) => {
+    const grp = groups.find(g => g.id === meet.groupId);
+    if (grp) {
+      setSelectedGroup(grp);
+    }
+    setEditingMeeting(meet);
+    setMeetingDate(meet.date);
+    setMeetingMaterial(meet.materialName);
+    setMeetingNotes(meet.notes);
+    setPresentMembers(meet.attendance);
+  };
+
+  const handleCancelEditMeeting = () => {
+    setEditingMeeting(null);
+    setMeetingDate(new Date().toISOString().split('T')[0]);
+    if (materials.length > 0) {
+      setMeetingMaterial(materials[0].title);
+    }
     setMeetingNotes('');
     setPresentMembers([]);
-    setIsAddMeetingOpen(false);
-    alert('Laporan Pertemuan Kelompok Kecil Berhasil Tersimpan.');
   };
 
   // Toggle dynamic attendance
@@ -566,7 +614,11 @@ export default function SmallGroupsTab({
             
             <div className="divide-y divide-slate-100 max-h-160 overflow-y-auto">
               {meetings
-                .filter(m => !selectedGroup || m.groupId === selectedGroup.id)
+                .filter(m => {
+                  const grp = groups.find(g => g.id === m.groupId);
+                  if (!grp) return false; // Hide orphan meeting logs if group is deleted
+                  return !selectedGroup || m.groupId === selectedGroup.id;
+                })
                 .map((meet) => {
                   const grp = groups.find(g => g.id === meet.groupId);
                   return (
@@ -576,9 +628,29 @@ export default function SmallGroupsTab({
                           <h4 className="text-xs font-bold text-slate-800 font-mono tracking-tight uppercase text-indigo-700">Materi: {meet.materialName}</h4>
                           <p className="text-[10px] text-slate-400 mt-0.5">Kelompok: <span className="text-slate-600 font-bold">{grp?.name}</span> &bull; Tgl: {meet.date}</p>
                         </div>
-                        <span className="text-[10px] bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full border border-slate-200 font-bold">
-                          Attendance: {meet.attendance.length} Hadir
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full border border-slate-200 font-bold">
+                            Attendance: {meet.attendance.length} Hadir
+                          </span>
+                          <button
+                            onClick={() => handleEditMeeting(meet)}
+                            title="Edit Laporan"
+                            type="button"
+                            className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setDeleteConfirmMeeting(meet);
+                            }}
+                            title="Hapus Laporan"
+                            type="button"
+                            className="p-1 text-slate-400 hover:text-red-655 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <Trash className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                       <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                         "{meet.notes}"
@@ -600,9 +672,17 @@ export default function SmallGroupsTab({
 
           {/* Form to submit a meeting presensi */}
           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-1.5 border-b border-slate-50 pb-2">
-              <Plus className="w-4 h-4 text-indigo-500" /> Presensi Baru: {selectedGroup ? selectedGroup.name : 'Pilih Kelompok dulu'}
-            </h3>
+           <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-1.5 border-b border-slate-50 pb-2">
+             {editingMeeting ? (
+               <>
+                 <Edit className="w-4 h-4 text-indigo-500" /> Edit Laporan: {selectedGroup ? selectedGroup.name : 'Pilih Kelompok dulu'}
+               </>
+             ) : (
+               <>
+                 <Plus className="w-4 h-4 text-indigo-500" /> Presensi Baru: {selectedGroup ? selectedGroup.name : 'Pilih Kelompok dulu'}
+               </>
+             )}
+           </h3>
             {selectedGroup ? (
               <form onSubmit={handleCreateMeeting} className="space-y-4 text-xs">
                 
@@ -669,13 +749,24 @@ export default function SmallGroupsTab({
                   />
                 </div>
 
-                <button 
-                  type="submit"
-                  disabled={activeGroupMembers.length === 0}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer disabled:bg-slate-300 disabled:cursor-not-allowed"
-                >
-                  Selesaikan Log & Absensi
-                </button>
+                 <div className="flex gap-2">
+                   <button 
+                     type="submit"
+                     disabled={activeGroupMembers.length === 0}
+                     className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer disabled:bg-slate-300 disabled:cursor-not-allowed"
+                   >
+                     {editingMeeting ? 'Perbarui Log & Absensi' : 'Selesaikan Log & Absensi'}
+                   </button>
+                   {editingMeeting && (
+                     <button 
+                       type="button"
+                       onClick={handleCancelEditMeeting}
+                       className="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer"
+                     >
+                       Batal
+                     </button>
+                   )}
+                 </div>
               </form>
             ) : (
               <div className="text-center py-6 text-slate-400 text-xs">
@@ -718,9 +809,7 @@ export default function SmallGroupsTab({
                     {isEditable && (
                       <button 
                         onClick={() => {
-                          if (confirm(`Apakah Anda yakin ingin menghapus materi "${material.title}"?`)) {
-                            onDeleteMaterial(material.id);
-                          }
+                          setDeleteConfirmMaterial(material);
                         }}
                         className="p-1 px-3 bg-red-50 hover:bg-red-100 text-[10px] text-red-700 font-bold border border-red-100 rounded-lg flex items-center gap-1 hover:text-red-900 transition-colors cursor-pointer"
                         title="Hapus materi kurikulum ini"
@@ -973,6 +1062,70 @@ export default function SmallGroupsTab({
 
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM MODAL: HAPUS PERTEMUAN */}
+      {deleteConfirmMeeting && (
+        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden p-6 space-y-4">
+            <h3 className="text-lg font-bold text-slate-900">Konfirmasi Hapus Laporan Pertemuan</h3>
+            <p className="text-slate-500 text-xs leading-relaxed">
+              Apakah Anda yakin ingin menghapus laporan pertemuan tanggal <strong>{deleteConfirmMeeting.date}</strong> untuk materi <strong>"{deleteConfirmMeeting.materialName}"</strong>? Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmMeeting(null)}
+                className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onDeleteMeeting) {
+                    onDeleteMeeting(deleteConfirmMeeting.id);
+                  }
+                  setDeleteConfirmMeeting(null);
+                }}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+              >
+                Ya, Hapus Laporan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM MODAL: HAPUS MATERI KURIKULUM */}
+      {deleteConfirmMaterial && (
+        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden p-6 space-y-4">
+            <h3 className="text-lg font-bold text-slate-900">Konfirmasi Hapus Materi Kurikulum</h3>
+            <p className="text-slate-500 text-xs leading-relaxed">
+              Apakah Anda yakin ingin menghapus materi pengajaran kurikulum <strong className="text-slate-800">"{deleteConfirmMaterial.title}"</strong> ({deleteConfirmMaterial.category}) ini dari katalog kurikulum?
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmMaterial(null)}
+                className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteMaterial(deleteConfirmMaterial.id);
+                  setDeleteConfirmMaterial(null);
+                }}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+              >
+                Ya, Hapus Materi
+              </button>
+            </div>
           </div>
         </div>
       )}

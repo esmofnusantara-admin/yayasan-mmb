@@ -48,6 +48,12 @@ export const INITIAL_PROFILE: InstitutionalProfile = {
   memberComponents: ["Siswa", "Mahasiswa", "Alumni", "Umum"],
   partnerStatuses: ["Prospek", "Kontak Awal", "Presentasi", "Komitmen", "Donasi Pertama", "Aktif", "Tidak Aktif"],
   partnerTypes: ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"],
+  donationChannels: [
+    { name: "Transfer Bank Mandiri", detail: "Mandiri Utama 123-00-x" },
+    { name: "BCA Yayasan", detail: "BCA Yayasan 552-x" },
+    { name: "Transfer BNI", detail: "BNI 0928-x" },
+    { name: "Dana Cash (Fisik)", detail: "Tunai / Cash Fisik" }
+  ],
   stampUrl: '',
   signatureChairmanUrl: '',
   signatureSecretaryUrl: '',

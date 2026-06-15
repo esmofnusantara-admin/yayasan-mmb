@@ -176,9 +176,10 @@ export default function App() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [donations, setDonations] = useState<CampaignDonation[]>([]);
   const [structures, setStructures] = useState<any[]>([]);
+  const [isSystemSeeded, setIsSystemSeeded] = useState<boolean | null>(null);
 
   // Restful Loader Helper with Auto-Seeding
-  const safeFetchJson = async (url: string, retries = 3, delayMs = 1000): Promise<any> => {
+  const safeFetchJson = async (url: string, retries = 7, delayMs = 2000): Promise<any> => {
     for (let i = 0; i < retries; i++) {
       try {
         const res = await fetch(url);
@@ -208,70 +209,50 @@ export default function App() {
     colName: string,
     initialData: T[],
     setter: React.Dispatch<React.SetStateAction<T[]>>
-  ) => {
+  ): Promise<T[]> => {
     try {
       const rawData = await safeFetchJson(`/api/data/${colName}?includeDeleted=true&t=${Date.now()}`);
       const activeData = Array.isArray(rawData) ? rawData.filter((x: any) => !x.deleted) : [];
-      
-      const seededKey = `esm_seeded_${colName}`;
-      const isSeeded = localStorage.getItem(seededKey) === 'true';
-
-      if (!rawData || rawData.length === 0) {
-        console.log(`Seeding ${colName} via restful API endpoints...`);
-        for (const item of initialData) {
-          const id = item.id || item.nik;
-          if (id) {
-            await fetch(`/api/data/${colName}/${id}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                ...item,
-                deleted: false,
-                createdAt: item.createdAt || new Date().toISOString(),
-                createdBy: item.createdBy || 'System Seed API'
-              })
-            });
-          }
-        }
-        localStorage.setItem(seededKey, 'true');
-        const freshData = await safeFetchJson(`/api/data/${colName}?t=${Date.now()}`);
-        setter(freshData || []);
-      } else {
-        // Dynamic Incremental Auto-Seeding to support new default template entries safely
-        // But only lock/run this if we haven't flagged it as seeded, to respect hard-deletes
-        if (!isSeeded) {
-          let didSeedNewItem = false;
-          for (const item of initialData) {
-            const id = item.id || item.nik;
-            if (id) {
-              const exists = rawData.some((x: any) => (x.id === id || x.nik === id));
-              if (!exists) {
-                await fetch(`/api/data/${colName}/${id}`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    ...item,
-                    deleted: false,
-                    createdAt: item.createdAt || new Date().toISOString(),
-                    createdBy: item.createdBy || 'System Dynamic Incremental Seed'
-                  })
-                });
-                didSeedNewItem = true;
-              }
-            }
-          }
-          localStorage.setItem(seededKey, 'true');
-          if (didSeedNewItem) {
-            const freshData = await safeFetchJson(`/api/data/${colName}?t=${Date.now()}`);
-            setter(freshData || []);
-            return;
-          }
-        }
-        setter(activeData);
-      }
+      setter(activeData);
+      return activeData as T[];
     } catch (err) {
-      console.error(`Failed to load/seed collection ${colName}:`, err);
+      console.error(`Failed to load collection ${colName}:`, err);
+      return [];
     }
+  };
+
+  const recalculateBalances = async (targetTransactions?: Transaction[]) => {
+    const txsToUse = targetTransactions || transactions;
+    const approvedTx = txsToUse.filter(t => t.status === undefined || t.status === 'Approved');
+    
+    const totalIncome = approvedTx
+      .filter(t => t.type?.toLowerCase() === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const totalExpense = approvedTx
+      .filter(t => t.type?.toLowerCase() === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const correctBalance = totalIncome - totalExpense;
+
+    console.log(`[recalculateBalances] Recalculating: Income=Rp ${totalIncome.toLocaleString('id-ID')}, Expense=Rp ${totalExpense.toLocaleString('id-ID')}, Balance=Rp ${correctBalance.toLocaleString('id-ID')}`);
+
+    try {
+      await fetch('/api/data/kas/main', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: 'main',
+          balance: correctBalance,
+          lastUpdated: new Date().toISOString(),
+          updatedBy: 'System Validator (recalculateBalances)'
+        })
+      });
+    } catch (err) {
+      console.error('Failed to sync kas main snapshot:', err);
+    }
+
+    return { totalIncome, totalExpense, correctBalance };
   };
 
   const loadProfile = async () => {
@@ -303,7 +284,11 @@ export default function App() {
     try {
       const data = await safeFetchJson('/api/data/structures');
       if (Array.isArray(data)) {
-        setStructures(data);
+        const sanitized = data.map(item => ({
+          ...item,
+          name: item.name || ''
+        }));
+        setStructures(sanitized);
       }
     } catch (e) {
       console.error('Failed to load structures:', e);
@@ -311,28 +296,74 @@ export default function App() {
   };
 
   const loadAllData = async () => {
-    await Promise.all([
-      loadProfile(),
-      loadStructures(),
-      loadCollection('members', INITIAL_MEMBERS, setMembers),
-      loadCollection('member_notes', INITIAL_MEMBER_NOTES, setNotes),
-      loadCollection('prayer_requests', INITIAL_PRAYER_REQUESTS, setPrayerRequests),
-      loadCollection('follow_ups', INITIAL_FOLLOW_UPS, setFollowUps),
-      loadCollection('small_groups', INITIAL_SMALL_GROUPS, setSmallGroups),
-      loadCollection('meeting_logs', INITIAL_MEETING_LOGS, setMeetings),
-      loadCollection('materials', INITIAL_MATERIALS, setMaterials),
-      loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions),
-      loadCollection('categories', INITIAL_CATEGORIES, setCategories),
-      loadCollection('partners', INITIAL_PARTNERS, setPartners),
-      loadCollection('staff', INITIAL_STAFF, setStaffs),
-      loadCollection('salaries', INITIAL_SALARIES, setSalaries),
-      loadCollection('inward_letters', INITIAL_INWARD_LETTERS, setInwardLetters),
-      loadCollection('outward_letters', INITIAL_OUTWARD_LETTERS, setOutwardLetters),
-      loadCollection('documents', INITIAL_DOCUMENTS, setDocuments),
-      loadCollection('approvals', INITIAL_APPROVALS, setApprovals),
-      loadCollection('audits', INITIAL_AUDITS, setAuditLogs),
-      loadCollection('donations', INITIAL_DONATIONS, setDonations),
-    ]);
+    try {
+      let seededVal = isSystemSeeded;
+      if (seededVal === null) {
+        const stateData = await safeFetchJson('/api/data/system_state?t=' + Date.now());
+        const statusObj = Array.isArray(stateData) ? stateData.find((x: any) => x.id === 'seed_status') : null;
+        if (statusObj && statusObj.seeded) {
+          seededVal = true;
+          setIsSystemSeeded(true);
+        } else {
+          seededVal = false;
+          setIsSystemSeeded(false);
+        }
+      }
+
+      const [
+        _p,
+        _s,
+        _m,
+        _n,
+        _pr,
+        _f,
+        _sg,
+        _mtg,
+        _mat,
+        loadedTransactions,
+      ] = await Promise.all([
+        loadProfile(),
+        loadStructures(),
+        loadCollection('members', INITIAL_MEMBERS, setMembers),
+        loadCollection('member_notes', INITIAL_MEMBER_NOTES, setNotes),
+        loadCollection('prayer_requests', INITIAL_PRAYER_REQUESTS, setPrayerRequests),
+        loadCollection('follow_ups', INITIAL_FOLLOW_UPS, setFollowUps),
+        loadCollection('small_groups', INITIAL_SMALL_GROUPS, setSmallGroups),
+        loadCollection('meeting_logs', INITIAL_MEETING_LOGS, setMeetings),
+        loadCollection('materials', INITIAL_MATERIALS, setMaterials),
+        loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions) as Promise<Transaction[]>,
+        loadCollection('categories', INITIAL_CATEGORIES, setCategories),
+        loadCollection('partners', INITIAL_PARTNERS, setPartners),
+        loadCollection('staff', INITIAL_STAFF, setStaffs),
+        loadCollection('salaries', INITIAL_SALARIES, setSalaries),
+        loadCollection('inward_letters', INITIAL_INWARD_LETTERS, setInwardLetters),
+        loadCollection('outward_letters', INITIAL_OUTWARD_LETTERS, setOutwardLetters),
+        loadCollection('documents', INITIAL_DOCUMENTS, setDocuments),
+        loadCollection('approvals', INITIAL_APPROVALS, setApprovals),
+        loadCollection('audits', INITIAL_AUDITS, setAuditLogs),
+        loadCollection('donations', INITIAL_DONATIONS, setDonations),
+      ]);
+
+      if (loadedTransactions && Array.isArray(loadedTransactions)) {
+        await recalculateBalances(loadedTransactions);
+      }
+
+      if (seededVal === false) {
+        console.log('Successfully completed initial data import. Saving seed_status to database...');
+        await fetch('/api/data/system_state/seed_status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: 'seed_status',
+            seeded: true,
+            createdAt: new Date().toISOString()
+          })
+        });
+        setIsSystemSeeded(true);
+      }
+    } catch (err) {
+      console.error('Failed to load all database collections:', err);
+    }
   };
 
   // Sync effect periodically polling
@@ -597,6 +628,41 @@ export default function App() {
     }
   };
 
+  const handleUpdateGroupMeeting = async (meeting: MeetingLog) => {
+    try {
+      const payload = {
+        ...meeting,
+        updatedBy: `${currentRole} Operator`,
+        updatedAt: new Date().toISOString(),
+        deleted: false
+      };
+      await fetch(`/api/data/meeting_logs/${meeting.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      await logAudit(`Memperbarui Laporan Pertemuan Kelompok Kecil KTB ID: ${meeting.groupId}`, 'Kelompok Kecil');
+      loadCollection('meeting_logs', INITIAL_MEETING_LOGS, setMeetings);
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteGroupMeeting = async (id: string) => {
+    try {
+      await fetch(`/api/data/meeting_logs/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE',
+        headers: {
+          'x-user-role': currentRole
+        }
+      });
+      await logAudit(`Menghapus Laporan Pertemuan Kelompok Kecil ID: ${id} (Soft-Delete)`, 'Kelompok Kecil');
+      loadCollection('meeting_logs', INITIAL_MEETING_LOGS, setMeetings);
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
   const handleAddMaterial = async (mat: MaterialInfo) => {
     try {
       const payload = {
@@ -642,8 +708,8 @@ export default function App() {
   const handleAddTransaction = async (tx: Transaction) => {
     try {
       const currentKasBalance = transactions
-        .filter(t => t.status === 'Approved')
-        .reduce((sum, t) => sum + (t.type === 'Income' ? t.amount : -t.amount), 0);
+        .filter(t => t.status === undefined || t.status === 'Approved')
+        .reduce((sum, t) => sum + (t.type?.toLowerCase() === 'income' ? t.amount : -t.amount), 0);
 
       const syncRes = await fetch('/api/finance/sync', {
         method: 'POST',
@@ -679,7 +745,8 @@ export default function App() {
         });
       }
 
-      await loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions);
+      const updatedTxs = await loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions);
+      await recalculateBalances(updatedTxs);
       await loadCollection('approvals', INITIAL_APPROVALS, setApprovals);
       await loadCollection('audits', INITIAL_AUDITS, setAuditLogs);
     } catch (e: any) {
@@ -689,9 +756,10 @@ export default function App() {
 
   const handleUpdateTransaction = async (tx: Transaction) => {
     try {
+      const oldTx = transactions.find(t => t.id === tx.id);
       const previousApprovedBalanceOfOthers = transactions
-        .filter(t => t.id !== tx.id && t.status === 'Approved')
-        .reduce((sum, t) => sum + (t.type === 'Income' ? t.amount : -t.amount), 0);
+        .filter(t => t.id !== tx.id && (t.status === undefined || t.status === 'Approved'))
+        .reduce((sum, t) => sum + (t.type?.toLowerCase() === 'income' ? t.amount : -t.amount), 0);
 
       const syncRes = await fetch('/api/finance/sync', {
         method: 'POST',
@@ -705,7 +773,15 @@ export default function App() {
       });
       if (!syncRes.ok) throw new Error('Finance update sync failed');
 
-      await loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions);
+      await logAudit(
+        `Mengubah Transaksi Kas ID: ${tx.id} (${tx.description})`,
+        'Keuangan',
+        oldTx ? JSON.stringify(oldTx) : '',
+        JSON.stringify(tx)
+      );
+
+      const updatedTxs = await loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions);
+      await recalculateBalances(updatedTxs);
       await loadCollection('audits', INITIAL_AUDITS, setAuditLogs);
     } catch (e: any) {
       console.error(e);
@@ -716,8 +792,8 @@ export default function App() {
     try {
       const oldTx = transactions.find(t => t.id === id);
       const previousApprovedBalanceOfOthers = transactions
-         .filter(t => t.id !== id && t.status === 'Approved')
-         .reduce((sum, t) => sum + (t.type === 'Income' ? t.amount : -t.amount), 0);
+         .filter(t => t.id !== id && (t.status === undefined || t.status === 'Approved'))
+         .reduce((sum, t) => sum + (t.type?.toLowerCase() === 'income' ? t.amount : -t.amount), 0);
  
        if (oldTx) {
          const softDeletedTx: Transaction = {
@@ -748,9 +824,15 @@ export default function App() {
          alert(`Gagal menghapus Transaksi Kas: ${errText}`);
          return;
        }
-       await logAudit(`Menghapus Transaksi Kas ID: ${id} (Soft-Delete)`, 'Keuangan');
+       await logAudit(
+         `Menghapus Transaksi Kas ID: ${id} (Soft-Delete)`, 
+         'Keuangan',
+         oldTx ? JSON.stringify(oldTx) : '',
+         ''
+       );
        
-       await loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions);
+       const updatedTxs = await loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions);
+       await recalculateBalances(updatedTxs);
        await loadCollection('audits', INITIAL_AUDITS, setAuditLogs);
      } catch (e: any) {
        console.error(e);
@@ -838,12 +920,17 @@ export default function App() {
         type: 'Income',
         sourceOrRecipient: d.partnerName,
         status: 'Approved',
-        approvedBy: `${currentRole} Operator`
-      };
+        approvedBy: `${currentRole} Operator`,
+        reference_id: d.id,
+        reference_type: 'donation',
+        source: 'donation',
+        category_id: 'Donasi Kemitraan',
+        transaction_code: txId
+      } as any;
 
       const currentKasBalance = transactions
-        .filter(t => t.status === 'Approved')
-        .reduce((sum, t) => sum + (t.type === 'Income' ? t.amount : -t.amount), 0);
+        .filter(t => t.status === undefined || t.status === 'Approved')
+        .reduce((sum, t) => sum + (t.type?.toLowerCase() === 'income' ? t.amount : -t.amount), 0);
 
       await fetch('/api/finance/sync', {
         method: 'POST',
@@ -856,8 +943,141 @@ export default function App() {
         })
       });
 
+      await logAudit(
+        `Registrasi & Verifikasi Donasi Baru ID: ${d.id} dari "${d.partnerName}" senilai Rp ${d.amount.toLocaleString('id-ID')}`, 
+        'Mitra & Fundraising',
+        '',
+        JSON.stringify(d)
+      );
+
       await loadCollection('donations', INITIAL_DONATIONS, setDonations);
-      await loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions);
+      const updatedTxs = await loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions);
+      await recalculateBalances(updatedTxs);
+      await loadCollection('audits', INITIAL_AUDITS, setAuditLogs);
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
+  const handleUpdateDonation = async (d: CampaignDonation) => {
+    try {
+      const oldDonation = donations.find(item => item.id === d.id);
+      
+      const payload = {
+        ...d,
+        updatedBy: `${currentRole} Operator`,
+        updatedAt: new Date().toISOString()
+      };
+      await fetch(`/api/data/donations/${d.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const matchedTx = transactions.find(t => t.reference_id === d.id);
+      if (matchedTx) {
+        const previousApprovedBalanceOfOthers = transactions
+          .filter(t => t.id !== matchedTx.id && (t.status === undefined || t.status === 'Approved'))
+          .reduce((sum, t) => sum + (t.type?.toLowerCase() === 'income' ? t.amount : -t.amount), 0);
+
+        const updatedTx: Transaction = {
+          ...matchedTx,
+          date: d.date,
+          description: `[Autoposting Fundraising CRM - Updated] Donasi masuk dari Mitra: ${d.partnerName}. Channel: ${d.channel}. Notes: ${d.notes || 'Tanpa catatan tambahan'}`,
+          amount: d.amount,
+          sourceOrRecipient: d.partnerName
+        };
+
+        await fetch('/api/finance/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tx: updatedTx,
+            operatorName: `${currentRole} Operator`,
+            operatorRole: currentRole,
+            currentBalanceBeforeTx: previousApprovedBalanceOfOthers
+          })
+        });
+      }
+
+      await logAudit(
+        `Mengubah Log Donasi ID: ${d.id} untuk Mitra "${d.partnerName}"`, 
+        'Mitra & Fundraising',
+        oldDonation ? JSON.stringify(oldDonation) : '',
+        JSON.stringify(d)
+      );
+
+      await loadCollection('donations', INITIAL_DONATIONS, setDonations);
+      const updatedTxs = await loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions);
+      await recalculateBalances(updatedTxs);
+      await loadCollection('audits', INITIAL_AUDITS, setAuditLogs);
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteDonation = async (id: string) => {
+    try {
+      const oldDonation = donations.find(item => item.id === id);
+      if (!oldDonation) return;
+
+      const res = await fetch(
+  `/api/data/donations/${id}?role=${encodeURIComponent(currentRole)}`,
+  {
+    method: 'DELETE',
+    headers: {
+      'x-user-role': currentRole
+    }
+  }
+);
+
+if (!res.ok) {
+  const errText = await res.text();
+  alert(`Gagal menghapus log donasi: ${errText}`);
+  return;
+}
+
+      const matchedTx = transactions.find(t => t.reference_id === id);
+      if (matchedTx) {
+        const previousApprovedBalanceOfOthers = transactions
+          .filter(t => t.id !== matchedTx.id && (t.status === undefined || t.status === 'Approved'))
+          .reduce((sum, t) => sum + (t.type?.toLowerCase() === 'income' ? t.amount : -t.amount), 0);
+
+        const softDeletedTx: Transaction = {
+          ...matchedTx,
+          status: 'Rejected',
+          deleted: true
+        };
+
+        await fetch('/api/finance/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tx: softDeletedTx,
+            operatorName: `${currentRole} Operator`,
+            operatorRole: currentRole,
+            currentBalanceBeforeTx: previousApprovedBalanceOfOthers
+          })
+        });
+
+        await fetch(`/api/data/transactions/${matchedTx.id}?role=${encodeURIComponent(currentRole)}`, {
+          method: 'DELETE',
+          headers: {
+            'x-user-role': currentRole
+          }
+        });
+      }
+
+      await logAudit(
+        `Menghapus Log Donasi ID: ${id} (Mitra: ${oldDonation.partnerName}) (Soft-Delete & Jurnal Revert)`, 
+        'Mitra & Fundraising',
+        JSON.stringify(oldDonation),
+        ''
+      );
+
+      await loadCollection('donations', INITIAL_DONATIONS, setDonations);
+      const updatedTxs = await loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions);
+      await recalculateBalances(updatedTxs);
       await loadCollection('audits', INITIAL_AUDITS, setAuditLogs);
     } catch (e: any) {
       console.error(e);
@@ -989,6 +1209,7 @@ export default function App() {
 
   const handleUpdateSalary = async (sal: StaffSalary) => {
     try {
+      const oldSal = salaries.find(s => s.id === sal.id);
       const payload = {
         ...sal,
         updatedAt: new Date().toISOString(),
@@ -999,7 +1220,12 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      await logAudit(`Melakukan Perubahan Komponen Gaji Pegawai NIK: ${sal.id}`, 'Staf & HR');
+      await logAudit(
+        `Melakukan Perubahan Komponen Gaji Pegawai NIK: ${sal.id}`, 
+        'Staf & HR',
+        oldSal ? JSON.stringify(oldSal) : '',
+        JSON.stringify(sal)
+      );
       loadCollection('salaries', INITIAL_SALARIES, setSalaries);
     } catch (e: any) {
       console.error(e);
@@ -1141,6 +1367,25 @@ export default function App() {
     }
   };
 
+  const handleUpdateOutwardLetter = async (l: LetterOutward) => {
+    try {
+      const payload = {
+        ...l,
+        updatedBy: `${currentRole} Operator`,
+        updatedAt: new Date().toISOString()
+      };
+      await fetch(`/api/data/outward_letters/${l.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      await logAudit(`Mengubah detail Surat Keluar Ref: ${l.letterNumber}`, 'Surat-Arsip');
+      loadCollection('outward_letters', INITIAL_OUTWARD_LETTERS, setOutwardLetters);
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
   const handleUpdateOutwardStatus = async (id: string, status: any) => {
     try {
       const payload = {
@@ -1156,6 +1401,94 @@ export default function App() {
       loadCollection('outward_letters', INITIAL_OUTWARD_LETTERS, setOutwardLetters);
     } catch (e: any) {
       console.error(e);
+    }
+  };
+
+  const handleAddDocument = async (docObj: { id: string; name: string; category: string; fileData: string; fileSize: string }) => {
+    try {
+      const res = await fetch('/api/documents/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(docObj)
+      });
+      if (!res.ok) {
+        const errJson = await res.json();
+        throw new Error(errJson.error || 'Gagal mengunggah dokumen');
+      }
+      await logAudit(`Mengunggah Dokumen Resmi Baru: ${docObj.name}`, 'Arsip-Konstitusi');
+      await loadCollection('documents', INITIAL_DOCUMENTS, setDocuments);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal mengunggah dokumen: ${e.message}`);
+    }
+  };
+
+  const handleDeleteDocument = async (id: string, name: string) => {
+    try {
+      // Optimistic visual update
+      setDocuments(prev => prev.filter(doc => doc.id !== id));
+
+      const res = await fetch(`/api/data/documents/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        throw new Error('Gagal menghapus dokumen dari server');
+      }
+      await logAudit(`Menghapus Dokumen Resmi: ${name}`, 'Arsip-Konstitusi');
+      await loadCollection('documents', INITIAL_DOCUMENTS, setDocuments);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menghapus dokumen: ${e.message}`);
+      // Revert/Re-sync back from database if failed
+      await loadCollection('documents', INITIAL_DOCUMENTS, setDocuments);
+    }
+  };
+
+  const handleUpdateInwardLetter = async (l: LetterInward) => {
+    // Optimistic UI state update
+    setInwardLetters(prev => prev.map(x => x.id === l.id ? l : x));
+    try {
+      const payload = {
+        ...l,
+        updatedBy: `${currentRole} Operator`,
+        updatedAt: new Date().toISOString()
+      };
+      const res = await fetch(`/api/data/inward_letters/${l.id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        throw new Error('Gagal menyimpan perubahan surat masuk di server');
+      }
+      await logAudit(`Mengubah detail Surat Masuk Ref: ${l.letterNumber}`, 'Surat-Arsip');
+      await loadCollection('inward_letters', INITIAL_INWARD_LETTERS, setInwardLetters);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal mengubah surat masuk: ${e.message}`);
+      // Revert if error
+      await loadCollection('inward_letters', INITIAL_INWARD_LETTERS, setInwardLetters);
+    }
+  };
+
+  const handleDeleteInwardLetter = async (id: string, refNum: string) => {
+    try {
+      // Optimistic visual update
+      setInwardLetters(prev => prev.filter(x => x.id !== id));
+
+      const res = await fetch(`/api/data/inward_letters/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        throw new Error('Gagal menghapus surat masuk dari server');
+      }
+      await logAudit(`Menghapus Surat Masuk Ref: ${refNum}`, 'Surat-Arsip');
+      await loadCollection('inward_letters', INITIAL_INWARD_LETTERS, setInwardLetters);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menghapus surat masuk: ${e.message}`);
+      // Revert/Re-sync back from database if failed
+      await loadCollection('inward_letters', INITIAL_INWARD_LETTERS, setInwardLetters);
     }
   };
 
@@ -1214,8 +1547,8 @@ export default function App() {
                 operatorName: `${currentRole} Operator`,
                 operatorRole: currentRole,
                 currentBalanceBeforeTx: transactions
-                  .filter(t => t.id !== refId && t.status === 'Approved')
-                  .reduce((sum, t) => sum + (t.type === 'Income' ? t.amount : -t.amount), 0)
+                  .filter(t => t.id !== refId && (t.status === undefined || t.status === 'Approved'))
+                  .reduce((sum, t) => sum + (t.type?.toLowerCase() === 'income' ? t.amount : -t.amount), 0)
               })
             });
           }
@@ -1593,6 +1926,8 @@ export default function App() {
                 onAddMeeting={handleAddGroupMeeting}
                 onAddMaterial={handleAddMaterial}
                 onDeleteMaterial={handleDeleteMaterial}
+                onUpdateMeeting={handleUpdateGroupMeeting}
+                onDeleteMeeting={handleDeleteGroupMeeting}
                 profile={profile}
                 currentRole={currentRole}
               />
@@ -1622,6 +1957,8 @@ export default function App() {
                 currentRole={currentRole}
                 donations={donations}
                 onAddDonation={handleAddDonation}
+                onUpdateDonation={handleUpdateDonation}
+                onDeleteDonation={handleDeleteDonation}
                 profile={profile}
               />
             )}
@@ -1648,6 +1985,7 @@ export default function App() {
                 onUpdateSalary={handleUpdateSalary}
                 profile={profile}
                 structures={structures}
+                onLogAudit={logAudit}
               />
             )}
 
@@ -1657,8 +1995,13 @@ export default function App() {
                 outwardLetters={outwardLetters}
                 documents={documents}
                 onAddInwardLetter={handleAddInwardLetter}
+                onUpdateInwardLetter={handleUpdateInwardLetter}
+                onDeleteInwardLetter={handleDeleteInwardLetter}
                 onAddOutwardLetter={handleAddOutwardLetter}
+                onUpdateOutwardLetter={handleUpdateOutwardLetter}
                 onUpdateOutwardStatus={handleUpdateOutwardStatus}
+                onAddDocument={handleAddDocument}
+                onDeleteDocument={handleDeleteDocument}
                 currentRole={currentRole}
                 profile={profile}
                 structures={structures}

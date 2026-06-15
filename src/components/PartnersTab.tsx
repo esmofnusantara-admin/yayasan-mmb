@@ -35,6 +35,8 @@ interface PartnersTabProps {
   currentRole: string;
   donations: CampaignDonation[];
   onAddDonation: (d: CampaignDonation) => Promise<void>;
+  onUpdateDonation?: (d: CampaignDonation) => Promise<void>;
+  onDeleteDonation?: (id: string) => Promise<void>;
   profile?: InstitutionalProfile;
 }
 
@@ -46,6 +48,8 @@ export default function PartnersTab({
   currentRole,
   donations,
   onAddDonation,
+  onUpdateDonation,
+  onDeleteDonation,
   profile,
 }: PartnersTabProps) {
   const isEditable = ['Super Admin', 'Ketua Yayasan', 'Sekretaris'].includes(currentRole);
@@ -64,10 +68,10 @@ export default function PartnersTab({
   const [pAddress, setPAddress] = useState('');
   const [pBirthDate, setPBirthDate] = useState('');
   const [pOccupation, setPOccupation] = useState('');
-  const [pType, setPType] = useState<'Pribadi' | 'Gereja' | 'Perusahaan' | 'Instansi' | 'Yayasan'>('Pribadi');
+  const [pType, setPType] = useState<any>(profile?.partnerTypes?.[0] || 'Pribadi');
   const [pRegion, setPRegion] = useState(profile?.regions?.[0] || 'Yogyakarta');
   const [pStaff, setPStaff] = useState('Ahmad Faisal');
-  const [pStatus, setPStatus] = useState<any>('Prospek');
+  const [pStatus, setPStatus] = useState<any>(profile?.partnerStatuses?.[0] || 'Prospek');
   
   // Commitment
   const [pAmount, setPAmount] = useState<number>(500000);
@@ -81,12 +85,23 @@ export default function PartnersTab({
   const [donationAmount, setDonationAmount] = useState<number>(500000);
   const [donationDate, setDonationDate] = useState(new Date().toISOString().split('T')[0]);
   const [donationChannel, setDonationChannel] = useState('Transfer Bank Mandiri');
+  
+  React.useEffect(() => {
+    if (profile?.donationChannels && profile.donationChannels.length > 0) {
+      if (!profile.donationChannels.some(chan => chan.name === donationChannel)) {
+        setDonationChannel(profile.donationChannels[0].name);
+      }
+    }
+  }, [profile, donationChannel]);
   const [donationLogs, setDonationLogs] = useState<CampaignDonation[]>([
     { id: 'DON-01', partnerId: 'PTR-01', partnerName: 'Bapak Hendra Wijaya', amount: 1500000, date: '2026-06-01', channel: 'Transfer Bank Mandiri' },
     { id: 'DON-02', partnerId: 'PTR-02', partnerName: 'GKI Manyar Surabaya', amount: 12000000, date: '2026-05-10', channel: 'BCA Yayasan' }
   ]);
 
-  const finalDonationLogs = donations && donations.length > 0 ? donations : donationLogs;
+  const [editingDonation, setEditingDonation] = useState<CampaignDonation | null>(null);
+  const finalDonationLogs = donations ? donations : donationLogs;
+  const [deleteConfirmDonation, setDeleteConfirmDonation] = useState<CampaignDonation | null>(null);
+  const [deleteConfirmPartner, setDeleteConfirmPartner] = useState<Partner | null>(null);
 
   const openAddForm = () => {
     setEditingPartner(null);
@@ -184,22 +199,38 @@ export default function PartnersTab({
     const partnerObj = partners.find(p => p.id === donationPartnerId);
     if (!partnerObj) return;
 
-    const newDonation: CampaignDonation = {
-      id: `DON-${Date.now()}`,
-      partnerId: donationPartnerId,
-      partnerName: partnerObj.name,
-      amount: Number(donationAmount),
-      date: donationDate,
-      channel: donationChannel
-    };
-
     try {
-      await onAddDonation(newDonation);
-      setIsDonationFormOpen(false);
-      alert(`Donasi sebesar Rp ${Number(donationAmount).toLocaleString('id-ID')} dari ${partnerObj.name} berhasil diverifikasi sistem!`);
+      if (editingDonation) {
+        const updatedDonation: CampaignDonation = {
+          ...editingDonation,
+          partnerId: donationPartnerId,
+          partnerName: partnerObj.name,
+          amount: Number(donationAmount),
+          date: donationDate,
+          channel: donationChannel
+        };
+        if (onUpdateDonation) {
+          await onUpdateDonation(updatedDonation);
+        }
+        setIsDonationFormOpen(false);
+        setEditingDonation(null);
+        alert(`Sukses: Log donasi berhasil diperbarui!`);
+      } else {
+        const newDonation: CampaignDonation = {
+          id: `DON-${Date.now()}`,
+          partnerId: donationPartnerId,
+          partnerName: partnerObj.name,
+          amount: Number(donationAmount),
+          date: donationDate,
+          channel: donationChannel
+        };
+        await onAddDonation(newDonation);
+        setIsDonationFormOpen(false);
+        alert(`Donasi sebesar Rp ${Number(donationAmount).toLocaleString('id-ID')} dari ${partnerObj.name} berhasil diverifikasi sistem!`);
+      }
     } catch (err) {
       console.error(err);
-      alert('Terjadi kesalahan saat mendaftarkan donasi.');
+      alert('Terjadi kesalahan saat menyimpan donasi.');
     }
   };
 
@@ -421,7 +452,7 @@ export default function PartnersTab({
                             Edit
                           </button>
                           <button 
-                            onClick={() => onDeletePartner(partner.id)}
+                            onClick={() => setDeleteConfirmPartner(partner)}
                             className="p-1 text-red-500 hover:bg-slate-50 text-[10px] cursor-pointer"
                           >
                             Hapus
@@ -491,13 +522,42 @@ export default function PartnersTab({
                     <p className="text-[10px] text-slate-400 mt-0.5">Tanggal terima: {log.date} &bull; Channel: {log.channel}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="font-bold font-mono text-base text-slate-800">
-                    Rp {log.amount.toLocaleString('id-ID')}
-                  </span>
-                  <div className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5 mt-0.5 justify-end">
-                    <CheckCircle className="w-3.5 h-3.5" /> Jurnal Verified
+                <div className="flex items-center gap-4 text-right">
+                  <div>
+                    <span className="font-bold font-mono text-base text-slate-800">
+                      Rp {log.amount.toLocaleString('id-ID')}
+                    </span>
+                    <div className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5 mt-0.5 justify-end">
+                      <CheckCircle className="w-3.5 h-3.5" /> Jurnal Verified
+                    </div>
                   </div>
+                  {['Super Admin', 'Ketua Yayasan', 'Bendahara'].includes(currentRole) && (
+                    <div className="flex gap-1.5 pl-2 border-l border-slate-100">
+                      <button
+                        onClick={() => {
+                          setEditingDonation(log);
+                          setDonationPartnerId(log.partnerId);
+                          setDonationAmount(log.amount);
+                          setDonationDate(log.date);
+                          setDonationChannel(log.channel);
+                          setIsDonationFormOpen(true);
+                        }}
+                        className="p-1 px-2.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-750 text-[10.5px] rounded-lg font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                        title="Edit Log Donasi"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDeleteConfirmDonation(log);
+                        }}
+                        className="p-1 px-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-650 text-[10.5px] rounded-lg font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                        title="Hapus Log Donasi"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -734,10 +794,18 @@ export default function PartnersTab({
                     onChange={(e) => setDonationChannel(e.target.value)}
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
                   >
-                    <option value="Transfer Bank Mandiri">Mandiri Utama 123-00-x</option>
-                    <option value="BCA Yayasan">BCA Yayasan 552-x</option>
-                    <option value="Transfer BNI">BNI 0928-x</option>
-                    <option value="Dana Cash (Fisik)">Tunai / Cash Fisik</option>
+                    {profile?.donationChannels && profile.donationChannels.length > 0 ? (
+                      profile.donationChannels.map((chan, idx) => (
+                        <option key={idx} value={chan.name}>{chan.name} ({chan.detail})</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="Transfer Bank Mandiri">Mandiri Utama 123-00-x</option>
+                        <option value="BCA Yayasan flex">BCA Yayasan 552-x</option>
+                        <option value="Transfer BNI">BNI 0928-x</option>
+                        <option value="Dana Cash (Fisik)">Tunai / Cash Fisik</option>
+                      </>
+                    )}
                   </select>
                 </div>
               </div>
@@ -760,6 +828,74 @@ export default function PartnersTab({
 
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM MODAL: HAPUS MITRA */}
+      {deleteConfirmPartner && (
+        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden p-6 space-y-4">
+            <h3 className="text-lg font-bold text-slate-900">Konfirmasi Hapus Mitra</h3>
+            <p className="text-slate-500 text-xs">
+              Apakah Anda yakin ingin menghapus data kemitraan/donatur <strong className="text-slate-800">"{deleteConfirmPartner.name}"</strong>? Data transaksi historis yang telah terdaftar tidak akan dihapus otomatis untuk akurasi auditing kas.
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmPartner(null)}
+                className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await onDeletePartner(deleteConfirmPartner.id);
+                  setDeleteConfirmPartner(null);
+                }}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+              >
+                Ya, Hapus Mitra
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM MODAL: HAPUS LOG DONASI */}
+      {deleteConfirmDonation && (
+        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-lg overflow-hidden p-6 space-y-4">
+            <h3 className="text-lg font-bold text-slate-900">Konfirmasi Hapus Penerimaan Donasi</h3>
+            <p className="text-slate-550 text-xs">
+              Apakah Anda yakin ingin menghapus log donasi dari <strong className="text-slate-800">"{deleteConfirmDonation.partnerName}"</strong> senilai <strong className="text-slate-850 font-bold">Rp {deleteConfirmDonation.amount.toLocaleString('id-ID')}</strong> ini?
+            </p>
+            <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl text-amber-800 text-[11px] leading-relaxed">
+              <strong>Pemberitahuan Sistem:</strong> Jurnal kas, rujukan fundraising, dan saldo akhir keuangan terkait akan disesuaikan (Soft-delete & Revert) secara terpadu dan aman di database.
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmDonation(null)}
+                className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const donationId = deleteConfirmDonation.id;
+                  setDeleteConfirmDonation(null);
+                  if (onDeleteDonation) {
+                    await onDeleteDonation(donationId);
+                  }
+                }}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+              >
+                Ya, Hapus Log Donasi
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -119,15 +119,27 @@ export interface MaterialInfo {
 
 export interface Transaction {
   id: string;
-  date: string;
-  category: string;
-  description: string;
+  transaction_code?: string;
+  type: 'Income' | 'Expense' | 'income' | 'expense';
+  source?: 'manual' | 'donation' | 'payroll';
+  category_id?: string;
   amount: number;
-  type: 'Income' | 'Expense'; // Income / Expense
-  sourceOrRecipient: string; // e.g. Donatur A, Gaji Staff X
+  description: string;
+  transaction_date?: string;
+  created_by?: string;
+  reference_id?: string | null;
+  reference_type?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+
+  // Backwards compatibility fields for the React components:
+  date?: string;
+  category?: string;
+  sourceOrRecipient?: string;
   approvedBy?: string;
-  status: 'Draft' | 'Pending Approval' | 'Approved' | 'Rejected';
-  allocationObjective?: string; // e.g. Gaji/Operasional, Peralatan, Kegiatan Khusus, dll.
+  status?: 'Draft' | 'Pending Approval' | 'Approved' | 'Rejected';
+  allocationObjective?: string;
 }
 
 export interface FinancialCategory {
@@ -272,6 +284,8 @@ export interface LetterOutward {
   stampOffsetX?: number;
   stampOffsetY?: number;
   stampSize?: number;
+  signPlaceDate?: string;
+  additionalSignatures?: Array<{ id: string; nodeId: string; title: string; name: string }>;
 }
 
 export interface OrgDocument {
@@ -280,6 +294,7 @@ export interface OrgDocument {
   category: string;
   uploadedDate: string;
   fileSize: string;
+  deleted?: boolean;
 }
 
 export interface ApprovalRequest {
@@ -318,11 +333,13 @@ export interface InstitutionalProfile {
   memberComponents?: string[];
   partnerStatuses?: string[];
   partnerTypes?: string[];
+  donationChannels?: Array<{ name: string; detail: string }>;
   // Stamp and Role-based custom signatures
   stampUrl?: string;
   signatureChairmanUrl?: string;
   signatureSecretaryUrl?: string;
   signatureTreasurerUrl?: string;
+  customSignatures?: Array<{ id: string; nodeId: string; title: string; name: string; signatureUrl: string }>;
 }
 
 export interface AuditLog {

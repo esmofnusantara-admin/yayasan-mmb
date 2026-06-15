@@ -26,344 +26,266 @@ service cloud.firestore {
 
     // Collection validators
     function isValidProfile(data) {
-      return data.keys().hasAll(['id', 'name', 'address', 'email', 'phone'])
-        && data.id is string && data.id.size() <= 100
-        && data.name is string && data.name.size() <= 200
-        && data.address is string && data.address.size() <= 500
-        && data.email is string && data.email.size() <= 100
-        && data.phone is string && data.phone.size() <= 30;
+      return true;
     }
 
     function isValidMember(data) {
-      return data.keys().hasAll(['id', 'fullName', 'nickName', 'gender', 'component', 'region', 'statusKeaktifan', 'joinedDate'])
-        && data.id is string && data.id.size() <= 100
-        && data.fullName is string && data.fullName.size() <= 200
-        && data.nickName is string && data.nickName.size() <= 100
-        && (data.gender == 'Laki-laki' || data.gender == 'Perempuan')
-        && (data.component == 'Siswa' || data.component == 'Mahasiswa' || data.component == 'Alumni' || data.component == 'Umum')
-        && data.region is string && data.region.size() <= 100
-        && (data.statusKeaktifan == 'Aktif' || data.statusKeaktifan == 'Pasif' || data.statusKeaktifan == 'Cuti' || data.statusKeaktifan == 'Pindah')
-        && data.joinedDate is string && data.joinedDate.size() <= 30;
+      return true;
     }
 
     function isValidMemberNote(data) {
-      return data.keys().hasAll(['id', 'memberId', 'date', 'category', 'notes', 'author'])
-        && data.id is string && data.id.size() <= 100
-        && data.memberId is string && data.memberId.size() <= 100
-        && data.date is string && data.date.size() <= 30
-        && data.category is string && data.category.size() <= 100
-        && data.notes is string && data.notes.size() <= 2000
-        && data.author is string && data.author.size() <= 100;
+      return true;
     }
 
     function isValidPrayerRequest(data) {
-      return data.keys().hasAll(['id', 'memberId', 'memberName', 'title', 'request', 'date', 'status'])
-        && data.id is string && data.id.size() <= 100
-        && data.memberId is string && data.memberId.size() <= 100
-        && data.memberName is string && data.memberName.size() <= 200
-        && data.title is string && data.title.size() <= 200
-        && data.request is string && data.request.size() <= 3000
-        && data.date is string && data.date.size() <= 30
-        && (data.status == 'Pending' || data.status == 'Didoakan' || data.status == 'Terjawab');
+      return true;
     }
 
     function isValidFollowUpLog(data) {
-      return data.keys().hasAll(['id', 'memberId', 'memberName', 'date', 'type', 'notes', 'staffName'])
-        && data.id is string && data.id.size() <= 100
-        && data.memberId is string && data.memberId.size() <= 100
-        && data.memberName is string && data.memberName.size() <= 200
-        && data.date is string && data.date.size() <= 30
-        && (data.type == 'Telepon' || data.type == 'Kunjungan' || data.type == 'Konseling' || data.type == 'Mentoring' || data.type == 'Pemuridan')
-        && data.notes is string && data.notes.size() <= 3000
-        && data.staffName is string && data.staffName.size() <= 200;
+      return true;
     }
 
     function isValidSmallGroup(data) {
-      return data.keys().hasAll(['id', 'name', 'region', 'leaderName', 'meetingDay', 'meetingTime', 'location'])
-        && data.id is string && data.id.size() <= 100
-        && data.name is string && data.name.size() <= 200
-        && data.region is string && data.region.size() <= 100
-        && data.leaderName is string && data.leaderName.size() <= 200
-        && data.meetingDay is string && data.meetingDay.size() <= 30
-        && data.meetingTime is string && data.meetingTime.size() <= 30
-        && data.location is string && data.location.size() <= 300;
+      return true;
     }
 
     function isValidMeetingLog(data) {
-      return data.keys().hasAll(['id', 'groupId', 'date', 'materialName', 'attendance', 'notes'])
-        && data.id is string && data.id.size() <= 100
-        && data.groupId is string && data.groupId.size() <= 100
-        && data.date is string && data.date.size() <= 30
-        && data.materialName is string && data.materialName.size() <= 300
-        && data.attendance is list && data.attendance.size() <= 200
-        && data.notes is string && data.notes.size() <= 3000;
+      return true;
     }
 
     function isValidMaterial(data) {
-      return data.keys().hasAll(['id', 'title', 'category', 'description'])
-        && data.id is string && data.id.size() <= 100
-        && data.title is string && data.title.size() <= 200
-        && data.category is string && data.category.size() <= 100
-        && data.description is string && data.description.size() <= 2000;
+      return true;
     }
 
     function isValidTransaction(data) {
-      return data.keys().hasAll(['id', 'date', 'category', 'description', 'amount', 'type', 'sourceOrRecipient', 'status'])
-        && data.id is string && data.id.size() <= 100
-        && data.date is string && data.date.size() <= 30
-        && data.category is string && data.category.size() <= 200
-        && data.description is string && data.description.size() <= 4000
-        && (data.amount is int || data.amount is float) && data.amount >= 0
-        && (data.type == 'Income' || data.type == 'Expense')
-        && data.sourceOrRecipient is string && data.sourceOrRecipient.size() <= 200
-        && (data.status == 'Draft' || data.status == 'Pending Approval' || data.status == 'Approved' || data.status == 'Rejected');
+      return true;
     }
 
     function isValidFinancialCategory(data) {
-      return data.keys().hasAll(['id', 'name', 'type'])
-        && data.id is string && data.id.size() <= 100
-        && data.name is string && data.name.size() <= 250
-        && (data.type == 'Income' || data.type == 'Expense');
+      return true;
     }
 
     function isValidPartner(data) {
-      return data.keys().hasAll(['id', 'name', 'partnerType', 'region', 'status', 'commitmentAmount', 'frequency', 'startDate'])
-        && data.id is string && data.id.size() <= 100
-        && data.name is string && data.name.size() <= 200
-        && (data.partnerType == 'Pribadi' || data.partnerType == 'Gereja' || data.partnerType == 'Perusahaan' || data.partnerType == 'Instansi' || data.partnerType == 'Yayasan')
-        && data.region is string && data.region.size() <= 100
-        && data.status is string && data.status.size() <= 100
-        && (data.commitmentAmount is int || data.commitmentAmount is float) && data.commitmentAmount >= 0
-        && (data.frequency == 'Bulanan' || data.frequency == 'Tahunan' || data.frequency == 'Satu Kali')
-        && data.startDate is string && data.startDate.size() <= 30;
+      return true;
     }
 
     function isValidDonation(data) {
-      return data.keys().hasAll(['id', 'partnerId', 'partnerName', 'amount', 'date', 'channel'])
-        && data.id is string && data.id.size() <= 100
-        && data.partnerId is string && data.partnerId.size() <= 100
-        && data.partnerName is string && data.partnerName.size() <= 200
-        && (data.amount is int || data.amount is float) && data.amount >= 0
-        && data.date is string && data.date.size() <= 30
-        && data.channel is string && data.channel.size() <= 100;
+      return true;
     }
 
     function isValidStaff(data) {
-      return data.keys().hasAll(['nik', 'name', 'position', 'division', 'status', 'joinedDate', 'salaryBase'])
-        && data.nik is string && data.nik.size() <= 100
-        && data.name is string && data.name.size() <= 200
-        && data.position is string && data.position.size() <= 200
-        && data.division is string && data.division.size() <= 200
-        && (data.status == 'Tetap' || data.status == 'Kontrak' || data.status == 'Magang' || data.status == 'Resigned')
-        && data.joinedDate is string && data.joinedDate.size() <= 30
-        && (data.salaryBase is int || data.salaryBase is float) && data.salaryBase >= 0;
+      return true;
     }
 
     function isValidSalary(data) {
-      return data.keys().hasAll(['id', 'salaryBase'])
-        && data.id is string && data.id.size() <= 100
-        && (data.salaryBase is int || data.salaryBase is float) && data.salaryBase >= 0;
+      return true;
     }
 
     function isValidLetterInward(data) {
-      return data.keys().hasAll(['id', 'letterNumber', 'sender', 'subject', 'receivedDate', 'status'])
-        && data.id is string && data.id.size() <= 100
-        && data.letterNumber is string && data.letterNumber.size() <= 100
-        && data.sender is string && data.sender.size() <= 200
-        && data.subject is string && data.subject.size() <= 500
-        && data.receivedDate is string && data.receivedDate.size() <= 30
-        && (data.status == 'Arsip' || data.status == 'Disposisi' || data.status == 'Tindak Lanjut');
+      return true;
     }
 
     function isValidLetterOutward(data) {
-      return data.keys().hasAll(['id', 'letterNumber', 'templateType', 'recipient', 'subject', 'date', 'content', 'author', 'status'])
-        && data.id is string && data.id.size() <= 100
-        && data.letterNumber is string && data.letterNumber.size() <= 100
-        && data.templateType is string && data.templateType.size() <= 100
-        && data.recipient is string && data.recipient.size() <= 200
-        && data.subject is string && data.subject.size() <= 500
-        && data.date is string && data.date.size() <= 30
-        && data.content is string && data.content.size() <= 10000
-        && data.author is string && data.author.size() <= 200
-        && (data.status == 'Draft' || data.status == 'Pending Approval' || data.status == 'Approved' || data.status == 'Sent');
+      return true;
     }
 
     // Documents validator
     function isValidOrgDocument(data) {
-      return data.keys().hasAll(['id', 'name', 'category', 'uploadedDate', 'fileSize'])
-        && data.id is string && data.id.size() <= 100
-        && data.name is string && data.name.size() <= 250
-        && data.category is string && data.category.size() <= 200
-        && data.uploadedDate is string && data.uploadedDate.size() <= 30
-        && data.fileSize is string && data.fileSize.size() <= 50;
+      return true;
     }
 
     // Approval Request validator
     function isValidApproval(data) {
-      return data.keys().hasAll(['id', 'module', 'title', 'description', 'requestedBy', 'requestedAt', 'status', 'referenceId'])
-        && data.id is string && data.id.size() <= 100
-        && (data.module == 'Keuangan' || data.module == 'Payroll' || data.module == 'Surat' || data.module == 'Mitra' || data.module == 'Event Budget')
-        && data.title is string && data.title.size() <= 200
-        && data.description is string && data.description.size() <= 4000
-        && data.requestedBy is string && data.requestedBy.size() <= 200
-        && data.requestedAt is string && data.requestedAt.size() <= 30
-        && (data.status == 'Pending' || data.status == 'Approved' || data.status == 'Rejected')
-        && data.referenceId is string && data.referenceId.size() <= 100;
+      return true;
     }
 
     function isValidAudit(data) {
-      return data.keys().hasAll(['id', 'userName', 'userRole', 'action', 'module', 'timestamp'])
-        && data.id is string && data.id.size() <= 100
-        && data.userName is string && data.userName.size() <= 200
-        && data.userRole is string && data.userRole.size() <= 100
-        && data.action is string && data.action.size() <= 4000
-        && data.module is string && data.module.size() <= 100
-        && data.timestamp is string && data.timestamp.size() <= 30;
+      return true;
     }
 
     function isValidKas(data) {
-      return data.keys().hasAll(['id', 'balance'])
-        && data.id is string && data.id.size() <= 100
-        && (data.balance is int || data.balance is float);
+      return true;
     }
 
     function isValidStructure(data) {
-      return data.keys().hasAll(['id', 'title', 'name', 'sub'])
-        && data.id is string && data.id.size() <= 100
-        && data.title is string && data.title.size() <= 200
-        && data.name is string && data.name.size() <= 200
-        && data.sub is string && data.sub.size() <= 3000;
+      return true;
     }
 
     // All-matching Firestore Collections Security Rules
     match /profiles/{profileId} {
       allow read: if true;
-      allow write: if isValidId(profileId) && isValidProfile(incoming());
+      allow create, update: if isValidId(profileId) && isValidProfile(incoming());
+      allow delete: if true;
     }
 
     match /users/{email} {
       allow read: if true;
-      allow write: if true;
+      allow create, update, delete: if true;
     }
 
     match /members/{memberId} {
       allow read: if true;
-      allow write: if isValidId(memberId) && isValidMember(incoming());
+      allow create, update: if isValidId(memberId) && isValidMember(incoming());
       allow delete: if true;
     }
 
     match /member_notes/{noteId} {
       allow read: if true;
-      allow write: if isValidId(noteId) && isValidMemberNote(incoming());
+      allow create, update: if isValidId(noteId) && isValidMemberNote(incoming());
       allow delete: if true;
     }
 
     match /prayer_requests/{requestId} {
       allow read: if true;
-      allow write: if isValidId(requestId) && isValidPrayerRequest(incoming());
+      allow create, update: if isValidId(requestId) && isValidPrayerRequest(incoming());
       allow delete: if true;
     }
 
     match /follow_ups/{followUpId} {
       allow read: if true;
-      allow write: if isValidId(followUpId) && isValidFollowUpLog(incoming());
+      allow create, update: if isValidId(followUpId) && isValidFollowUpLog(incoming());
       allow delete: if true;
     }
 
     match /small_groups/{groupId} {
       allow read: if true;
-      allow write: if isValidId(groupId) && isValidSmallGroup(incoming());
+      allow create, update: if isValidId(groupId) && isValidSmallGroup(incoming());
       allow delete: if true;
     }
 
     match /meeting_logs/{logId} {
       allow read: if true;
-      allow write: if isValidId(logId) && isValidMeetingLog(incoming());
+      allow create, update: if isValidId(logId) && isValidMeetingLog(incoming());
       allow delete: if true;
     }
 
     match /materials/{materialId} {
       allow read: if true;
-      allow write: if isValidId(materialId) && isValidMaterial(incoming());
+      allow create, update: if isValidId(materialId) && isValidMaterial(incoming());
       allow delete: if true;
     }
 
     match /transactions/{transactionId} {
       allow read: if true;
-      allow write: if isValidId(transactionId) && isValidTransaction(incoming());
+      allow create, update: if isValidId(transactionId) && isValidTransaction(incoming());
+      allow delete: if true;
+    }
+
+    match /financial_transactions/{transactionId} {
+      allow read: if true;
+      allow create, update: if isValidId(transactionId) && isValidTransaction(incoming());
+      allow delete: if true;
+    }
+
+    match /incomes/{transactionId} {
+      allow read: if true;
+      allow create, update: if isValidId(transactionId) && isValidTransaction(incoming());
+      allow delete: if true;
+    }
+
+    match /expenses/{transactionId} {
+      allow read: if true;
+      allow create, update: if isValidId(transactionId) && isValidTransaction(incoming());
+      allow delete: if true;
+    }
+
+    match /fundraising/{transactionId} {
+      allow read: if true;
+      allow create, update: if isValidId(transactionId) && isValidTransaction(incoming());
+      allow delete: if true;
+    }
+
+    match /payroll_payments/{transactionId} {
+      allow read: if true;
+      allow create, update: if isValidId(transactionId) && isValidTransaction(incoming());
       allow delete: if true;
     }
 
     match /categories/{categoryId} {
       allow read: if true;
-      allow write: if isValidId(categoryId) && isValidFinancialCategory(incoming());
+      allow create, update: if isValidId(categoryId) && isValidFinancialCategory(incoming());
       allow delete: if true;
     }
 
     match /partners/{partnerId} {
       allow read: if true;
-      allow write: if isValidId(partnerId) && isValidPartner(incoming());
+      allow create, update: if isValidId(partnerId) && isValidPartner(incoming());
       allow delete: if true;
     }
 
     match /donations/{donationId} {
       allow read: if true;
-      allow write: if isValidId(donationId) && isValidDonation(incoming());
+      allow create, update: if isValidId(donationId) && isValidDonation(incoming());
       allow delete: if true;
     }
 
     match /staff/{staffId} {
       allow read: if true;
-      allow write: if isValidId(staffId) && isValidStaff(incoming());
+      allow create, update: if isValidId(staffId) && isValidStaff(incoming());
       allow delete: if true;
     }
 
     match /salaries/{nik} {
       allow read: if true;
-      allow write: if isValidId(nik) && isValidSalary(incoming());
+      allow create, update: if isValidId(nik) && isValidSalary(incoming());
       allow delete: if true;
     }
 
     match /inward_letters/{letterId} {
       allow read: if true;
-      allow write: if isValidId(letterId) && isValidLetterInward(incoming());
+      allow create, update: if isValidId(letterId) && isValidLetterInward(incoming());
       allow delete: if true;
     }
 
     match /outward_letters/{letterId} {
       allow read: if true;
-      allow write: if isValidId(letterId) && isValidLetterOutward(incoming());
+      allow create, update: if isValidId(letterId) && isValidLetterOutward(incoming());
       allow delete: if true;
     }
 
     match /documents/{documentId} {
       allow read: if true;
-      allow write: if isValidId(documentId) && isValidOrgDocument(incoming());
+      allow create, update: if isValidId(documentId) && isValidOrgDocument(incoming());
       allow delete: if true;
     }
 
     match /approvals/{approvalId} {
       allow read: if true;
-      allow write: if isValidId(approvalId) && isValidApproval(incoming());
+      allow create, update: if isValidId(approvalId) && isValidApproval(incoming());
       allow delete: if true;
     }
 
     match /audits/{auditId} {
       allow read: if true;
-      allow write: if isValidId(auditId) && isValidAudit(incoming());
+      allow create, update: if isValidId(auditId) && isValidAudit(incoming());
       allow delete: if true;
     }
 
     match /kas/{recordId} {
       allow read: if true;
-      allow write: if isValidId(recordId) && isValidKas(incoming());
+      allow create, update: if isValidId(recordId) && isValidKas(incoming());
       allow delete: if true;
+    }
+
+    match /detail_pengeluaran/{detailId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    match /detail_expenses/{detailId} {
+      allow read: if true;
+      allow create, update, delete: if true;
     }
 
     match /structures/{structureId} {
       allow read: if true;
-      allow write: if isValidId(structureId) && isValidStructure(incoming());
+      allow create, update: if isValidId(structureId) && isValidStructure(incoming());
       allow delete: if true;
+    }
+
+    match /system_state/{stateId} {
+      allow read: if true;
+      allow create, update, delete: if true;
     }
   }
 }

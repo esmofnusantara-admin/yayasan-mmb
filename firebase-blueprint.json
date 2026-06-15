@@ -363,9 +363,25 @@
         "deleted": { "type": "boolean" }
       },
       "required": ["id", "title", "name", "sub"]
+    },
+    "SystemState": {
+      "title": "SystemState",
+      "description": "System state flags such as seeding status.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "seeded": { "type": "boolean" },
+        "cleansedAt": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "seeded"]
     }
   },
   "firestore": {
+    "/system_state/{id}": {
+      "schema": "SystemState",
+      "description": "System state flags and parameters reference."
+    },
     "/structures/{id}": {
       "schema": "StructureNode",
       "description": "Interactive dynamic organization structure hierarchy nodes."
@@ -410,6 +426,26 @@
       "schema": "Transaction",
       "description": "Financial ledger transactions."
     },
+    "/financial_transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Financial ledger transactions."
+    },
+    "/incomes/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Manual Income transactions records for tracking."
+    },
+    "/expenses/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Manual Expense transactions records for tracking."
+    },
+    "/fundraising/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Fundraising/donation details mapped with reference ID."
+    },
+    "/payroll_payments/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Staff Payroll disbursement payments records."
+    },
     "/categories/{categoryId}": {
       "schema": "FinancialCategory",
       "description": "Budget definitions."
@@ -449,6 +485,14 @@
     "/kas/{recordId}": {
       "schema": "Kas",
       "description": "Global cash or treasury records."
+    },
+    "/detail_pengeluaran/{detailId}": {
+      "schema": "Transaction",
+      "description": "Historical detail records of cash disbursement/expenses."
+    },
+    "/detail_expenses/{detailId}": {
+      "schema": "Transaction",
+      "description": "Historical detail records of cash disbursement/expenses."
     },
     "/salaries/{nik}": {
       "schema": "StaffSalary",

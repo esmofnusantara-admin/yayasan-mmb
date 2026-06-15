@@ -342,7 +342,7 @@ export function exportSlipToPDF(
     }
   }
 
-  ySign += 22;
+  ySign += 27; // Shifted slightly down to ensure signature/stamp does not overlap names
   doc.setFont('Helvetica', 'bold');
   doc.setTextColor(textDark[0], textDark[1], textDark[2]);
   const printedTreasurerName = treasurerName ? treasurerName.toUpperCase() : 'BENDAHARA YAYASAN';
@@ -612,9 +612,9 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
 
   // 1. Draw Kop Surat exactly matching user's requested layout
   // 1a. Draw logo (either custom uploaded brand logo or red logo emblem vector fallback)
-  if (profile?.logoUrl && profile.logoUrl.startsWith('data:image')) {
+  if (profile?.logoUrl && (profile.logoUrl.startsWith('data:image') || profile.logoUrl.startsWith('http') || profile.logoUrl.length > 50)) {
     try {
-      doc.addImage(profile.logoUrl, 'PNG', 16, 11, 20, 20);
+      doc.addImage(profile.logoUrl, 'PNG', 16, 11, 20, 0);
     } catch (err) {
       console.warn('Failed to add custom logo image to kop surat PDF:', err);
       doc.setDrawColor(185, 28, 28); // #B91C1C
@@ -684,10 +684,12 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
   const contactText = contactParts.join('        ');
   doc.text(contactText, headerX, 30.5, { align: 'center' });
 
-  // 1c. Double thick line divider
+  // 1c. Symmetrical elegant double-line divider
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(1.1);
-  doc.line(16, 33, 196, 33);
+  doc.line(20, 33, 190, 33);
+  doc.setLineWidth(0.3);
+  doc.line(20, 34, 190, 34);
 
   // --- Start Letter Body (using Times font as in standard formal letters) ---
   doc.setFont('Times', 'normal');
@@ -715,39 +717,61 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
     return dateStr;
   };
 
+  const getCityFromAddress = (addressStr: string): string => {
+    if (!addressStr) return 'Cilegon';
+    const lower = addressStr.toLowerCase();
+    if (lower.includes('cilegon')) return 'Cilegon';
+    if (lower.includes('yogyakarta') || lower.includes('jogja')) return 'Yogyakarta';
+    if (lower.includes('solo') || lower.includes('surakarta')) return 'Surakarta';
+    if (lower.includes('semarang')) return 'Semarang';
+    if (lower.includes('jakarta')) return 'Jakarta';
+    if (lower.includes('bandung')) return 'Bandung';
+    
+    // Fallback extraction
+    const kotaIndex = lower.indexOf('kota ');
+    if (kotaIndex !== -1) {
+      const sub = addressStr.substring(kotaIndex + 5).trim();
+      const firstWord = sub.split(/[\s,]+/)[0];
+      if (firstWord) return firstWord.charAt(0).toUpperCase() + firstWord.slice(1);
+    }
+    return 'Cilegon';
+  };
+
+  const city = getCityFromAddress(pAddress);
   const cleanDateStr = formatIndonesianDate(letter.date || new Date().toISOString().substring(0, 10));
-
-  // 2. Right align the Location and Date of the letter
+  const finalPlaceDate = letter.signPlaceDate || `${city}, ${cleanDateStr}`;
   doc.setFont('Times', 'normal');
-  doc.text(`Cilegon, ${cleanDateStr}`, 196, 45, { align: 'right' });
+  doc.text(finalPlaceDate, 185, 45, { align: 'right' });
 
-  // 3. Serial Number and Subject block (Left side)
-  doc.text(`Nomor   :  ${letter.letterNumber || '005/ESM/TPP/VI/2026'}`, 16, 53);
-  doc.text(`Perihal   :  ${letter.subject || 'Ucapan Terima Kasih atas Dukungan Pelayanan'}`, 16, 58.5);
+  // 3. Serial Number and Subject block matching standard left margin 25mm
+  doc.text(`Nomor   :  ${letter.letterNumber || '005/ESM/TPP/VI/2026'}`, 25, 53);
+  doc.text(`Perihal   :  ${letter.subject || 'Ucapan Terima Kasih atas Dukungan Pelayanan'}`, 25, 58.5);
 
-  // 4. Recipient block
-  doc.text('Kepada Yth.', 16, 70);
+  // 4. Recipient block aligned at left margin 25mm
+  doc.text('Kepada Yth.', 25, 70);
   
-  // Format recipient lines cleanly
+  // Format recipient lines cleanly with left margin 25mm (split/newline is fully supported)
   const recipientRaw = letter.recipient || 'Pdt. Jeffrey Siauw, D.Th.\nLead Pastor Gracelife Community Church';
   const recipientLines = recipientRaw.split('\n');
   let recipientY = 75.5;
   
   recipientLines.forEach((line: string) => {
-    doc.text(line, 16, recipientY);
+    doc.text(line, 25, recipientY);
     recipientY += 5.5;
   });
 
-  doc.text('di Tempat', 16, recipientY + 1);
+  doc.text('di Tempat', 25, recipientY + 1);
 
-  // 5. Salutation and paragraphs content wrapping
+  // 5. Salutation and paragraphs content wrapping with Left margin 25mm, Right margin 25mm (Width = 160mm)
   let y = recipientY + 14;
-  doc.text('Dengan hormat,', 16, y);
+  doc.text('Dengan hormat,', 25, y);
   
   y += 8;
 
   const contentText = letter.content || 
-    'Puji syukur kepada Tuhan atas dukungan dan perhatian yang diberikan kepada pelayanan ESM.\n\nMelalui surat ini, kami mengucapkan terima kasih atas komitmen Gracelife Community Church untuk melanjutkan dukungan dana pelayanan bagi Sdr. Yusuf Raja Tamba selama periode Juni 2026 – Mei 2027.\n\nKami menerima dan menghargai dukungan tersebut. Kiranya Tuhan membalas setiap kebaikan dan terus memberkati pelayanan serta jemaat Gracelife Community Church.\n\nTerima kasih atas kemitraan dalam pekerjaan Tuhan.';
+    'Puji syukur kepada Tuhan atas dukungan dan perhatian yang diberikan kepada pelayanan ESM.\n\nMelalui surat ini, kami mengucapkan terima kasih atas komitmen Gracelife Community Church untuk melanjutkan dukungan dana pelayanan bagi Sdr. Yusuf Raja Tamba selama periode Juni 2026 – Mei 2027.\n\nKami menerima dan menghargai dukungan tersebut. Kiranya Tuhan membalas setiap kebaikan and terus memberkati pelayanan serta jemaat Gracelife Community Church.\n\nTerima kasih atas kemitraan dalam pekerjaan Tuhan.';
+
+  doc.setLineHeightFactor(1.6); // set comfortable line height factor globally for body text
 
   const paragraphs = contentText.split('\n');
   
@@ -757,24 +781,39 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
       y += 2.5; // smaller spacing for blank lines
       return;
     }
-    const lines = doc.splitTextToSize(cleanPara, 180);
-    lines.forEach((line: string) => {
-      // Check page overflow boundaries
-      if (y > 270) {
+    // Using exactly 160 width for standard margins of 2.5 cm on left, 2.5 cm on right (210 - 25 - 25 = 160)
+    const lines = doc.splitTextToSize(cleanPara, 160);
+    
+    // Group lines to draw as a block per page to get flawless full justification natively from jsPDF
+    let pageLines: string[] = [];
+    lines.forEach((line: string, index: number) => {
+      // Check page overflow boundaries (297 - 35 = 262)
+      if (y > 262) {
+        if (pageLines.length > 0) {
+          const startY = y - (pageLines.length * 6);
+          doc.text(pageLines, 25, startY, { align: 'justify', maxWidth: 160 });
+          pageLines = [];
+        }
         doc.addPage();
-        y = 25;
+        y = 40; // 40 mm top margin
       }
-      doc.text(line, 16, y);
+      pageLines.push(line);
       y += 6;
     });
+    
+    if (pageLines.length > 0) {
+      const startY = y - (pageLines.length * 6);
+      doc.text(pageLines, 25, startY, { align: 'justify', maxWidth: 160 });
+    }
+    
     y += 3.5; // space between paragraphs
   });
 
-  // 6. Double Signature block (tapi ttd nya dikiri ketua yayasan, dikanan sekretaris yayasan)
-  // Ensure we don't overflow the page, if so add a new page
-  if (y + 53 > 285) {
+  // 6. Double Signature block
+  // Ensure we don't overflow the page, if so add a new page (needs 45mm space)
+  if (y + 45 > 267) {
     doc.addPage();
-    y = 25;
+    y = 40;
   }
 
   y += 10;
@@ -785,58 +824,105 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
   const showStamp = letter.showStamp !== false;
 
   // Resolve dynamic names from structures of high organizational levels
-  const ketuaNode = structures?.find(n => n?.id === 'ketua' || n?.title?.toLowerCase().includes('ketua') || n?.id === 'ketua_yayasan');
-  const ketuaNameResolved = ketuaNode?.name || 'Yusuf Raja Tamba';
+  const ketuaNode = structures?.find(n => n?.id === 'ketua' || n?.id === 'ketua_yayasan') || structures?.find(n => n?.title?.toLowerCase().includes('ketua'));
+  const ketuaNameResolved = ketuaNode?.name || 'Fernandes';
 
-  const sekretarisNode = structures?.find(n => n?.id === 'sekretaris' || n?.title?.toLowerCase().includes('sekretaris'));
-  const sekretarisNameResolved = sekretarisNode?.name || 'Ahmad Faisal, S.Th.';
+  const sekretarisNode = structures?.find(n => n?.id === 'sekretaris') || structures?.find(n => n?.title?.toLowerCase().includes('sekretaris'));
+  const sekretarisNameResolved = sekretarisNode?.name || 'Yusuf Raja Tamba';
 
-  const bendaharaNode = structures?.find(n => n?.id === 'bendahara' || n?.title?.toLowerCase().includes('bendahara'));
-  const bendaharaNameResolved = bendaharaNode?.name || 'Sarah Sitorus';
+  const bendaharaNode = structures?.find(n => n?.id === 'bendahara') || structures?.find(n => n?.title?.toLowerCase().includes('bendahara'));
+  const bendaharaNameResolved = bendaharaNode?.name || 'Angelina';
 
   const leftName = letter.signLeftName || (
-    leftType === 'Ketua' ? ketuaNameResolved : 
-    leftType === 'Sekretaris' ? sekretarisNameResolved : 
-    leftType === 'Bendahara' ? bendaharaNameResolved : ''
+    leftType === 'Ketua' || leftType === 'ketua' ? ketuaNameResolved : 
+    leftType === 'Sekretaris' || leftType === 'sekretaris' ? sekretarisNameResolved : 
+    leftType === 'Bendahara' || leftType === 'bendahara' ? bendaharaNameResolved : ''
   );
   const leftTitle = letter.signLeftTitle || (
-    leftType === 'Ketua' ? 'Ketua Yayasan' : 
-    leftType === 'Sekretaris' ? 'Sekretaris Yayasan' : 
-    leftType === 'Bendahara' ? 'Bendahara Yayasan' : ''
+    leftType === 'Ketua' || leftType === 'ketua' ? 'Ketua Yayasan' : 
+    leftType === 'Sekretaris' || leftType === 'sekretaris' ? 'Sekretaris Yayasan' : 
+    leftType === 'Bendahara' || leftType === 'bendahara' ? 'Bendahara Yayasan' : ''
   );
 
   const rightName = letter.signRightName || (
-    rightType === 'Ketua' ? ketuaNameResolved : 
-    rightType === 'Sekretaris' ? sekretarisNameResolved : 
-    rightType === 'Bendahara' ? bendaharaNameResolved : ''
+    rightType === 'Ketua' || rightType === 'ketua' ? ketuaNameResolved : 
+    rightType === 'Sekretaris' || rightType === 'sekretaris' ? sekretarisNameResolved : 
+    rightType === 'Bendahara' || rightType === 'bendahara' ? bendaharaNameResolved : ''
   );
   const rightTitle = letter.signRightTitle || (
-    rightType === 'Ketua' ? 'Ketua Yayasan' : 
-    rightType === 'Sekretaris' ? 'Sekretaris Yayasan' : 
-    rightType === 'Bendahara' ? 'Bendahara Yayasan' : ''
+    rightType === 'Ketua' || rightType === 'ketua' ? 'Ketua Yayasan' : 
+    rightType === 'Sekretaris' || rightType === 'sekretaris' ? 'Sekretaris Yayasan' : 
+    rightType === 'Bendahara' || rightType === 'bendahara' ? 'Bendahara Yayasan' : ''
   );
 
-  const stampX = 36; // Shifted left to override only 1/4 of signature
-  const stampY = signatureY + 15;
+  const stampY = signatureY + 11;
 
-  // Let's set aligned coordinates:
-  // Left signature centered at X = 50
-  // Right signature centered at X = 160
+  // Symmetrical coordinates within standard 2.5cm left, 2.5cm right margin area:
+  // Center of Left is 70
+  // Center of Right is 150
   
-  if (leftType !== 'None') {
+  // Custom function to resolve loaded profile signatures dynamically by Type/Title/Name matching
+  function resolveSignatureImg(type: string, title: string, name: string, prof: any) {
+    const tType = String(type || '').toLowerCase();
+    const tTitle = String(title || '').toLowerCase();
+    const tName = String(name || '').toLowerCase();
+
+    // 0. Check customSignatures list in profile
+    if (prof?.customSignatures && Array.isArray(prof.customSignatures)) {
+      const match = prof.customSignatures.find((cs: any) => {
+        const csName = String(cs.name || '').toLowerCase();
+        const csTitle = String(cs.title || '').toLowerCase();
+        return (tName && csName.includes(tName)) || (tTitle && csTitle.includes(tTitle));
+      });
+      if (match && match.signatureUrl) {
+        return match.signatureUrl;
+      }
+    }
+
+    if (tName.includes('fernandes') || tName.includes('fernandes')) {
+      return prof?.signatureChairmanUrl || '';
+    }
+    if (tName.includes('faisal') || tName.includes('johannes lie') || tName.includes('lie') || tName.includes('yusuf')) {
+      return prof?.signatureSecretaryUrl || '';
+    }
+    if (tName.includes('ruth') || tName.includes('sarah') || tName.includes('sitorus') || tName.includes('angelina')) {
+      return prof?.signatureTreasurerUrl || prof?.signatureUrl || '';
+    }
+
+    if (tType.includes('ketua') || tTitle.includes('ketua') || tType === 'ketuapembina' || tTitle.includes('pembina')) {
+      return prof?.signatureChairmanUrl || '';
+    }
+    if (tType.includes('sekretaris') || tTitle.includes('sekretaris') || tType.includes('secretary')) {
+      return prof?.signatureSecretaryUrl || '';
+    }
+    if (tType.includes('bendahara') || tTitle.includes('bendahara') || tType.includes('treasurer')) {
+      return prof?.signatureTreasurerUrl || prof?.signatureUrl || '';
+    }
+
+    if (tType === 'ketua') return prof?.signatureChairmanUrl || '';
+    if (tType === 'sekretaris') return prof?.signatureSecretaryUrl || '';
+    if (tType === 'bendahara') return prof?.signatureTreasurerUrl || prof?.signatureUrl || '';
+
+    return '';
+  }
+
+  const isRightActive = rightType !== 'None' && rightType !== 'none';
+
+  if (leftType !== 'None' && leftType !== 'none') {
     doc.setFont('Times', 'normal');
     doc.setFontSize(10.5);
-    doc.text(`${leftTitle},`, 50, signatureY, { align: 'center' });
+    
+    // If Right signature is active, print leftTitle as the label above the left signature block
+    // If Right signature is NOT active, print finalPlaceDate as the label above the left signature block
+    const leftLabelText = isRightActive ? `${leftTitle},` : finalPlaceDate;
+    doc.text(leftLabelText, 70, signatureY, { align: 'center' });
 
-    // Draw Left Signature - either image or vector fallback
-    let signatureLeftImg = '';
-    if (leftType === 'Ketua' && profile?.signatureChairmanUrl) signatureLeftImg = profile.signatureChairmanUrl;
-    else if (leftType === 'Sekretaris' && profile?.signatureSecretaryUrl) signatureLeftImg = profile.signatureSecretaryUrl;
-    else if (leftType === 'Bendahara' && (profile?.signatureTreasurerUrl || profile?.signatureUrl)) signatureLeftImg = profile.signatureTreasurerUrl || profile.signatureUrl;
+    // Draw Left Signature - either image or vector fallback representing professional line ink
+    let signatureLeftImg = resolveSignatureImg(leftType, leftTitle, leftName, profile);
 
-    if (signatureLeftImg && signatureLeftImg.startsWith('data:image')) {
+    if (signatureLeftImg && (signatureLeftImg.startsWith('data:image') || signatureLeftImg.startsWith('http') || signatureLeftImg.length > 50)) {
       try {
-        doc.addImage(signatureLeftImg, 'PNG', 35, stampY - 8, 30, 15);
+        doc.addImage(signatureLeftImg, 'PNG', 55, stampY - 8, 30, 15);
       } catch (err) {
         console.warn('Failed to draw custom left signature image:', err);
       }
@@ -844,28 +930,27 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
       // Draw handdrawn ink stroke vector for Left
       doc.setDrawColor(15, 23, 42); // slate 900
       doc.setLineWidth(0.45);
-      doc.line(36, stampY + 3, 45, stampY - 4);
-      doc.line(45, stampY - 4, 50, stampY + 6);
-      doc.line(50, stampY + 6, 56, stampY - 7);
-      doc.line(42, stampY - 1, 64, stampY - 1);
-      doc.line(48, stampY - 1, 62, stampY + 5);
+      doc.line(56, stampY + 3, 65, stampY - 4);
+      doc.line(65, stampY - 4, 70, stampY + 6);
+      doc.line(70, stampY + 6, 76, stampY - 7);
+      doc.line(62, stampY - 1, 84, stampY - 1);
+      doc.line(68, stampY - 1, 82, stampY + 5);
     }
   }
 
-  if (rightType !== 'None') {
+  if (isRightActive) {
     doc.setFont('Times', 'normal');
     doc.setFontSize(10.5);
-    doc.text(`${rightTitle},`, 160, signatureY, { align: 'center' });
+    
+    // Above the Right signature block, print finalPlaceDate (e.g. Cilegon, 12 Juni 2026)!
+    doc.text(finalPlaceDate, 150, signatureY, { align: 'center' });
 
     // Draw Right Signature - either image or vector fallback
-    let signatureRightImg = '';
-    if (rightType === 'Ketua' && profile?.signatureChairmanUrl) signatureRightImg = profile.signatureChairmanUrl;
-    else if (rightType === 'Sekretaris' && profile?.signatureSecretaryUrl) signatureRightImg = profile.signatureSecretaryUrl;
-    else if (rightType === 'Bendahara' && (profile?.signatureTreasurerUrl || profile?.signatureUrl)) signatureRightImg = profile.signatureTreasurerUrl || profile.signatureUrl;
+    let signatureRightImg = resolveSignatureImg(rightType, rightTitle, rightName, profile);
 
-    if (signatureRightImg && signatureRightImg.startsWith('data:image')) {
+    if (signatureRightImg && (signatureRightImg.startsWith('data:image') || signatureRightImg.startsWith('http') || signatureRightImg.length > 50)) {
       try {
-        doc.addImage(signatureRightImg, 'PNG', 145, stampY - 8, 30, 15);
+        doc.addImage(signatureRightImg, 'PNG', 135, stampY - 8, 30, 15);
       } catch (err) {
         console.warn('Failed to draw custom right signature image:', err);
       }
@@ -873,10 +958,10 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
       // Draw handdrawn ink stroke vector for Right
       doc.setDrawColor(30, 41, 59);
       doc.setLineWidth(0.45);
-      doc.line(146, stampY + 2, 154, stampY - 5);
-      doc.line(154, stampY - 5, 160, stampY + 7);
-      doc.line(160, stampY + 7, 168, stampY - 3);
-      doc.line(142, stampY, 174, stampY);
+      doc.line(136, stampY + 2, 144, stampY - 5);
+      doc.line(144, stampY - 5, 150, stampY + 7);
+      doc.line(150, stampY + 7, 158, stampY - 3);
+      doc.line(132, stampY, 164, stampY);
     }
   }
 
@@ -887,11 +972,11 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
     const stampOffsetX = Number(letter.stampOffsetX) || 0;
     const stampOffsetY = Number(letter.stampOffsetY) || 0;
 
-    let targetCenterX = 50;
+    let targetCenterX = 70;
     if (stampTarget === 'right') {
-      targetCenterX = 160;
+      targetCenterX = 150;
     } else if (stampTarget === 'center') {
-      targetCenterX = 105;
+      targetCenterX = 110;
     }
 
     // Shift left slightly to make it overlap 1/4 of the signature instead of covers it entirely
@@ -902,7 +987,7 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
     const finalStampX = targetCenterX + stampOffsetX;
     const finalStampY = stampY + stampOffsetY;
 
-    if (profile?.stampUrl && profile.stampUrl.startsWith('data:image')) {
+    if (profile?.stampUrl && (profile.stampUrl.startsWith('data:image') || profile.stampUrl.startsWith('http') || profile.stampUrl.length > 50)) {
       try {
         const drawX = finalStampX - (stampSize / 2);
         const drawY = finalStampY - (stampSize / 2);
@@ -936,31 +1021,88 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
 
-  // Bottom names and lines (shifted down by 8mm to prevent stamp/signature overlap)
-  if (leftType !== 'None') {
-    doc.text(leftName, 50, signatureY + 34, { align: 'center' });
+  // Bottom names and lines (shifted down dynamically to look close and unified as requested)
+  if (leftType !== 'None' && leftType !== 'none') {
+    doc.text(leftName, 70, signatureY + 26, { align: 'center' });
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.2);
-    doc.line(30, signatureY + 35, 70, signatureY + 35);
+    doc.line(50, signatureY + 27, 90, signatureY + 27);
     
     // Bottom Titles
     doc.setFont('Times', 'normal');
     doc.setFontSize(9.5);
-    doc.text(leftTitle, 50, signatureY + 39.5, { align: 'center' });
+    doc.text(leftTitle, 70, signatureY + 31.5, { align: 'center' });
   }
 
-  if (rightType !== 'None') {
+  if (rightType !== 'None' && rightType !== 'none') {
     doc.setFont('Times', 'bold');
     doc.setFontSize(10.5);
-    doc.text(rightName, 160, signatureY + 34, { align: 'center' });
+    doc.text(rightName, 150, signatureY + 26, { align: 'center' });
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.2);
-    doc.line(140, signatureY + 35, 180, signatureY + 35);
+    doc.line(130, signatureY + 27, 170, signatureY + 27);
 
     // Bottom Titles
     doc.setFont('Times', 'normal');
     doc.setFontSize(9.5);
-    doc.text(rightTitle, 160, signatureY + 39.5, { align: 'center' });
+    doc.text(rightTitle, 150, signatureY + 31.5, { align: 'center' });
+  }
+
+  // Draw additional signatures if present
+  if (letter.additionalSignatures && Array.isArray(letter.additionalSignatures) && letter.additionalSignatures.length > 0) {
+    const startAddY = signatureY + 42;
+    doc.setFont('Times', 'normal');
+    doc.setFontSize(10.5);
+    
+    const totalAdd = letter.additionalSignatures.length;
+    letter.additionalSignatures.forEach((sig: any, idx: number) => {
+      const colIdx = idx % 2;
+      const rowIdx = Math.floor(idx / 2);
+      const currentAddY = startAddY + (rowIdx * 38);
+      
+      // Determine vertical/horizontal alignment coordinates
+      // If there is only 1 signature, place it at the center (X = 110).
+      // If it is the last third element (length is odd e.g. 3) and occupies a row on its own, place it at center (X = 110).
+      let xPos = colIdx === 0 ? 70 : 150;
+      if (totalAdd === 1) {
+        xPos = 110;
+      } else if (idx === totalAdd - 1 && colIdx === 0) {
+        xPos = 110;
+      }
+      
+      // Draw Title
+      doc.setFont('Times', 'normal');
+      doc.setFontSize(10.5);
+      doc.text(`${sig.title},`, xPos, currentAddY, { align: 'center' });
+      
+      // Resolve & Draw signature image
+      const sigImg = resolveSignatureImg('', sig.title || '', sig.name || '', profile);
+      if (sigImg && (sigImg.startsWith('data:image') || sigImg.startsWith('http') || sigImg.length > 50)) {
+        try {
+          doc.addImage(sigImg, 'PNG', xPos - 15, currentAddY + 4, 30, 15);
+        } catch (err) {
+          console.warn('Failed to draw additional signature image in PDF:', err);
+        }
+      } else {
+        // Draw standard clean professional vector line for additional
+        doc.setDrawColor(50, 50, 50);
+        doc.setLineWidth(0.3);
+        doc.line(xPos - 5, currentAddY + 12, xPos + 5, currentAddY + 12);
+      }
+      
+      // Draw Name underline
+      doc.setFont('Times', 'bold');
+      doc.setFontSize(10.5);
+      doc.text(sig.name, xPos, currentAddY + 23, { align: 'center' });
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.2);
+      doc.line(xPos - 20, currentAddY + 24, xPos + 20, currentAddY + 24);
+      
+      // Draw sub-title
+      doc.setFont('Times', 'normal');
+      doc.setFontSize(8.5);
+      doc.text(sig.title, xPos, currentAddY + 28, { align: 'center' });
+    });
   }
 
   // Save the outward letter document
@@ -1234,8 +1376,8 @@ export function exportFinanceReportPDF(transactions: any[], profile: any, startD
 
   // Financial Stats Box
   const approvedTx = transactions.filter(t => t.status === 'Approved');
-  const totalIn = approvedTx.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
-  const totalOut = approvedTx.filter(t => t.type === 'Expense').reduce((s, t) => s + t.amount, 0);
+  const totalIn = approvedTx.filter(t => t.type?.toLowerCase() === 'income').reduce((s, t) => s + t.amount, 0);
+  const totalOut = approvedTx.filter(t => t.type?.toLowerCase() === 'expense').reduce((s, t) => s + t.amount, 0);
   const net = totalIn - totalOut;
 
   doc.setFillColor(248, 250, 252);
@@ -1294,7 +1436,7 @@ export function exportFinanceReportPDF(transactions: any[], profile: any, startD
       doc.text(t.category || '', 40, y + 4.2);
       doc.text((t.description || '').substring(0, 32), 75, y + 4.2);
       doc.text((t.sourceOrRecipient || '').substring(0, 20), 130, y + 4.2);
-      doc.text(t.type === 'Income' ? 'DEBIT' : 'KREDIT', 165, y + 4.2);
+      doc.text(t.type?.toLowerCase() === 'income' ? 'DEBIT' : 'KREDIT', 165, y + 4.2);
       doc.text(t.amount.toLocaleString('id-ID'), 180, y + 4.2);
 
       y += 6;

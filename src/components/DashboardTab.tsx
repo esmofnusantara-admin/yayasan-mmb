@@ -52,14 +52,60 @@ export default function DashboardTab({
   profile,
 }: DashboardTabProps) {
   // Financial Calculators
-  const approvedTx = transactions.filter(t => t.status === 'Approved');
+  const approvedTx = transactions.filter(t => t.status === undefined || t.status === 'Approved');
   const activeIncome = approvedTx
-    .filter(t => t.type === 'Income')
+    .filter(t => t.type?.toLowerCase() === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
   const activeExpense = approvedTx
-    .filter(t => t.type === 'Expense')
+    .filter(t => t.type?.toLowerCase() === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
   const netBalance = activeIncome - activeExpense;
+
+  // Dynamic 6-month financial timeline calculated from real transactions
+  const generateMonthsList = () => {
+    const list = [];
+    const now = new Date();
+    // Generate 6 months ending with current month
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      list.push({
+        shortName: d.toLocaleString('id-ID', { month: 'short' }),
+        fullName: d.toLocaleString('id-ID', { month: 'long' }),
+        monthNum: d.getMonth(),
+        year: d.getFullYear(),
+        isCurrent: i === 0,
+      });
+    }
+    return list;
+  };
+
+  const monthlyTimeline = generateMonthsList().map((m, idx) => {
+    const txsInMonth = approvedTx.filter(t => {
+      const tDateString = t.date || t.transaction_date || t.created_at;
+      if (!tDateString) return false;
+      const txDate = new Date(tDateString);
+      return txDate.getMonth() === m.monthNum && txDate.getFullYear() === m.year;
+    });
+
+    const inc = txsInMonth
+      .filter(t => t.type?.toLowerCase() === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const exp = txsInMonth
+      .filter(t => t.type?.toLowerCase() === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    return {
+      monthLabel: m.shortName,
+      monthFullLabel: idx === 5 ? `${m.fullName} (Aktif)` : m.fullName,
+      inc,
+      exp,
+      isCurrent: m.isCurrent,
+    };
+  });
+
+  const maxInTimeline = Math.max(...monthlyTimeline.map(m => Math.max(m.inc, m.exp)), 1000000);
+  const chartMax = Math.ceil(maxInTimeline / 5000000) * 5000000;
 
   // Partner Counts
   const activePartners = partners.filter(p => p.status === 'Aktif');
@@ -102,8 +148,12 @@ export default function DashboardTab({
   // Let's build a timeline of transactions for dynamic mini graph
   // Sorting transactions chronologically
   const sortedTx = [...transactions]
-    .filter(t => t.status === 'Approved')
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .filter(t => t.status === undefined || t.status === 'Approved')
+    .sort((a, b) => {
+      const dateA = a.date || a.transaction_date || '';
+      const dateB = b.date || b.transaction_date || '';
+      return new Date(dateA).getTime() - new Date(dateB).getTime();
+    });
 
   return (
     <div className="space-y-6">
@@ -285,17 +335,9 @@ export default function DashboardTab({
 
             {/* Custom Responsive Chart Columns for realistic display */}
             <div className="w-full flex justify-around items-end z-10 h-full pb-2">
-              {[
-                { month: 'Jan', inc: 12000000, exp: 8000000 },
-                { month: 'Feb', inc: 15400000, exp: 9500000 },
-                { month: 'Mar', inc: 18000000, exp: 12100000 },
-                { month: 'Apr', inc: 11200000, exp: 10500000 },
-                { month: 'Mei', inc: 23000000, exp: 23650000 },
-                { month: 'Jun', inc: activeIncome, exp: activeExpense },
-              ].map((item, idx) => {
-                const max = 30000000; // max scale
-                const incHeight = Math.min((item.inc / max) * 100, 100);
-                const expHeight = Math.min((item.exp / max) * 100, 100);
+              {monthlyTimeline.map((item, idx) => {
+                const incHeight = Math.min((item.inc / chartMax) * 100, 100);
+                const expHeight = Math.min((item.exp / chartMax) * 100, 100);
                 
                 return (
                   <div key={idx} className="flex flex-col items-center gap-2 group w-12">
@@ -319,34 +361,34 @@ export default function DashboardTab({
                         </div>
                       </div>
                     </div>
-                    <span className="text-[11px] font-mono font-medium text-slate-500">{item.month}</span>
+                    <span className="text-[11px] font-mono font-medium text-slate-500">{item.monthLabel}</span>
                   </div>
                 );
               })}
             </div>
           </div>
           <div className="flex items-center justify-between text-xs text-slate-400 mt-2.5">
-            <span>* Skala Visual maksimum: Rp 30.000.000</span>
+            <span>* Skala Visual maksimum: Rp {chartMax.toLocaleString('id-ID')}</span>
             <span>Update Terakhir: {new Date().toLocaleDateString('id-ID')}</span>
           </div>
         </div>
-
-        {/* Right Column Grid: Career pipeline and Birthday highlights */}
-        <div className="space-y-6 flex flex-col">
-          {/* Member Journey Conversion Widget */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between flex-1">
-            <div>
-              <h3 className="text-md font-semibold text-slate-800 mb-1">Pipeline Kaderisasi</h3>
-              <p className="text-slate-400 text-xs mb-4">Journey Anggota dari Prospect hingga Alumni Aktif</p>
-              
-              <div className="space-y-3.5">
-                {[
-                  { status: 'Prospect', color: 'bg-slate-300', count: members.filter(m => m.component === 'Umum').length + 1 },
-                  { status: 'Encounter (Siswa)', color: 'bg-emerald-400', count: members.filter(m => m.component === 'Siswa').length },
-                  { status: 'Explore (Mahasiswa)', color: 'bg-indigo-500', count: members.filter(m => m.component === 'Mahasiswa').length },
-                  { status: 'Connect (Alumni)', color: 'bg-amber-400', count: members.filter(m => m.component === 'Alumni' && m.statusKeaktifan !== 'Aktif').length },
-                  { status: 'Alumni Aktif', color: 'bg-indigo-600', count: members.filter(m => m.component === 'Alumni' && m.statusKeaktifan === 'Aktif').length + 1 },
-                ].map((stage, idx) => {
+ 
+         {/* Right Column Grid: Career pipeline and Birthday highlights */}
+         <div className="space-y-6 flex flex-col">
+           {/* Member Journey Conversion Widget */}
+           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between flex-1">
+             <div>
+               <h3 className="text-md font-semibold text-slate-800 mb-1">Pipeline Kaderisasi</h3>
+               <p className="text-slate-400 text-xs mb-4">Journey Anggota dari Prospect hingga Alumni Aktif</p>
+               
+               <div className="space-y-3.5">
+                 {[
+                   { status: 'Prospect', color: 'bg-slate-300', count: members.filter(m => m.component === 'Umum').length },
+                   { status: 'Encounter (Siswa)', color: 'bg-emerald-400', count: members.filter(m => m.component === 'Siswa').length },
+                   { status: 'Explore (Mahasiswa)', color: 'bg-indigo-500', count: members.filter(m => m.component === 'Mahasiswa').length },
+                   { status: 'Connect (Alumni)', color: 'bg-amber-400', count: members.filter(m => m.component === 'Alumni' && m.statusKeaktifan !== 'Aktif').length },
+                   { status: 'Alumni Aktif', color: 'bg-indigo-600', count: members.filter(m => m.component === 'Alumni' && m.statusKeaktifan === 'Aktif').length },
+                 ].map((stage, idx) => {
                   const percentage = Math.max((stage.count / (totalMembers || 1)) * 100, 8);
                   return (
                     <div key={idx} className="space-y-1">
@@ -428,81 +470,6 @@ export default function DashboardTab({
 
       </div>
 
-      {/* Standalone Monthly Financial Summary Row */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-        <h4 className="text-sm font-bold text-slate-800 mb-3.5 uppercase tracking-wide font-sans">Rincian Nominal Bulanan</h4>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {[
-            { month: 'Januari', inc: 12000000, exp: 8000000 },
-            { month: 'Februari', inc: 15400000, exp: 9500000 },
-            { month: 'Maret', inc: 18000000, exp: 12100000 },
-            { month: 'April', inc: 11200000, exp: 10500000 },
-            { month: 'Mei', inc: 23000000, exp: 23650000 },
-            { month: 'Juni (Aktif)', inc: activeIncome, exp: activeExpense },
-          ].map((item, idx) => {
-            const net = item.inc - item.exp;
-            const isMei = idx === 4;
-            const isActive = item.month.includes('Aktif');
-            
-            return (
-              <div 
-                key={idx} 
-                className={`p-4 rounded-xl border flex flex-col justify-between transition-all duration-200 relative ${
-                  isMei 
-                    ? 'bg-slate-900 text-white border-slate-950 shadow-md ring-1 ring-slate-850' 
-                    : isActive
-                      ? 'bg-indigo-50/60 border-indigo-200 text-indigo-950 hover:bg-slate-50'
-                      : 'bg-white border-slate-200 text-slate-850 hover:border-slate-350 hover:bg-slate-50/20'
-                }`}
-              >
-                <div className="flex items-center justify-between pb-1.5 border-b border-dashed border-slate-100/10">
-                  <span className={`text-[10px] font-extrabold uppercase font-mono tracking-wider ${
-                    isMei ? 'text-slate-300' : isActive ? 'text-indigo-800' : 'text-slate-500'
-                  }`}>
-                    {item.month}
-                  </span>
-                  {isMei && (
-                    <span className="bg-emerald-500 text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider font-mono">
-                      FOCUSED
-                    </span>
-                  )}
-                </div>
-                
-                <div className="mt-3.5 space-y-2 text-[10px]">
-                  <div className="flex justify-between items-center font-sans">
-                    <span className={isMei ? 'text-slate-400 font-medium' : 'text-slate-500 font-medium'}>DEBET (Masuk):</span>
-                    <span className={`font-mono font-bold ${isMei ? 'text-emerald-450' : 'text-emerald-600'}`}>
-                      Rp {item.inc.toLocaleString('id-ID')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center font-sans">
-                    <span className={isMei ? 'text-slate-400 font-medium' : 'text-slate-500 font-medium'}>KREDIT (Keluar):</span>
-                    <span className={`font-mono font-bold ${isMei ? 'text-rose-405' : 'text-rose-500'}`}>
-                      Rp {item.exp.toLocaleString('id-ID')}
-                    </span>
-                  </div>
-                  
-                  <div className={`flex justify-between items-center pt-2 mt-2 border-t font-mono font-bold ${
-                    isMei ? 'border-slate-800' : 'border-slate-200/60'
-                  }`}>
-                    <span className={`font-sans text-[9px] font-bold ${isMei ? 'text-slate-300' : 'text-slate-650'}`}>
-                      {net >= 0 ? 'SURPLUS' : 'DEFISIT'}:
-                    </span>
-                    <span className={`font-bold ${
-                      net >= 0 
-                        ? isMei ? 'text-emerald-400' : 'text-emerald-700' 
-                        : isMei ? 'text-rose-400' : 'text-rose-600'
-                    }`}>
-                      {net >= 0 ? '+' : '-'}{`Rp ${Math.abs(net).toLocaleString('id-ID')}`}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Bottom Grid: Recent Transactions and Audit Trials */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
@@ -526,9 +493,9 @@ export default function DashboardTab({
               <div key={tx.id} className="py-3.5 hover:bg-slate-50/50 px-2 rounded-lg transition-all space-y-2">
                 <div className="flex items-start gap-3">
                   <div className={`p-2 rounded-xl text-xs font-mono font-bold shrink-0 ${
-                    tx.type === 'Income' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+                    tx.type?.toLowerCase() === 'income' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
                   }`}>
-                    {tx.type === 'Income' ? '+IN' : '-EXP'}
+                    {tx.type?.toLowerCase() === 'income' ? '+IN' : '-EXP'}
                   </div>
                   <div className="min-w-0 flex-1">
                     <h4 className="text-xs font-semibold text-slate-800 line-clamp-1">{tx.description}</h4>
@@ -543,9 +510,9 @@ export default function DashboardTab({
                   <div className="flex items-center gap-1.5 font-mono">
                     <span className="text-[10px] text-slate-400 font-semibold uppercase">Nominal:</span>
                     <span className={`font-bold ${
-                      tx.type === 'Income' ? 'text-emerald-600' : 'text-slate-850'
+                      tx.type?.toLowerCase() === 'income' ? 'text-emerald-600' : 'text-slate-850'
                     }`}>
-                      {tx.type === 'Income' ? '+' : '-'}Rp {tx.amount.toLocaleString('id-ID')}
+                      {tx.type?.toLowerCase() === 'income' ? '+' : '-'}Rp {tx.amount.toLocaleString('id-ID')}
                     </span>
                   </div>
                   <div>

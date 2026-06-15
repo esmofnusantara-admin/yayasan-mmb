@@ -100,7 +100,7 @@ export async function syncFinanceData(
   currentBalanceBeforeTx: number
 ) {
   const isApproved = tx.status === 'Approved';
-  const delta = isApproved ? (tx.type === 'Income' ? tx.amount : -tx.amount) : 0;
+  const delta = isApproved ? (tx.type?.toLowerCase() === 'income' ? tx.amount : -tx.amount) : 0;
   const newBalance = currentBalanceBeforeTx + delta;
 
   // 1. Write the Transaction record

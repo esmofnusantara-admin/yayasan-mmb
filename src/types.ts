@@ -221,6 +221,8 @@ export interface Staff {
   status: 'Tetap' | 'Kontrak' | 'Magang' | 'Resigned';
   joinedDate: string;
   contractEndDate?: string;
+  birthDate?: string;
+  birthPlace?: string;
   
   // Salary details
   salaryBase: number;
@@ -264,7 +266,7 @@ export interface LetterInward {
 
 export interface LetterOutward {
   id: string;
-  letterNumber: string; // Auto-generate like 001/SK/ESM/VI/2026
+  letterNumber: string; // Auto-generate like 001/SK/MMB/VI/2026
   templateType: 'SK' | 'Surat Tugas' | 'Surat Keterangan' | 'Surat Relasi' | 'Surat Peminjaman' | 'Surat Permohonan';
   recipient: string;
   subject: string;

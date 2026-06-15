@@ -64,7 +64,7 @@ export function exportSlipToPDF(
   doc.setFontSize(14);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   
-  const orgName = (profile?.name || 'YAYASAN EVANGELICAL STUDENT MOVEMENT (ESM)').toUpperCase();
+  const orgName = (profile?.name || 'YAYASAN MURID MUDA BERMISI (MMB)').toUpperCase();
   doc.text(orgName, 20, 22);
   
   doc.setFont('Helvetica', 'normal');
@@ -73,8 +73,8 @@ export function exportSlipToPDF(
   
   const orgAddress = profile?.address || 'Jl. Diponegoro No. 84, Menteng, Jakarta Pusat, DKI Jakarta 10103';
   const orgNpwp = profile?.npwp ? `NPWP: ${profile.npwp}` : 'NPWP: 01.234.567.8-012.000';
-  const orgPhone = profile?.phone ? `Telp: ${profile.phone}` : 'Telp: (021) 8888-ESM';
-  const orgEmail = profile?.email ? `Email: ${profile.email}` : 'Email: info@yayasan-esm.org';
+  const orgPhone = profile?.phone ? `Telp: ${profile.phone}` : 'Telp: (021) 8888-MMB';
+  const orgEmail = profile?.email ? `Email: ${profile.email}` : 'Email: info@yayasan-mmb.org';
   
   doc.text(`${orgAddress} • ${orgNpwp}`, 20, 27);
   doc.text(`${orgPhone} • ${orgEmail}`, 20, 32);
@@ -381,7 +381,7 @@ export function exportLedgerToPDF(data: any[], profile?: any) {
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(12);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    const orgName = (profile?.name || 'YAYASAN EVANGELICAL STUDENT MOVEMENT (ESM)').toUpperCase();
+    const orgName = (profile?.name || 'YAYASAN MURID MUDA BERMISI (MMB)').toUpperCase();
     doc.text(orgName, 15, 18);
 
     doc.setFont('Helvetica', 'normal');
@@ -389,8 +389,8 @@ export function exportLedgerToPDF(data: any[], profile?: any) {
     doc.setTextColor(textLight[0], textLight[1], textLight[2]);
     const orgAddress = profile?.address || 'Jl. Diponegoro No. 84, Menteng, Jakarta Pusat, DKI Jakarta 10103';
     const orgNpwp = profile?.npwp ? `NPWP: ${profile.npwp}` : 'NPWP: 01.234.567.8-012.000';
-    const orgPhone = profile?.phone ? `Telp: ${profile.phone}` : 'Telp: (021) 8888-ESM';
-    const orgEmail = profile?.email ? `Email: ${profile.email}` : 'Email: info@yayasan-esm.org';
+    const orgPhone = profile?.phone ? `Telp: ${profile.phone}` : 'Telp: (021) 8888-MMB';
+    const orgEmail = profile?.email ? `Email: ${profile.email}` : 'Email: info@yayasan-mmb.org';
 
     doc.text(`${orgAddress} • ${orgNpwp}`, 15, 22);
     doc.text(`${orgPhone} • ${orgEmail}`, 15, 26);
@@ -628,7 +628,7 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
       doc.setFont('Times', 'bold');
       doc.setFontSize(8);
       doc.setTextColor(185, 28, 28);
-      doc.text('ESM', 26, 25.5, { align: 'center' });
+      doc.text('MMB', 26, 25.5, { align: 'center' });
     }
   } else {
     doc.setDrawColor(185, 28, 28); // #B91C1C
@@ -642,13 +642,13 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
     doc.setFont('Times', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(185, 28, 28);
-    doc.text('ESM', 26, 25.5, { align: 'center' });
+    doc.text('MMB', 26, 25.5, { align: 'center' });
   }
 
   // 1b. Header text column aligned/centered relative to the page (with a dynamic offset for the left logo)
   const headerX = 114; // balanced center
 
-  const kopTitleText = (profile?.kopTitle || profile?.name || 'EVANGELICAL STUDENT MOVEMENT').toUpperCase();
+  const kopTitleText = (profile?.kopTitle || profile?.name || 'YAYASAN MURID MUDA BERMISI').toUpperCase();
   const kopMottoText = profile?.kopMotto || 'Kabar baik. Pemuridan. Misi.';
   const pAddress = profile?.address || 'Link. Pal. Asem, RT.01/RW.07, Panggung Rawi, Kec. Jombang, Kota Cilegon, Banten 42412';
   const pEmail = profile?.email || 'esmofnusantara@gmail.com';
@@ -744,7 +744,7 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
   doc.text(finalPlaceDate, 185, 45, { align: 'right' });
 
   // 3. Serial Number and Subject block matching standard left margin 25mm
-  doc.text(`Nomor   :  ${letter.letterNumber || '005/ESM/TPP/VI/2026'}`, 25, 53);
+  doc.text(`Nomor   :  ${letter.letterNumber || '005/MMB/TPP/VI/2026'}`, 25, 53);
   doc.text(`Perihal   :  ${letter.subject || 'Ucapan Terima Kasih atas Dukungan Pelayanan'}`, 25, 58.5);
 
   // 4. Recipient block aligned at left margin 25mm
@@ -769,7 +769,7 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
   y += 8;
 
   const contentText = letter.content || 
-    'Puji syukur kepada Tuhan atas dukungan dan perhatian yang diberikan kepada pelayanan ESM.\n\nMelalui surat ini, kami mengucapkan terima kasih atas komitmen Gracelife Community Church untuk melanjutkan dukungan dana pelayanan bagi Sdr. Yusuf Raja Tamba selama periode Juni 2026 – Mei 2027.\n\nKami menerima dan menghargai dukungan tersebut. Kiranya Tuhan membalas setiap kebaikan and terus memberkati pelayanan serta jemaat Gracelife Community Church.\n\nTerima kasih atas kemitraan dalam pekerjaan Tuhan.';
+    'Puji syukur kepada Tuhan atas dukungan dan perhatian yang diberikan kepada pelayanan MMB.\n\nMelalui surat ini, kami mengucapkan terima kasih atas komitmen Gracelife Community Church untuk melanjutkan dukungan dana pelayanan bagi Sdr. Yusuf Raja Tamba selama periode Juni 2026 – Mei 2027.\n\nKami menerima dan menghargai dukungan tersebut. Kiranya Tuhan membalas setiap kebaikan and terus memberkati pelayanan serta jemaat Gracelife Community Church.\n\nTerima kasih atas kemitraan dalam pekerjaan Tuhan.';
 
   doc.setLineHeightFactor(1.6); // set comfortable line height factor globally for body text
 
@@ -1010,7 +1010,7 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
       doc.setTextColor(37, 99, 235);
       doc.text('YAYASAN', finalStampX, finalStampY - (radius * 0.45), { align: 'center' });
       doc.setFontSize(Math.max(6, radius * 0.9));
-      doc.text('ESM', finalStampX, finalStampY + (radius * 0.09), { align: 'center' });
+      doc.text('MMB', finalStampX, finalStampY + (radius * 0.09), { align: 'center' });
       doc.setFontSize(Math.max(3, radius * 0.45));
       doc.text('CILEGON', finalStampX, finalStampY + (radius * 0.55), { align: 'center' });
     }
@@ -1128,15 +1128,15 @@ export function exportDashboardSummaryToPDF(birthdays: any[], pendingApprovals: 
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(12);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  const orgName = (profile?.name || 'YAYASAN EVANGELICAL STUDENT MOVEMENT (ESM)').toUpperCase();
+  const orgName = (profile?.name || 'YAYASAN MURID MUDA BERMISI (MMB)').toUpperCase();
   doc.text(orgName, 15, 18);
 
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(textLight[0], textLight[1], textLight[2]);
   const orgAddress = profile?.address || 'Jl. Diponegoro No. 84, Menteng, Jakarta Pusat, DKI Jakarta 10103';
-  const orgPhone = profile?.phone ? `Telp: ${profile.phone}` : 'Telp: (021) 8888-ESM';
-  const orgEmail = profile?.email ? `Email: ${profile.email}` : 'Email: info@yayasan-esm.org';
+  const orgPhone = profile?.phone ? `Telp: ${profile.phone}` : 'Telp: (021) 8888-MMB';
+  const orgEmail = profile?.email ? `Email: ${profile.email}` : 'Email: info@yayasan-mmb.org';
   doc.text(`${orgAddress} • ${orgPhone} • ${orgEmail}`, 15, 22);
 
   // Divider lines
@@ -1327,7 +1327,7 @@ export function exportDashboardSummaryToPDF(birthdays: any[], pendingApprovals: 
   y += 18;
   doc.setFont('Helvetica', 'bold');
   doc.setTextColor(textDark[0], textDark[1], textDark[2]);
-  doc.text('SEKRETARIAT YAYASAN ESM', 15, y);
+  doc.text('SEKRETARIAT YAYASAN MMB', 15, y);
   doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
   doc.setLineWidth(0.25);
   doc.line(15, y + 1, 65, y + 1);

@@ -252,7 +252,7 @@ app.post('/api/auth/register', async (req, res) => {
         name: name.trim(),
         phone: cleanPhone,
         email: docId,
-        address: 'Kantor Yayasan ESM',
+        address: 'Kantor Yayasan MMB',
         position: 'Staf Pelaksana',
         division: 'Umum',
         status: 'Kontrak',
@@ -435,7 +435,7 @@ app.post('/api/auth/forgot-password/challenge', async (req, res) => {
     }
     res.json({
       success: true,
-      question: 'Siapa nama Ketua Dewan Pembina Yayasan ESM Indonesia? (Petunjuk: Terdapat di struktur organisasi)'
+      question: 'Siapa nama Ketua Dewan Pembina Yayasan MMB? (Petunjuk: Terdapat di struktur organisasi)'
     });
   } catch (error: any) {
     console.error('Forgot password challenge error:', error);
@@ -707,7 +707,7 @@ app.get('/api/documents/download/:id', async (req, res) => {
 
       // Generate a simple, formal text file representation
       const fileContent = `=========================================
-YAYASAN PELAYANAN SISWA & MAHASISWA (ESM)
+YAYASAN MURID MUDA BERMISI (MMB)
           SALINAN DOKUMEN RESMI
 =========================================
 
@@ -720,7 +720,7 @@ INTEGRITAS  : TERVERIFIKASI SISTEM (ARSIP DIGITAL)
 -----------------------------------------
 Pemberitahuan Sistem:
 Dokumen ini merupakan salinan digital resmi dari arsip konstitusi Yayasan 
-Pelayanan Siswa & Mahasiswa. Hubungi Sekretaris Eksekutif untuk memperoleh 
+Murid Muda Bermisi. Hubungi Sekretaris Eksekutif untuk memperoleh 
 salinan cetak kelayakan fisik yang berstempel basah.
 
 Dokumen berhasil diunduh dari Cloud Database.
@@ -899,9 +899,9 @@ app.get('/api/documents/preview/:id', async (req, res) => {
 </head>
 <body>
   <div class="document">
-    <div class="watermark">ESM ARSIP RESMI</div>
+    <div class="watermark">MMB ARSIP RESMI</div>
     <div class="header">
-      <div class="school">Yayasan Pelayanan Siswa & Mahasiswa (ESM) Indonesia</div>
+      <div class="school">Yayasan Murid Muda Bermisi (MMB)</div>
       <div class="title">SI-ARSEP (Arsip Elektronik)</div>
       <div class="subtitle font-mono">DOKUMEN REGISTER: ${id}</div>
     </div>
@@ -927,16 +927,16 @@ app.get('/api/documents/preview/:id', async (req, res) => {
 
     <div class="info-footer">
       <strong>Catatan Keterangan Fisik:</strong><br>
-      Dokumen ini tercatat dalam pangkalan data digital SI-ARSEP ESM. Segala bentuk salinan digital di atas dinyatakan absah dan sesuai dengan salinan berkas fisik asli yang tersimpan di bawah penanganan Sekretaris Eksekutif Yayasan ESM.
+      Dokumen ini tercatat dalam pangkalan data digital SI-ARSEP MMB. Segala bentuk salinan digital di atas dinyatakan absah dan sesuai dengan salinan berkas fisik asli yang tersimpan di bawah penanganan Sekretaris Eksekutif Yayasan MMB.
     </div>
 
     <div class="stamp-area">
       <div style="font-size: 11px; color: #94a3b8;">
         Sistem Informasi Kearsipan Terpadu<br>
-        Yayasan Pelayanan ESM Indonesia
+        Yayasan Murid Muda Bermisi (MMB)
       </div>
       <div class="digital-seal">
-        DEPARTEMEN ARSIP<br>&bull;<br>ESM
+        DEPARTEMEN ARSIP<br>&bull;<br>MMB
       </div>
     </div>
   </div>
@@ -979,7 +979,7 @@ app.get('/api/inward_letters/download/:id', async (req, res) => {
 
     // Fallback: Generate structured formal text file representational metadata of the letter
     const textData = `========================================================================
-YAYASAN PELAYANAN SISWA & MAHASISWA INDONESIA (ESM)
+YAYASAN MURID MUDA BERMISI (MMB)
 SISTEM INFORMASI ARSIP SECARA ELEKTRONIK (SI-ARSEP)
 ------------------------------------------------------------------------
 ARSIP SALINAN DIGITAL: PENERIMAAN SURAT MASUK (INWARD MAIL)
@@ -995,13 +995,13 @@ ALUR STATUS DISPOS : ${letter.status || 'Disposisi'}
 ------------------------------------------------------------------------
 DESKRIPSI RINCIAN SURAT:
 Surat masuk ini telah terverifikasi dan tercatat secara komputerisasi 
-pada Database Sekretariat Yayasan Pelayanan Siswa & Mahasiswa (ESM) Indonesia.
+pada Database Sekretariat Yayasan Murid Muda Bermisi (MMB).
 
 Dokumen fisik asli (hardcopy) disimpan di lemari arsip Sekretariat Utama.
 Silakan hubungi staf sekretaris eksekutif dengan menyertakan Nomor Berkas
 di atas jika membutuhkan pemindaian fisik/stempel basah.
 
-Dokumen berhasil diunduh secara aman dari Sistem Informasi ESM.
+Dokumen berhasil diunduh secara aman dari Sistem Informasi MMB.
 ========================================================================`;
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -1117,7 +1117,7 @@ app.get('/api/inward_letters/preview/:id', async (req, res) => {
 <body>
   <div class="document">
     <div class="header">
-      <div class="school">YAYASAN PELAYANAN SISWA & MAHASISWA INDONESIA (ESM)</div>
+      <div class="school">YAYASAN MURID MUDA BERMISI (MMB)</div>
       <div class="title">SI-ARSEP (Sistem Informasi Arsip Elektronik)</div>
       <div style="font-size: 12px; color: #64748b;">Dokumen Salinan Digital Resmi Sekretariat</div>
     </div>
@@ -1151,7 +1151,7 @@ app.get('/api/inward_letters/preview/:id', async (req, res) => {
 
     <div class="notes-box">
       <strong>Catatan Keterangan Fisik:</strong><br>
-      Surat masuk asli telah diarsipkan di Sekretariat Utama Yayasan Pelayanan Siswa & Mahasiswa Indonesia (ESM). Informasi di atas diregistrasikan oleh operator sistem yang berwenang sebagai asupan disposisi pimpinan tingkat yayasan.
+      Surat masuk asli telah diarsipkan di Sekretariat Utama Yayasan Murid Muda Bermisi (MMB). Informasi di atas diregistrasikan oleh operator sistem yang berwenang sebagai asupan disposisi pimpinan tingkat yayasan.
     </div>
   </div>
 </body>

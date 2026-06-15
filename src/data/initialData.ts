@@ -457,7 +457,7 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     description: 'Sumbangan iuran alumni regional Surabaya',
     amount: 3000000,
     type: 'Income',
-    sourceOrRecipient: 'Ikatan Alumni ESM Sby',
+    sourceOrRecipient: 'Ikatan Alumni MMB Sby',
     status: 'Approved'
   },
   {
@@ -571,6 +571,8 @@ export const INITIAL_STAFF: Staff[] = [
     division: 'Pelayanan Wilayah',
     status: 'Tetap',
     joinedDate: '2020-03-01',
+    birthPlace: 'Medan',
+    birthDate: '1987-05-14',
     salaryBase: 7500000,
     allowancePosition: 1500000,
     allowanceHousing: 1000000,
@@ -595,6 +597,8 @@ export const INITIAL_STAFF: Staff[] = [
     division: 'Pelayanan Wilayah',
     status: 'Tetap',
     joinedDate: '2022-07-15',
+    birthPlace: 'Surabaya',
+    birthDate: '1992-11-20',
     salaryBase: 5500000,
     allowancePosition: 1000000,
     allowanceHousing: 800000,
@@ -620,6 +624,8 @@ export const INITIAL_STAFF: Staff[] = [
     status: 'Kontrak',
     joinedDate: '2024-05-10',
     contractEndDate: '2027-05-09',
+    birthPlace: 'Bandung',
+    birthDate: '1995-08-30',
     salaryBase: 4800000,
     allowancePosition: 500000,
     allowanceHousing: 500000,
@@ -644,6 +650,8 @@ export const INITIAL_STAFF: Staff[] = [
     division: 'Pelayanan Wilayah',
     status: 'Tetap',
     joinedDate: '2025-01-10',
+    birthPlace: 'Jakarta',
+    birthDate: '1998-01-01',
     salaryBase: 4200000,
     allowancePosition: 300000,
     allowanceHousing: 300000,
@@ -682,7 +690,7 @@ export const INITIAL_INWARD_LETTERS: LetterInward[] = [
 export const INITIAL_OUTWARD_LETTERS: LetterOutward[] = [
   {
     id: 'LETOUT-01',
-    letterNumber: '001/SK/ESM/VI/2026',
+    letterNumber: '001/SK/MMB/VI/2026',
     templateType: 'SK',
     recipient: 'Christian Sitorus',
     subject: 'Surat Keputusan Pengangkatan Pemimpin Kelompok Kecil Wilayah Yogyakarta',
@@ -693,7 +701,7 @@ export const INITIAL_OUTWARD_LETTERS: LetterOutward[] = [
   },
   {
     id: 'LETOUT-02',
-    letterNumber: '002/Surat-Tugas/ESM/VI/2026',
+    letterNumber: '002/Surat-Tugas/MMB/VI/2026',
     templateType: 'Surat Tugas',
     recipient: 'Sarah Sitorus, S.Psi.',
     subject: 'Surat Tugas Pendampingan Camp Encounter Salatiga',
@@ -704,7 +712,7 @@ export const INITIAL_OUTWARD_LETTERS: LetterOutward[] = [
   },
   {
     id: 'LETOUT-03',
-    letterNumber: '003/Permohonan/ESM/VI/2026',
+    letterNumber: '003/Permohonan/MMB/VI/2026',
     templateType: 'Surat Permohonan',
     recipient: 'Pengurus Wisma Retreat Salatiga',
     subject: 'Permohonan Keringanan Tarif Sewa Lokasi Camp Relasi',
@@ -716,7 +724,7 @@ export const INITIAL_OUTWARD_LETTERS: LetterOutward[] = [
 ];
 
 export const INITIAL_DOCUMENTS: OrgDocument[] = [
-  { id: 'DOC-01', name: 'Anggaran Dasar & Anggaran Rumah Tangga (AD-ART) ESM', category: 'Konstitusi Organisasi', uploadedDate: '2024-01-15', fileSize: '4.5 MB' },
+  { id: 'DOC-01', name: 'Anggaran Dasar & Anggaran Rumah Tangga (AD-ART) MMB', category: 'Konstitusi Organisasi', uploadedDate: '2024-01-15', fileSize: '4.5 MB' },
   { id: 'DOC-02', name: 'Standar Operasional Prosedur (SOP) Pengeluaran Kas & Reimbursement', category: 'SOP Keuangan', uploadedDate: '2024-02-10', fileSize: '1.8 MB' },
   { id: 'DOC-03', name: 'Akta Notaris Pendirian Yayasan Pelayanan Siswa & Mahasiswa', category: 'Legalitas Kelembagaan', uploadedDate: '2024-01-05', fileSize: '8.2 MB' },
   { id: 'DOC-04', name: 'Sertifikat Pendaftaran NPWP Yayasan Kementerian Keuangan', category: 'Perpajakan & Legalitas', uploadedDate: '2024-01-20', fileSize: '2.1 MB' }

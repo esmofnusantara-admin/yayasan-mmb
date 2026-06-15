@@ -452,12 +452,12 @@ export default function SystemTab({
   const [signatureTreasurerUrl, setSignatureTreasurerUrl] = useState(profile.signatureTreasurerUrl || '');
   const [customSignatures, setCustomSignatures] = useState<any[]>(profile.customSignatures || []);
   const [selectedCustomNodeId, setSelectedCustomNodeId] = useState<string>('');
-  const [kopTitle, setKopTitle] = useState(profile.kopTitle || 'EVANGELICAL STUDENT MOVEMENT');
+  const [kopTitle, setKopTitle] = useState(profile.kopTitle || 'YAYASAN MURID MUDA BERMISI');
   const [kopMotto, setKopMotto] = useState(profile.kopMotto || 'Kabar baik. Pemuridan. Misi.');
   const [isSignatureDirty, setIsSignatureDirty] = useState(false);
 
   // Dynamic system and dashboard titles
-  const [systemTitle, setSystemTitle] = useState(profile.systemTitle || 'ESM FMS');
+  const [systemTitle, setSystemTitle] = useState(profile.systemTitle || 'MMB FMS');
   const [dashboardTitle, setDashboardTitle] = useState(profile.dashboardTitle || 'Institutional Executive ERP');
 
   // Dynamic dropdown lists
@@ -516,7 +516,7 @@ export default function SystemTab({
         stampUrl === (last.stampUrl || '') &&
         logoUrl === (last.logoUrl || '') &&
         JSON.stringify(customSignatures) === JSON.stringify(last.customSignatures || []) &&
-        systemTitle === (last.systemTitle || 'ESM FMS') &&
+        systemTitle === (last.systemTitle || 'MMB FMS') &&
         dashboardTitle === (last.dashboardTitle || 'Institutional Executive ERP') &&
         JSON.stringify(regions) === JSON.stringify(last.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]) &&
         JSON.stringify(materialCategories) === JSON.stringify(last.materialCategories || ["Materi Dasar / Siswa", "Siswa & Mahasiswa", "Alumni", "Pelatihan Pemimpin (PKK)", "Materi Umum / Publik"]) &&
@@ -543,7 +543,7 @@ export default function SystemTab({
       website === (profile.website || '') &&
       npwp === (profile.npwp || '') &&
       skLegal === (profile.legalReg || '') &&
-      kopTitle === (profile.kopTitle || 'EVANGELICAL STUDENT MOVEMENT') &&
+      kopTitle === (profile.kopTitle || 'YAYASAN MURID MUDA BERMISI') &&
       kopMotto === (profile.kopMotto || 'Kabar baik. Pemuridan. Misi.') &&
       signatureUrl === (profile.signatureUrl || '') &&
       signatureChairmanUrl === (profile.signatureChairmanUrl || '') &&
@@ -552,7 +552,7 @@ export default function SystemTab({
       stampUrl === (profile.stampUrl || '') &&
       logoUrl === (profile.logoUrl || '') &&
       JSON.stringify(customSignatures) === JSON.stringify(profile.customSignatures || []) &&
-      systemTitle === (profile.systemTitle || 'ESM FMS') &&
+      systemTitle === (profile.systemTitle || 'MMB FMS') &&
       dashboardTitle === (profile.dashboardTitle || 'Institutional Executive ERP') &&
       JSON.stringify(regions) === JSON.stringify(profile.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]) &&
       JSON.stringify(materialCategories) === JSON.stringify(profile.materialCategories || ["Materi Dasar / Siswa", "Siswa & Mahasiswa", "Alumni", "Pelatihan Pemimpin (PKK)", "Materi Umum / Publik"]) &&
@@ -577,7 +577,7 @@ export default function SystemTab({
       setWebsite(profile.website || '');
       setNpwp(profile.npwp || '');
       setSkLegal(profile.legalReg || '');
-      setKopTitle(profile.kopTitle || 'EVANGELICAL STUDENT MOVEMENT');
+      setKopTitle(profile.kopTitle || 'YAYASAN MURID MUDA BERMISI');
       setKopMotto(profile.kopMotto || 'Kabar baik. Pemuridan. Misi.');
       setSignatureUrl(profile.signatureUrl || '');
       setSignatureChairmanUrl(profile.signatureChairmanUrl || '');
@@ -587,7 +587,7 @@ export default function SystemTab({
       setStampUrl(profile.stampUrl || '');
       setLogoUrl(profile.logoUrl || '');
       setIsSignatureDirty(false);
-      setSystemTitle(profile.systemTitle || 'ESM FMS');
+      setSystemTitle(profile.systemTitle || 'MMB FMS');
       setDashboardTitle(profile.dashboardTitle || 'Institutional Executive ERP');
       setRegions(profile.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]);
       setMaterialCategories(profile.materialCategories || ["Materi Dasar / Siswa", "Siswa & Mahasiswa", "Alumni", "Pelatihan Pemimpin (PKK)", "Materi Umum / Publik"]);
@@ -630,7 +630,7 @@ export default function SystemTab({
 
   const ALL_FEATURES = [
     { id: 'dashboard', label: 'Dashboard Utama' },
-    { id: 'members', label: 'Anggota & KTB' },
+    { id: 'members', label: 'Anggota Pelayanan' },
     { id: 'small_groups', label: 'Kelompok Kecil' },
     { id: 'finance', label: 'Keuangan & Kas' },
     { id: 'partners', label: 'Mitra & CRM' },
@@ -721,7 +721,7 @@ export default function SystemTab({
     };
     onUpdateProfile(updated);
     setIsSignatureDirty(false);
-    alert('Informasi legalitas profil institusi ESM berhasil diperbarui & dicadangkan.');
+    alert('Informasi legalitas profil institusi MMB berhasil diperbarui & dicadangkan.');
   };
 
   const handleSaveVariables = (e: React.FormEvent) => {
@@ -1163,7 +1163,7 @@ export default function SystemTab({
       {activeSubView === 'profile' && (
         <form onSubmit={handleUpdateProfile} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6 text-xs text-left">
           <div>
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1"><Building className="w-4 h-4 text-indigo-650" /> Identitas Hukum Yayasan ESM</h3>
+            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1"><Building className="w-4 h-4 text-indigo-650" /> Identitas Hukum Yayasan MMB</h3>
             <p className="text-slate-500 text-[11px] mt-0.5">Identitas ini otomatis disematkan pada slip gaji pegawai, kepala surat keluar, dan laporan fundraising donor.</p>
           </div>
 
@@ -1365,7 +1365,7 @@ export default function SystemTab({
                   <div>
                     <label className="text-slate-700 block mb-1 font-bold text-[11px] uppercase tracking-wide flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>
-                      Stempel Resmi Yayasan ESM
+                      Stempel Resmi Yayasan MMB
                     </label>
                     <p className="text-slate-400 text-[10px] mb-3">Akan dicetak di belakang tanda tangan (Pihak Kiri/Ketua) pada PDF.</p>
                   </div>
@@ -1453,7 +1453,7 @@ export default function SystemTab({
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
                       Tanda Tangan Ketua ({ketuaNameResolved})
                     </label>
-                    <p className="text-slate-400 text-[10px] mb-3">Tanda tangan resmi Ketua Yayasan ESM.</p>
+                    <p className="text-slate-400 text-[10px] mb-3">Tanda tangan resmi Ketua Yayasan MMB.</p>
                   </div>
 
                   <div className="flex items-center gap-4">
@@ -1539,7 +1539,7 @@ export default function SystemTab({
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-555 inline-block"></span>
                       Tanda Tangan Sekretaris ({sekretarisNameResolved})
                     </label>
-                    <p className="text-slate-400 text-[10px] mb-3">Tanda tangan resmi Sekretaris Yayasan ESM.</p>
+                    <p className="text-slate-400 text-[10px] mb-3">Tanda tangan resmi Sekretaris Yayasan MMB.</p>
                   </div>
 
                   <div className="flex items-center gap-4">
@@ -1940,7 +1940,7 @@ export default function SystemTab({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-sm font-bold text-slate-800">Visual Bagan Struktur Organisasi & Pengambil Keputusan</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Pilih salah satu tingkatan hierarki untuk mempelajari hak otorisasi dan rantai komando internal ESM.</p>
+              <p className="text-xs text-slate-500 mt-0.5">Pilih salah satu tingkatan hierarki untuk mempelajari hak otorisasi dan rantai komando internal MMB.</p>
             </div>
             
             {(currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan') && (
@@ -2511,7 +2511,7 @@ export default function SystemTab({
                   value={systemTitle}
                   onChange={(e) => setSystemTitle(e.target.value)}
                   className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-850 font-extrabold text-sm bg-white"
-                  placeholder="Contoh: ESM FMS"
+                  placeholder="Contoh: MMB FMS"
                   required
                 />
                 <p className="text-[10px] text-slate-400 mt-1">Muncul sebagai label utama di pojok kiri atas dasbor.</p>
@@ -2785,7 +2785,7 @@ export default function SystemTab({
 
               <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between">
                 <div>
-                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">👥 Komponen Pembinaan ESM ({memberComponents.length})</h4>
+                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">👥 Komponen Pembinaan MMB ({memberComponents.length})</h4>
                   <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto">
                     {memberComponents.map((comp, index) => (
                       <span key={index} className="inline-flex items-center gap-1 bg-sky-50 text-sky-700 px-2 py-1 rounded-lg text-[11px] font-semibold border border-sky-100">

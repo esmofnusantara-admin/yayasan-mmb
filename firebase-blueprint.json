@@ -232,6 +232,8 @@
         "status": { "type": "string", "enum": ["Tetap", "Kontrak", "Magang", "Resigned"] },
         "joinedDate": { "type": "string" },
         "contractEndDate": { "type": "string" },
+        "birthDate": { "type": "string" },
+        "birthPlace": { "type": "string" },
         "salaryBase": { "type": "number" },
         "allowancePosition": { "type": "number" },
         "allowanceHousing": { "type": "number" },

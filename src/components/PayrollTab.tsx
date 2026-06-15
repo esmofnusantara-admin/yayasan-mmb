@@ -1436,7 +1436,7 @@ export default function PayrollTab({
             {/* Header info */}
             <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4">
               <div>
-                <dt className="text-base font-extrabold text-slate-900 uppercase tracking-tight">{profile?.name || 'Yayasan Evangelical Student Movement (ESM)'}</dt>
+                <dt className="text-base font-extrabold text-slate-900 uppercase tracking-tight">{profile?.name || 'Yayasan Murid Muda Bermisi (MMB)'}</dt>
                 <dd className="text-[11px] text-slate-500 mt-1 max-w-md leading-relaxed">
                   {profile?.address || 'Jl. Diponegoro No. 84, Menteng, Jakarta Pusat, DKI Jakarta 10103'} 
                   {profile?.phone && ` • Telp: ${profile.phone}`}
@@ -1587,7 +1587,7 @@ export default function PayrollTab({
               </div>
               <div className="text-center sm:text-right font-sans text-xs shrink-0 border-l border-slate-800 pl-4">
                 <dt className="text-slate-450 text-[9px] font-bold tracking-wider">AUTHORIZED VERIFIER</dt>
-                <dd className="font-bold text-slate-200 mt-1 text-sm">{profile?.name ? `Bendahara ${profile.name}` : 'Bendahara Yayasan ESM'}</dd>
+                <dd className="font-bold text-slate-200 mt-1 text-sm">{profile?.name ? `Bendahara ${profile.name}` : 'Bendahara Yayasan MMB'}</dd>
                 <dd className="text-[10px] text-slate-400 font-mono mt-0.5">NPWP: {profile?.npwp || '01.234.567.8-012.000'}</dd>
               </div>
             </div>

@@ -35,6 +35,7 @@ import SystemTab from './components/SystemTab';
 import LoginScreen from './components/LoginScreen';
 import StaffMeTab from './components/StaffMeTab';
 import ReportsTab from './components/ReportsTab';
+import MMBLogo from './components/MMBLogo';
 
 // Import state type bindings & seed data
 import { 
@@ -100,17 +101,23 @@ export default function App() {
   const hasFeatureAccess = (feature: string): boolean => {
     if (!currentUser) return false;
     if (feature === 'staff_profile') return true; // Always allow self-profile
-    if (currentUser.features && currentUser.features.length > 0) {
-      return currentUser.features.includes(feature);
+    
+    // Explicitly deny restricted administrative areas for Staff role
+    if (currentUser.role === 'Staff' && (feature === 'finance' || feature === 'reports' || feature === 'partners' || feature === 'staff' || feature === 'payroll' || feature === 'approvals' || feature === 'system')) {
+      return false;
     }
+
     const defaultFeaturesMap: Record<string, string[]> = {
       'Super Admin': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports'],
       'Ketua Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports'],
       'Bendahara': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'staff_profile', 'reports'],
       'Sekretaris': ['dashboard', 'members', 'small_groups', 'letters', 'system', 'staff_profile', 'reports'],
-      'Staff': ['dashboard', 'members', 'small_groups', 'staff_profile', 'reports']
+      'Staff': ['dashboard', 'members', 'small_groups', 'staff_profile']
     };
     const roleFeatures = defaultFeaturesMap[currentUser.role] || ['dashboard'];
+    if (currentUser.features && currentUser.features.length > 0) {
+      return currentUser.features.includes(feature) || roleFeatures.includes(feature);
+    }
     return roleFeatures.includes(feature);
   };
 
@@ -1588,7 +1595,7 @@ if (!res.ok) {
           updatedAt: new Date().toISOString()
         })
       });
-      await logAudit('Merubah Parameter Konstitusi Hukum Lembaga ESM draf Akta Yayasan', 'Sistem');
+      await logAudit('Merubah Parameter Konstitusi Hukum Lembaga MMB draf Akta Yayasan', 'Sistem');
       loadProfile();
     } catch (e: any) {
       console.error(e);
@@ -1612,13 +1619,13 @@ if (!res.ok) {
             {profile.logoUrl ? (
               <img src={profile.logoUrl} alt="Logo Yayasan" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             ) : (
-              <div className="bg-[#2563EB] p-1.5 rounded-lg text-white w-full h-full flex items-center justify-center">
-                <Building2 className="w-4.5 h-4.5 text-white" />
+              <div className="p-0.5 w-full h-full flex items-center justify-center">
+                <MMBLogo size="100%" />
               </div>
             )}
           </div>
           <div>
-            <h1 id="header-system-title" className="font-extrabold text-sm tracking-tight text-slate-900 leading-none">{profile.systemTitle || 'ESM FMS'}</h1>
+            <h1 id="header-system-title" className="font-extrabold text-sm tracking-tight text-slate-900 leading-none">{profile.systemTitle || 'MMB FMS'}</h1>
             <span id="header-dashboard-title" className="text-[9px] text-[#64748B] font-bold uppercase tracking-widest block font-mono mt-1">{profile.dashboardTitle || 'Institutional Executive ERP'}</span>
           </div>
         </div>
@@ -1670,38 +1677,38 @@ if (!res.ok) {
       {/* Main Grid: Left Navigation Rail & Right Center Layout panel content */}
       <div className="flex-1 flex flex-col sm:flex-row relative h-[calc(100vh-61px)] overflow-hidden">
         
-        {/* SIDE BAR NAVIGATION RAIL (Left column - Geometric Slate-900 Dark Theme) */}
-        <nav className={`sm:w-60 bg-[#0F172A] border-r border-[#1E293B] p-4 shrink-0 flex flex-col justify-between absolute sm:relative inset-y-0 left-0 z-30 transition-transform duration-300 transform sm:translate-x-0 overflow-y-auto ${
+        {/* SIDE BAR NAVIGATION RAIL (Left column - Cozy, Elegant, Bright Light Theme) */}
+        <nav className={`sm:w-60 bg-white border-r border-slate-200 p-4 shrink-0 flex flex-col justify-between absolute sm:relative inset-y-0 left-0 z-30 transition-all duration-300 transform sm:translate-x-0 overflow-y-auto ${
           isMobileMenuOpen ? 'translate-x-0 w-60 shadow-2xl' : '-translate-x-full sm:translate-x-0'
         }`}>
           
           <div className="space-y-5">
             
             {/* Operator Active Badge Grid */}
-            <div className="p-3 bg-[#1E293B]/70 border border-[#334155]/65 rounded-xl flex flex-col gap-2">
+            <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col gap-2 shadow-xs/50">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-600 text-white font-extrabold rounded-lg text-xs flex items-center justify-center font-mono shadow-sm shrink-0">
+                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-blue-600 text-white font-extrabold rounded-lg text-xs flex items-center justify-center font-mono shadow-sm shrink-0">
                   {currentRole.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="text-xs truncate">
-                  <span className="text-[#94A3B8] block font-semibold text-[8px] uppercase tracking-widest font-mono">KONSEL OPERATOR</span>
-                  <strong className="text-slate-100 text-xs block truncate">{currentUser.name}</strong>
+                  <span className="text-slate-400 block font-bold text-[8px] uppercase tracking-widest font-mono">KONSEL OPERATOR</span>
+                  <strong className="text-slate-700 text-xs block truncate font-sans">{currentUser.name}</strong>
                 </div>
               </div>
-              <div className="border-t border-[#334155]/50 pt-1.5 flex items-center justify-between text-[11px]">
-                <span className="text-[#94A3B8] font-mono">{currentUser.role}</span>
+              <div className="border-t border-slate-200/50 pt-1.5 flex items-center justify-between text-[11px]">
+                <span className="text-slate-500 font-mono font-semibold">{currentUser.role}</span>
               </div>
             </div>
 
             {/* Micro Mobile Auth Logout */}
-            <div className="block sm:hidden text-xs space-y-2 bg-[#1E293B]/60 p-2.5 rounded-xl border border-slate-800">
-              <span className="text-[10px] text-slate-400 font-medium">Sesi Aktif: {currentUser.role}</span>
+            <div className="block sm:hidden text-xs space-y-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+              <span className="text-[10px] text-slate-500 font-medium">Sesi Aktif: {currentUser.role}</span>
               <button 
                 onClick={() => {
                   localStorage.removeItem('esm_session_user');
                   setCurrentUser(null);
                 }}
-                className="w-full py-1.5 bg-red-950/40 hover:bg-red-900/40 text-red-400 border border-red-900/60 rounded text-[11px] font-bold"
+                className="w-full py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100/50 rounded-xl text-[11px] font-bold transition-all cursor-pointer"
               >
                 Keluar Sesi
               </button>
@@ -1709,13 +1716,13 @@ if (!res.ok) {
 
             {/* Menu Sections layout List */}
             <div className="space-y-1">
-              <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#475569] block mb-2 px-3">Main Menu</span>
+              <span className="text-[9px] uppercase font-bold tracking-wider text-slate-400 block mb-2 px-3">Menu Utama</span>
               
               {hasFeatureAccess('dashboard') && (
                 <button 
                   onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-medium px-3.5 py-2 rounded-lg flex items-center gap-3 transition-colors cursor-pointer text-left ${
-                    activeTab === 'dashboard' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-500/20' : 'text-[#94A3B8] hover:bg-white/5 hover:text-[#F8FAFC]'
+                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
+                    activeTab === 'dashboard' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
                   }`}
                 >
                   <Building2 className="w-4 h-4 shrink-0" /> Dashboard
@@ -1725,19 +1732,19 @@ if (!res.ok) {
               {hasFeatureAccess('members') && (
                 <button 
                   onClick={() => { setActiveTab('members'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-medium px-3.5 py-2 rounded-lg flex items-center gap-3 transition-colors cursor-pointer text-left ${
-                    activeTab === 'members' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-500/20' : 'text-[#94A3B8] hover:bg-white/5 hover:text-[#F8FAFC]'
+                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
+                    activeTab === 'members' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
                   }`}
                 >
-                  <Users className="w-4 h-4 shrink-0" /> Anggota & KTB
+                  <Users className="w-4 h-4 shrink-0" /> Anggota Pelayanan
                 </button>
               )}
 
               {hasFeatureAccess('small_groups') && (
                 <button 
                   onClick={() => { setActiveTab('small_groups'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-medium px-3.5 py-2 rounded-lg flex items-center gap-3 transition-colors cursor-pointer text-left ${
-                    activeTab === 'small_groups' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#94A3B8] hover:bg-white/5 hover:text-[#F8FAFC]'
+                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
+                    activeTab === 'small_groups' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
                   }`}
                 >
                   <BookOpen className="w-4 h-4 shrink-0" /> Kelompok Kecil
@@ -1747,8 +1754,8 @@ if (!res.ok) {
               {hasFeatureAccess('finance') && (
                 <button 
                   onClick={() => { setActiveTab('finance'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-medium px-3.5 py-2 rounded-lg flex items-center gap-3 transition-colors cursor-pointer text-left ${
-                    activeTab === 'finance' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#94A3B8] hover:bg-white/5 hover:text-[#F8FAFC]'
+                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
+                    activeTab === 'finance' ? 'bg-[#2563EB] text-white shadow-md' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
                   }`}
                 >
                   <Wallet className="w-4 h-4 shrink-0" /> Keuangan & Kas
@@ -1758,8 +1765,8 @@ if (!res.ok) {
               {hasFeatureAccess('reports') && (
                 <button 
                   onClick={() => { setActiveTab('reports'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-medium px-3.5 py-2 rounded-lg flex items-center gap-3 transition-colors cursor-pointer text-left ${
-                    activeTab === 'reports' ? 'bg-[#2563EB] text-white shadow-sm shadow-indigo-500/10' : 'text-[#94A3B8] hover:bg-white/5 hover:text-[#F8FAFC]'
+                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
+                    activeTab === 'reports' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
                   }`}
                 >
                   <FilePieChart className="w-4 h-4 shrink-0" /> Pusat Laporan
@@ -1767,14 +1774,14 @@ if (!res.ok) {
               )}
 
               {(hasFeatureAccess('partners') || hasFeatureAccess('staff') || hasFeatureAccess('payroll') || hasFeatureAccess('letters') || hasFeatureAccess('approvals') || hasFeatureAccess('reports')) && (
-                <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#475569] block pt-3 pb-2 px-3">Administration</span>
+                <span className="text-[9px] uppercase font-bold tracking-wider text-slate-400 block pt-4 pb-2 px-3">Administrasi</span>
               )}
 
               {hasFeatureAccess('partners') && (
                 <button 
                   onClick={() => { setActiveTab('partners'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-medium px-3.5 py-2 rounded-lg flex items-center gap-3 transition-colors cursor-pointer text-left ${
-                    activeTab === 'partners' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-500/20' : 'text-[#94A3B8] hover:bg-white/5 hover:text-[#F8FAFC]'
+                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
+                    activeTab === 'partners' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
                   }`}
                 >
                   <HeartHandshake className="w-4 h-4 shrink-0" /> Mitra & Fundraising
@@ -1784,8 +1791,8 @@ if (!res.ok) {
               {hasFeatureAccess('staff') && (
                 <button 
                   onClick={() => { setActiveTab('staff'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-medium px-3.5 py-2 rounded-lg flex items-center gap-3 transition-colors cursor-pointer text-left ${
-                    activeTab === 'staff' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#94A3B8] hover:bg-white/5 hover:text-[#F8FAFC]'
+                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
+                    activeTab === 'staff' ? 'bg-[#2563EB] text-white shadow-md' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
                   }`}
                 >
                   <UserSquare2 className="w-4 h-4 shrink-0" /> Database Staf
@@ -1795,8 +1802,8 @@ if (!res.ok) {
               {hasFeatureAccess('payroll') && (
                 <button 
                   onClick={() => { setActiveTab('payroll'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-medium px-3.5 py-2 rounded-lg flex items-center gap-3 transition-colors cursor-pointer text-left ${
-                    activeTab === 'payroll' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-500/20' : 'text-[#94A3B8] hover:bg-white/5 hover:text-[#F8FAFC]'
+                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
+                    activeTab === 'payroll' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
                   }`}
                 >
                   <Coins className="w-4 h-4 shrink-0 text-amber-500" /> Payroll & Slip Gaji
@@ -1806,8 +1813,8 @@ if (!res.ok) {
               {hasFeatureAccess('letters') && (
                 <button 
                   onClick={() => { setActiveTab('letters'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-medium px-3.5 py-2 rounded-lg flex items-center gap-3 transition-colors cursor-pointer text-left ${
-                    activeTab === 'letters' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#94A3B8] hover:bg-white/5 hover:text-[#F8FAFC]'
+                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
+                    activeTab === 'letters' ? 'bg-[#2563EB] text-white shadow-md' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
                   }`}
                 >
                   <FileText className="w-4 h-4 shrink-0" /> Surat & Dokumen
@@ -1817,8 +1824,8 @@ if (!res.ok) {
               {hasFeatureAccess('approvals') && (
                 <button 
                   onClick={() => { setActiveTab('approvals'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-medium px-3.5 py-2 rounded-lg flex items-center justify-between transition-colors cursor-pointer text-left ${
-                    activeTab === 'approvals' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#94A3B8] hover:bg-white/5 hover:text-[#F8FAFC]'
+                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center justify-between transition-all cursor-pointer text-left ${
+                    activeTab === 'approvals' ? 'bg-[#2563EB] text-white shadow-md' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
                   }`}
                 >
                   <span className="flex items-center gap-3">
@@ -1827,7 +1834,7 @@ if (!res.ok) {
                   
                   {pendingApprovalsCount > 0 && (
                     <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                      activeTab === 'approvals' ? 'bg-white text-blue-700' : 'bg-blue-600/30 text-blue-400 font-mono'
+                      activeTab === 'approvals' ? 'bg-white text-blue-700' : 'bg-blue-100 text-blue-700 font-mono font-bold'
                     }`}>
                       {pendingApprovalsCount}
                     </span>
@@ -1838,25 +1845,25 @@ if (!res.ok) {
               {currentUser?.role !== 'Super Admin' && hasFeatureAccess('staff_profile') && (
                 <button 
                   onClick={() => { setActiveTab('staff_profile'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-medium px-3.5 py-2 rounded-lg flex items-center justify-between transition-all cursor-pointer text-left ${
-                    activeTab === 'staff_profile' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#94A3B8] hover:bg-white/5 hover:text-[#F8FAFC]'
+                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center justify-between transition-all cursor-pointer text-left ${
+                    activeTab === 'staff_profile' ? 'bg-[#2563EB] text-white shadow-md' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
                   }`}
                 >
                   <span className="flex items-center gap-3">
-                    <User className="w-4 h-4 shrink-0 text-emerald-400" /> Profil & Gaji Saya
+                    <User className="w-4 h-4 shrink-0 text-emerald-600" /> Profil & Gaji Saya
                   </span>
-                  <span className="text-[9px] font-mono bg-emerald-500/20 text-emerald-400 font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider scale-90">Staf</span>
+                  <span className="text-[9px] font-mono bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider scale-90">Staf</span>
                 </button>
               )}
 
               {hasFeatureAccess('system') && (
                 <>
-                  <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#475569] block pt-3 pb-2 px-3">Organization</span>
+                  <span className="text-[9px] uppercase font-bold tracking-wider text-slate-400 block pt-4 pb-2 px-3">Organisasi</span>
 
                   <button 
                     onClick={() => { setActiveTab('system'); setIsMobileMenuOpen(false); }}
-                    className={`w-full text-[13px] font-medium px-3.5 py-2 rounded-lg flex items-center gap-3 transition-colors cursor-pointer text-left ${
-                      activeTab === 'system' ? 'bg-[#2563EB] text-white shadow-sm animate-pulse' : 'text-[#94A3B8] hover:bg-white/5 hover:text-[#F8FAFC]'
+                    className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
+                      activeTab === 'system' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
                     }`}
                   >
                     <Server className="w-4 h-4 shrink-0" /> Profil & Audit Log
@@ -1868,9 +1875,9 @@ if (!res.ok) {
           </div>
 
           {/* Footer of Sidebar */}
-          <div className="pt-4 border-t border-[#1E293B] text-[10px] text-[#475569] leading-relaxed font-sans shrink-0">
-            <span className="font-bold text-slate-400">{profile.name || 'Yayasan ESM Indonesia'}</span>
-            <p className="mt-1">Geometric Balance &bull; v1.3</p>
+          <div className="pt-4 border-t border-slate-200 text-[10px] text-slate-400 leading-relaxed font-sans shrink-0">
+            <span className="font-bold text-slate-600">{profile.name || 'Yayasan Murid Muda Bermisi (MMB)'}</span>
+            <p className="mt-1">Tata Kerja Terpadu &bull; v1.3</p>
           </div>
 
         </nav>
@@ -1893,6 +1900,8 @@ if (!res.ok) {
                 onOpenQuickTx={() => { setActiveTab('finance'); setTimeout(() => alert('Silakan klik tombol "Entri Kas" di kanan atas untuk memproses pencatatan jurnal keuangan.'), 400); }}
                 onOpenQuickMember={() => { setActiveTab('members'); setTimeout(() => alert('Silakan klik tombol "Registrasi Anggota" di kanan atas.'), 400); }}
                 profile={profile}
+                staffs={staffs}
+                hasFeatureAccess={hasFeatureAccess}
               />
             )}
 

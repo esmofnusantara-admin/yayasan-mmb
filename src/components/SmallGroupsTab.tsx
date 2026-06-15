@@ -58,7 +58,7 @@ export default function SmallGroupsTab({
   profile,
   currentRole,
 }: SmallGroupsTabProps) {
-  const isEditable = ['Super Admin', 'Ketua Yayasan', 'Sekretaris'].includes(currentRole);
+  const isEditable = ['Super Admin', 'Ketua Yayasan', 'Sekretaris', 'Staff'].includes(currentRole);
 
   // Navigation inside groups
   const [activeSubView, setActiveSubView] = useState<'groups' | 'meetings' | 'materials'>('groups');
@@ -288,7 +288,7 @@ export default function SmallGroupsTab({
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(22);
         doc.setTextColor(30, 41, 59); // slate-800
-        doc.text("YAYASAN EL SHADDAI MINISTRY", 15, 35);
+        doc.text("YAYASAN MURID MUDA BERMISI", 15, 35);
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
@@ -340,7 +340,7 @@ export default function SmallGroupsTab({
         doc.setFont('helvetica', 'italic');
         doc.setFontSize(9);
         doc.setTextColor(148, 163, 184); // slate-400
-        doc.text(`ID Referensi: ${material.id} | Versi Cetak Digital Resmi - El Shaddai Ministry`, 15, footerY + 8);
+        doc.text(`ID Referensi: ${material.id} | Versi Cetak Digital Resmi - MMB Indonesia`, 15, footerY + 8);
         doc.text(`Unduhan Elektronik: ${new Date().toLocaleDateString('id-ID')} | Status: Terakreditasi`, 15, footerY + 13);
 
         doc.save(`${material.title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
@@ -784,7 +784,7 @@ export default function SmallGroupsTab({
           <div>
             <h3 className="text-md font-semibold text-slate-800">Kurikulum & Materi Pelayanan (Discipleship Library)</h3>
             <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Arsip bahan ajar resmi yang didistribusikan untuk bahan diskusi Kelompok Kecil ESM di semua tingkatan wilayah. Diakreditasi oleh Sekretariat Yayasan.
+              Arsip bahan ajar resmi yang didistribusikan untuk bahan diskusi Kelompok Kecil MMB di semua tingkatan wilayah. Diakreditasi oleh Sekretariat Yayasan.
             </p>
           </div>
 
@@ -961,7 +961,7 @@ export default function SmallGroupsTab({
             <div className="bg-indigo-900 px-6 py-4 text-white flex justify-between items-center">
               <div>
                 <dt className="text-sm font-bold">Unggah Kurikulum & Materi Baru</dt>
-                <dd className="text-[11px] text-indigo-200">Arsipkan bahan ajar KTB baru ke dalam Discipleship Library ESM.</dd>
+                <dd className="text-[11px] text-indigo-200">Arsipkan bahan ajar KTB baru ke dalam Discipleship Library MMB.</dd>
               </div>
               <button 
                 onClick={() => {

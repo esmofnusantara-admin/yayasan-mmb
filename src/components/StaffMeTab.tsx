@@ -56,7 +56,7 @@ export default function StaffMeTab({ currentUser, staffs, salaries = [], profile
     name: currentUser.name || 'Staf Operator',
     phone: currentUser.email?.includes('@') && !currentUser.email.startsWith('0') ? '' : currentUser.email,
     email: currentUser.email || '',
-    address: 'Sistem Karyawan Yayasan ESM',
+    address: 'Sistem Karyawan Yayasan MMB',
     position: currentUser.role || 'Staf Pelaksana',
     division: 'Umum',
     status: 'Kontrak',
@@ -388,8 +388,8 @@ export default function StaffMeTab({ currentUser, staffs, salaries = [], profile
                 {/* Invoice Letterhead */}
                 <div className="flex justify-between items-start border-b border-slate-200 pb-5">
                   <div className="space-y-1">
-                    <span className="text-[#2563EB] font-mono text-[9px] font-extrabold uppercase tracking-widest block">EVANGELICAL STUDENT MOVEMENT</span>
-                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">YAYASAN ESM INDONESIA</h4>
+                    <span className="text-[#2563EB] font-mono text-[9px] font-extrabold uppercase tracking-widest block">MURID MUDA BERMISI</span>
+                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">YAYASAN MURID MUDA BERMISI (MMB)</h4>
                     <span className="text-[10px] text-slate-400 block font-mono">Gedung Pusat Administrasi &bull; Jakarta-Yogyakarta</span>
                   </div>
                   <div className="text-right">
@@ -416,7 +416,7 @@ export default function StaffMeTab({ currentUser, staffs, salaries = [], profile
                     <span className="text-[9px] text-slate-400 font-mono font-bold uppercase block sm:text-right">Tanggal Penyelesaian Dana :</span>
                     <div>
                       <strong className="text-slate-800 text-[12px]">Rabu, 10 Juni 2026</strong>
-                      <span className="text-slate-500 block text-[11px]">Via Kas Utama Yayasan ESM</span>
+                      <span className="text-slate-500 block text-[11px]">Via Kas Utama Yayasan MMB</span>
                     </div>
                     <span className="text-slate-400 block text-[10px] font-mono">Metode: Transfer Bank Mandiri</span>
                   </div>
@@ -512,7 +512,7 @@ export default function StaffMeTab({ currentUser, staffs, salaries = [], profile
                   <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 flex items-center gap-3 text-[11px] leading-relaxed text-slate-500">
                     <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
                     <p>
-                      <strong>Sertifikat Keabsahan Digital:</strong> Slip ini sah secara digital diterbitkan oleh Bendahara & Sistem ERP Lembaga ESM. Jika terdapat selisih pencatatan atau keterlambatan transfer, mohon ajukan pertanyaan ke koordinator keuangan di menu Sekretariat.
+                      <strong>Sertifikat Keabsahan Digital:</strong> Slip ini sah secara digital diterbitkan oleh Bendahara & Sistem ERP Lembaga MMB. Jika terdapat selisih pencatatan atau keterlambatan transfer, mohon ajukan pertanyaan ke koordinator keuangan di menu Sekretariat.
                     </p>
                   </div>
                 </div>

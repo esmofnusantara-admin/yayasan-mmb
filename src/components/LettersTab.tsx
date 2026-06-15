@@ -375,7 +375,7 @@ export default function LettersTab({
   };
 
   // Generate automated outbound serial letter number
-  // Format: 001/SK/ESM/VII/2026
+  // Format: 001/SK/MMB/VII/2026
   const generateOutwardLetterNumber = (typeCode: string) => {
     const currentMonth = new Date().getMonth(); // 0-indexed
     const currentYear = new Date().getFullYear();
@@ -391,7 +391,7 @@ export default function LettersTab({
     else if (typeCode === 'Surat Peminjaman') abbrev = 'Peminjaman';
     else if (typeCode === 'Surat Permohonan') abbrev = 'Permohonan';
 
-    return `${serial}/${abbrev}/ESM/${roman}/${currentYear}`;
+    return `${serial}/${abbrev}/MMB/${roman}/${currentYear}`;
   };
 
   const handleSaveInwardLetter = (e: React.FormEvent) => {
@@ -993,7 +993,7 @@ export default function LettersTab({
                   type="text" 
                   value={newDocName}
                   onChange={(e) => setNewDocName(e.target.value)}
-                  placeholder="Contoh: AD-ART ESM Terbaru 2026"
+                  placeholder="Contoh: AD-ART MMB Terbaru 2026"
                   className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800 focus:outline-none"
                   required
                 />
@@ -1303,7 +1303,7 @@ export default function LettersTab({
                   <Mail className="w-4 h-4 text-indigo-400" /> Detil Arsip Surat Masuk
                 </dt>
                 <dd className="text-[11px] text-slate-350">
-                  Surat diterima dan diarsipkan di database sekretariat ESM.
+                  Surat diterima dan diarsipkan di database sekretariat MMB.
                 </dd>
               </div>
               <button 
@@ -1391,7 +1391,7 @@ export default function LettersTab({
                     <button
                       type="button"
                       onClick={() => {
-                        const demoText = `YAYASAN PELAYANAN SISWA & MAHASISWA INDONESIA (ESM)
+                        const demoText = `YAYASAN MURID MUDA BERMISI (MMB)
 --------------------------------------------------
 DOKUMEN INTEGRASI SURAT MASUK (SIMULASI PENERIMAAN)
 --------------------------------------------------
@@ -2010,14 +2010,14 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                     <div className="w-[62px] h-[62px] border border-red-700 rounded-full flex items-center justify-center relative">
                       <div className="absolute inset-y-0 left-1/2 w-[1px] bg-red-700/60"></div>
                       <div className="absolute inset-x-0 top-1/2 h-[1px] bg-red-700/60"></div>
-                      <span className="font-serif font-black text-[9px] text-red-700 bg-white px-1 z-10 tracking-wider">ESM</span>
+                      <span className="font-serif font-black text-[9px] text-red-700 bg-white px-1 z-10 tracking-wider">MMB</span>
                     </div>
                   </div>
                 )}
                 
                 <div className="flex-1 text-center">
                   <h2 className="font-serif italic font-extrabold text-[15px] md:text-[21px] tracking-tight text-slate-900 uppercase leading-tight">
-                    {profile?.kopTitle || profile?.name || 'EVANGELICAL STUDENT MOVEMENT'}
+                    {profile?.kopTitle || profile?.name || 'YAYASAN MURID MUDA BERMISI'}
                   </h2>
                   <p className="font-serif font-black text-[10px] md:text-[11.5px] text-slate-800 tracking-widest mt-0.5 uppercase">
                     {profile?.kopMotto || 'Kabar baik. Pemuridan. Misi.'}
@@ -2163,7 +2163,7 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                           >
                             <div className="w-[82%] h-[82%] border border-blue-600 rounded-full flex flex-col items-center justify-center font-sans font-bold text-blue-600 select-none bg-white/50">
                               <span className="text-[5px] uppercase tracking-wide leading-none">YAYASAN</span>
-                              <span className="text-xs font-black tracking-widest leading-none my-0.5 mt-0.5 text-blue-600">ESM</span>
+                              <span className="text-xs font-black tracking-widest leading-none my-0.5 mt-0.5 text-blue-600">MMB</span>
                               <span className="text-[5px] uppercase tracking-wide leading-none">CILEGON</span>
                             </div>
                           </div>

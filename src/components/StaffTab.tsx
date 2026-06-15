@@ -52,6 +52,8 @@ export default function StaffTab({
   const [sDivision, setSDivision] = useState('Pelayanan Wilayah');
   const [sStatus, setSStatus] = useState<'Tetap' | 'Kontrak' | 'Magang' | 'Resigned'>('Tetap');
   const [sContractEndDate, setSContractEndDate] = useState('');
+  const [sBirthPlace, setSBirthPlace] = useState('');
+  const [sBirthDate, setSBirthDate] = useState('');
   
   // Re-hire inline panel state
   const [isRehireOpen, setIsRehireOpen] = useState(false);
@@ -140,6 +142,8 @@ export default function StaffTab({
     setSDivision('Pelayanan Wilayah');
     setSStatus('Tetap');
     setSContractEndDate('');
+    setSBirthPlace('');
+    setSBirthDate('');
     setBaseSalary(4500000);
     setIsFormOpen(true);
   };
@@ -155,6 +159,8 @@ export default function StaffTab({
     setSDivision(stf.division || 'Pelayanan Wilayah');
     setSStatus(stf.status || 'Tetap');
     setSContractEndDate(stf.contractEndDate || '');
+    setSBirthPlace(stf.birthPlace || '');
+    setSBirthDate(stf.birthDate || '');
     setBaseSalary(stf.salaryBase || 4500000);
     setIsFormOpen(true);
   };
@@ -177,6 +183,8 @@ export default function StaffTab({
       status: sStatus,
       joinedDate: editingStaff ? editingStaff.joinedDate : new Date().toISOString().split('T')[0],
       contractEndDate: sContractEndDate || undefined,
+      birthPlace: sBirthPlace || undefined,
+      birthDate: sBirthDate || undefined,
       salaryBase: Number(baseSalary),
       // Retain or set standard empty defaults which can be customised in Payroll panel
       allowancePosition: editingStaff ? editingStaff.allowancePosition : 300000,
@@ -252,7 +260,7 @@ export default function StaffTab({
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight">Database Staf & Kepegawaian</h2>
-          <p className="text-xs text-slate-500 mt-1">Registrasi status pelayanan, profil hubungan kontrak kerja, divisi struktural, dan legalitas karir staf ESM.</p>
+          <p className="text-xs text-slate-500 mt-1">Registrasi status pelayanan, profil hubungan kontrak kerja, divisi struktural, dan legalitas karir staf MMB.</p>
         </div>
 
         <div className="flex gap-2">
@@ -390,6 +398,8 @@ export default function StaffTab({
                   <div className="space-y-2 text-slate-650 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
                     <p><strong>E-mail:</strong> {selectedStaff.email || '-'}</p>
                     <p><strong>Telepon:</strong> {selectedStaff.phone || '-'}</p>
+                    <p><strong>Tempat Lahir:</strong> {selectedStaff.birthPlace || '-'}</p>
+                    <p><strong>Tanggal Lahir:</strong> {selectedStaff.birthDate || '-'}</p>
                     <p className="leading-relaxed"><strong>Alamat Domisili:</strong> {selectedStaff.address || '-'}</p>
                   </div>
                 </div>
@@ -527,7 +537,7 @@ export default function StaffTab({
             <div className="bg-slate-950 px-6 py-4 text-white flex justify-between items-center">
               <div>
                 <dt className="text-sm font-bold">{editingStaff ? 'Ubah Akun Data Staf' : 'Registrasi Profil Angkatan Staf Baru'}</dt>
-                <dd className="text-[11px] text-slate-300">Setiap penerimaan kontrak kerja tunduk pada SK Pengurus Yayasan ESM.</dd>
+                <dd className="text-[11px] text-slate-300">Setiap penerimaan kontrak kerja tunduk pada SK Pengurus Yayasan MMB.</dd>
               </div>
               <button onClick={() => setIsFormOpen(false)} className="text-slate-400 hover:text-white cursor-pointer"><X className="w-5 h-5" /></button>
             </div>
@@ -574,6 +584,26 @@ export default function StaffTab({
                       value={sPhone}
                       onChange={(e) => setSPhone(e.target.value)}
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-slate-500 block mb-1">Tempat Lahir :</label>
+                    <input 
+                      type="text" 
+                      value={sBirthPlace}
+                      onChange={(e) => setSBirthPlace(e.target.value)}
+                      placeholder="Contoh: Jakarta"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-500 block mb-1">Tanggal Lahir :</label>
+                    <input 
+                      type="date" 
+                      value={sBirthDate}
+                      onChange={(e) => setSBirthDate(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none"
                     />
                   </div>
 

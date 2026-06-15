@@ -63,7 +63,7 @@ export default function MembersTab({
   currentRole,
   profile,
 }: MembersTabProps) {
-  const isEditable = ['Super Admin', 'Ketua Yayasan', 'Sekretaris'].includes(currentRole);
+  const isEditable = ['Super Admin', 'Ketua Yayasan', 'Sekretaris', 'Staff'].includes(currentRole);
 
   // Navigation within sub-tabs in Members
   const [subTab, setSubTab] = useState<'directory' | 'notes' | 'prayers' | 'followup' | 'import'>('directory');
@@ -411,7 +411,7 @@ export default function MembersTab({
       {/* Tab Header Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Manajemen Anggota ESM</h2>
+          <h2 className="text-xl font-bold text-slate-800">Manajemen Anggota MMB</h2>
           <p className="text-xs text-slate-500">Administrasi database kaderisasi, pembinaan kelompok kecil, & monitoring rohani siswa - alumni.</p>
         </div>
         
@@ -1025,7 +1025,7 @@ export default function MembersTab({
           <div className="space-y-3">
             <span className="text-xs font-mono font-bold text-indigo-600 uppercase block">FORMAT KOLOM TRANSFER DATA:</span>
             <div className="bg-slate-900 text-slate-300 font-mono text-[10px] p-3 rounded-xl border border-slate-800 overflow-x-auto whitespace-nowrap leading-relaxed">
-              Nama_Lengkap | Jenis_Kelamin | Tempat_Lahir | Tanggal_Lahir | No_HP | Email | Alamat | Kota | Provinsi | Instagram | Gereja_Asal | Pendidikan | Pekerjaan | Komponen_ESM (Siswa/Mahasiswa/Alumni) | Wilayah
+              Nama_Lengkap | Jenis_Kelamin | Tempat_Lahir | Tanggal_Lahir | No_HP | Email | Alamat | Kota | Provinsi | Instagram | Gereja_Asal | Pendidikan | Pekerjaan | Komponen_MMB (Siswa/Mahasiswa/Alumni) | Wilayah
             </div>
             
             <div>
@@ -1064,7 +1064,7 @@ export default function MembersTab({
             <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
               <div>
                 <dt className="text-sm font-bold">{editingMember ? 'Edit Data Profil Anggota' : 'Registrasi Anggota Baru'}</dt>
-                <dd className="text-[11px] text-slate-300 mt-0.5">Lengkapi formulir biodata dan penugasan wilayah ESM.</dd>
+                <dd className="text-[11px] text-slate-300 mt-0.5">Lengkapi formulir biodata dan penugasan wilayah MMB.</dd>
               </div>
               <button 
                 onClick={() => setIsFormOpen(false)}
@@ -1236,7 +1236,7 @@ export default function MembersTab({
                 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="text-slate-500 block mb-1">Komponen Kategori ESM :</label>
+                    <label className="text-slate-500 block mb-1">Komponen Kategori MMB :</label>
                     <select 
                       value={component}
                       onChange={(e) => setComponent(e.target.value as any)}

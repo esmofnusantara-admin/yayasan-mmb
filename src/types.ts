@@ -242,6 +242,8 @@ export interface Staff {
 
   customFields?: CustomPayrollField[];
   paidAmount?: number;
+  lastMonthUnpaid?: number; // Sisa kekurangan / utang gaji bulan lalu
+  lastPayrollMonth?: string; // Bulan siklus payroll terakhir (e.g. '2026-06')
 }
 
 export interface CareerHistory {

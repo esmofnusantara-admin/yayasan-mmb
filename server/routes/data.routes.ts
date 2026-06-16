@@ -1,13 +1,14 @@
-import { Router } from 'express';
-import path from 'path';
+import { Router, Request, Response } from 'express';
 import fs from 'fs';
-import { dbDriver, cleanObjectForFirestore } from '../db/driver';
-import { syncTransactionSubcollections } from '../services/transaction-sync.service';
+import path from 'path';
+import { dbDriver } from '../db/driver';
+import { authenticateToken, checkCollectionPermission } from './auth.routes';
+import { cleanObjectForFirestore, syncTransactionSubcollections } from '../services/transaction-sync.service';
 
 const router = Router();
 
 // GET collection elements
-router.get('/:colName', async (req, res) => {
+router.get('/:colName', authenticateToken, checkCollectionPermission, async (req: any, res: Response) => {
   const { colName } = req.params;
   const includeDeleted = req.query.includeDeleted === 'true';
   try {
@@ -47,7 +48,7 @@ router.get('/:colName', async (req, res) => {
 });
 
 // POST create/set document
-router.post('/:colName/:id', async (req, res) => {
+router.post('/:colName/:id', authenticateToken, checkCollectionPermission, async (req: Request, res: Response) => {
   const { colName, id } = req.params;
   const payload = req.body;
   try {
@@ -61,7 +62,7 @@ router.post('/:colName/:id', async (req, res) => {
 });
 
 // PUT update document
-router.put('/:colName/:id', async (req, res) => {
+router.put('/:colName/:id', authenticateToken, checkCollectionPermission, async (req: Request, res: Response) => {
   const { colName, id } = req.params;
   const payload = req.body;
   try {
@@ -84,9 +85,9 @@ router.put('/:colName/:id', async (req, res) => {
 });
 
 // DELETE soft-delete document setting deleted: true (with deep merging to satisfy security schemas)
-router.delete('/:colName/:id', async (req, res) => {
+router.delete('/:colName/:id', authenticateToken, checkCollectionPermission, async (req: any, res: Response) => {
   const { colName, id } = req.params;
-  const userRole = req.headers['x-user-role'] || req.query.role;
+  const userRole = req.user.role;
   const isSuperAdmin = userRole === 'Super Admin' || userRole === 'Ketua Yayasan';
 
   console.log(`[DELETE ENDPOINT] Attempting delete for ${colName}/${id} by ${userRole} (isSuperAdmin: ${isSuperAdmin})`);
@@ -121,7 +122,7 @@ router.delete('/:colName/:id', async (req, res) => {
 
     if (existingData) {
       const updatedPayload = {
-        ...existingData,
+         ...existingData,
         deleted: true,
         deletedAt: new Date().toISOString(),
         deletedBy: isSuperAdmin ? 'Super Admin' : (userRole || 'System')
@@ -149,14 +150,6 @@ router.delete('/:colName/:id', async (req, res) => {
       const cleaned = cleanObjectForFirestore(newPayload);
       console.log(`[DELETE ENDPOINT] Document not found, writing deleted placeholder for ${colName}/${id}`);
       await dbDriver.setDoc(colName, id, cleaned);
-
-      if (colName === 'transactions') {
-        try {
-          await syncTransactionSubcollections(newPayload, true, String(userRole || 'System'), isSuperAdmin ? 'Super Admin' : 'System');
-        } catch (subErr) {
-          console.warn(`[DELETE ENDPOINT] Propagation of soft-delete failed for sub-collections:`, subErr);
-        }
-      }
     }
     res.json({ success: true });
   } catch (error: any) {
@@ -171,4 +164,5 @@ router.delete('/:colName/:id', async (req, res) => {
   }
 });
 
-export default router;
+export const dataRouter = router;
+export default dataRouter;

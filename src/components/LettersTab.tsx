@@ -27,6 +27,19 @@ import {
 import { LetterInward, LetterOutward, OrgDocument, InstitutionalProfile } from '../types';
 import { exportToCSV, exportLetterToPDF } from '../utils/export';
 
+const getSessionUserToken = () => {
+  try {
+    const saved = localStorage.getItem('esm_session_user');
+    if (saved) {
+      const user = JSON.parse(saved);
+      return user?.token || '';
+    }
+  } catch (err) {
+    console.error(err);
+  }
+  return '';
+};
+
 interface LettersTabProps {
   inwardLetters: LetterInward[];
   outwardLetters: LetterOutward[];
@@ -938,7 +951,7 @@ export default function LettersTab({
                       <Eye className="w-3.5 h-3.5" /> Pratinjau
                     </button>
                     <a 
-                      href={`/api/documents/download/${doc.id}`}
+                      href={`/api/documents/download/${doc.id}?token=${getSessionUserToken()}`}
                       download
                       className="p-1 px-3 bg-slate-800 hover:bg-slate-900 border border-slate-705 text-white font-bold rounded-lg text-[10px] flex items-center gap-1 cursor-pointer transition-colors"
                     >
@@ -1075,7 +1088,7 @@ export default function LettersTab({
               {/* Left Side: Browser Preview Frame */}
               <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-inner overflow-hidden relative flex flex-col h-full">
                 <iframe 
-                  src={`/api/documents/preview/${previewingDocument.id}`}
+                  src={`/api/documents/preview/${previewingDocument.id}?token=${getSessionUserToken()}`}
                   className="w-full h-full border-none"
                   title={`Pratinjau dari ${previewingDocument.name}`}
                 />
@@ -1109,7 +1122,7 @@ export default function LettersTab({
 
                 <div className="space-y-2 pt-2 border-t border-slate-100">
                   <a 
-                    href={`/api/documents/download/${previewingDocument.id}`}
+                    href={`/api/documents/download/${previewingDocument.id}?token=${getSessionUserToken()}`}
                     download
                     className="w-full py-2 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                   >
@@ -1366,7 +1379,7 @@ export default function LettersTab({
                     
                     <div className="flex gap-1.5 shrink-0">
                       <a 
-                        href={`/api/inward_letters/preview/${readingInwardLetter.id}`} 
+                        href={`/api/inward_letters/preview/${readingInwardLetter.id}?token=${getSessionUserToken()}`} 
                         target="_blank" 
                         rel="noreferrer"
                         className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
@@ -1374,7 +1387,7 @@ export default function LettersTab({
                         Pratinjau
                       </a>
                       <a 
-                        href={`/api/inward_letters/download/${readingInwardLetter.id}`} 
+                        href={`/api/inward_letters/download/${readingInwardLetter.id}?token=${getSessionUserToken()}`} 
                         download={`Scan_Surat_Masuk_${readingInwardLetter.letterNumber?.replace(/\//g, '_') || 'doc'}.pdf`}
                         className="px-3 py-1.5 bg-indigo-550 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
                       >

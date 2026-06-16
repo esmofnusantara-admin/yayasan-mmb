@@ -1,10 +1,11 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { dbDriver } from '../db/driver';
+import { authenticateToken } from './auth.routes';
 
 const router = Router();
 
 // Custom Inward Letter Download Endpoint
-router.get('/download/:id', async (req, res) => {
+router.get('/download/:id', authenticateToken, async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const letter = await dbDriver.getDoc('inward_letters', id);
@@ -68,7 +69,7 @@ Dokumen berhasil diunduh secara aman dari Sistem Informasi MMB.
 });
 
 // Custom Inward Letter Preview Endpoint
-router.get('/preview/:id', async (req, res) => {
+router.get('/preview/:id', authenticateToken, async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const letter = await dbDriver.getDoc('inward_letters', id);
@@ -216,4 +217,5 @@ router.get('/preview/:id', async (req, res) => {
   }
 });
 
-export default router;
+export const lettersRouter = router;
+export default lettersRouter;

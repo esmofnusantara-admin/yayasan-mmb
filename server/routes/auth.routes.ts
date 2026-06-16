@@ -1,10 +1,89 @@
-import { Router } from 'express';
-import { dbDriver, cleanObjectForFirestore } from '../db/driver';
+import { Router, Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
+import { dbDriver } from '../db/driver';
 import { seedUsersIfEmpty } from '../services/seed.service';
+import { cleanObjectForFirestore } from '../services/transaction-sync.service';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'yayasan-mmb-super-secure-key-1029384756';
+
+export function generateToken(payload: { email: string, role: string, features: string[] }): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = crypto.createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest('base64url');
+  return `${header}.${body}.${signature}`;
+}
+
+export function verifyToken(token: string): { email: string, role: string, features: string[] } | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const [header, body, signature] = parts;
+    const expectedSignature = crypto.createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest('base64url');
+    if (signature !== expectedSignature) return null;
+    return JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+// Authentication middleware to protect API routes from unauthorized clients
+export const authenticateToken = (req: any, res: Response, next: NextFunction) => {
+  let token = '';
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+  } else if (req.query && req.query.token) {
+    token = req.query.token as string;
+  } else if (req.body && req.body.token) {
+    token = req.body.token;
+  }
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'Akses Ditolak: Token otentikasi tidak ditemukan. Harap masuk terlebih dahulu.' });
+  }
+
+  const decoded = verifyToken(token);
+  if (!decoded) {
+    return res.status(401).json({ success: false, message: 'Sesi Tidak Valid: Sesi Anda telah berakhir atau tanda tangan token tidak sah.' });
+  }
+
+  req.user = decoded;
+  next();
+};
+
+// Check if user has explicit access to a specific collection/resource
+export const checkCollectionPermission = (req: any, res: Response, next: NextFunction) => {
+  const { colName } = req.params;
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ success: false, message: 'Otentikasi wajib.' });
+  }
+
+  const role = user.role;
+
+  // 1. Highly restricted system admin collections
+  if (colName === 'users' || colName === 'system_state' || colName === 'audits') {
+    if (role !== 'Super Admin' && role !== 'Ketua Yayasan') {
+      return res.status(403).json({ success: false, message: 'Hak Akses Terbatas: Hanya Super Admin atau Ketua Yayasan yang diizinkan mengelola data sistem ini.' });
+    }
+  }
+
+  // 2. Financial, Payroll & Kas collections (Only Super Admin, Ketua Yayasan and Bendahara are authorized, or users with explicit 'reports' access for read-only GET requests)
+  if (colName === 'transactions' || colName === 'kas' || colName === 'salaries' || colName === 'staff' || colName === 'partners' || colName === 'categories' || colName === 'donations' || colName === 'incomes' || colName === 'expenses' || colName === 'detail_pengeluaran' || colName === 'detail_expenses' || colName === 'fundraising' || colName === 'payroll_payments') {
+    const isReadRequest = req.method === 'GET';
+    const hasReportsAccess = Array.isArray(user.features) && user.features.includes('reports');
+
+    if (!(role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Bendahara' || (isReadRequest && hasReportsAccess))) {
+      return res.status(403).json({ success: false, message: 'Hak Akses Terbatas: Anda tidak memiliki wewenang untuk melihat atau memodifikasi data keuangan/kepegawaian/kemitraan.' });
+    }
+  }
+
+  next();
+};
 
 const router = Router();
 
-router.post('/register', async (req, res) => {
+router.post('/register', async (req: Request, res: Response) => {
   const { name, phone, password, role } = req.body;
   try {
     await seedUsersIfEmpty();
@@ -88,7 +167,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', async (req: Request, res: Response) => {
   const { email, password } = req.body;
   try {
     await seedUsersIfEmpty();
@@ -118,14 +197,22 @@ router.post('/login', async (req, res) => {
           });
         }
 
+        const features = user.features || [];
+        const token = generateToken({
+          email: user.email || user.phone,
+          role: user.role,
+          features: features
+        });
+
         return res.json({
           success: true,
           user: {
             email: user.email || user.phone,
             name: user.name,
             role: user.role,
-            features: user.features || [],
-            approved: user.approved !== false
+            features: features,
+            approved: user.approved !== false,
+            token: token
           }
         });
       }
@@ -137,7 +224,61 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.post('/forgot-password/challenge', async (req, res) => {
+// Cryptographic token verification & dynamic session alignment endpoint
+router.get('/verify', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const email = req.user?.email;
+    if (!email) {
+      return res.status(401).json({ success: false, message: 'Payload token tidak valid.' });
+    }
+
+    // Load active record from authentic datasource
+    let user: any = await dbDriver.getDoc('users', email);
+    if (!user || user.deleted) {
+      // Fallback query for phone and case-insensitive check
+      const allUsers = await dbDriver.getDocs('users');
+      for (const u of allUsers) {
+        if (!u.deleted && (u.phone === email || u.email?.toLowerCase() === email.toLowerCase())) {
+          user = u;
+          break;
+        }
+      }
+    }
+
+    if (!user || user.deleted) {
+      return res.status(401).json({ success: false, message: 'Sesi Kedaluwarsa: Akun pengguna tidak ditemukan atau telah dinonaktifkan.' });
+    }
+
+    if (user.approved === false) {
+      return res.status(403).json({ success: false, message: 'Koneksi Ditangguhkan: Akses akun dibekukan oleh Admin.' });
+    }
+
+    const features = user.features || [];
+    // Issue a refreshed token aligned with latest DB privileges
+    const freshToken = generateToken({
+      email: user.email || user.phone,
+      role: user.role,
+      features: features
+    });
+
+    res.json({
+      success: true,
+      user: {
+        email: user.email || user.phone,
+        name: user.name,
+        role: user.role,
+        features: features,
+        approved: true,
+        token: freshToken
+      }
+    });
+  } catch (error: any) {
+    console.error('Session verify error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.post('/forgot-password/challenge', async (req: Request, res: Response) => {
   const { email } = req.body;
   try {
     await seedUsersIfEmpty();
@@ -155,7 +296,7 @@ router.post('/forgot-password/challenge', async (req, res) => {
   }
 });
 
-router.post('/forgot-password/reset', async (req, res) => {
+router.post('/forgot-password/reset', async (req: Request, res: Response) => {
   const { email, answer, newPassword } = req.body;
   try {
     const docSnap = await dbDriver.getDoc('users', email);
@@ -178,4 +319,4 @@ router.post('/forgot-password/reset', async (req, res) => {
   }
 });
 
-export default router;
+export const authRouter = router;

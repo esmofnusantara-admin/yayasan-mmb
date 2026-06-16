@@ -44,6 +44,7 @@ interface ReportsTabProps {
   smallGroups: SmallGroup[];
   meetings: MeetingLog[];
   staffs: any[];
+  salaries?: any[];
   donations: any[];
   profile: any;
   structures?: any[];
@@ -86,6 +87,7 @@ export default function ReportsTab({
   smallGroups,
   meetings,
   staffs,
+  salaries = [],
   donations,
   profile,
   structures = [],
@@ -94,7 +96,7 @@ export default function ReportsTab({
   const [financeView, setFinanceView] = useState<'dense' | 'summary'>('dense');
   
   // Simulation states matching the spreadsheet structure in user request
-  const [initialCashBalance, setInitialCashBalance] = useState<number>(4780000);
+  const [initialCashBalance, setInitialCashBalance] = useState<number>(0);
   const [deficitNovember, setDeficitNovember] = useState<number>(12889000);
   const [salaryDecember, setSalaryDecember] = useState<number>(20069500);
   const [monthlyStaffSalaryBudget, setMonthlyStaffSalaryBudget] = useState<number>(32087300);
@@ -122,6 +124,23 @@ export default function ReportsTab({
     ...members.map(m => m.region),
     ...partners.map(p => p.region)
   ])).filter(Boolean);
+
+  // Helper to dynamically calculate total THP for a staff member
+  const getStaffNetSalary = (s: any) => {
+    const config = salaries.find(sal => sal.id === s.nik);
+    const base = s.salaryBase || 0;
+    if (!config) return base;
+    let totalAllowances = 0;
+    let totalDeductions = 0;
+    config.components.forEach(comp => {
+      if (comp.type === 'allowance') {
+        totalAllowances += comp.amount;
+      } else {
+        totalDeductions += comp.amount;
+      }
+    });
+    return base + totalAllowances - totalDeductions;
+  };
 
   // Calculations for Financial Report
   const filteredTransactions = transactions.filter(t => {
@@ -159,7 +178,7 @@ export default function ReportsTab({
     if (staffStatusFilter !== 'Semua' && s.status !== staffStatusFilter) return false;
     return true;
   });
-  const totalSalaries = filteredStaffs.reduce((sum, s) => sum + (s.salaryBase || 0), 0);
+  const totalSalaries = filteredStaffs.reduce((sum, s) => sum + getStaffNetSalary(s), 0);
   const avgSalary = filteredStaffs.length > 0 ? Math.round(totalSalaries / filteredStaffs.length) : 0;
 
   // Calculations for Member Report
@@ -1358,7 +1377,7 @@ export default function ReportsTab({
                         <th className="p-3">Jabatan</th>
                         <th className="p-3">Divisi Organisasi</th>
                         <th className="p-3 text-center">Status Kerja</th>
-                        <th className="p-3 text-right">Rentang Gaji Pokok</th>
+                        <th className="p-3 text-right">Take-Home Pay (THP)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -1371,7 +1390,7 @@ export default function ReportsTab({
                           <td className="p-3 text-center">
                             <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[9px] font-bold">{s.status}</span>
                           </td>
-                          <td className="p-3 text-right font-bold text-slate-800">Rp {(s.salaryBase || 0).toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-right font-bold text-slate-800">Rp {getStaffNetSalary(s).toLocaleString('id-ID')}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-import path from 'path';
 import fs from 'fs';
+import path from 'path';
 
 // Read Firebase config safely from JSON file
 const firebaseConfigPath = path.join(process.cwd(), 'firebase-applet-config.json');

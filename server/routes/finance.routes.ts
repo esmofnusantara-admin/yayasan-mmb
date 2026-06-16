@@ -1,12 +1,18 @@
-import { Router } from 'express';
-import { dbDriver, cleanObjectForFirestore } from '../db/driver';
-import { syncTransactionSubcollections } from '../services/transaction-sync.service';
+import { Router, Response } from 'express';
+import { dbDriver } from '../db/driver';
+import { authenticateToken } from './auth.routes';
+import { cleanObjectForFirestore, syncTransactionSubcollections } from '../services/transaction-sync.service';
 
 const router = Router();
 
 // Atomic Finance Syncer Server-Side Wrapper
-router.post('/sync', async (req, res) => {
+router.post('/sync', authenticateToken, async (req: any, res: Response) => {
   const { tx, operatorName, operatorRole, currentBalanceBeforeTx } = req.body;
+  const userRole = req.user.role;
+  if (userRole !== 'Super Admin' && userRole !== 'Ketua Yayasan' && userRole !== 'Bendahara') {
+    return res.status(403).json({ success: false, message: 'Hak Akses Ditolak: Anda tidak memiliki wewenang untuk mensinkronisasi data keuangan secara langsung.' });
+  }
+
   try {
     const isDeletedAction = tx.status === 'Rejected' || tx.deleted === true;
     const isIncome = (tx.type || 'Income').toLowerCase() === 'income';
@@ -102,4 +108,5 @@ router.post('/sync', async (req, res) => {
   }
 });
 
-export default router;
+export const financeRouter = router;
+export default financeRouter;

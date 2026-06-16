@@ -87,6 +87,57 @@ interface AuthUser {
   name: string;
   role: string;
   features?: string[];
+  token?: string;
+}
+
+// Global secure request interceptor wrapping vanilla window.fetch safely
+const originalFetch = window.fetch;
+const customFetch = async function (input: RequestInfo | URL, init?: RequestInit) {
+  const saved = localStorage.getItem('esm_session_user');
+  let token = '';
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      token = parsed?.token || '';
+    } catch (_) {}
+  }
+
+  const modifiedInit: RequestInit = init || {};
+  if (token) {
+    const headers = new Headers(modifiedInit.headers || {});
+    if (!headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    modifiedInit.headers = headers;
+  }
+
+  try {
+    const response = await originalFetch(input, modifiedInit);
+    // If unauthorized or session is invalid, purge and redirect to handle gracefully
+    if (response.status === 401) {
+      console.warn('Authentication token is invalid or expired. Logging out.');
+      localStorage.removeItem('esm_session_user');
+      // Prevent infinite reload loops on login page itself
+      const path = typeof input === 'string' ? input : '';
+      if (!path.includes('/api/auth/login')) {
+        window.location.reload();
+      }
+    }
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+try {
+  Object.defineProperty(window, 'fetch', {
+    value: customFetch,
+    configurable: true,
+    writable: true,
+    enumerable: true
+  });
+} catch (e) {
+  console.error("Failed to redefine window.fetch with Object.defineProperty", e);
 }
 
 export default function App() {
@@ -96,12 +147,56 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
+  const [isVerifyingSession, setIsVerifyingSession] = useState<boolean>(() => {
+    const saved = localStorage.getItem('esm_session_user');
+    return !!saved;
+  });
+
+  // Cryptographic Session Verification and Profile Real-Time Sync on Boot
+  useEffect(() => {
+    const verifySessionOnStartup = async () => {
+      const saved = localStorage.getItem('esm_session_user');
+      if (!saved) {
+        setIsVerifyingSession(false);
+        return;
+      }
+      try {
+        const response = await fetch('/api/auth/verify');
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.user) {
+            // Overwrite and align with the authentic, cryptographically validated server-side parameters only
+            localStorage.setItem('esm_session_user', JSON.stringify(result.user));
+            setCurrentUser(result.user);
+          } else {
+            throw new Error('Identitas token palsu atau kedaluwarsa');
+          }
+        } else {
+          throw new Error('Otentikasi ditolak oleh server');
+        }
+      } catch (err) {
+        console.warn('Proteksi Sesi Sistem: Kunci token tidak sah atau terdeteksi manipulasi data. Menghapus sesi...', err);
+        localStorage.removeItem('esm_session_user');
+        setCurrentUser(null);
+      } finally {
+        setIsVerifyingSession(false);
+      }
+    };
+
+    verifySessionOnStartup();
+  }, []);
+
   const currentRole = currentUser?.role || 'Staff';
 
   const hasFeatureAccess = (feature: string): boolean => {
     if (!currentUser) return false;
     if (feature === 'staff_profile') return true; // Always allow self-profile
     
+    // Allow override if the feature is explicitly granted in the user's customized features list
+    if (currentUser.features && currentUser.features.includes(feature)) {
+      return true;
+    }
+
     // Explicitly deny restricted administrative areas for Staff role
     if (currentUser.role === 'Staff' && (feature === 'finance' || feature === 'reports' || feature === 'partners' || feature === 'staff' || feature === 'payroll' || feature === 'approvals' || feature === 'system')) {
       return false;
@@ -188,8 +283,10 @@ export default function App() {
   // Restful Loader Helper with Auto-Seeding
   const safeFetchJson = async (url: string, retries = 7, delayMs = 2000): Promise<any> => {
     for (let i = 0; i < retries; i++) {
+      let responseStatus: number | null = null;
       try {
         const res = await fetch(url);
+        responseStatus = res.status;
         if (!res.ok) {
           throw new Error(`HTTP status ${res.status}`);
         }
@@ -203,6 +300,10 @@ export default function App() {
         const data = await res.json();
         return data;
       } catch (err: any) {
+        if (responseStatus === 401 || responseStatus === 403 || responseStatus === 400 || responseStatus === 404) {
+          // Fast fail for strict permission constraints and invalid client requests
+          throw err;
+        }
         console.warn(`Attempt ${i + 1} to fetch ${url} failed: ${err.message}`);
         if (i === retries - 1) {
           throw err;
@@ -217,18 +318,57 @@ export default function App() {
     initialData: T[],
     setter: React.Dispatch<React.SetStateAction<T[]>>
   ): Promise<T[]> => {
+    // Client-side authority alignment check to prevent unauthorized 403 network failures
+    const role = currentUser?.role || 'Staff';
+    const features = currentUser?.features || [];
+
+    if (colName === 'users' || colName === 'system_state' || colName === 'audits') {
+      if (role !== 'Super Admin' && role !== 'Ketua Yayasan') {
+        setter([]);
+        return [];
+      }
+    }
+
+    if (
+      colName === 'transactions' || 
+      colName === 'kas' || 
+      colName === 'salaries' || 
+      colName === 'staff' || 
+      colName === 'partners' || 
+      colName === 'categories' || 
+      colName === 'donations' || 
+      colName === 'incomes' || 
+      colName === 'expenses' || 
+      colName === 'detail_pengeluaran' || 
+      colName === 'detail_expenses' || 
+      colName === 'fundraising' || 
+      colName === 'payroll_payments'
+    ) {
+      const hasReportsAccess = Array.isArray(features) && features.includes('reports');
+      if (!(role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Bendahara' || hasReportsAccess)) {
+        setter([]);
+        return [];
+      }
+    }
+
     try {
       const rawData = await safeFetchJson(`/api/data/${colName}?includeDeleted=true&t=${Date.now()}`);
       const activeData = Array.isArray(rawData) ? rawData.filter((x: any) => !x.deleted) : [];
       setter(activeData);
       return activeData as T[];
     } catch (err) {
-      console.error(`Failed to load collection ${colName}:`, err);
+      console.warn(`[loadCollection] Bypassed or restricted collection ${colName}:`, err);
       return [];
     }
   };
 
   const recalculateBalances = async (targetTransactions?: Transaction[]) => {
+    // Authority alignment check to prevent unauthorized 403 update attempts
+    const role = currentUser?.role || 'Staff';
+    if (role !== 'Super Admin' && role !== 'Ketua Yayasan' && role !== 'Bendahara') {
+      return { totalIncome: 0, totalExpense: 0, correctBalance: 0 };
+    }
+
     const txsToUse = targetTransactions || transactions;
     const approvedTx = txsToUse.filter(t => t.status === undefined || t.status === 'Approved');
     
@@ -303,17 +443,25 @@ export default function App() {
   };
 
   const loadAllData = async () => {
+    if (isVerifyingSession) return;
     try {
       let seededVal = isSystemSeeded;
       if (seededVal === null) {
-        const stateData = await safeFetchJson('/api/data/system_state?t=' + Date.now());
-        const statusObj = Array.isArray(stateData) ? stateData.find((x: any) => x.id === 'seed_status') : null;
-        if (statusObj && statusObj.seeded) {
+        try {
+          const stateData = await safeFetchJson('/api/data/system_state?t=' + Date.now());
+          const statusObj = Array.isArray(stateData) ? stateData.find((x: any) => x.id === 'seed_status') : null;
+          if (statusObj && statusObj.seeded) {
+            seededVal = true;
+            setIsSystemSeeded(true);
+          } else {
+            seededVal = false;
+            setIsSystemSeeded(false);
+          }
+        } catch (stateErr: any) {
+          console.warn('Proteksi Sesi Sistem: Gagal melakukan pembacaan status seed (Akses Terbatas). Mengasumsikan database telah terisi...', stateErr);
+          // Set to true by default to bypass initial seed requirements for limited roles
           seededVal = true;
           setIsSystemSeeded(true);
-        } else {
-          seededVal = false;
-          setIsSystemSeeded(false);
         }
       }
 
@@ -375,14 +523,14 @@ export default function App() {
 
   // Sync effect periodically polling
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && !isVerifyingSession) {
       loadAllData();
       const interval = setInterval(() => {
         loadAllData();
       }, 15000);
       return () => clearInterval(interval);
     }
-  }, [currentUser]);
+  }, [currentUser, isVerifyingSession]);
 
   // Core Audit Logging API Utility
   const logAudit = async (actionDescription: string, moduleName: string, before?: string, after?: string) => {
@@ -1605,6 +1753,20 @@ if (!res.ok) {
   // Pending counts for notifications
   const pendingApprovalsCount = approvals.filter(item => item.status === 'Pending').length;
 
+  if (isVerifyingSession) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#F8FAFC] font-sans">
+        <div className="flex flex-col items-center gap-5 text-center max-w-sm p-8 bg-white rounded-2xl border border-slate-200/80 shadow-lg animate-pulse">
+          <div className="w-10 h-10 border-3 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+          <div>
+            <h3 className="font-bold text-slate-800 text-sm tracking-tight mb-1">Verifikasi Kunci Keamanan</h3>
+            <p className="text-[11px] text-slate-500 leading-normal">Menghubungkan sesi Anda dengan database otentikasi pusat melalui jalur kriptografi terenkripsi...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!currentUser) {
     return <LoginScreen onLoginSuccess={(user) => setCurrentUser(user)} />;
   }
@@ -2025,6 +2187,7 @@ if (!res.ok) {
                 smallGroups={smallGroups}
                 meetings={meetings}
                 staffs={staffs}
+                salaries={salaries}
                 donations={donations}
                 profile={profile}
                 structures={structures}

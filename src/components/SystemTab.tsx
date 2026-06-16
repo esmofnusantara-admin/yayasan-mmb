@@ -633,6 +633,7 @@ export default function SystemTab({
     { id: 'members', label: 'Anggota Pelayanan' },
     { id: 'small_groups', label: 'Kelompok Kecil' },
     { id: 'finance', label: 'Keuangan & Kas' },
+    { id: 'reports', label: 'Pusat Laporan & Ekspor' },
     { id: 'partners', label: 'Mitra & CRM' },
     { id: 'staff', label: 'Database Staf' },
     { id: 'payroll', label: 'Payroll & Slip Gaji' },

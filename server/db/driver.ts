@@ -40,25 +40,4 @@ export const dbDriver = {
     await deleteDoc(docRef);
   }
 };
-
-// Helper to sanitize payload for Firestore/JSON storage
-export function cleanObjectForFirestore(obj: any): any {
-  if (obj === null || obj === undefined) return null;
-  if (Array.isArray(obj)) {
-    return obj.map(item => cleanObjectForFirestore(item));
-  }
-  if (obj instanceof Date) {
-    return obj.toISOString();
-  }
-  if (typeof obj === 'object') {
-    const cleaned: any = {};
-    Object.keys(obj).forEach(key => {
-      const val = obj[key];
-      if (val !== undefined) {
-        cleaned[key] = cleanObjectForFirestore(val);
-      }
-    });
-    return cleaned;
-  }
-  return obj;
-}
+export default dbDriver;

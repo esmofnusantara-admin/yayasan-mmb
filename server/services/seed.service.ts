@@ -1,5 +1,6 @@
 import { dbDriver } from '../db/driver';
 
+// Seeding default users to Database if the 'users' collection is empty
 export async function seedUsersIfEmpty() {
   try {
     const rawUsers = await dbDriver.getDocs('users');
@@ -25,6 +26,7 @@ export async function seedUsersIfEmpty() {
   }
 }
 
+// Seeding default structures if empty or if 'ketua' is incorrect
 export async function seedStructuresIfEmpty() {
   try {
     const rawStructures = await dbDriver.getDocs('structures');
@@ -46,6 +48,7 @@ export async function seedStructuresIfEmpty() {
   }
 }
 
+// Seeding default corresponding staff profile
 export async function seedStaffIfEmpty() {
   // No-op to respect manual input directive from user
 }

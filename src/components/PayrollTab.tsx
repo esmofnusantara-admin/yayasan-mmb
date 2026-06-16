@@ -155,6 +155,72 @@ export default function PayrollTab({
     localStorage.setItem('esm_target_payroll_day', String(targetPayrollDay));
   }, [targetPayrollDay]);
 
+  // Automated Payroll Rollover & Arrears Engine
+  useEffect(() => {
+    const checkAndRollover = async () => {
+      let updatedAny = false;
+      
+      // Determine active target payroll cycle month
+      const today = new Date();
+      const currYear = today.getFullYear();
+      const currMonth = today.getMonth(); // 0-indexed
+      let activeDueMonth = '';
+      
+      if (today.getDate() >= targetPayrollDay) {
+        // Current calendar month's payroll is now active / due
+        activeDueMonth = `${currYear}-${String(currMonth + 1).padStart(2, '0')}`;
+      } else {
+        // We haven't reached the cutoff day yet, so the active due cycle is the previous calendar month
+        const prev = new Date(currYear, currMonth - 1, 1);
+        activeDueMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+      }
+
+      for (const s of staffs) {
+        const lastMonth = s.lastPayrollMonth || '';
+        
+        // 1. Initial configuration: If staff does not have a past payroll month record yet,
+        // align them with the active cycle month so they don't get artificial arrears.
+        if (!lastMonth) {
+          await onUpdateStaff({
+            ...s,
+            lastPayrollMonth: activeDueMonth,
+            lastMonthUnpaid: s.lastMonthUnpaid || 0
+          });
+          updatedAny = true;
+          continue;
+        }
+
+        // 2. Rollover condition: If the staff's last recorded cycle month is older than
+        // the active due month, we carry forward any unpaid salary to "lastMonthUnpaid" (utang/kekurangan)
+        if (lastMonth < activeDueMonth) {
+          const baseTHP = getStaffNetSalary(s);
+          const totalExpectedDue = baseTHP + (s.lastMonthUnpaid || 0);
+          const actualPaid = s.paidAmount || 0;
+          const outstandingDeficit = Math.max(0, totalExpectedDue - actualPaid);
+
+          await onUpdateStaff({
+            ...s,
+            lastMonthUnpaid: outstandingDeficit,
+            paidAmount: 0, // Reset currents month's paid count for the new cycle
+            lastPayrollMonth: activeDueMonth
+          });
+          updatedAny = true;
+        }
+      }
+
+      if (updatedAny && onLogAudit) {
+        await onLogAudit(
+          `[Sistem Otomatis Payroll] Melakukan rollover kewajiban sisa kekurangan gaji ke utang/kekurangan bulan lalu secara otomatis karena telah melewati target cutoff tanggal ${targetPayrollDay}.`,
+          'Payroll & Gaji'
+        );
+      }
+    };
+
+    if (staffs && staffs.length > 0) {
+      checkAndRollover();
+    }
+  }, [staffs, targetPayrollDay]);
+
   // Derive cumulative paid amounts directly from Firestore staffs data mapping
   const staffPaidAmounts = useMemo(() => {
     const map: Record<string, number> = {};
@@ -163,6 +229,29 @@ export default function PayrollTab({
     });
     return map;
   }, [staffs]);
+
+  // Helper to get total THP due (including carried-over arrears/debt)
+  const getStaffTotalTHPWithArrears = (s: Staff) => {
+    return getStaffNetSalary(s) + (s.lastMonthUnpaid || 0);
+  };
+
+  // Automatic tracking of 'Salary Debt' (Kekurangan Gaji) if payment date has passed
+  const getStaffSalaryDebt = (s: Staff) => {
+    const today = new Date();
+    // Payment date is targetPayrollDay of the current calendar month.
+    // If we've reached or passed that day, payment date has passed.
+    const isPaymentDatePassed = today.getDate() >= targetPayrollDay;
+    
+    const thp = getStaffNetSalary(s);
+    const totalExpected = thp + (s.lastMonthUnpaid || 0);
+    const paid = staffPaidAmounts[s.nik] || 0;
+    
+    if (isPaymentDatePassed) {
+      return Math.max(0, totalExpected - paid);
+    } else {
+      return s.lastMonthUnpaid || 0;
+    }
+  };
 
   // Derive payroll logs directly from live global Firestore Transactions ledger!
   const paymentLogs = useMemo(() => {
@@ -198,18 +287,18 @@ export default function PayrollTab({
   const availableTermins = useMemo(() => {
     const list = [1];
     const hasPartiallyPaid = staffs.some(s => {
-      const thp = getStaffNetSalary(s);
+      const totalTHP = getStaffTotalTHPWithArrears(s);
       const paid = staffPaidAmounts[s.nik] || 0;
-      return paid > 0 && paid < thp;
+      return paid > 0 && paid < totalTHP;
     });
 
     if (hasPartiallyPaid) {
       list.push(2);
       // If there are still staffs whose sisa saldo is under 100%, show Termin 3, but if they are 100% paid, do not add Termin 3
       const anyStillUnder100 = staffs.some(s => {
-        const thp = getStaffNetSalary(s);
+        const totalTHP = getStaffTotalTHPWithArrears(s);
         const paid = staffPaidAmounts[s.nik] || 0;
-        return paid > 0 && paid < thp;
+        return paid > 0 && paid < totalTHP;
       });
       if (anyStillUnder100) {
         list.push(3);
@@ -246,9 +335,10 @@ export default function PayrollTab({
       const s = staffs.find(x => x.nik === nik);
       if (!s) return;
       const thp = getStaffNetSalary(s);
-      const unpaid = thp - (staffPaidAmounts[nik] || 0);
+      const thpTotal = thp + (s.lastMonthUnpaid || 0);
+      const unpaid = thpTotal - (staffPaidAmounts[nik] || 0);
       let val = 0;
-      if (payMode === 'percent') val = Math.min(unpaid, Math.round(thp * (payPercentValue / 100)));
+      if (payMode === 'percent') val = Math.min(unpaid, Math.round(thpTotal * (payPercentValue / 100)));
       else if (payMode === 'full') val = unpaid;
       else if (payMode === 'custom') val = Math.min(unpaid, customNominalValue);
       sum += val;
@@ -334,16 +424,20 @@ export default function PayrollTab({
     return sum + getStaffFinancialBreakdown(s).totalDeductionCombined;
   }, 0);
 
-  const totalNetPayout = (totalBaseSalary + totalAllowances) - totalDeductions;
+  const totalNetPayout = staffs.reduce((sum, s) => {
+    return sum + getStaffNetSalary(s) + (s.lastMonthUnpaid || 0);
+  }, 0);
 
   // Real "Dana Gaji Terbayar" derived dynamically based on cumulative staff payments
   const totalNetPaid = staffs.reduce((sum, s) => {
-    const thp = getStaffNetSalary(s);
+    const totalDue = getStaffNetSalary(s) + (s.lastMonthUnpaid || 0);
     const paid = staffPaidAmounts[s.nik] || 0;
-    return sum + Math.min(paid, thp);
+    return sum + Math.min(paid, totalDue);
   }, 0);
 
   const remainingUnpaidSalary = Math.max(0, totalNetPayout - totalNetPaid);
+
+  const totalSalaryDebt = staffs.reduce((sum, s) => sum + getStaffSalaryDebt(s), 0);
 
   // System treasury balance derived from global transactions
   const approvedTx = transactions.filter(t => t.status === 'Approved');
@@ -368,14 +462,15 @@ export default function PayrollTab({
       const s = staffs.find(x => x.nik === nik);
       if (!s) return;
       const thp = getStaffNetSalary(s);
+      const thpTotal = thp + (s.lastMonthUnpaid || 0);
       const alreadyPaid = updatedPaidMap[nik] || 0;
-      const unpaid = Math.max(0, thp - alreadyPaid);
+      const unpaid = Math.max(0, thpTotal - alreadyPaid);
 
       if (unpaid <= 0) return;
 
       let payAmount = 0;
       if (payMode === 'percent') {
-        const calculateAmount = Math.round(thp * (payPercentValue / 100));
+        const calculateAmount = Math.round(thpTotal * (payPercentValue / 100));
         payAmount = Math.min(unpaid, calculateAmount);
       } else if (payMode === 'full') {
         payAmount = unpaid;
@@ -386,7 +481,7 @@ export default function PayrollTab({
       if (payAmount > 0) {
         updatedPaidMap[nik] = Math.round(alreadyPaid + payAmount);
         totalDisbursed += payAmount;
-        const finalPaidPercent = Math.round((updatedPaidMap[nik] / thp) * 100);
+        const finalPaidPercent = thpTotal > 0 ? Math.round((updatedPaidMap[nik] / thpTotal) * 100) : 100;
         paymentDetailsList.push(`${s.name} (+Rp ${payAmount.toLocaleString('id-ID')} -> Sisa: ${100 - finalPaidPercent}%)`);
         affectedStaffNames.push(s.name);
       }
@@ -743,12 +838,12 @@ export default function PayrollTab({
                   onClick={() => {
                     const unpaidNikList = staffs
                       .filter(s => {
-                        const thp = getStaffNetSalary(s);
+                        const totalTHP = getStaffTotalTHPWithArrears(s);
                         const paid = staffPaidAmounts[s.nik] || 0;
                         if (selectedTerminTab === 1) {
-                          return paid === 0 && thp > 0;
+                          return paid === 0 && totalTHP > 0;
                         } else {
-                          return paid > 0 && paid < thp;
+                          return paid > 0 && paid < totalTHP;
                         }
                       })
                       .map(s => s.nik);
@@ -762,12 +857,12 @@ export default function PayrollTab({
                   className="text-[10px] text-indigo-650 hover:text-indigo-800 font-bold underline shrink-0"
                 >
                   {selectedStaffsForPay.length === staffs.filter(s => {
-                    const thp = getStaffNetSalary(s);
+                    const totalTHP = getStaffTotalTHPWithArrears(s);
                     const paid = staffPaidAmounts[s.nik] || 0;
                     if (selectedTerminTab === 1) {
-                      return paid === 0 && thp > 0;
+                      return paid === 0 && totalTHP > 0;
                     } else {
-                      return paid > 0 && paid < thp;
+                      return paid > 0 && paid < totalTHP;
                     }
                   }).length 
                     ? "Sembunyikan Semua" 
@@ -777,12 +872,12 @@ export default function PayrollTab({
 
               <div className="max-h-[170px] overflow-y-auto border border-slate-100 rounded-lg p-2 space-y-1.5 divide-y divide-slate-100">
                 {staffs.filter(s => {
-                  const thp = getStaffNetSalary(s);
+                  const totalTHP = getStaffTotalTHPWithArrears(s);
                   const paid = staffPaidAmounts[s.nik] || 0;
                   if (selectedTerminTab === 1) {
-                    return paid === 0 && thp > 0;
+                    return paid === 0 && totalTHP > 0;
                   } else {
-                    return paid > 0 && paid < thp;
+                    return paid > 0 && paid < totalTHP;
                   }
                 }).length === 0 ? (
                   <div className="py-6 text-center text-xs text-emerald-600 font-bold bg-emerald-50 rounded-lg">
@@ -793,19 +888,19 @@ export default function PayrollTab({
                 ) : (
                   staffs
                     .filter(s => {
-                      const thp = getStaffNetSalary(s);
+                      const totalTHP = getStaffTotalTHPWithArrears(s);
                       const paid = staffPaidAmounts[s.nik] || 0;
                       if (selectedTerminTab === 1) {
-                        return paid === 0 && thp > 0;
+                        return paid === 0 && totalTHP > 0;
                       } else {
-                        return paid > 0 && paid < thp;
+                        return paid > 0 && paid < totalTHP;
                       }
                     })
                     .map(s => {
-                      const thp = getStaffNetSalary(s);
+                      const totalTHP = getStaffTotalTHPWithArrears(s);
                       const paid = staffPaidAmounts[s.nik] || 0;
-                      const rem = thp - paid;
-                      const pct = Math.round((paid / thp) * 100);
+                      const rem = totalTHP - paid;
+                      const pct = Math.round((paid / totalTHP) * 100);
                       const isSelected = selectedStaffsForPay.includes(s.nik);
 
                       return (
@@ -946,10 +1041,10 @@ export default function PayrollTab({
                   {staffs
                     .filter(s => selectedStaffsForPay.includes(s.nik))
                     .map(s => {
-                      const thp = getStaffNetSalary(s);
-                      const unpaid = thp - (staffPaidAmounts[s.nik] || 0);
+                      const totalTHP = getStaffTotalTHPWithArrears(s);
+                      const unpaid = totalTHP - (staffPaidAmounts[s.nik] || 0);
                       let payValue = 0;
-                      if (payMode === 'percent') payValue = Math.min(unpaid, Math.round(thp * (payPercentValue / 100)));
+                      if (payMode === 'percent') payValue = Math.min(unpaid, Math.round(totalTHP * (payPercentValue / 100)));
                       else if (payMode === 'full') payValue = unpaid;
                       else if (payMode === 'custom') payValue = Math.min(unpaid, customNominalValue);
 
@@ -968,10 +1063,10 @@ export default function PayrollTab({
                   selectedStaffsForPay.forEach(nik => {
                     const s = staffs.find(x => x.nik === nik);
                     if (!s) return;
-                    const thp = getStaffNetSalary(s);
-                    const unpaid = thp - (staffPaidAmounts[nik] || 0);
+                    const totalTHP = getStaffTotalTHPWithArrears(s);
+                    const unpaid = totalTHP - (staffPaidAmounts[nik] || 0);
                     let val = 0;
-                    if (payMode === 'percent') val = Math.min(unpaid, Math.round(thp * (payPercentValue / 100)));
+                    if (payMode === 'percent') val = Math.min(unpaid, Math.round(totalTHP * (payPercentValue / 100)));
                     else if (payMode === 'full') val = unpaid;
                     else if (payMode === 'custom') val = Math.min(unpaid, customNominalValue);
                     sum += val;
@@ -1116,7 +1211,8 @@ export default function PayrollTab({
                         <div className="font-bold text-slate-800 text-sm">{stf.name}</div>
                         {(() => {
                           const paidSum = staffPaidAmounts[stf.nik] || 0;
-                          const pct = netSalarySum > 0 ? Math.round((paidSum / netSalarySum) * 100) : 0;
+                          const totalExpected = netSalarySum + (stf.lastMonthUnpaid || 0);
+                          const pct = totalExpected > 0 ? Math.round((paidSum / totalExpected) * 100) : 100;
                           if (pct >= 100) {
                             return (
                               <span className="inline-block bg-emerald-50 border border-emerald-200 text-emerald-700 text-[8px] font-extrabold px-1.5 py-0.2 rounded-md uppercase tracking-wider text-center w-fit">
@@ -1151,19 +1247,29 @@ export default function PayrollTab({
                       )}
                     </td>
                     <td className="p-4 text-right font-mono text-rose-500 font-medium">-Rp {totalDeds.toLocaleString('id-ID')}</td>
-                    <td className="p-4 text-right font-mono text-sm font-bold text-slate-900 bg-slate-50/50">
-                      <div>Rp {netSalarySum.toLocaleString('id-ID')}</div>
+                    <td className="p-4 text-right font-mono text-xs text-slate-900 bg-slate-50/50">
+                      <div className="font-bold text-sm">Rp {(netSalarySum + (stf.lastMonthUnpaid || 0)).toLocaleString('id-ID')}</div>
+                      {getStaffSalaryDebt(stf) > 0 && (
+                        <div className="text-[9px] text-rose-600 font-semibold font-mono bg-rose-50 px-1 py-0.5 rounded border border-rose-100 mt-1">
+                          Kekurangan Gaji: Rp {getStaffSalaryDebt(stf).toLocaleString('id-ID')}
+                        </div>
+                      )}
                       {(() => {
                         const paidSum = staffPaidAmounts[stf.nik] || 0;
-                        const rem = Math.max(0, netSalarySum - paidSum);
-                        if (rem > 0 && paidSum > 0) {
+                        const totalExpected = netSalarySum + (stf.lastMonthUnpaid || 0);
+                        const rem = Math.max(0, totalExpected - paidSum);
+                        if (rem > 0) {
                           return (
                             <span className="text-[9px] text-rose-600 block mt-0.5 font-semibold">
-                              Sisa: Rp {rem.toLocaleString('id-ID')}
+                              Sisa Kurang: Rp {rem.toLocaleString('id-ID')}
                             </span>
                           );
                         }
-                        return null;
+                        return (
+                          <span className="text-[9px] text-emerald-600 block mt-0.5 font-semibold">
+                            Lunas
+                          </span>
+                        );
                       })()}
                     </td>
                     <td className="p-4 text-center">
@@ -1535,8 +1641,10 @@ export default function PayrollTab({
             {/* PAYMENT REALIZATION AND TERM STATUS BLOCK (SISA KEKURANGAN) */}
             {(() => {
               const netSalaryVal = getStaffNetSalary(activeSlipStaff);
+              const unpaidArrears = activeSlipStaff.lastMonthUnpaid || 0;
+              const totalDueVal = netSalaryVal + unpaidArrears;
               const paidAmountVal = staffPaidAmounts[activeSlipStaff.nik] || 0;
-              const sisaKekuranganVal = Math.max(0, netSalaryVal - paidAmountVal);
+              const sisaKekuranganVal = Math.max(0, totalDueVal - paidAmountVal);
               
               return (
                 <div className="p-4 rounded-xl border border-dashed border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50">
@@ -1556,8 +1664,18 @@ export default function PayrollTab({
                   </div>
                   <div className="text-right text-[11px] font-mono shrink-0 space-y-0.5">
                     <div>
-                      <span className="text-slate-400">Total Take-Home Pay:</span> 
+                      <span className="text-slate-400">Total Gaji Bersih Bulan Ini:</span> 
                       <span className="font-bold text-slate-800 ml-1.5">Rp {netSalaryVal.toLocaleString('id-ID')}</span>
+                    </div>
+                    {unpaidArrears > 0 && (
+                      <div>
+                        <span className="text-slate-400 text-amber-600">Sisa Kekurangan Bulan Lalu:</span> 
+                        <span className="font-bold text-amber-600 ml-1.5">Rp {unpaidArrears.toLocaleString('id-ID')}</span>
+                      </div>
+                    )}
+                    <div className="border-t border-slate-200 mt-1 pt-1 font-bold">
+                      <span className="text-slate-600">Total Harus Dibayarkan:</span> 
+                      <span className="font-extrabold text-slate-900 ml-1.5">Rp {totalDueVal.toLocaleString('id-ID')}</span>
                     </div>
                     <div>
                       <span className="text-slate-400">Sudah Dibayarkan:</span> 
@@ -1577,12 +1695,14 @@ export default function PayrollTab({
               <div>
                 <span className="text-[10px] uppercase font-mono tracking-widest text-slate-400 font-bold block">Bersih Diterima Penerima Manfaat</span>
                 <h3 className="text-2xl font-bold font-mono text-emerald-400 mt-1">
-                  Rp {(staffPaidAmounts[activeSlipStaff.nik] || 0) > 0 ? (staffPaidAmounts[activeSlipStaff.nik] || 0).toLocaleString('id-ID') : getStaffNetSalary(activeSlipStaff).toLocaleString('id-ID')}
+                  Rp {(staffPaidAmounts[activeSlipStaff.nik] || 0) > 0 
+                    ? (staffPaidAmounts[activeSlipStaff.nik] || 0).toLocaleString('id-ID') 
+                    : (getStaffNetSalary(activeSlipStaff) + (activeSlipStaff.lastMonthUnpaid || 0)).toLocaleString('id-ID')}
                 </h3>
                 <span className="text-[9px] text-slate-400 block mt-0.5 italic">
-                  {(staffPaidAmounts[activeSlipStaff.nik] || 0) < getStaffNetSalary(activeSlipStaff) && (staffPaidAmounts[activeSlipStaff.nik] || 0) > 0 
+                  {(staffPaidAmounts[activeSlipStaff.nik] || 0) < (getStaffNetSalary(activeSlipStaff) + (activeSlipStaff.lastMonthUnpaid || 0)) && (staffPaidAmounts[activeSlipStaff.nik] || 0) > 0 
                   ? '*Jumlah nominal termin yang telah dicarikan saat ini' 
-                  : '*Jumlah nominal hak take home pay penuh'}
+                  : '*Jumlah nominal hak total take home pay penuh'}
                 </span>
               </div>
               <div className="text-center sm:text-right font-sans text-xs shrink-0 border-l border-slate-800 pl-4">

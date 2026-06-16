@@ -24,6 +24,7 @@ interface AuthUser {
   name: string;
   role: string;
   features?: string[];
+  token?: string;
 }
 
 interface LoginScreenProps {

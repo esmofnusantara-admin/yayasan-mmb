@@ -1,12 +1,13 @@
-import { Router } from 'express';
-import path from 'path';
+import { Router, Request, Response } from 'express';
 import fs from 'fs';
+import path from 'path';
 import { dbDriver } from '../db/driver';
+import { authenticateToken } from './auth.routes';
 
 const router = Router();
 
-// Custom File Upload & Document Archive Support
-router.post('/upload', async (req, res) => {
+// Custom File Upload & Document Archive Support (up to 5 MB limit is automatically handled by express body parsers)
+router.post('/upload', authenticateToken, async (req: Request, res: Response) => {
   const { id, name, category, fileData, fileSize } = req.body;
   if (!id || !name || !fileData) {
     return res.status(400).json({ error: 'Data dokumen tidak lengkap untuk diunggah.' });
@@ -62,7 +63,7 @@ router.post('/upload', async (req, res) => {
 });
 
 // Custom Document Download Endpoint
-router.get('/download/:id', async (req, res) => {
+router.get('/download/:id', authenticateToken, async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
@@ -119,7 +120,7 @@ Dokumen berhasil diunduh dari Cloud Database.
 });
 
 // Custom Document Preview Endpoint
-router.get('/preview/:id', async (req, res) => {
+router.get('/preview/:id', authenticateToken, async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
@@ -331,4 +332,5 @@ router.get('/preview/:id', async (req, res) => {
   }
 });
 
-export default router;
+export const documentsRouter = router;
+export default documentsRouter;

@@ -1,5 +1,28 @@
-import { dbDriver, cleanObjectForFirestore } from '../db/driver';
+import { dbDriver } from '../db/driver';
 
+// Helper to sanitize payload for Firestore/JSON storage
+export function cleanObjectForFirestore(obj: any): any {
+  if (obj === null || obj === undefined) return null;
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanObjectForFirestore(item));
+  }
+  if (obj instanceof Date) {
+    return obj.toISOString();
+  }
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    Object.keys(obj).forEach(key => {
+      const val = obj[key];
+      if (val !== undefined) {
+        cleaned[key] = cleanObjectForFirestore(val);
+      }
+    });
+    return cleaned;
+  }
+  return obj;
+}
+
+// System-wide automated trace propagation helper for transactions, incomes, expenses, detail_pengeluaran, fundraising, and payroll_payments
 export async function syncTransactionSubcollections(tx: any, isDeleted = false, deleterRole = '', deleterName = '') {
   try {
     const txId = tx.id;

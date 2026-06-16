@@ -1,12 +1,17 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { dbDriver } from '../db/driver';
 import { seedUsersIfEmpty } from '../services/seed.service';
+import { authenticateToken } from './auth.routes';
 
 const router = Router();
 
-router.post('/cleanse', async (req, res) => {
+router.post('/cleanse', authenticateToken, async (req: any, res: Response) => {
+  if (req.user.role !== 'Super Admin' && req.user.role !== 'Ketua Yayasan') {
+    return res.status(403).json({ success: false, message: 'Hak Akses Ditolak: Hanya Super Admin yang berwenang melakukan pembersihan data sistem secara menyeluruh.' });
+  }
+
   try {
     const collectionsToClean = [
       'members',
@@ -85,4 +90,5 @@ router.post('/cleanse', async (req, res) => {
   }
 });
 
-export default router;
+export const systemRouter = router;
+export default systemRouter;

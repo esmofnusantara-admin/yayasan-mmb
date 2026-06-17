@@ -18,7 +18,8 @@ import {
   Menu,
   X,
   Coins,
-  FilePieChart
+  FilePieChart,
+  Calendar
 } from 'lucide-react';
 
 // Import local components
@@ -35,6 +36,7 @@ import SystemTab from './components/SystemTab';
 import LoginScreen from './components/LoginScreen';
 import StaffMeTab from './components/StaffMeTab';
 import ReportsTab from './components/ReportsTab';
+import ActivitiesTab from './components/ActivitiesTab';
 import MMBLogo from './components/MMBLogo';
 
 // Import state type bindings & seed data
@@ -57,7 +59,11 @@ import {
   FollowUpLog,
   MeetingLog,
   MaterialInfo,
-  CampaignDonation
+  CampaignDonation,
+  Activity,
+  ActivityTransaction,
+  ActivityRundownItem,
+  ActivityPreparationItem
 } from './types';
 
 import { 
@@ -203,11 +209,11 @@ export default function App() {
     }
 
     const defaultFeaturesMap: Record<string, string[]> = {
-      'Super Admin': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports'],
-      'Ketua Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports'],
-      'Bendahara': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'staff_profile', 'reports'],
-      'Sekretaris': ['dashboard', 'members', 'small_groups', 'letters', 'system', 'staff_profile', 'reports'],
-      'Staff': ['dashboard', 'members', 'small_groups', 'staff_profile']
+      'Super Admin': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports', 'kegiatan'],
+      'Ketua Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports', 'kegiatan'],
+      'Bendahara': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'staff_profile', 'reports', 'kegiatan'],
+      'Sekretaris': ['dashboard', 'members', 'small_groups', 'letters', 'system', 'staff_profile', 'reports', 'kegiatan'],
+      'Staff': ['dashboard', 'members', 'small_groups', 'staff_profile', 'kegiatan']
     };
     const roleFeatures = defaultFeaturesMap[currentUser.role] || ['dashboard'];
     if (currentUser.features && currentUser.features.length > 0) {
@@ -277,6 +283,10 @@ export default function App() {
   const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [donations, setDonations] = useState<CampaignDonation[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [activityRundowns, setActivityRundowns] = useState<ActivityRundownItem[]>([]);
+  const [activityPreparations, setActivityPreparations] = useState<ActivityPreparationItem[]>([]);
+  const [activityTransactions, setActivityTransactions] = useState<ActivityTransaction[]>([]);
   const [structures, setStructures] = useState<any[]>([]);
   const [isSystemSeeded, setIsSystemSeeded] = useState<boolean | null>(null);
 
@@ -476,6 +486,20 @@ export default function App() {
         _mtg,
         _mat,
         loadedTransactions,
+        _c,
+        _part,
+        _st,
+        _sal,
+        _inw,
+        _out,
+        _doc,
+        _app,
+        _aud,
+        _don,
+        _act,
+        _rund,
+        _prep,
+        _acttx
       ] = await Promise.all([
         loadProfile(),
         loadStructures(),
@@ -497,7 +521,95 @@ export default function App() {
         loadCollection('approvals', INITIAL_APPROVALS, setApprovals),
         loadCollection('audits', INITIAL_AUDITS, setAuditLogs),
         loadCollection('donations', INITIAL_DONATIONS, setDonations),
+        loadCollection('activities', [], setActivities),
+        loadCollection('activity_rundowns', [], setActivityRundowns),
+        loadCollection('activity_preparations', [], setActivityPreparations),
+        loadCollection('activity_transactions', [], setActivityTransactions)
       ]);
+
+      // Automatic database backward compatibility migration:
+      // If any fetched activities have legacy inline array "rundownItems" or "preparationItems",
+      // migrate them to their dedicated Firestore activity_rundowns & activity_preparations collections (separate tables) 
+      // and update the original activity documents to be completely clean/separated.
+      if (Array.isArray(_act) && _act.length > 0) {
+        let migrationTriggered = false;
+        for (const act of _act) {
+          const legacyRundown = (act as any).rundownItems;
+          const legacyPrep = (act as any).preparationItems;
+          let needsUpdate = false;
+
+          if (Array.isArray(legacyRundown) && legacyRundown.length > 0) {
+            console.log(`[Database Migration] Migrating ${legacyRundown.length} legacy rundown items for activity ${act.id} to separate table`);
+            for (const item of legacyRundown) {
+              const cleanedItem: ActivityRundownItem = {
+                id: item.id || `RND-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                activityId: act.id,
+                time: item.time || '',
+                activity: item.activity || '',
+                pic: item.pic || '-',
+                createdAt: item.createdAt || new Date().toISOString(),
+                createdBy: item.createdBy || 'System Migration'
+              };
+              await fetch(`/api/data/activity_rundowns/${cleanedItem.id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(cleanedItem)
+              });
+            }
+            needsUpdate = true;
+          }
+
+          if (Array.isArray(legacyPrep) && legacyPrep.length > 0) {
+            console.log(`[Database Migration] Migrating ${legacyPrep.length} legacy preparation items for activity ${act.id} to separate table`);
+            for (const item of legacyPrep) {
+              const cleanedItem: ActivityPreparationItem = {
+                id: item.id || `PREP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                activityId: act.id,
+                task: item.task || '',
+                date: item.date || '',
+                pic: item.pic || '-',
+                needsFunding: item.needsFunding || false,
+                requiredAmount: item.requiredAmount || 0,
+                status: item.status || 'Pending',
+                funded: item.funded || false,
+                createdAt: item.createdAt || new Date().toISOString(),
+                createdBy: item.createdBy || 'System Migration'
+              };
+              await fetch(`/api/data/activity_preparations/${cleanedItem.id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(cleanedItem)
+              });
+            }
+            needsUpdate = true;
+          }
+
+          if (needsUpdate) {
+            migrationTriggered = true;
+            const cleanAct = { ...act };
+            delete (cleanAct as any).rundownItems;
+            delete (cleanAct as any).preparationItems;
+            await fetch(`/api/data/activities/${act.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                ...cleanAct,
+                updatedBy: 'System Migration',
+                updatedAt: new Date().toISOString()
+              })
+            });
+          }
+        }
+
+        if (migrationTriggered) {
+          console.log('[Database Migration] Legacy activity elements migrated successfully. Reloading updated collections...');
+          await Promise.all([
+            loadCollection('activities', [], setActivities),
+            loadCollection('activity_rundowns', [], setActivityRundowns),
+            loadCollection('activity_preparations', [], setActivityPreparations)
+          ]);
+        }
+      }
 
       if (loadedTransactions && Array.isArray(loadedTransactions)) {
         await recalculateBalances(loadedTransactions);
@@ -856,6 +968,239 @@ export default function App() {
     } catch (e: any) {
       console.error(e);
       alert(`Terjadi kesalahan saat menghapus kurikulum/materi: ${e.message}`);
+    }
+  };
+
+  // Activities Handlers
+  const handleAddActivity = async (act: Activity) => {
+    try {
+      const payload = {
+        ...act,
+        createdBy: `${currentRole} Operator`,
+        createdAt: new Date().toISOString(),
+        deleted: false
+      };
+      delete (payload as any).rundownItems;
+      delete (payload as any).preparationItems;
+      await fetch(`/api/data/activities/${act.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      await logAudit(`Menginisiasi Agenda Kegiatan Lembaga Baru: ${act.title}`, 'Sistem');
+      await loadCollection('activities', [], setActivities);
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
+  const handleUpdateActivity = async (act: Activity) => {
+    try {
+      const payload = {
+        ...act,
+        updatedBy: `${currentRole} Operator`,
+        updatedAt: new Date().toISOString()
+      };
+      delete (payload as any).rundownItems;
+      delete (payload as any).preparationItems;
+      const res = await fetch(`/api/data/activities/${act.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Failed to update activity.');
+      }
+      await loadCollection('activities', [], setActivities);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menyimpan perubahan kegiatan: ${e.message}`);
+    }
+  };
+
+  const handleDeleteActivity = async (id: string) => {
+    try {
+      const actToDelete = activities.find(a => a.id === id);
+      const res = await fetch(`/api/data/activities/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE',
+        headers: {
+          'x-user-role': currentRole
+        }
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        alert(`Gagal menonaktifkan kegiatan: ${errText}`);
+        return;
+      }
+      if (actToDelete) {
+        await logAudit(`Menonaktifkan / Menghapus Kegiatan: ${actToDelete.title} (Soft-Delete)`, 'Sistem');
+      }
+      await loadCollection('activities', [], setActivities);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Terjadi kesalahan: ${e.message}`);
+    }
+  };
+
+  const handleAddActivityTransaction = async (tx: ActivityTransaction) => {
+    try {
+      const payload = {
+        ...tx,
+        operator: `${currentRole} Operator`,
+        createdAt: new Date().toISOString(),
+        deleted: false
+      };
+      const res = await fetch(`/api/data/activity_transactions/${tx.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Failed to add activity transaction.');
+      }
+      await loadCollection('activity_transactions', [], setActivityTransactions);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal mencatat transaksi kegiatan: ${e.message}`);
+    }
+  };
+
+  const handleDeleteActivityTransaction = async (txId: string) => {
+    try {
+      const res = await fetch(`/api/data/activity_transactions/${txId}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Failed to delete activity transaction.');
+      }
+      await loadCollection('activity_transactions', [], setActivityTransactions);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menghapus transaksi kegiatan: ${e.message}`);
+    }
+  };
+
+  const handleUpdateActivityTransaction = async (tx: ActivityTransaction) => {
+    try {
+      const payload = {
+        ...tx,
+        updatedBy: `${currentRole} Operator`,
+        updatedAt: new Date().toISOString()
+      };
+      const res = await fetch(`/api/data/activity_transactions/${tx.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Failed to update activity transaction.');
+      }
+      await loadCollection('activity_transactions', [], setActivityTransactions);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal mengubah transaksi kegiatan: ${e.message}`);
+    }
+  };
+
+  const handleAddRundownItem = async (item: ActivityRundownItem) => {
+    try {
+      const payload = {
+        ...item,
+        createdBy: `${currentRole} Operator`,
+        createdAt: new Date().toISOString(),
+        deleted: false
+      };
+      const res = await fetch(`/api/data/activity_rundowns/${item.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      await loadCollection('activity_rundowns', [], setActivityRundowns);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menambah rundown: ${e.message}`);
+    }
+  };
+
+  const handleDeleteRundownItem = async (id: string) => {
+    try {
+      const res = await fetch(`/api/data/activity_rundowns/${id}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      await loadCollection('activity_rundowns', [], setActivityRundowns);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menghapus rundown: ${e.message}`);
+    }
+  };
+
+  const handleAddPrepItem = async (item: ActivityPreparationItem) => {
+    try {
+      const payload = {
+        ...item,
+        createdBy: `${currentRole} Operator`,
+        createdAt: new Date().toISOString(),
+        deleted: false
+      };
+      const res = await fetch(`/api/data/activity_preparations/${item.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      await loadCollection('activity_preparations', [], setActivityPreparations);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menambah persiapan: ${e.message}`);
+    }
+  };
+
+  const handleUpdatePrepItem = async (item: ActivityPreparationItem) => {
+    try {
+      const payload = {
+        ...item,
+        updatedBy: `${currentRole} Operator`,
+        updatedAt: new Date().toISOString()
+      };
+      const res = await fetch(`/api/data/activity_preparations/${item.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      await loadCollection('activity_preparations', [], setActivityPreparations);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal memperbarui persiapan: ${e.message}`);
+    }
+  };
+
+  const handleDeletePrepItem = async (id: string) => {
+    try {
+      const res = await fetch(`/api/data/activity_preparations/${id}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      await loadCollection('activity_preparations', [], setActivityPreparations);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menghapus persiapan: ${e.message}`);
     }
   };
 
@@ -1924,14 +2269,14 @@ if (!res.ok) {
                 </button>
               )}
 
-              {hasFeatureAccess('reports') && (
+              {hasFeatureAccess('kegiatan') && (
                 <button 
-                  onClick={() => { setActiveTab('reports'); setIsMobileMenuOpen(false); }}
+                  onClick={() => { setActiveTab('kegiatan'); setIsMobileMenuOpen(false); }}
                   className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
-                    activeTab === 'reports' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
+                    activeTab === 'kegiatan' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
                   }`}
                 >
-                  <FilePieChart className="w-4 h-4 shrink-0" /> Pusat Laporan
+                  <Calendar className="w-4 h-4 shrink-0" /> Kegiatan & Acara
                 </button>
               )}
 
@@ -1980,6 +2325,17 @@ if (!res.ok) {
                   }`}
                 >
                   <FileText className="w-4 h-4 shrink-0" /> Surat & Dokumen
+                </button>
+              )}
+
+              {hasFeatureAccess('reports') && (
+                <button 
+                  onClick={() => { setActiveTab('reports'); setIsMobileMenuOpen(false); }}
+                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
+                    activeTab === 'reports' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
+                  }`}
+                >
+                  <FilePieChart className="w-4 h-4 shrink-0" /> Pusat Laporan
                 </button>
               )}
 
@@ -2116,6 +2472,34 @@ if (!res.ok) {
                 onUpdateCategory={handleUpdateCategory}
                 onDeleteCategory={handleDeleteCategory}
                 profile={profile}
+              />
+            )}
+
+            {activeTab === 'kegiatan' && (
+              <ActivitiesTab 
+                activities={activities}
+                activityTransactions={activityTransactions}
+                activityRundowns={activityRundowns}
+                activityPreparations={activityPreparations}
+                onAddActivity={handleAddActivity}
+                onUpdateActivity={handleUpdateActivity}
+                onDeleteActivity={handleDeleteActivity}
+                onAddActivityTransaction={handleAddActivityTransaction}
+                onDeleteActivityTransaction={handleDeleteActivityTransaction}
+                onUpdateActivityTransaction={handleUpdateActivityTransaction}
+                onAddMainTransaction={handleAddTransaction}
+                onAddRundownItem={handleAddRundownItem}
+                onDeleteRundownItem={handleDeleteRundownItem}
+                onAddPrepItem={handleAddPrepItem}
+                onUpdatePrepItem={handleUpdatePrepItem}
+                onDeletePrepItem={handleDeletePrepItem}
+                mainKasBalance={transactions
+                  .filter(t => t.status === undefined || t.status === 'Approved')
+                  .reduce((sum, t) => sum + (t.type?.toLowerCase() === 'income' ? t.amount : -t.amount), 0)}
+                currentRole={currentRole}
+                currentUser={currentUser}
+                profile={profile}
+                structures={structures}
               />
             )}
 

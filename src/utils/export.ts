@@ -1801,5 +1801,438 @@ export function exportPartnerReportPDF(partners: any[], donations: any[], profil
   doc.save(`laporan_kemitraan_${new Date().toISOString().substring(0, 10)}.pdf`);
 }
 
+export function exportActivityDetailToPDF(
+  activity: any,
+  rundowns: any[],
+  preparations: any[],
+  transactions: any[],
+  profile?: any,
+  structures?: any[]
+) {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const primaryColor = [15, 23, 42]; // Slate 900
+  const secondaryColor = [79, 70, 229]; // Indigo
+  const textDark = [30, 41, 59]; // Slate 800
+  const textLight = [100, 116, 139]; // Slate 500
+  const lightBg = [248, 250, 252]; // Slate 50
+  const borderLight = [226, 232, 240]; // Slate 200
+
+  let currentPage = 1;
+  const formatIDR = (num: number) => 'Rp ' + (num || 0).toLocaleString('id-ID');
+
+  const drawKopSurat = (pageIndex: number) => {
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    const orgName = (profile?.name || 'YAYASAN MURID MUDA BERMISI (MMB)').toUpperCase();
+    doc.text(orgName, 15, 18);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(textLight[0], textLight[1], textLight[2]);
+    const orgAddress = profile?.address || 'Jl. Diponegoro No. 84, Menteng, Jakarta Pusat, DKI Jakarta 10103';
+    const orgNpwp = profile?.npwp ? `NPWP: ${profile.npwp}` : 'NPWP: 01.234.567.8-012.000';
+    const orgPhone = profile?.phone ? `Telp: ${profile.phone}` : 'Telp: (021) 8888-MMB';
+    const orgEmail = profile?.email ? `Email: ${profile.email}` : 'Email: info@yayasan-mmb.org';
+
+    doc.text(`${orgAddress} • ${orgNpwp}`, 15, 22);
+    doc.text(`${orgPhone} • ${orgEmail}`, 15, 26);
+
+    doc.setDrawColor(30, 41, 59);
+    doc.setLineWidth(0.4);
+    doc.line(15, 28, 195, 28);
+    doc.setLineWidth(0.15);
+    doc.line(15, 29.1, 195, 29.1);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(textLight[0], textLight[1], textLight[2]);
+    doc.text(`Halaman ${pageIndex}`, 195, 13, { align: 'right' });
+  };
+
+  drawKopSurat(1);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.text('LAPORAN DETAIL REKAPITULASI & KEUANGAN KEGIATAN', 15, 36);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(textLight[0], textLight[1], textLight[2]);
+  const formattedToday = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  doc.text(`Dicetak pada: ${formattedToday} WIB`, 15, 41);
+
+  let y = 46;
+
+  const checkPageOverflow = (neededHeight: number) => {
+    if (y + neededHeight > 275) {
+      doc.addPage();
+      currentPage++;
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(textLight[0], textLight[1], textLight[2]);
+      doc.text(`Laporan Rincian Acara: ${activity.title}  •  Halaman ${currentPage}`, 15, 12);
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.2);
+      doc.line(15, 14, 195, 14);
+      y = 20;
+    }
+  };
+
+  // 1. INFO KEGIATAN
+  checkPageOverflow(50);
+  doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+  doc.rect(15, y, 180, 42, 'F');
+  doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+  doc.setLineWidth(0.25);
+  doc.rect(15, y, 180, 42, 'S');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+  doc.text('I. PROFIL & INFORMASI KEGIATAN', 20, y + 6);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+
+  doc.text(`Nama Kegiatan`, 20, y + 13);
+  doc.setFont('Helvetica', 'bold');
+  doc.text(`: ${activity.title || '-'}`, 50, y + 13);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.text(`Tema Kegiatan`, 20, y + 19);
+  doc.text(`: ${activity.theme ? `"${activity.theme}"` : '-'}`, 50, y + 19);
+
+  doc.text(`Penanggung Jawab`, 20, y + 25);
+  doc.text(`: ${activity.ministers || '-'}`, 50, y + 25);
+
+  doc.text(`Waktu & Tempat`, 20, y + 31);
+  doc.text(`: ${activity.time || '-'} @ ${activity.place || '-'}`, 50, y + 31);
+
+  doc.text(`Deskripsi`, 20, y + 37);
+  doc.text(`: ${activity.description || 'Tidak ada catatan deskripsi tambahan'}`, 50, y + 37);
+
+  y += 46;
+  checkPageOverflow(26);
+
+  doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+  doc.rect(15, y, 180, 20, 'F');
+  doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+  doc.setLineWidth(0.25);
+  doc.rect(15, y, 180, 20, 'S');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(textLight[0], textLight[1], textLight[2]);
+  doc.text('ESTIMASI ANGGARAN (TAKSASI)', 20, y + 6);
+  doc.text('SALDO KAS KANTONG AKTIF', 85, y + 6);
+  doc.text('STATUS KEUANGAN', 145, y + 6);
+
+  doc.setFontSize(9);
+  doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+  doc.text(formatIDR(activity.budgetEstimated || 0), 20, y + 12);
+  doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+  doc.text(formatIDR(activity.budgetWalletBalance || 0), 85, y + 12);
+
+  const isSurplus = (activity.budgetWalletBalance || 0) >= (activity.budgetEstimated || 0);
+  if (isSurplus) {
+    doc.setTextColor(16, 185, 129);
+    doc.text('Cukup / Terpenuhi', 145, y + 12);
+  } else {
+    doc.setTextColor(239, 68, 68);
+    doc.text('Kekurangan Dana', 145, y + 12);
+  }
+
+  y += 24;
+
+  // 2. STRUKTUR PANITIA
+  checkPageOverflow(20);
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.text('II. STRUKTUR PANITIA & PENGURUS KEGIATAN', 15, y);
+  y += 4;
+
+  const members = activity.committeeMembers || [];
+  if (members.length === 0) {
+    doc.setFont('Helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(textLight[0], textLight[1], textLight[2]);
+    doc.text('Belum ada panitia atau pengurus yang ditunjuk untuk kegiatan ini.', 15, y);
+    y += 8;
+  } else {
+    checkPageOverflow(8);
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(15, y, 180, 6.5, 'F');
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text('JABATAN / PERAN PANITIA', 18, y + 4.2);
+    doc.text('NAMA PENGURUS', 80, y + 4.2);
+    doc.text('KONTAK / TELEPON', 140, y + 4.2);
+
+    y += 6.5;
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+    doc.setFontSize(7.5);
+
+    members.forEach((m: any, idx: number) => {
+      checkPageOverflow(6);
+      if (idx % 2 === 1) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(15, y, 180, 6, 'F');
+      }
+      doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+      doc.line(15, y + 6, 195, y + 6);
+
+      doc.text(m.role || '', 18, y + 4.2);
+      doc.text(m.name || '', 80, y + 4.2);
+      doc.text(m.contact || '-', 140, y + 4.2);
+
+      y += 6;
+    });
+    y += 3;
+  }
+
+  // 3. PERSYARATAN / AGENDA PERSIAPAN
+  checkPageOverflow(20);
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.text('III. LAPORAN AGENDA PERSIAPAN & STATUS PEKERJAAN', 15, y);
+  y += 4;
+
+  if (preparations.length === 0) {
+    doc.setFont('Helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(textLight[0], textLight[1], textLight[2]);
+    doc.text('Tidak ada daftar agenda persiapan atau task yang dicatatkan.', 15, y);
+    y += 8;
+  } else {
+    checkPageOverflow(8);
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(15, y, 180, 6.5, 'F');
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text('PEKERJAAN / DETAIL TASK', 18, y + 4.2);
+    doc.text('TENGGAT', 85, y + 4.2);
+    doc.text('P.I.C.', 115, y + 4.2);
+    doc.text('STATUS', 145, y + 4.2);
+    doc.text('DANA (Rp)', 165, y + 4.2);
+
+    y += 6.5;
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+    doc.setFontSize(7);
+
+    preparations.forEach((item: any, idx: number) => {
+      checkPageOverflow(6);
+      if (idx % 2 === 1) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(15, y, 180, 6, 'F');
+      }
+      doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+      doc.line(15, y + 6, 195, y + 6);
+
+      doc.text(String(item.task || '').substring(0, 48), 18, y + 4.2);
+      doc.text(item.date || '-', 85, y + 4.2);
+      doc.text(item.pic || '-', 115, y + 4.2);
+      doc.text(item.status || 'Pending', 145, y + 4.2);
+      
+      const amtText = item.needsFunding ? formatIDR(item.requiredAmount || 0) : 'Tanpa Dana';
+      doc.text(amtText, 165, y + 4.2);
+
+      y += 6;
+    });
+    y += 3;
+  }
+
+  // 4. RUNDOWN ACARA
+  checkPageOverflow(20);
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.text('IV. RUNDOWN ACARA / AGENDA HARI-H', 15, y);
+  y += 4;
+
+  if (rundowns.length === 0) {
+    doc.setFont('Helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(textLight[0], textLight[1], textLight[2]);
+    doc.text('Tidak ada susunan rundown acara yang terekam.', 15, y);
+    y += 8;
+  } else {
+    checkPageOverflow(8);
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(15, y, 180, 6.5, 'F');
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text('WAKTU', 18, y + 4.2);
+    doc.text('ACARA / KEGIATAN', 40, y + 4.2);
+    doc.text('PENANGGUNG JAWAB (P.I.C)', 140, y + 4.2);
+
+    y += 6.5;
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+    doc.setFontSize(7);
+
+    rundowns.forEach((item: any, idx: number) => {
+      checkPageOverflow(6);
+      if (idx % 2 === 1) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(15, y, 180, 6, 'F');
+      }
+      doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+      doc.line(15, y + 6, 195, y + 6);
+
+      doc.text(item.time || '', 18, y + 4.2);
+      doc.text(String(item.activity || '').substring(0, 60), 40, y + 4.2);
+      doc.text(item.pic || '-', 140, y + 4.2);
+
+      y += 6;
+    });
+    y += 3;
+  }
+
+  // 5. REKAPITULASI JURNAL TRANSAKSI KEUANGAN
+  checkPageOverflow(20);
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.text('V. REKAPITULASI LAPORAN JURNAL TRANSAKSI KEUANGAN', 15, y);
+  y += 4;
+
+  if (transactions.length === 0) {
+    doc.setFont('Helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(textLight[0], textLight[1], textLight[2]);
+    doc.text('Belum ada transaksi debet atau kredit yang terekam pada kantong kegiatan ini.', 15, y);
+    y += 8;
+  } else {
+    const colTxX = {
+      id: 15,
+      date: 37,
+      desc: 60,
+      in: 135,
+      out: 165
+    };
+
+    checkPageOverflow(8);
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(15, y, 180, 6.5, 'F');
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text('ID TRANS', colTxX.id + 1, y + 4.2);
+    doc.text('TANGGAL', colTxX.date + 1, y + 4.2);
+    doc.text('URAIAN LAPORAN KEUANGAN', colTxX.desc + 1, y + 4.2);
+    doc.text('MASUK DEBET (Rp)', colTxX.in + 1, y + 4.2);
+    doc.text('KELUAR KREDIT (Rp)', colTxX.out + 1, y + 4.2);
+
+    y += 6.5;
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+    doc.setFontSize(7);
+
+    transactions.forEach((tx: any, idx: number) => {
+      checkPageOverflow(6);
+      if (idx % 2 === 1) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(15, y, 180, 6, 'F');
+      }
+      doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+      doc.line(15, y + 6, 195, y + 6);
+
+      const idText = String(tx.id || '').substring(0, 10);
+      doc.text(idText, colTxX.id + 1, y + 4.2);
+      doc.text(tx.date || '-', colTxX.date + 1, y + 4.2);
+      doc.text(String(tx.description || '').substring(0, 50), colTxX.desc + 1, y + 4.2);
+
+      const isDebit = tx.type === 'In' || tx.type === 'Pemasukan' || tx.type === 'Transfer_From_Main';
+      const amtVal = (tx.amount || 0).toLocaleString('id-ID');
+
+      if (isDebit) {
+        doc.setFont('Helvetica', 'bold');
+        doc.setTextColor(16, 185, 129);
+        doc.text(amtVal, colTxX.in + 1, y + 4.2);
+        doc.setFont('Helvetica', 'normal');
+        doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+        doc.text('-', colTxX.out + 1, y + 4.2);
+      } else {
+        doc.text('-', colTxX.in + 1, y + 4.2);
+        doc.setFont('Helvetica', 'bold');
+        doc.setTextColor(239, 68, 68);
+        doc.text(amtVal, colTxX.out + 1, y + 4.2);
+        doc.setFont('Helvetica', 'normal');
+        doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+      }
+
+      y += 6;
+    });
+    y += 3;
+  }
+
+  // Footer / Signatures
+  checkPageOverflow(35);
+  y += 10;
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(textLight[0], textLight[1], textLight[2]);
+  
+  // Deteksi kota penulisan secara dinamis dari alamat profil lembaga
+  let cityOfIssuance = 'Yogyakarta';
+  if (profile?.address) {
+    const addrLower = profile.address.toLowerCase();
+    if (addrLower.includes('jakarta')) {
+      cityOfIssuance = 'Jakarta';
+    } else if (addrLower.includes('sleman')) {
+      cityOfIssuance = 'Sleman';
+    } else if (addrLower.includes('bantul')) {
+      cityOfIssuance = 'Bantul';
+    } else if (addrLower.includes('bandung')) {
+      cityOfIssuance = 'Bandung';
+    } else if (addrLower.includes('surabaya')) {
+      cityOfIssuance = 'Surabaya';
+    } else if (addrLower.includes('semarang')) {
+      cityOfIssuance = 'Semarang';
+    } else if (addrLower.includes('solo') || addrLower.includes('surakarta')) {
+      cityOfIssuance = 'Surakarta';
+    } else {
+      const parts = profile.address.split(',').map((p: string) => p.trim());
+      if (parts.length >= 2) {
+        const potentialCity2 = parts[parts.length - 3];
+        const potentialCity1 = parts[parts.length - 2];
+        if (potentialCity2 && !potentialCity2.toLowerCase().includes('kecamatan') && !potentialCity2.toLowerCase().includes('kelurahan') && potentialCity2.length < 30) {
+          cityOfIssuance = potentialCity2.replace(/(kota|kabupaten|kab\.)/gi, '').trim();
+        } else if (potentialCity1) {
+          cityOfIssuance = potentialCity1.replace(/\d+/g, '').replace(/(provinsi|dki|d.i|di|diy|daerah istimewa)/gi, '').trim();
+        }
+      }
+    }
+  }
+
+  const placeDateStr = `Dikeluarkan di ${cityOfIssuance}, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+  doc.text(placeDateStr, 15, y);
+  doc.setFont('Helvetica', 'bold');
+  doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+  doc.text(`Penanggung Jawab Kegiatan: ${activity.ministers || '-'}`, 15, y + 5);
+
+  doc.setFont('Helvetica', 'italic');
+  doc.setFontSize(7);
+  doc.setTextColor(textLight[0], textLight[1], textLight[2]);
+  doc.text('*Dokumen laporan rekapitulasi data dan keuangan ini diterbitkan secara sah dan divalidasi langsung oleh sistem ERP Yayasan.', 15, y + 10);
+
+  doc.save(`laporan_kegiatan_${activity.title ? activity.title.replace(/\s+/g, '_').toLowerCase() : 'detail'}.pdf`);
+}
+
 
 

@@ -377,6 +377,80 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "seeded"]
+    },
+    "Activity": {
+      "title": "Activity",
+      "description": "Yayasan activities/events with isolated wallets, agenda, and plans.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "theme": { "type": "string" },
+        "description": { "type": "string" },
+        "ministers": { "type": "string" },
+        "time": { "type": "string" },
+        "place": { "type": "string" },
+        "budgetEstimated": { "type": "number" },
+        "budgetWalletBalance": { "type": "number" },
+        "committeeMembers": { "type": "array" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "deleted": { "type": "boolean" }
+      },
+      "required": ["id", "title", "budgetEstimated", "budgetWalletBalance"]
+    },
+    "ActivityRundownItem": {
+      "title": "ActivityRundownItem",
+      "description": "Rundown item for activities.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "activityId": { "type": "string" },
+        "time": { "type": "string" },
+        "activity": { "type": "string" },
+        "pic": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "deleted": { "type": "boolean" }
+      },
+      "required": ["id", "activityId", "time", "activity", "pic"]
+    },
+    "ActivityPreparationItem": {
+      "title": "ActivityPreparationItem",
+      "description": "Preparation item for activities.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "activityId": { "type": "string" },
+        "task": { "type": "string" },
+        "date": { "type": "string" },
+        "pic": { "type": "string" },
+        "needsFunding": { "type": "boolean" },
+        "requiredAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Pending", "Completed"] },
+        "funded": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "deleted": { "type": "boolean" }
+      },
+      "required": ["id", "activityId", "task", "date", "pic", "status", "needsFunding"]
+    },
+    "ActivityTransaction": {
+      "title": "ActivityTransaction",
+      "description": "Financial ledger transactions for isolated event pockets.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "activityId": { "type": "string" },
+        "type": { "type": "string", "enum": ["In", "Out", "Transfer_From_Main", "Transfer_To_Main"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "date": { "type": "string" },
+        "operator": { "type": "string" },
+        "deleted": { "type": "boolean" }
+      },
+      "required": ["id", "activityId", "type", "amount", "description", "date", "operator"]
     }
   },
   "firestore": {
@@ -499,6 +573,22 @@
     "/salaries/{nik}": {
       "schema": "StaffSalary",
       "description": "Konfigurasi detail gaji dasar dan rincian parameter tunjangan/potongan dinamis pegawai."
+    },
+    "/activities/{activityId}": {
+      "schema": "Activity",
+      "description": "Acara and activities registered with budget and rundown."
+    },
+    "/activity_rundowns/{rundownId}": {
+      "schema": "ActivityRundownItem",
+      "description": "Rundown items of registered activity."
+    },
+    "/activity_preparations/{preparationId}": {
+      "schema": "ActivityPreparationItem",
+      "description": "Preparation planning items of registered activity."
+    },
+    "/activity_transactions/{transactionId}": {
+      "schema": "ActivityTransaction",
+      "description": "Ledger of expenses / income of registered activity wallets."
     }
   }
 }

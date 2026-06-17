@@ -111,6 +111,14 @@ service cloud.firestore {
       return true;
     }
 
+    function isValidActivity(data) {
+      return true;
+    }
+
+    function isValidActivityTransaction(data) {
+      return true;
+    }
+
     // All-matching Firestore Collections Security Rules
     match /profiles/{profileId} {
       allow read: if true;
@@ -281,6 +289,22 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if isValidId(structureId) && isValidStructure(incoming());
       allow delete: if true;
+    }
+
+    match /activities/{activityId} {
+      allow read, write: if true;
+    }
+
+    match /activity_rundowns/{rundownId} {
+      allow read, write: if true;
+    }
+
+    match /activity_preparations/{preparationId} {
+      allow read, write: if true;
+    }
+
+    match /activity_transactions/{transactionId} {
+      allow read, write: if true;
     }
 
     match /system_state/{stateId} {

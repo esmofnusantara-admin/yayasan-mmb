@@ -9,7 +9,8 @@ const router = Router();
 router.post('/sync', authenticateToken, async (req: any, res: Response) => {
   const { tx, operatorName, operatorRole, currentBalanceBeforeTx } = req.body;
   const userRole = req.user.role;
-  if (userRole !== 'Super Admin' && userRole !== 'Ketua Yayasan' && userRole !== 'Bendahara') {
+  const isActivityAllocation = tx && (tx.reference_type === 'activity_allocation' || tx.category === 'Alokasi Kegiatan / Event' || tx.category === 'Pemasukan Kegiatan / Event sisa');
+  if (userRole !== 'Super Admin' && userRole !== 'Ketua Yayasan' && userRole !== 'Bendahara' && !isActivityAllocation) {
     return res.status(403).json({ success: false, message: 'Hak Akses Ditolak: Anda tidak memiliki wewenang untuk mensinkronisasi data keuangan secara langsung.' });
   }
 

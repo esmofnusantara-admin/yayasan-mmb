@@ -362,3 +362,66 @@ export interface AuditLog {
   deletedAt?: string;
   deletedBy?: string;
 }
+
+export interface ActivityRundownItem {
+  id: string;
+  activityId: string;
+  time: string;
+  activity: string;
+  pic: string;
+  createdAt?: string;
+  createdBy?: string;
+  deleted?: boolean;
+}
+
+export interface ActivityPreparationItem {
+  id: string;
+  activityId: string;
+  task: string;
+  date: string;
+  pic: string;
+  needsFunding: boolean;
+  requiredAmount?: number;
+  status: 'Pending' | 'Completed';
+  funded?: boolean;
+  createdAt?: string;
+  createdBy?: string;
+  deleted?: boolean;
+}
+
+export interface ActivityCommitteeMember {
+  id: string;
+  role: string; // e.g., Ketua, Sekretaris, Bendahara, Sie Konsumsi, etc.
+  name: string;
+  contact?: string;
+}
+
+export interface Activity {
+  id: string;
+  title: string;
+  theme?: string;
+  description?: string;
+  ministers?: string; // pelayan
+  time?: string;      // waktu kegiatan
+  place?: string;     // tempat kegiatan
+  budgetEstimated: number; // taksasi dana yang dibutuhkan
+  budgetWalletBalance: number; // saldo kantong dana kegiatan sendiri
+  committeeMembers?: ActivityCommitteeMember[];
+  status?: 'Sedang Berjalan' | 'Selesai';
+  createdAt?: string;
+  createdBy?: string;
+  deleted?: boolean;
+}
+
+export interface ActivityTransaction {
+  id: string;
+  activityId: string;
+  type: 'In' | 'Out' | 'Transfer_From_Main' | 'Transfer_To_Main';
+  amount: number;
+  description: string;
+  date: string;
+  operator: string;
+  deleted?: boolean;
+  createdAt?: string;
+}
+

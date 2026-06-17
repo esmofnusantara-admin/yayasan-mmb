@@ -77,6 +77,7 @@ export default function ActivitiesTab({
   // Modals / Form toggles
   const [isNewActivityFormOpen, setIsNewActivityFormOpen] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [localDescription, setLocalDescription] = useState('');
 
   // Form states for New Activity
   const [newTitle, setNewTitle] = useState('');
@@ -210,6 +211,9 @@ export default function ActivitiesTab({
   const activeActivity = useMemo(() => {
     return activities.find(a => a.id === selectedActivityId);
   }, [activities, selectedActivityId]);
+
+  // Check if current active activity is completed
+  const isCompleted = activeActivity?.status === 'Selesai';
 
   // Filtered and sorted list for rundown schedule events belonging to active activity
   const activeRundownItemsList = useMemo(() => {
@@ -1347,7 +1351,8 @@ export default function ActivitiesTab({
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => handleStartEditActivity(activeActivity)}
-                className="px-3 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-xl flex items-center gap-1.5 text-xs font-black transition-all cursor-pointer shadow-xs"
+                disabled={isCompleted}
+                className="px-3 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-xl flex items-center gap-1.5 text-xs font-black transition-all cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Edit data rincian agenda acara"
               >
                 <Edit3 className="w-3.5 h-3.5" /> Edit Rincian
@@ -1397,7 +1402,8 @@ export default function ActivitiesTab({
 
               <button
                 onClick={() => handleDeleteActivityRecord(activeActivity.id, activeActivity.title)}
-                className="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-xl flex items-center gap-1.5 text-xs font-black transition-all cursor-pointer shadow-xs"
+                disabled={isCompleted}
+                className="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-xl flex items-center gap-1.5 text-xs font-black transition-all cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Hapus dan tutup permanen seluruh dokumen data acara"
               >
                 <Trash2 className="w-3.5 h-3.5" /> Hapus Kegiatan
@@ -1444,7 +1450,7 @@ export default function ActivitiesTab({
               </div>
               <div className="text-left font-mono pl-4 md:pl-6">
                 <span className="text-emerald-600 text-[9px] block font-extrabold uppercase tracking-wider flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span> Target Kas Kantong Kegiatan
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span> Kas Kantong Kegiatan
                 </span>
                 <strong className="text-emerald-500 text-lg font-black">Rp {activeActivity.budgetWalletBalance.toLocaleString('id-ID')}</strong>
               </div>
@@ -1534,6 +1540,7 @@ export default function ActivitiesTab({
                         <label className="text-[9px] font-bold text-slate-400 block mb-1">ARUS TRANSAKSI</label>
                         <select
                           value={txType}
+                          disabled={isCompleted}
                           onChange={(e) => setTxType(e.target.value as 'In' | 'Out')}
                           className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
                         >
@@ -1546,6 +1553,7 @@ export default function ActivitiesTab({
                         <input
                           type="number"
                           required
+                          disabled={isCompleted}
                           value={txAmount || ''}
                           onChange={(e) => setTxAmount(Number(e.target.value))}
                           placeholder="Rp..."
@@ -1560,6 +1568,7 @@ export default function ActivitiesTab({
                         <input
                           type="text"
                           required
+                          disabled={isCompleted}
                           value={txDescription}
                           onChange={(e) => setTxDescription(e.target.value)}
                           placeholder="e.g. Pembelian lilin natal / Donatur perorangan"
@@ -1570,7 +1579,8 @@ export default function ActivitiesTab({
 
                     <button
                       type="submit"
-                      className="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl cursor-pointer transition-colors"
+                      disabled={isCompleted}
+                      className="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Buku Transaksi Kegiatan
                     </button>
@@ -1587,6 +1597,7 @@ export default function ActivitiesTab({
                         <label className="text-[9px] font-bold text-slate-400 block mb-1">TIPE PERPINDAHAN</label>
                         <select
                           value={transferDirection}
+                          disabled={isCompleted}
                           onChange={(e) => setTransferDirection(e.target.value as 'From_Main' | 'To_Main')}
                           className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
                         >
@@ -1599,6 +1610,7 @@ export default function ActivitiesTab({
                         <input
                           type="number"
                           required
+                          disabled={isCompleted}
                           value={transferAmount || ''}
                           onChange={(e) => setTransferAmount(Number(e.target.value))}
                           placeholder="Nominal..."
@@ -1611,6 +1623,7 @@ export default function ActivitiesTab({
                       <label className="text-[9px] font-bold text-slate-400 block mb-1">CATATAN TRANSFER</label>
                       <input
                         type="text"
+                        disabled={isCompleted}
                         value={transferNotes}
                         onChange={(e) => setTransferNotes(e.target.value)}
                         placeholder="Contoh: Tambahan anggaran Natal Sie Konsumsi"
@@ -1620,7 +1633,8 @@ export default function ActivitiesTab({
 
                     <button
                       type="submit"
-                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer transition-colors"
+                      disabled={isCompleted}
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Eksekusi Perpindahan Dana Kas
                     </button>
@@ -1688,14 +1702,16 @@ export default function ActivitiesTab({
                                 <div className="flex justify-center gap-1">
                                   <button
                                     onClick={() => handleStartEditTx(tx)}
-                                    className="p-1 hover:bg-amber-50 text-amber-600 hover:text-amber-700 rounded transition-colors cursor-pointer"
+                                    disabled={isCompleted}
+                                    className="p-1 hover:bg-amber-50 text-amber-600 hover:text-amber-700 rounded transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                                     title="Edit Jurnal"
                                   >
                                     <Edit3 className="w-3 pb-0.5 h-3" />
                                   </button>
                                   <button
                                     onClick={() => handleDeleteActivityTxRecord(tx)}
-                                    className="p-1 hover:bg-red-50 text-red-500 hover:text-red-600 rounded transition-colors cursor-pointer"
+                                    disabled={isCompleted}
+                                    className="p-1 hover:bg-red-50 text-red-500 hover:text-red-600 rounded transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                                     title="Hapus Jurnal"
                                   >
                                     <Trash2 className="w-3 h-3" />
@@ -1859,7 +1875,8 @@ export default function ActivitiesTab({
                                 <td className="p-3 text-center">
                                   <button
                                     onClick={() => handleDeleteRundownItem(item.id)}
-                                    className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
+                                    disabled={isCompleted}
+                                    className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                                     title="Hapus Rincian"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -1880,6 +1897,7 @@ export default function ActivitiesTab({
                           <input
                             type="text"
                             required
+                            disabled={isCompleted}
                             placeholder="Waktu (e.g. 18:00)"
                             value={rundownTime}
                             onChange={(e) => setRundownTime(e.target.value)}
@@ -1889,6 +1907,7 @@ export default function ActivitiesTab({
                         <div className="col-span-2">
                           <input
                             type="text"
+                            disabled={isCompleted}
                             placeholder="Penanggung Jawab (PIC)"
                             value={rundownPic}
                             onChange={(e) => setRundownPic(e.target.value)}
@@ -1900,6 +1919,7 @@ export default function ActivitiesTab({
                         <input
                           type="text"
                           required
+                          disabled={isCompleted}
                           placeholder="Uraian detail rincian acara..."
                           value={rundownActivity}
                           onChange={(e) => setRundownActivity(e.target.value)}
@@ -1908,7 +1928,8 @@ export default function ActivitiesTab({
                       </div>
                       <button
                         type="submit"
-                        className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg cursor-pointer transition-all"
+                        disabled={isCompleted}
+                        className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Tambah Agenda rundown
                       </button>
@@ -1974,7 +1995,8 @@ export default function ActivitiesTab({
                                     <button
                                       type="button"
                                       onClick={() => handleTogglePrepStatus(item.id)}
-                                      className={`px-2 py-1 text-[9px] font-bold rounded-md transition-all border ${
+                                      disabled={isCompleted}
+                                      className={`px-2 py-1 text-[9px] font-bold rounded-md transition-all border disabled:opacity-50 disabled:cursor-not-allowed ${
                                         item.status === 'Completed'
                                           ? 'bg-emerald-50 text-emerald-700 border-emerald-150'
                                           : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
@@ -1988,10 +2010,10 @@ export default function ActivitiesTab({
                                       {item.needsFunding && !item.funded && (
                                         <button
                                           type="button"
-                                          disabled={!canFund}
+                                          disabled={isCompleted || !canFund}
                                           onClick={() => handleFundPrepTask(item)}
                                           className={`px-2 py-1 text-[9px] font-extrabold rounded-md shadow-xs transition-all ${
-                                            canFund 
+                                            (canFund && !isCompleted)
                                               ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer' 
                                               : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
                                           }`}
@@ -2004,7 +2026,8 @@ export default function ActivitiesTab({
                                       <button
                                         type="button"
                                         onClick={() => handleStartEditPrepItem(item)}
-                                        className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-amber-600 transition-colors cursor-pointer"
+                                        disabled={isCompleted}
+                                        className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-amber-600 transition-colors cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                                         title="Edit Tugas"
                                       >
                                         <Edit3 className="w-3.5 h-3.5" />
@@ -2013,7 +2036,8 @@ export default function ActivitiesTab({
                                       <button
                                         type="button"
                                         onClick={() => handleDeletePrepItem(item.id)}
-                                        className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+                                        disabled={isCompleted}
+                                        className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-red-500 transition-colors cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                                         title="Hapus Agenda"
                                       >
                                         <Trash2 className="w-3.5 h-3.5" />
@@ -2036,6 +2060,7 @@ export default function ActivitiesTab({
                           <input
                             type="date"
                             required
+                            disabled={isCompleted}
                             value={prepDate}
                             onChange={(e) => setPrepDate(e.target.value)}
                             className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
@@ -2044,6 +2069,7 @@ export default function ActivitiesTab({
                         <div>
                           <input
                             type="text"
+                            disabled={isCompleted}
                             placeholder="PIC / Petugas"
                             value={prepPic}
                             onChange={(e) => setPrepPic(e.target.value)}
@@ -2055,39 +2081,44 @@ export default function ActivitiesTab({
                         <input
                           type="text"
                           required
+                          disabled={isCompleted}
                           placeholder="Nama tugas persiapan kerja..."
                           value={prepTask}
                           onChange={(e) => setPrepTask(e.target.value)}
                           className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
                         />
                       </div>
-                      <div className="p-2 border border-slate-200/60 bg-white rounded-lg space-y-2">
-                        <label className="flex items-center gap-2 text-xs text-slate-700 font-bold cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
                           <input
                             type="checkbox"
+                            disabled={isCompleted}
                             checked={prepNeedsFunding}
                             onChange={(e) => setPrepNeedsFunding(e.target.checked)}
-                            className="w-3.5 h-3.5 text-amber-600 border-slate-300 rounded focus:ring-amber-500"
+                            className="rounded border-slate-300 focus:ring-0 w-3.5 h-3.5 cursor-pointer"
                           />
-                          Memerlukan Alokasi Belanja Anggaran?
+                          Butuh Dana Pembayaran
                         </label>
+                        
                         {prepNeedsFunding && (
-                          <div>
-                            <label className="text-[9px] text-slate-400 font-bold block mb-0.5">NOMINAL (RP)</label>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-slate-400">Rp</span>
                             <input
                               type="number"
                               required
-                              placeholder="Rp..."
+                              disabled={isCompleted}
+                              placeholder="Nominal..."
                               value={prepRequiredAmount || ''}
                               onChange={(e) => setPrepRequiredAmount(Number(e.target.value))}
-                              className="w-full px-2 py-1 bg-white border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-amber-400"
+                              className="px-2 py-1 text-xs bg-white border border-slate-200 rounded-lg w-28 focus:outline-none"
                             />
                           </div>
                         )}
                       </div>
                       <button
                         type="submit"
-                        className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg cursor-pointer transition-all"
+                        disabled={isCompleted}
+                        className="w-full py-1.5 bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs rounded-lg cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Tambah Tugas Persiapan
                       </button>
@@ -2124,7 +2155,8 @@ export default function ActivitiesTab({
                         <button
                           type="button"
                           onClick={() => handleDeleteCommitteeMember(member.id)}
-                          className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 p-1 rounded-md hover:bg-red-50 transition-all cursor-pointer flex-none"
+                          disabled={isCompleted}
+                          className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 p-1 rounded-md hover:bg-red-50 transition-all cursor-pointer flex-none disabled:opacity-0 disabled:pointer-events-none"
                           title="Hapus Pengurus"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -2141,6 +2173,7 @@ export default function ActivitiesTab({
                     <input
                       type="text"
                       required
+                      disabled={isCompleted}
                       placeholder="Peran (e.g. Pembicara / MC / Ketua)"
                       value={memberRole}
                       onChange={(e) => setMemberRole(e.target.value)}
@@ -2149,6 +2182,7 @@ export default function ActivitiesTab({
                     <input
                       type="text"
                       required
+                      disabled={isCompleted}
                       placeholder="Nama Pengurus/Pelayan"
                       value={memberName}
                       onChange={(e) => setMemberName(e.target.value)}
@@ -2158,6 +2192,7 @@ export default function ActivitiesTab({
                   <div className="flex gap-2">
                     <input
                       type="text"
+                      disabled={isCompleted}
                       placeholder="Kontak / Keterangan (Opsional)"
                       value={memberContact}
                       onChange={(e) => setMemberContact(e.target.value)}
@@ -2165,7 +2200,8 @@ export default function ActivitiesTab({
                     />
                     <button
                       type="submit"
-                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg cursor-pointer flex-none block"
+                      disabled={isCompleted}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg cursor-pointer flex-none block disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Tambah
                     </button>
@@ -2180,11 +2216,14 @@ export default function ActivitiesTab({
                   <button
                     onClick={() => {
                       if (isEditingDescription) {
-                        onUpdateActivity(activeActivity);
+                        onUpdateActivity({ ...activeActivity, description: localDescription });
+                      } else {
+                        setLocalDescription(activeActivity.description || '');
                       }
                       setIsEditingDescription(!isEditingDescription);
                     }}
-                    className="text-xs text-blue-600 hover:underline flex items-center gap-1 cursor-pointer font-bold"
+                    disabled={isCompleted}
+                    className="text-xs text-blue-600 hover:underline flex items-center gap-1 cursor-pointer font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Edit3 className="w-3.5 h-3.5" /> {isEditingDescription ? 'Selesai Edit' : 'Edit Deskripsi'}
                   </button>
@@ -2194,11 +2233,8 @@ export default function ActivitiesTab({
                   <textarea
                     className="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"
                     rows={6}
-                    value={activeActivity.description || ''}
-                    onChange={(e) => {
-                      const updated = { ...activeActivity, description: e.target.value };
-                      onUpdateActivity(updated);
-                    }}
+                    value={localDescription}
+                    onChange={(e) => setLocalDescription(e.target.value)}
                   />
                 ) : (
                   <p className="text-xs text-slate-600 leading-relaxed font-sans whitespace-pre-line">

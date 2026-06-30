@@ -170,6 +170,7 @@ export interface Partner {
   frequency: 'Bulanan' | 'Tahunan' | 'Satu Kali';
   startDate: string;
   endDate?: string;
+  donationDay?: number;
 }
 
 export interface CampaignDonation {

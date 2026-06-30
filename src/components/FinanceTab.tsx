@@ -38,6 +38,7 @@ interface FinanceTabProps {
   onUpdateCategory?: (cat: FinancialCategory) => void;
   onDeleteCategory?: (id: string) => void;
   profile?: InstitutionalProfile;
+  structures?: any[];
 }
 
 export default function FinanceTab({
@@ -51,6 +52,7 @@ export default function FinanceTab({
   onUpdateCategory,
   onDeleteCategory,
   profile,
+  structures = [],
 }: FinanceTabProps) {
   const canAdd = ['Super Admin', 'Ketua Yayasan', 'Bendahara'].includes(currentRole);
   const canEdit = ['Super Admin', 'Ketua Yayasan', 'Bendahara'].includes(currentRole);
@@ -311,7 +313,7 @@ export default function FinanceTab({
       ];
       exportToCSV(filteredTransactions, headers, keys, `data_keuangan_kas_${new Date().toISOString().substring(0, 10)}.csv`);
     } else {
-      exportLedgerToPDF(filteredTransactions, profile);
+      exportLedgerToPDF(filteredTransactions, profile, structures);
     }
   };
 

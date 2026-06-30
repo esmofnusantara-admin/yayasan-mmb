@@ -39,6 +39,55 @@ router.get('/:colName', authenticateToken, checkCollectionPermission, async (req
       }
     }
 
+    if (colName === 'staff') {
+      const role = req.user?.role;
+      const features = req.user?.features || [];
+      const hasReportsAccess = Array.isArray(features) && features.includes('reports');
+      const isPrivileged = role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Bendahara' || hasReportsAccess;
+
+      if (!isPrivileged) {
+        const userEmail = req.user?.email?.toLowerCase().trim();
+        const userName = req.user?.name?.toLowerCase().trim();
+        dataItems = dataItems.filter(item => {
+          const staffEmail = item.email?.toLowerCase().trim();
+          const staffName = item.name?.toLowerCase().trim();
+          const staffPhone = item.phone?.trim();
+          return (staffEmail && staffEmail === userEmail) || 
+                 (staffName && staffName === userName) ||
+                 (staffPhone && (staffPhone === userEmail || userEmail?.startsWith(staffPhone)));
+        });
+      }
+    }
+
+    if (colName === 'salaries') {
+      const role = req.user?.role;
+      const features = req.user?.features || [];
+      const hasReportsAccess = Array.isArray(features) && features.includes('reports');
+      const isPrivileged = role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Bendahara' || hasReportsAccess;
+
+      if (!isPrivileged) {
+        const userEmail = req.user?.email?.toLowerCase().trim();
+        const userName = req.user?.name?.toLowerCase().trim();
+        
+        // Find matching staff first to find the NIK
+        const allStaff = await dbDriver.getDocs('staff');
+        const matchedStaff = allStaff.find(item => {
+          const staffEmail = item.email?.toLowerCase().trim();
+          const staffName = item.name?.toLowerCase().trim();
+          const staffPhone = item.phone?.trim();
+          return (staffEmail && staffEmail === userEmail) || 
+                 (staffName && staffName === userName) ||
+                 (staffPhone && (staffPhone === userEmail || userEmail?.startsWith(staffPhone)));
+        });
+
+        if (matchedStaff) {
+          dataItems = dataItems.filter(item => item.id === matchedStaff.nik);
+        } else {
+          dataItems = [];
+        }
+      }
+    }
+
     const items = dataItems.filter(item => includeDeleted || !item.deleted);
     res.json(items);
   } catch (error: any) {

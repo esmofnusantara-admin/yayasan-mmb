@@ -73,7 +73,17 @@ export const checkCollectionPermission = (req: any, res: Response, next: NextFun
     const isReadRequest = req.method === 'GET';
     const hasReportsAccess = Array.isArray(user.features) && user.features.includes('reports');
 
-    if (!(role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Bendahara' || (isReadRequest && hasReportsAccess))) {
+    const isStaffOrSalaryRead = (colName === 'staff' || colName === 'salaries') && isReadRequest;
+    
+    // Check custom bypasses for Staff/Partners:
+    // 1. Staff can read/write partners
+    const isPartnersAccess = colName === 'partners';
+    // 2. Staff can only read donations
+    const isDonationsRead = colName === 'donations' && isReadRequest;
+
+    const isBypassed = isStaffOrSalaryRead || isPartnersAccess || isDonationsRead;
+
+    if (!isBypassed && !(role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Bendahara' || (isReadRequest && hasReportsAccess))) {
       return res.status(403).json({ success: false, message: 'Hak Akses Terbatas: Anda tidak memiliki wewenang untuk melihat atau memodifikasi data keuangan/kepegawaian/kemitraan.' });
     }
   }
@@ -169,6 +179,11 @@ router.post('/register', async (req: Request, res: Response) => {
 
 router.post('/login', async (req: Request, res: Response) => {
   const { email, password } = req.body;
+  
+  if (!email || typeof email !== 'string' || !password || typeof password !== 'string') {
+    return res.status(400).json({ success: false, message: 'Alamat email/nomor telepon dan password wajib diisi.' });
+  }
+
   try {
     await seedUsersIfEmpty();
 

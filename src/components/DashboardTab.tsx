@@ -42,6 +42,7 @@ interface DashboardTabProps {
   profile?: any;
   staffs?: Staff[];
   hasFeatureAccess: (feature: string) => boolean;
+  currentRole?: string;
 }
 
 export default function DashboardTab({
@@ -57,6 +58,7 @@ export default function DashboardTab({
   profile,
   staffs = [],
   hasFeatureAccess,
+  currentRole = 'Staff',
 }: DashboardTabProps) {
   // Financial Calculators
   const approvedTx = transactions.filter(t => t.status === undefined || t.status === 'Approved');
@@ -326,9 +328,15 @@ export default function DashboardTab({
               </div>
             </div>
             <div className="mt-4 pt-3 border-t border-violet-100/40 flex items-center justify-between gap-2 text-[11px] text-slate-500 min-w-0">
-              <span className="text-violet-700 font-bold truncate bg-violet-50/85 px-2 py-0.5 rounded-md flex-1 min-w-0">
-                Rp {(activeCommitmentsTotal / 12).toLocaleString('id-ID')}/bln
-              </span>
+              {currentRole !== 'Staff' ? (
+                <span className="text-violet-700 font-bold truncate bg-violet-50/85 px-2 py-0.5 rounded-md flex-1 min-w-0">
+                  Rp {(activeCommitmentsTotal / 12).toLocaleString('id-ID')}/bln
+                </span>
+              ) : (
+                <span className="text-violet-700 font-bold truncate bg-violet-50/85 px-2 py-0.5 rounded-md flex-1 min-w-0">
+                  Database & Pipeline CRM Mitra
+                </span>
+              )}
               <span className="text-violet-600 font-bold cursor-pointer flex items-center shrink-0 hover:underline" onClick={() => setTab('partners')}>
                 Detail <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
               </span>
@@ -359,10 +367,11 @@ export default function DashboardTab({
       )}
 
       {/* Main Grid: Analytical Charts & Recent Transactions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className={`grid grid-cols-1 ${currentRole === 'Staff' ? 'lg:grid-cols-2' : 'lg:grid-cols-3'} gap-6`}>
         
         {/* Cashflow Custom Visual Graphic (Left & Center) */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm lg:col-span-2">
+        {currentRole !== 'Staff' && (
+          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm lg:col-span-2">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h3 className="text-md font-semibold text-slate-800">Visualisasi Arus Kas Bulanan</h3>
@@ -429,9 +438,11 @@ export default function DashboardTab({
             <span>Update Terakhir: {new Date().toLocaleDateString('id-ID')}</span>
           </div>
         </div>
+        )}
  
          {/* Right Column Grid: Career pipeline and Birthday highlights */}
-         <div className="space-y-6 flex flex-col">
+         {currentRole !== 'Staff' ? (
+           <div className="space-y-6 flex flex-col">
            {/* Member Journey Conversion Widget */}
            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between flex-1">
              <div>
@@ -573,7 +584,150 @@ export default function DashboardTab({
             </div>
           </div>
         </div>
+        ) : (
+          <>
+            {/* Member Journey Conversion Widget */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+              <div>
+                <h3 className="text-md font-semibold text-slate-800 mb-1">Pipeline Kaderisasi</h3>
+                <p className="text-slate-400 text-xs mb-4">Journey Anggota dari Prospect hingga Alumni Aktif</p>
+                
+                <div className="space-y-3.5">
+                  {[
+                    { status: 'Prospect', color: 'bg-slate-300', count: members.filter(m => m.component === 'Umum').length },
+                    { status: 'Encounter (Siswa)', color: 'bg-emerald-400', count: members.filter(m => m.component === 'Siswa').length },
+                    { status: 'Explore (Mahasiswa)', color: 'bg-indigo-500', count: members.filter(m => m.component === 'Mahasiswa').length },
+                    { status: 'Connect (Alumni)', color: 'bg-amber-400', count: members.filter(m => m.component === 'Alumni' && m.statusKeaktifan !== 'Aktif').length },
+                    { status: 'Alumni Aktif', color: 'bg-indigo-600', count: members.filter(m => m.component === 'Alumni' && m.statusKeaktifan === 'Aktif').length },
+                  ].map((stage, idx) => {
+                    const percentage = Math.max((stage.count / (totalMembers || 1)) * 100, 8);
+                    return (
+                      <div key={idx} className="space-y-1">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-medium text-slate-700">{stage.status}</span>
+                          <span className="font-semibold text-slate-900 font-mono">{stage.count} org</span>
+                        </div>
+                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                          <div 
+                            style={{ width: `${percentage}%` }} 
+                            className={`h-full ${stage.color} transition-all duration-500`}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
 
+              <div className="pt-4 border-t border-slate-50 mt-4">
+                <button 
+                  onClick={() => setTab('members')}
+                  className="w-full py-2 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl text-xs font-semibold text-slate-700 flex items-center justify-center gap-1 transition-all cursor-pointer"
+                >
+                  Ubah Data Anggota <ChevronRight className="w-4 h-4 text-slate-500" />
+                </button>
+              </div>
+            </div>
+
+            {/* Birthday highlights of the month */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between gap-1 mb-2">
+                  <div className="flex items-center gap-1.5 text-slate-800">
+                    <Gift className="w-4.5 h-4.5 text-rose-500 shrink-0" />
+                    <h3 className="text-sm font-bold">Ulang Tahun Bulan Ini</h3>
+                  </div>
+                  <span className="bg-rose-50 text-rose-700 px-2.5 py-0.5 rounded-full text-[9px] font-bold font-sans">
+                    {monthName}
+                  </span>
+                </div>
+                <p className="text-slate-400 text-[11px] mb-3">Apresiasi hari istimewa dan rencana perayaan bersama Yayasan MMB</p>
+                
+                {upcomingBirthdays.length === 0 ? (
+                  <div className="text-center py-6 text-slate-400 text-[11px] italic">
+                    Tidak ada ulang tahun di bulan ini.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 max-h-[175px] overflow-y-auto pr-1">
+                    {upcomingBirthdays.map((m) => {
+                      const birthDay = parseInt(m.birthDate.split('-')[2] || '0', 10);
+                      const isToday = birthDay === new Date().getDate();
+                      
+                      // Generate Initials
+                      const names = m.fullName.split(' ');
+                      const initials = names.map((n: string) => n[0]).slice(0, 2).join('').toUpperCase();
+                      
+                      // Determine theme styling based on category
+                      const styleMap: { [key: string]: { bg: string, border: string, avatar: string } } = {
+                        'Siswa': { bg: 'bg-emerald-50/40', border: 'border-emerald-100/70', avatar: 'bg-emerald-100 text-emerald-700' },
+                        'Mahasiswa': { bg: 'bg-indigo-50/40', border: 'border-indigo-100/70', avatar: 'bg-indigo-100 text-indigo-700' },
+                        'Alumni': { bg: 'bg-amber-50/40', border: 'border-amber-100/70', avatar: 'bg-amber-100 text-amber-700' },
+                        'Staf kepegawaian': { bg: 'bg-sky-50/40', border: 'border-sky-100/70', avatar: 'bg-sky-100 text-sky-700' },
+                        'default': { bg: 'bg-slate-50/40', border: 'border-slate-100/70', avatar: 'bg-slate-100 text-slate-700' }
+                      };
+                      
+                      const theme = styleMap[m.component] || styleMap['default'];
+                      const displayDay = new Date(m.birthDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+
+                      return (
+                        <div 
+                          key={m.id} 
+                          className={`group p-3 rounded-xl border flex items-center justify-between gap-3 text-xs transition-all duration-300 hover:shadow-xs ${
+                            isToday 
+                              ? 'bg-gradient-to-r from-rose-50/80 to-pink-50/80 border-rose-200 shadow-xs ring-2 ring-rose-500/10' 
+                              : `${theme.bg} ${theme.border} hover:bg-white`
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            {/* Circle initial or icon */}
+                            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-xs transition-all duration-300 group-hover:scale-105 ${
+                              isToday ? 'bg-gradient-to-br from-rose-450 to-pink-500 text-white shadow-rose-200' : theme.avatar
+                            }`}>
+                              {isToday ? '🎂' : initials}
+                            </div>
+                            
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-slate-800 truncate block max-w-[120px] sm:max-w-none">{m.fullName}</span>
+                                {isToday && (
+                                  <span className="bg-gradient-to-r from-rose-500 to-pink-500 text-white font-black text-[8px] px-1.5 py-0.5 rounded-full uppercase tracking-wider animate-pulse flex items-center gap-0.5 shrink-0 select-none">
+                                    <Sparkles className="w-2 h-2" /> Hari Ini
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">
+                                Kak {m.nickName} &bull; <span className="font-semibold text-slate-500">{m.component}</span>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2.5 shrink-0">
+                            {/* Copy greetings template */}
+                            <button
+                              onClick={() => {
+                                const text = `Selamat Ulang Tahun yang luar biasa, Kak ${m.fullName}! 🎉🎂 Semoga senantiasa diberkati dengan kesehatan, kebahagiaan, dan kelancaran dalam pelayanan bersama Yayasan MMB. Kiranya kasih penyertaan Tuhan menyertai setiap langkah Kak ${m.nickName}. GBU! ✨`;
+                                navigator.clipboard.writeText(text);
+                                alert(`Ucapan ulang tahun hangat sudah disalin ke clipboard! Siap dikirim ke Kak ${m.nickName} ❤️`);
+                              }}
+                              title="Salin Ucapan Selamat"
+                              className="p-1 px-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-500 hover:border-rose-100 hover:bg-rose-50/40 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer flex items-center shadow-xs"
+                            >
+                              <Copy className="w-3 h-3 hover:scale-105" />
+                            </button>
+                            
+                            <div className={`text-right ${isToday ? 'text-rose-600 font-extrabold' : 'text-slate-500 font-semibold'}`}>
+                              <span className="text-[10px] block uppercase tracking-wider font-mono">{displayDay}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Bottom Grid: Recent Transactions and Audit Trials */}

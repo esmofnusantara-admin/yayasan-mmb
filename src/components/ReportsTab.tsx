@@ -280,7 +280,7 @@ export default function ReportsTab({
   // Single PDF Trigger
   const handleSingleExportPDF = (module: ReportModule) => {
     if (module === 'finance') {
-      exportFinanceReportPDF(filteredTransactions, profile, startDate, endDate);
+      exportFinanceReportPDF(filteredTransactions, profile, startDate, endDate, structures);
     } else if (module === 'activities') {
       exportActivitiesReportPDF(filteredMeetings, smallGroups, profile);
     } else if (module === 'staff') {

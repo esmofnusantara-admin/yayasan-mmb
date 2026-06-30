@@ -204,7 +204,7 @@ export default function App() {
     }
 
     // Explicitly deny restricted administrative areas for Staff role
-    if (currentUser.role === 'Staff' && (feature === 'finance' || feature === 'reports' || feature === 'partners' || feature === 'staff' || feature === 'payroll' || feature === 'approvals' || feature === 'system')) {
+    if (currentUser.role === 'Staff' && (feature === 'finance' || feature === 'reports' || feature === 'staff' || feature === 'payroll' || feature === 'approvals' || feature === 'system')) {
       return false;
     }
 
@@ -213,7 +213,7 @@ export default function App() {
       'Ketua Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports', 'kegiatan'],
       'Bendahara': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'staff_profile', 'reports', 'kegiatan'],
       'Sekretaris': ['dashboard', 'members', 'small_groups', 'letters', 'system', 'staff_profile', 'reports', 'kegiatan'],
-      'Staff': ['dashboard', 'members', 'small_groups', 'staff_profile', 'kegiatan']
+      'Staff': ['dashboard', 'members', 'small_groups', 'partners', 'staff_profile', 'kegiatan']
     };
     const roleFeatures = defaultFeaturesMap[currentUser.role] || ['dashboard'];
     if (currentUser.features && currentUser.features.length > 0) {
@@ -355,7 +355,8 @@ export default function App() {
       colName === 'payroll_payments'
     ) {
       const hasReportsAccess = Array.isArray(features) && features.includes('reports');
-      if (!(role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Bendahara' || hasReportsAccess)) {
+      const isAllowedCollection = colName === 'staff' || colName === 'salaries' || colName === 'partners' || colName === 'donations';
+      if (!isAllowedCollection && !(role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Bendahara' || hasReportsAccess)) {
         setter([]);
         return [];
       }
@@ -432,7 +433,11 @@ export default function App() {
       } else {
         setProfile(mainProfile);
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.message?.includes('401') || err?.message?.includes('unauthorized') || err?.message?.includes('Otentikasi')) {
+        console.warn('Session unauthorized while loading profile.');
+        return;
+      }
       console.error('Failed to load profile:', err);
     }
   };
@@ -447,13 +452,18 @@ export default function App() {
         }));
         setStructures(sanitized);
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.message?.includes('401') || e?.message?.includes('unauthorized') || e?.message?.includes('Otentikasi')) {
+        console.warn('Session unauthorized while loading structures.');
+        return;
+      }
       console.error('Failed to load structures:', e);
     }
   };
 
   const loadAllData = async () => {
     if (isVerifyingSession) return;
+    if (!currentUser) return;
     try {
       let seededVal = isSystemSeeded;
       if (seededVal === null) {
@@ -628,7 +638,11 @@ export default function App() {
         });
         setIsSystemSeeded(true);
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.message?.includes('401') || err?.message?.includes('unauthorized') || err?.message?.includes('Otentikasi')) {
+        console.warn('Session unauthorized while loading all database collections.');
+        return;
+      }
       console.error('Failed to load all database collections:', err);
     }
   };
@@ -2420,6 +2434,7 @@ if (!res.ok) {
                 profile={profile}
                 staffs={staffs}
                 hasFeatureAccess={hasFeatureAccess}
+                currentRole={profile?.role}
               />
             )}
 
@@ -2472,6 +2487,7 @@ if (!res.ok) {
                 onUpdateCategory={handleUpdateCategory}
                 onDeleteCategory={handleDeleteCategory}
                 profile={profile}
+                structures={structures}
               />
             )}
 

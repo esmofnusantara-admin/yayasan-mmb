@@ -496,7 +496,8 @@ export const INITIAL_PARTNERS: Partner[] = [
     commitmentAmount: 1500000,
     frequency: 'Bulanan',
     startDate: '2024-01-01',
-    endDate: '2027-12-31'
+    endDate: '2027-12-31',
+    donationDay: 5
   },
   {
     id: 'PTR-02',
@@ -511,7 +512,8 @@ export const INITIAL_PARTNERS: Partner[] = [
     commitmentAmount: 12000000,
     frequency: 'Tahunan',
     startDate: '2025-01-10',
-    endDate: '2026-12-31'
+    endDate: '2026-12-31',
+    donationDay: 10
   },
   {
     id: 'PTR-03',
@@ -526,7 +528,8 @@ export const INITIAL_PARTNERS: Partner[] = [
     commitmentAmount: 10000000,
     frequency: 'Satu Kali',
     startDate: '2026-06-01',
-    endDate: '2026-06-30'
+    endDate: '2026-06-30',
+    donationDay: 25
   },
   {
     id: 'PTR-04',
@@ -541,7 +544,8 @@ export const INITIAL_PARTNERS: Partner[] = [
     commitmentAmount: 500000,
     frequency: 'Bulanan',
     startDate: '2026-07-01',
-    endDate: '2027-06-30'
+    endDate: '2027-06-30',
+    donationDay: 15
   },
   {
     id: 'PTR-05',
@@ -556,7 +560,8 @@ export const INITIAL_PARTNERS: Partner[] = [
     commitmentAmount: 25000000,
     frequency: 'Tahunan',
     startDate: '2027-01-01',
-    endDate: '2028-12-31'
+    endDate: '2028-12-31',
+    donationDay: 20
   }
 ];
 

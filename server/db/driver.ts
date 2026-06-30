@@ -16,6 +16,10 @@ export const dbDriver = {
   },
 
   async getDoc(collectionName: string, docId: string): Promise<any | null> {
+    if (!docId || typeof docId !== 'string') {
+      console.warn(`[dbDriver.getDoc] Invalid or missing docId: "${docId}" in collection "${collectionName}"`);
+      return null;
+    }
     const mappedCollection = mapCollection(collectionName);
     const docRef = doc(db, mappedCollection, docId);
     const docSnap = await getDoc(docRef);
@@ -23,18 +27,30 @@ export const dbDriver = {
   },
 
   async setDoc(collectionName: string, docId: string, data: any): Promise<void> {
+    if (!docId || typeof docId !== 'string') {
+      console.error(`[dbDriver.setDoc] Invalid or missing docId: "${docId}" in collection "${collectionName}"`);
+      return;
+    }
     const mappedCollection = mapCollection(collectionName);
     const docRef = doc(db, mappedCollection, docId);
     await setDoc(docRef, data);
   },
 
   async updateDoc(collectionName: string, docId: string, data: any): Promise<void> {
+    if (!docId || typeof docId !== 'string') {
+      console.error(`[dbDriver.updateDoc] Invalid or missing docId: "${docId}" in collection "${collectionName}"`);
+      return;
+    }
     const mappedCollection = mapCollection(collectionName);
     const docRef = doc(db, mappedCollection, docId);
     await updateDoc(docRef, data);
   },
 
   async deleteDoc(collectionName: string, docId: string): Promise<void> {
+    if (!docId || typeof docId !== 'string') {
+      console.error(`[dbDriver.deleteDoc] Invalid or missing docId: "${docId}" in collection "${collectionName}"`);
+      return;
+    }
     const mappedCollection = mapCollection(collectionName);
     const docRef = doc(db, mappedCollection, docId);
     await deleteDoc(docRef);

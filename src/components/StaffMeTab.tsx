@@ -376,11 +376,25 @@ export default function StaffMeTab({ currentUser, staffs, salaries = [], profile
 
               <div id="print-slips-container" className="p-8 space-y-8 bg-white">
                 
-                {salaryBase === 0 && (
+                {currentStaff.nik === 'NIK-BELUM-FORMAL' ? (
+                  <div className="bg-blue-50 text-blue-800 border border-blue-200 rounded-2xl p-4 text-xs font-medium space-y-1.5 text-left">
+                    <span className="font-bold flex items-center gap-1.5 text-blue-900">ℹ️ Akun Login Belum Terkait dengan Data Karyawan</span>
+                    <p className="text-blue-700 font-sans leading-relaxed">
+                      ID akun login Anda (<strong>{currentUser.email}</strong>) saat ini belum terdaftar atau belum terhubung dengan database Karyawan Yayasan MMB, sehingga slip rincian gaji Anda masih kosong (Rp 0).
+                    </p>
+                    <div className="pt-1.5 border-t border-blue-200/50 text-[11px] text-blue-600 space-y-1">
+                      <p className="font-bold">Cara Menampilkan Data Gaji Anda:</p>
+                      <ul className="list-disc pl-4 space-y-0.5">
+                        <li>Buka tab <strong>Karyawan (Staffs)</strong> atau hubungi Admin untuk mendaftarkan data staf baru dengan email atau nomor HP login <strong>{currentUser.email}</strong>.</li>
+                        <li>Hubungi Bendahara atau Ketua Yayasan untuk mengatur nominal <strong>Gaji Pokok & Tunjangan</strong> bagi NIK Anda tersebut di pengaturan gaji.</li>
+                      </ul>
+                    </div>
+                  </div>
+                ) : salaryBase === 0 && (
                   <div className="bg-amber-50 text-amber-800 border border-amber-200 rounded-2xl p-4 text-xs font-medium space-y-1 text-left">
-                    <span className="font-bold flex items-center gap-1.5 text-amber-900">⚠️ Akun Non-Gaji / Sukarelawan</span>
+                    <span className="font-bold flex items-center gap-1.5 text-amber-900">⚠️ Rincian Gaji Belum Dikonfigurasikan</span>
                     <p className="text-amber-700 font-sans leading-relaxed">
-                      Sistem mendeteksi rincian gaji Anda belum dikonfigurasikan atau Anda masuk dalam kategori Pelayanan Sukarela (Voluntary). Hubungi Bendahara Yayasan jika ini adalah kekeliruan administrasi.
+                      Data Anda (<strong>{currentStaff.name}</strong>) terdeteksi dalam database Karyawan dengan NIK <strong>{currentStaff.nik}</strong>. Namun, rincian Gaji Pokok & Tunjangan Anda masih terhitung Rp 0 atau belum dikonfigurasikan oleh Bendahara Yayasan.
                     </p>
                   </div>
                 )}

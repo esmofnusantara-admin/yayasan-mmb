@@ -359,7 +359,7 @@ export function exportSlipToPDF(
   doc.save(`slip_gaji_${staff.nik}_${staff.name.replace(/\s+/g, '_').toLowerCase()}.pdf`);
 }
 
-export function exportLedgerToPDF(data: any[], profile?: any) {
+export function exportLedgerToPDF(data: any[], profile?: any, structures?: any[]) {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -588,7 +588,11 @@ export function exportLedgerToPDF(data: any[], profile?: any) {
   y += 24;
   doc.setFont('Helvetica', 'bold');
   doc.setTextColor(textDark[0], textDark[1], textDark[2]);
-  doc.text('BENDAHARA YAYASAN', 15, y);
+  
+  const bendaharaNode = structures?.find(n => n?.id === 'bendahara') || structures?.find(n => n?.title?.toLowerCase().includes('bendahara'));
+  const bendaharaNameResolved = bendaharaNode?.name || 'Angelina';
+  doc.text(bendaharaNameResolved.toUpperCase(), 15, y);
+  
   doc.setDrawColor(203, 213, 225);
   doc.setLineWidth(0.2);
   doc.line(15, y + 1, 60, y + 1);
@@ -1336,7 +1340,7 @@ export function exportDashboardSummaryToPDF(birthdays: any[], pendingApprovals: 
   doc.save(`ringkasan_dashboard_${new Date().toISOString().substring(0, 10)}.pdf`);
 }
 
-export function exportFinanceReportPDF(transactions: any[], profile: any, startDate: string, endDate: string) {
+export function exportFinanceReportPDF(transactions: any[], profile: any, startDate: string, endDate: string, structures?: any[]) {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -1452,7 +1456,10 @@ export function exportFinanceReportPDF(transactions: any[], profile: any, startD
   y += 18;
   doc.setFont('Helvetica', 'bold');
   doc.setTextColor(textDark[0], textDark[1], textDark[2]);
-  doc.text('Bendahara Umum', 140, y);
+  
+  const bendaharaNode = structures?.find(n => n?.id === 'bendahara') || structures?.find(n => n?.title?.toLowerCase().includes('bendahara'));
+  const bendaharaNameResolved = bendaharaNode?.name || 'Angelina';
+  doc.text(bendaharaNameResolved.toUpperCase(), 140, y);
   
   doc.save(`laporan_keuangan_${new Date().toISOString().substring(0, 10)}.pdf`);
 }

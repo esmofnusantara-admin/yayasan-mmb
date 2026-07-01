@@ -5,6 +5,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# better-sqlite3 is a native module — needs build tools
+RUN apk add --no-cache python3 make g++
+
 # Copy package files first (for layer caching)
 COPY package*.json ./
 RUN npm ci
@@ -24,11 +27,14 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# better-sqlite3 native module needs these at runtime too
+RUN apk add --no-cache python3 make g++
+
 # Copy built artifacts from builder
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 
-# Install only production dependencies
+# Install only production dependencies (includes better-sqlite3)
 RUN npm ci --omit=dev && npm cache clean --force
 
 EXPOSE 3000

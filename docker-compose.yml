@@ -15,9 +15,8 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - APP_URL=${APP_URL}
     volumes:
-      # Mount Firebase config file dari host ke container (read-only)
-      # Pastikan file ini ada di server sebelum menjalankan docker-compose up
-      - ./firebase-applet-config.json:/app/firebase-applet-config.json:ro
+      # Persist SQLite database file di server Biznet (data tidak hilang saat container restart)
+      - ./data:/app/data
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/system/health"]
       interval: 30s

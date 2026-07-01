@@ -1,6 +1,4 @@
 import { Router, Response } from 'express';
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../config/firebase';
 import { dbDriver } from '../db/driver';
 import { seedUsersIfEmpty } from '../services/seed.service';
 import { authenticateToken } from './auth.routes';
@@ -43,10 +41,9 @@ router.post('/cleanse', authenticateToken, async (req: any, res: Response) => {
 
     for (const colName of collectionsToClean) {
       try {
-        const colRef = collection(db, colName);
-        const snap = await getDocs(colRef);
-        for (const d of snap.docs) {
-          await deleteDoc(doc(db, colName, d.id));
+        const docs = await dbDriver.getDocs(colName);
+        for (const d of docs) {
+          if (d.id) await dbDriver.deleteDoc(colName, d.id);
         }
       } catch (colErr) {
         console.warn(`Err cleansing collection ${colName}:`, colErr);
@@ -54,19 +51,17 @@ router.post('/cleanse', authenticateToken, async (req: any, res: Response) => {
     }
 
     // Also clean any users that are not 'superadmin@esm.or.id'
-    const usersCol = collection(db, 'users');
-    const usersSnap = await getDocs(usersCol);
-    for (const d of usersSnap.docs) {
-      if (d.id !== 'superadmin@esm.or.id') {
-        await deleteDoc(doc(db, 'users', d.id));
+    const allUsers = await dbDriver.getDocs('users');
+    for (const u of allUsers) {
+      if (u.email && u.email !== 'superadmin@esm.or.id') {
+        await dbDriver.deleteDoc('users', u.email);
       }
     }
 
     // Clean staff collection entirely
-    const staffCol = collection(db, 'staff');
-    const staffSnap = await getDocs(staffCol);
-    for (const d of staffSnap.docs) {
-      await deleteDoc(doc(db, 'staff', d.id));
+    const allStaff = await dbDriver.getDocs('staff');
+    for (const s of allStaff) {
+      if (s.nik) await dbDriver.deleteDoc('staff', s.nik);
     }
 
     // Re-seed only the single superadmin user
@@ -88,6 +83,10 @@ router.post('/cleanse', authenticateToken, async (req: any, res: Response) => {
     console.error('Cleansing error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+router.get('/health', (_req, res: Response) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 export const systemRouter = router;

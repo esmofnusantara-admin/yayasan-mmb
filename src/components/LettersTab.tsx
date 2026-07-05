@@ -50,6 +50,7 @@ interface LettersTabProps {
   onAddOutwardLetter: (l: LetterOutward) => void;
   onUpdateOutwardLetter: (l: LetterOutward) => void;
   onUpdateOutwardStatus: (id: string, status: any) => void;
+  onDeleteOutwardLetter?: (id: string, letterNum: string) => void;
   onAddDocument?: (docObj: { id: string; name: string; category: string; fileData: string; fileSize: string }) => Promise<void> | void;
   onDeleteDocument?: (id: string, name: string) => Promise<void> | void;
   currentRole: string;
@@ -87,6 +88,7 @@ export default function LettersTab({
   onAddOutwardLetter,
   onUpdateOutwardLetter,
   onUpdateOutwardStatus,
+  onDeleteOutwardLetter,
   onAddDocument,
   onDeleteDocument,
   currentRole,
@@ -752,12 +754,42 @@ export default function LettersTab({
                           <Eye className="w-3.5 h-3.5" /> Lihat
                         </button>
                         {isEditable && (
-                          <button 
-                            onClick={() => handleStartEditOutwardLetter(letter)}
-                            className="px-2.5 py-1 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[10px] font-semibold flex items-center gap-1 shadow-sm cursor-pointer"
-                          >
-                            <Edit className="w-3.5 h-3.5" /> Edit
-                          </button>
+                          <>
+                            <button 
+                              onClick={() => handleStartEditOutwardLetter(letter)}
+                              className="px-2.5 py-1 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[10px] font-semibold flex items-center gap-1 shadow-sm cursor-pointer whitespace-nowrap"
+                            >
+                              <Edit className="w-3.5 h-3.5" /> Edit
+                            </button>
+                            {onDeleteOutwardLetter && (
+                              deleteConfirmId === letter.id ? (
+                                <div className="flex items-center gap-1 z-10 shrink-0">
+                                  <button
+                                    onClick={() => {
+                                      onDeleteOutwardLetter(letter.id, letter.letterNumber);
+                                      setDeleteConfirmId(null);
+                                    }}
+                                    className="px-2 py-1 bg-red-650 hover:bg-red-700 text-white rounded font-bold text-[9px] cursor-pointer whitespace-nowrap"
+                                  >
+                                    Yakin?
+                                  </button>
+                                  <button
+                                    onClick={() => setDeleteConfirmId(null)}
+                                    className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded font-bold text-[9px] cursor-pointer"
+                                  >
+                                    Batal
+                                  </button>
+                                </div>
+                              ) : (
+                                <button 
+                                  onClick={() => setDeleteConfirmId(letter.id)}
+                                  className="px-2.5 py-1 text-red-500 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-lg transition-all text-[10px] cursor-pointer flex items-center gap-0.5"
+                                >
+                                  <Trash className="w-3.5 h-3.5" /> Hapus
+                                </button>
+                              )
+                            )}
+                          </>
                         )}
                       </div>
                     </td>

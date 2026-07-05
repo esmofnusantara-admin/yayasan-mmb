@@ -2006,6 +2006,27 @@ if (!res.ok) {
     }
   };
 
+  const handleDeleteOutwardLetter = async (id: string, letterNum: string) => {
+    try {
+      // Optimistic visual update
+      setOutwardLetters(prev => prev.filter(x => x.id !== id));
+
+      const res = await fetch(`/api/data/outward_letters/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        throw new Error('Gagal menghapus surat keluar dari server');
+      }
+      await logAudit(`Menghapus Surat Keluar Ref: ${letterNum}`, 'Surat-Arsip');
+      await loadCollection('outward_letters', INITIAL_OUTWARD_LETTERS, setOutwardLetters);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menghapus surat keluar: ${e.message}`);
+      // Revert/Re-sync back from database if failed
+      await loadCollection('outward_letters', INITIAL_OUTWARD_LETTERS, setOutwardLetters);
+    }
+  };
+
   // Post Approval handler to wire HR collective payrolls
   const handlePostApproval = async (app: ApprovalRequest) => {
     try {
@@ -2571,6 +2592,7 @@ if (!res.ok) {
                 onAddOutwardLetter={handleAddOutwardLetter}
                 onUpdateOutwardLetter={handleUpdateOutwardLetter}
                 onUpdateOutwardStatus={handleUpdateOutwardStatus}
+                onDeleteOutwardLetter={handleDeleteOutwardLetter}
                 onAddDocument={handleAddDocument}
                 onDeleteDocument={handleDeleteDocument}
                 currentRole={currentRole}

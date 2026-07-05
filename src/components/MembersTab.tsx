@@ -203,6 +203,9 @@ export default function MembersTab({
     }
 
     if (editingMember) {
+      if (!window.confirm('Apakah Anda yakin ingin menyimpan perubahan data anggota ini?')) {
+        return;
+      }
       const updated: Member = {
         ...editingMember,
         fullName,
@@ -580,7 +583,11 @@ export default function MembersTab({
                                 <Edit className="w-3 h-3" /> Edit
                               </button>
                               <button 
-                                onClick={() => onDeleteMember(member.id)}
+                                onClick={() => {
+                                  if (window.confirm('Apakah Anda yakin ingin menghapus data anggota ini?')) {
+                                    onDeleteMember(member.id);
+                                  }
+                                }}
                                 className="p-1 text-red-500 hover:bg-red-50 border border-transparent hover:border-red-100 rounded transition-all text-[10px] cursor-pointer"
                               >
                                 <Trash className="w-3 h-3" />

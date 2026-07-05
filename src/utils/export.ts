@@ -4,7 +4,7 @@ import { Staff, PublicField, StaffSalary } from '../types';
 export function exportToCSV(data: any[], headers: string[], keys: string[], filename: string) {
   const csvContent = [
     headers.join(','),
-    ...data.map(row => 
+    ...data.map(row =>
       keys.map(key => {
         const val = row[key];
         if (val === null || val === undefined) return '';
@@ -27,8 +27,8 @@ export function exportToCSV(data: any[], headers: string[], keys: string[], file
 }
 
 export function exportSlipToPDF(
-  staff: Staff, 
-  publicFields: PublicField[] = [], 
+  staff: Staff,
+  publicFields: PublicField[] = [],
   salaryConfig?: StaffSalary,
   profile?: any,
   paidAmount: number = 0,
@@ -63,42 +63,42 @@ export function exportSlipToPDF(
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  
+
   const orgName = (profile?.name || 'YAYASAN MURID MUDA BERMISI (MMB)').toUpperCase();
   doc.text(orgName, 20, 22);
-  
+
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(textLight[0], textLight[1], textLight[2]);
-  
+
   const orgAddress = profile?.address || 'Jl. Diponegoro No. 84, Menteng, Jakarta Pusat, DKI Jakarta 10103';
   const orgNpwp = profile?.npwp ? `NPWP: ${profile.npwp}` : 'NPWP: 01.234.567.8-012.000';
   const orgPhone = profile?.phone ? `Telp: ${profile.phone}` : 'Telp: (021) 8888-MMB';
   const orgEmail = profile?.email ? `Email: ${profile.email}` : 'Email: info@yayasan-mmb.org';
-  
+
   doc.text(`${orgAddress} • ${orgNpwp}`, 20, 27);
   doc.text(`${orgPhone} • ${orgEmail}`, 20, 32);
-  
+
   // Double Divider lines for Kop Surat Formal
   doc.setDrawColor(30, 41, 59); // slate-800
   doc.setLineWidth(0.6);
   doc.line(20, 35, 190, 35);
   doc.setLineWidth(0.2);
   doc.line(20, 36.2, 190, 36.2);
-  
+
   // Title
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(13);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   doc.text('SLIP GAJI RESMI KARYAWAN', 20, 45);
-  
+
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(textLight[0], textLight[1], textLight[2]);
   const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
   const currentDate = new Date();
   const dateStr = `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
-  
+
   const docNo = `No. Dokumen: SLIP/${staff.nik}/${currentDate.getFullYear()}/${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
   doc.text(`Periode Pelayanan: ${dateStr}`, 20, 50);
   doc.text(docNo, 110, 50);
@@ -108,11 +108,11 @@ export function exportSlipToPDF(
   doc.setDrawColor(226, 232, 240); // slate-200
   doc.setLineWidth(0.3);
   doc.roundedRect(20, 55, 170, 26, 2, 2, 'FD');
-  
+
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-  
+
   // Col 1 metadata
   doc.text('A. DATA PENERIMA MANFAAT', 25, 61);
   doc.setFont('Helvetica', 'normal');
@@ -120,7 +120,7 @@ export function exportSlipToPDF(
   doc.setTextColor(textDark[0], textDark[1], textDark[2]);
   doc.text(`Nama Lengkap :  ${staff.name}`, 25, 67);
   doc.text(`NIK Karyawan  :  ${staff.nik}`, 25, 73);
-  
+
   // Col 2 metadata
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(9.5);
@@ -213,7 +213,7 @@ export function exportSlipToPDF(
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  
+
   doc.text('1. GAJI & TUNJANGAN (DEBET)', 20, y);
   doc.text('2. POTONGAN & IURAN (KREDIT)', 110, y);
 
@@ -322,15 +322,45 @@ export function exportSlipToPDF(
 
   // Signatures / Footers
   // Added substantial spacing between THP and signatures block (as per requirement 8)
-  let ySign = ySum + boxHeight + 25; 
+  let ySign = ySum + boxHeight + 25;
 
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(textLight[0], textLight[1], textLight[2]);
-  
+
   const formattedToday = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-  doc.text(`Dikeluarkan di Jakarta, ${formattedToday}`, 25, ySign);
-  doc.text('Bendahara yayasan,', 25, ySign + 5);
+  
+  let city = 'Cilegon';
+  if (profile?.address) {
+    const lower = profile.address.toLowerCase();
+    
+    // 1. Try to extract city from explicit "Kota" or "Kabupaten" first to prevent random matches
+    const match = lower.match(/(?:kota|kabupaten|kab\.)\s+([a-z]+)/i);
+    if (match && match[1]) {
+      const rawCity = match[1].trim();
+      city = rawCity.charAt(0).toUpperCase() + rawCity.slice(1);
+    } else {
+      // 2. Check keywords if no explicit prefix is present
+      if (lower.includes('cilegon')) {
+        city = 'Cilegon';
+      } else if (lower.includes('medan')) {
+        city = 'Medan';
+      } else if (lower.includes('yogyakarta') || lower.includes('jogja')) {
+        city = 'Yogyakarta';
+      } else if (lower.includes('solo') || lower.includes('surakarta')) {
+        city = 'Surakarta';
+      } else if (lower.includes('semarang')) {
+        city = 'Semarang';
+      } else if (lower.includes('jakarta')) {
+        city = 'Jakarta';
+      } else if (lower.includes('bandung')) {
+        city = 'Bandung';
+      }
+    }
+  }
+
+  doc.text(`Dikeluarkan di ${city}, ${formattedToday}`, 25, ySign);
+  doc.text('Bendahara Yayasan,', 25, ySign + 5);
   doc.text('Penerima,', 130, ySign + 5);
 
   // Render Bendahara uploaded signature (Requirement 7)
@@ -375,7 +405,7 @@ export function exportLedgerToPDF(data: any[], profile?: any, structures?: any[]
 
   // Track dynamic pages
   let currentPage = 1;
-  
+
   const drawKopSurat = (pageIndex: number) => {
     // 1. Title/Header
     doc.setFont('Helvetica', 'bold');
@@ -478,7 +508,7 @@ export function exportLedgerToPDF(data: any[], profile?: any, structures?: any[]
   const drawTableHeader = (yHeader: number) => {
     doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
     doc.rect(15, yHeader, 180, 7.5, 'F');
-    
+
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
@@ -571,7 +601,7 @@ export function exportLedgerToPDF(data: any[], profile?: any, structures?: any[]
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(textLight[0], textLight[1], textLight[2]);
-  
+
   const placeDateStr = `Dikeluarkan di Yogyakarta, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`;
   doc.text(placeDateStr, 15, y);
   doc.text('Bendahara Keuangan Yayasan,', 15, y + 5);
@@ -588,11 +618,11 @@ export function exportLedgerToPDF(data: any[], profile?: any, structures?: any[]
   y += 24;
   doc.setFont('Helvetica', 'bold');
   doc.setTextColor(textDark[0], textDark[1], textDark[2]);
-  
+
   const bendaharaNode = structures?.find(n => n?.id === 'bendahara') || structures?.find(n => n?.title?.toLowerCase().includes('bendahara'));
   const bendaharaNameResolved = bendaharaNode?.name || 'Angelina';
   doc.text(bendaharaNameResolved.toUpperCase(), 15, y);
-  
+
   doc.setDrawColor(203, 213, 225);
   doc.setLineWidth(0.2);
   doc.line(15, y + 1, 60, y + 1);
@@ -724,20 +754,23 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
   const getCityFromAddress = (addressStr: string): string => {
     if (!addressStr) return 'Cilegon';
     const lower = addressStr.toLowerCase();
+    
+    // 1. Try to extract city from explicit "Kota" or "Kabupaten" first to prevent random matches
+    const match = lower.match(/(?:kota|kabupaten|kab\.)\s+([a-z]+)/i);
+    if (match && match[1]) {
+      const rawCity = match[1].trim();
+      return rawCity.charAt(0).toUpperCase() + rawCity.slice(1);
+    }
+    
+    // 2. Check keywords if no explicit prefix is present
     if (lower.includes('cilegon')) return 'Cilegon';
+    if (lower.includes('medan')) return 'Medan';
     if (lower.includes('yogyakarta') || lower.includes('jogja')) return 'Yogyakarta';
     if (lower.includes('solo') || lower.includes('surakarta')) return 'Surakarta';
     if (lower.includes('semarang')) return 'Semarang';
     if (lower.includes('jakarta')) return 'Jakarta';
     if (lower.includes('bandung')) return 'Bandung';
-    
-    // Fallback extraction
-    const kotaIndex = lower.indexOf('kota ');
-    if (kotaIndex !== -1) {
-      const sub = addressStr.substring(kotaIndex + 5).trim();
-      const firstWord = sub.split(/[\s,]+/)[0];
-      if (firstWord) return firstWord.charAt(0).toUpperCase() + firstWord.slice(1);
-    }
+
     return 'Cilegon';
   };
 
@@ -753,12 +786,12 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
 
   // 4. Recipient block aligned at left margin 25mm
   doc.text('Kepada Yth.', 25, 70);
-  
+
   // Format recipient lines cleanly with left margin 25mm (split/newline is fully supported)
   const recipientRaw = letter.recipient || 'Pdt. Jeffrey Siauw, D.Th.\nLead Pastor Gracelife Community Church';
   const recipientLines = recipientRaw.split('\n');
   let recipientY = 75.5;
-  
+
   recipientLines.forEach((line: string) => {
     doc.text(line, 25, recipientY);
     recipientY += 5.5;
@@ -769,16 +802,16 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
   // 5. Salutation and paragraphs content wrapping with Left margin 25mm, Right margin 25mm (Width = 160mm)
   let y = recipientY + 14;
   doc.text('Dengan hormat,', 25, y);
-  
+
   y += 8;
 
-  const contentText = letter.content || 
+  const contentText = letter.content ||
     'Puji syukur kepada Tuhan atas dukungan dan perhatian yang diberikan kepada pelayanan MMB.\n\nMelalui surat ini, kami mengucapkan terima kasih atas komitmen Gracelife Community Church untuk melanjutkan dukungan dana pelayanan bagi Sdr. Yusuf Raja Tamba selama periode Juni 2026 – Mei 2027.\n\nKami menerima dan menghargai dukungan tersebut. Kiranya Tuhan membalas setiap kebaikan and terus memberkati pelayanan serta jemaat Gracelife Community Church.\n\nTerima kasih atas kemitraan dalam pekerjaan Tuhan.';
 
   doc.setLineHeightFactor(1.6); // set comfortable line height factor globally for body text
 
   const paragraphs = contentText.split('\n');
-  
+
   paragraphs.forEach((para: string) => {
     const cleanPara = para.trim();
     if (!cleanPara) {
@@ -787,7 +820,7 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
     }
     // Using exactly 160 width for standard margins of 2.5 cm on left, 2.5 cm on right (210 - 25 - 25 = 160)
     const lines = doc.splitTextToSize(cleanPara, 160);
-    
+
     // Group lines to draw as a block per page to get flawless full justification natively from jsPDF
     let pageLines: string[] = [];
     lines.forEach((line: string, index: number) => {
@@ -804,12 +837,12 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
       pageLines.push(line);
       y += 6;
     });
-    
+
     if (pageLines.length > 0) {
       const startY = y - (pageLines.length * 6);
       doc.text(pageLines, 25, startY, { align: 'justify', maxWidth: 160 });
     }
-    
+
     y += 3.5; // space between paragraphs
   });
 
@@ -838,25 +871,25 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
   const bendaharaNameResolved = bendaharaNode?.name || 'Angelina';
 
   const leftName = letter.signLeftName || (
-    leftType === 'Ketua' || leftType === 'ketua' ? ketuaNameResolved : 
-    leftType === 'Sekretaris' || leftType === 'sekretaris' ? sekretarisNameResolved : 
-    leftType === 'Bendahara' || leftType === 'bendahara' ? bendaharaNameResolved : ''
+    leftType === 'Ketua' || leftType === 'ketua' ? ketuaNameResolved :
+      leftType === 'Sekretaris' || leftType === 'sekretaris' ? sekretarisNameResolved :
+        leftType === 'Bendahara' || leftType === 'bendahara' ? bendaharaNameResolved : ''
   );
   const leftTitle = letter.signLeftTitle || (
-    leftType === 'Ketua' || leftType === 'ketua' ? 'Ketua Yayasan' : 
-    leftType === 'Sekretaris' || leftType === 'sekretaris' ? 'Sekretaris Yayasan' : 
-    leftType === 'Bendahara' || leftType === 'bendahara' ? 'Bendahara Yayasan' : ''
+    leftType === 'Ketua' || leftType === 'ketua' ? 'Ketua Yayasan' :
+      leftType === 'Sekretaris' || leftType === 'sekretaris' ? 'Sekretaris Yayasan' :
+        leftType === 'Bendahara' || leftType === 'bendahara' ? 'Bendahara Yayasan' : ''
   );
 
   const rightName = letter.signRightName || (
-    rightType === 'Ketua' || rightType === 'ketua' ? ketuaNameResolved : 
-    rightType === 'Sekretaris' || rightType === 'sekretaris' ? sekretarisNameResolved : 
-    rightType === 'Bendahara' || rightType === 'bendahara' ? bendaharaNameResolved : ''
+    rightType === 'Ketua' || rightType === 'ketua' ? ketuaNameResolved :
+      rightType === 'Sekretaris' || rightType === 'sekretaris' ? sekretarisNameResolved :
+        rightType === 'Bendahara' || rightType === 'bendahara' ? bendaharaNameResolved : ''
   );
   const rightTitle = letter.signRightTitle || (
-    rightType === 'Ketua' || rightType === 'ketua' ? 'Ketua Yayasan' : 
-    rightType === 'Sekretaris' || rightType === 'sekretaris' ? 'Sekretaris Yayasan' : 
-    rightType === 'Bendahara' || rightType === 'bendahara' ? 'Bendahara Yayasan' : ''
+    rightType === 'Ketua' || rightType === 'ketua' ? 'Ketua Yayasan' :
+      rightType === 'Sekretaris' || rightType === 'sekretaris' ? 'Sekretaris Yayasan' :
+        rightType === 'Bendahara' || rightType === 'bendahara' ? 'Bendahara Yayasan' : ''
   );
 
   const stampY = signatureY + 11;
@@ -864,7 +897,7 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
   // Symmetrical coordinates within standard 2.5cm left, 2.5cm right margin area:
   // Center of Left is 70
   // Center of Right is 150
-  
+
   // Custom function to resolve loaded profile signatures dynamically by Type/Title/Name matching
   function resolveSignatureImg(type: string, title: string, name: string, prof: any) {
     const tType = String(type || '').toLowerCase();
@@ -910,16 +943,19 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
     return '';
   }
 
+  const isLeftActive = leftType !== 'None' && leftType !== 'none';
   const isRightActive = rightType !== 'None' && rightType !== 'none';
 
-  if (leftType !== 'None' && leftType !== 'none') {
+  if (isLeftActive) {
     doc.setFont('Times', 'normal');
     doc.setFontSize(10.5);
-    
-    // If Right signature is active, print leftTitle as the label above the left signature block
-    // If Right signature is NOT active, print finalPlaceDate as the label above the left signature block
-    const leftLabelText = isRightActive ? `${leftTitle},` : finalPlaceDate;
-    doc.text(leftLabelText, 70, signatureY, { align: 'center' });
+
+    // If both are active, print Mengetahui centered, otherwise print finalPlaceDate above Left
+    if (isRightActive) {
+      doc.text("Mengetahui,", 110, signatureY, { align: 'center' });
+    } else {
+      doc.text(finalPlaceDate, 70, signatureY, { align: 'center' });
+    }
 
     // Draw Left Signature - either image or vector fallback representing professional line ink
     let signatureLeftImg = resolveSignatureImg(leftType, leftTitle, leftName, profile);
@@ -945,9 +981,11 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
   if (isRightActive) {
     doc.setFont('Times', 'normal');
     doc.setFontSize(10.5);
-    
-    // Above the Right signature block, print finalPlaceDate (e.g. Cilegon, 12 Juni 2026)!
-    doc.text(finalPlaceDate, 150, signatureY, { align: 'center' });
+
+    // If Left is not active, print finalPlaceDate above Right (if Left is active, Mengetahui, is printed at center instead)
+    if (!isLeftActive) {
+      doc.text(finalPlaceDate, 150, signatureY, { align: 'center' });
+    }
 
     // Draw Right Signature - either image or vector fallback
     let signatureRightImg = resolveSignatureImg(rightType, rightTitle, rightName, profile);
@@ -1007,7 +1045,7 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
       doc.circle(finalStampX, finalStampY, radius, 'S');
       doc.setLineWidth(0.18);
       doc.circle(finalStampX, finalStampY, radius * 0.85, 'S');
-      
+
       // Text inside stamp relative to dynamic radius and center
       doc.setFont('Helvetica', 'bold');
       doc.setFontSize(Math.max(3, radius * 0.45));
@@ -1031,7 +1069,7 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.2);
     doc.line(50, signatureY + 27, 90, signatureY + 27);
-    
+
     // Bottom Titles
     doc.setFont('Times', 'normal');
     doc.setFontSize(9.5);
@@ -1057,13 +1095,13 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
     const startAddY = signatureY + 42;
     doc.setFont('Times', 'normal');
     doc.setFontSize(10.5);
-    
+
     const totalAdd = letter.additionalSignatures.length;
     letter.additionalSignatures.forEach((sig: any, idx: number) => {
       const colIdx = idx % 2;
       const rowIdx = Math.floor(idx / 2);
       const currentAddY = startAddY + (rowIdx * 38);
-      
+
       // Determine vertical/horizontal alignment coordinates
       // If there is only 1 signature, place it at the center (X = 110).
       // If it is the last third element (length is odd e.g. 3) and occupies a row on its own, place it at center (X = 110).
@@ -1073,17 +1111,12 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
       } else if (idx === totalAdd - 1 && colIdx === 0) {
         xPos = 110;
       }
-      
-      // Draw Title
-      doc.setFont('Times', 'normal');
-      doc.setFontSize(10.5);
-      doc.text(`${sig.title},`, xPos, currentAddY, { align: 'center' });
-      
+
       // Resolve & Draw signature image
       const sigImg = resolveSignatureImg('', sig.title || '', sig.name || '', profile);
       if (sigImg && (sigImg.startsWith('data:image') || sigImg.startsWith('http') || sigImg.length > 50)) {
         try {
-          doc.addImage(sigImg, 'PNG', xPos - 15, currentAddY + 4, 30, 15);
+          doc.addImage(sigImg, 'PNG', xPos - 15, currentAddY, 30, 15);
         } catch (err) {
           console.warn('Failed to draw additional signature image in PDF:', err);
         }
@@ -1091,21 +1124,21 @@ export function exportLetterToPDF(letter: any, profile?: any, structures?: any[]
         // Draw standard clean professional vector line for additional
         doc.setDrawColor(50, 50, 50);
         doc.setLineWidth(0.3);
-        doc.line(xPos - 5, currentAddY + 12, xPos + 5, currentAddY + 12);
+        doc.line(xPos - 5, currentAddY + 8, xPos + 5, currentAddY + 8);
       }
-      
+
       // Draw Name underline
       doc.setFont('Times', 'bold');
       doc.setFontSize(10.5);
-      doc.text(sig.name, xPos, currentAddY + 23, { align: 'center' });
+      doc.text(sig.name, xPos, currentAddY + 18, { align: 'center' });
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.2);
-      doc.line(xPos - 20, currentAddY + 24, xPos + 20, currentAddY + 24);
-      
+      doc.line(xPos - 20, currentAddY + 19, xPos + 20, currentAddY + 19);
+
       // Draw sub-title
       doc.setFont('Times', 'normal');
       doc.setFontSize(8.5);
-      doc.text(sig.title, xPos, currentAddY + 28, { align: 'center' });
+      doc.text(sig.title, xPos, currentAddY + 23, { align: 'center' });
     });
   }
 
@@ -1214,7 +1247,7 @@ export function exportDashboardSummaryToPDF(birthdays: any[], pendingApprovals: 
       doc.text(m.nickName || '', 75, y + 4.5);
       doc.text(m.component || '', 105, y + 4.5);
       doc.text(m.region || '', 135, y + 4.5);
-      
+
       let bDateStr = m.birthDate || '';
       try {
         const dParts = bDateStr.split('-');
@@ -1300,7 +1333,7 @@ export function exportDashboardSummaryToPDF(birthdays: any[], pendingApprovals: 
       doc.setFontSize(7);
       doc.setTextColor(textDark[0], textDark[1], textDark[2]);
       doc.text(app.module || '', 18, y + 4.8);
-      
+
       const titleStr = `${app.title || ''} (${app.description || ''})`.substring(0, 48);
       doc.text(titleStr, 40, y + 4.8);
       doc.text(app.requestedBy || '', 105, y + 4.8);
@@ -1456,11 +1489,11 @@ export function exportFinanceReportPDF(transactions: any[], profile: any, startD
   y += 18;
   doc.setFont('Helvetica', 'bold');
   doc.setTextColor(textDark[0], textDark[1], textDark[2]);
-  
+
   const bendaharaNode = structures?.find(n => n?.id === 'bendahara') || structures?.find(n => n?.title?.toLowerCase().includes('bendahara'));
   const bendaharaNameResolved = bendaharaNode?.name || 'Angelina';
   doc.text(bendaharaNameResolved.toUpperCase(), 140, y);
-  
+
   doc.save(`laporan_keuangan_${new Date().toISOString().substring(0, 10)}.pdf`);
 }
 
@@ -2053,7 +2086,7 @@ export function exportActivityDetailToPDF(
       doc.text(item.date || '-', 85, y + 4.2);
       doc.text(item.pic || '-', 115, y + 4.2);
       doc.text(item.status || 'Pending', 145, y + 4.2);
-      
+
       const amtText = item.needsFunding ? formatIDR(item.requiredAmount || 0) : 'Tanpa Dana';
       doc.text(amtText, 165, y + 4.2);
 
@@ -2194,7 +2227,7 @@ export function exportActivityDetailToPDF(
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(textLight[0], textLight[1], textLight[2]);
-  
+
   // Deteksi kota penulisan secara dinamis dari alamat profil lembaga
   let cityOfIssuance = 'Yogyakarta';
   if (profile?.address) {

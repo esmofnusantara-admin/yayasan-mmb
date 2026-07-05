@@ -219,6 +219,9 @@ export default function PartnersTab({
     }
 
     if (editingPartner) {
+      if (!window.confirm('Apakah Anda yakin ingin menyimpan perubahan data mitra ini?')) {
+        return;
+      }
       const updated: Partner = {
         ...editingPartner,
         name: pName,
@@ -273,6 +276,9 @@ export default function PartnersTab({
 
     try {
       if (editingDonation) {
+        if (!window.confirm('Apakah Anda yakin ingin menyimpan perubahan log donasi ini?')) {
+          return;
+        }
         const updatedDonation: CampaignDonation = {
           ...editingDonation,
           partnerId: donationPartnerId,

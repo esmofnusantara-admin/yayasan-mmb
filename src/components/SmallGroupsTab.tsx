@@ -130,6 +130,9 @@ export default function SmallGroupsTab({
       return;
     }
     if (editingMeeting) {
+      if (!window.confirm('Apakah Anda yakin ingin menyimpan perubahan log pertemuan ini?')) {
+        return;
+      }
       const updatedMeeting: MeetingLog = {
         ...editingMeeting,
         groupId: selectedGroup.id,
@@ -533,7 +536,9 @@ export default function SmallGroupsTab({
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
-                            onDeleteGroup(group.id);
+                            if (window.confirm('Apakah Anda yakin ingin menghapus kelompok sel ini?')) {
+                              onDeleteGroup(group.id);
+                            }
                           }}
                           className="text-[10px] text-red-500 hover:underline cursor-pointer"
                         >

@@ -1144,10 +1144,10 @@ export default function LettersTab({
 
       {/* DIALOG: REGISTRASI & EDIT SURAT MASUK */}
       {isFormInOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 overflow-y-auto backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-xl overflow-hidden scale-95 transition-transform my-8">
+        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-xl overflow-hidden scale-95 transition-transform flex flex-col max-h-[calc(100vh-3rem)]">
             
-            <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
+            <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center shrink-0">
               <div>
                 <dt className="text-sm font-bold">
                   {editingInwardLetter ? `Sistem Edit Surat Masuk (${editingInwardLetter.letterNumber})` : 'Sistem Registrasi Surat Masuk (Inbox)'}
@@ -1168,7 +1168,8 @@ export default function LettersTab({
               </button>
             </div>
 
-            <form onSubmit={handleSaveInwardLetter} className="p-6 space-y-4 text-xs font-sans">
+            <form onSubmit={handleSaveInwardLetter} className="flex flex-col flex-1 min-h-0 overflow-hidden text-xs font-sans">
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -1283,7 +1284,9 @@ export default function LettersTab({
                 )}
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
+              </div>
+
+              <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2 shrink-0 bg-slate-50/50">
                 <button 
                   type="button" 
                   onClick={() => {
@@ -1451,10 +1454,10 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
 
       {/* COMPOSER MODAL FOR LETTERS OUTWARD (SURAT KELUAR) */}
       {isFormOutOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 overflow-y-auto backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-2xl overflow-hidden scale-95 transition-transform my-8">
+        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-2xl overflow-hidden scale-95 transition-transform flex flex-col max-h-[calc(100vh-3rem)]">
             
-            <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
+            <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center shrink-0">
               <div>
                 <dt className="text-sm font-bold">
                   {editingLetter ? `Sistem Edit Surat Keluar (${editingLetter.letterNumber})` : 'Sistem Penyusunan Surat Keluar (Outbox)'}
@@ -1472,7 +1475,8 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
               </button>
             </div>
 
-            <form onSubmit={handleComposeOutwardLetter} className="p-6 space-y-4 text-xs font-sans">
+            <form onSubmit={handleComposeOutwardLetter} className="flex flex-col flex-1 min-h-0 overflow-hidden text-xs font-sans">
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -1866,7 +1870,9 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                 )}
               </div>
 
-              <div className="pt-4 border-t border-slate-50 flex justify-end gap-3">
+              </div>
+
+              <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 shrink-0 bg-slate-50/50">
                 <button 
                   type="button" 
                   onClick={() => setIsFormOutOpen(false)}
@@ -2083,11 +2089,18 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
               {/* Symmetrical Dual Signatures Block Area replicates standard physical signatures */}
               <div className="mt-12 pt-6 border-t border-slate-100 grid grid-cols-2 gap-10 relative font-serif text-[12.5px] md:text-[13.5px] text-slate-950 select-none pb-6">
                 
+                {/* Mengetahui at the center top between the two main signatures */}
+                {leftType !== 'None' && leftType !== 'none' && rightType !== 'None' && rightType !== 'none' && (
+                  <div className="absolute top-6 left-1/2 -translate-x-1/2 font-serif font-medium text-center h-[18px]">
+                    Mengetahui,
+                  </div>
+                )}
+
                 {/* Penandatangan Kiri */}
                 {leftType !== 'None' && leftType !== 'none' ? (
                   <div className="text-center flex flex-col items-center relative z-25">
                     <p className="font-serif leading-tight h-[18px] mb-1 font-medium">
-                      {rightType !== 'None' && rightType !== 'none' ? `${leftTitle},` : finalPlaceDate}
+                      {rightType !== 'None' && rightType !== 'none' ? '' : finalPlaceDate}
                     </p>
                     
                     {/* Image slot */}
@@ -2116,7 +2129,9 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                 {/* Penandatangan Kanan */}
                 {rightType !== 'None' && rightType !== 'none' ? (
                   <div className="text-center flex flex-col items-center relative z-25">
-                    <p className="font-serif leading-tight h-[18px] mb-1 font-medium">{finalPlaceDate}</p>
+                    <p className="font-serif leading-tight h-[18px] mb-1 font-medium">
+                      {leftType !== 'None' && leftType !== 'none' ? '' : finalPlaceDate}
+                    </p>
 
                     {/* Image slot */}
                     <div className="h-14 flex items-center justify-center my-2 relative w-full">
@@ -2202,7 +2217,6 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                           readingLetter.additionalSignatures.length === 1 ? 'max-w-xs w-full' : isLoneLast ? 'col-span-2 mx-auto max-w-xs w-full' : ''
                         }`}
                       >
-                        <p className="font-serif leading-tight h-[18px] mb-1 font-medium">{sig.title},</p>
                         
                         <div className="h-14 flex items-center justify-center my-2 relative w-full">
                           {sigImg ? (

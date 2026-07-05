@@ -202,6 +202,9 @@ export default function StaffTab({
     };
 
     if (editingStaff) {
+      if (!window.confirm('Apakah Anda yakin ingin menyimpan perubahan data staf ini?')) {
+        return;
+      }
       onUpdateStaff(compiled);
       // Keep selected state in sync
       if (selectedStaff && selectedStaff.nik === compiled.nik) {

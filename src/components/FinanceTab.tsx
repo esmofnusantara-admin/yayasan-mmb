@@ -180,6 +180,9 @@ export default function FinanceTab({
     }
 
     if (editingTx) {
+      if (!window.confirm('Apakah Anda yakin ingin menyimpan perubahan pada transaksi ini?')) {
+        return;
+      }
       const updated: Transaction = {
         ...editingTx,
         date: txDate,
@@ -539,8 +542,12 @@ export default function FinanceTab({
                           )}
                           {canDelete && (
                             <button 
-                              onClick={() => onDeleteTransaction(tx.id)}
-                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-150 border border-rose-200 text-[10px] rounded-lg font-bold text-rose-755 cursor-pointer shadow-xs transition-colors"
+                              onClick={() => {
+                                if (window.confirm('Apakah Anda yakin ingin menghapus transaksi ini?')) {
+                                  onDeleteTransaction(tx.id);
+                                }
+                              }}
+                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-155 border border-rose-200 text-[10px] rounded-lg font-bold text-rose-755 cursor-pointer shadow-xs transition-colors"
                             >
                               Hapus
                             </button>
@@ -718,10 +725,12 @@ export default function FinanceTab({
                             <button 
                               onClick={() => {
                                 if (onUpdateCategory) {
-                                  onUpdateCategory({
-                                    ...cat,
-                                    budgetLimit: editLimitVal ? Number(editLimitVal) : undefined
-                                  });
+                                  if (window.confirm('Apakah Anda yakin ingin menyimpan perubahan limit anggaran kategori ini?')) {
+                                    onUpdateCategory({
+                                      ...cat,
+                                      budgetLimit: editLimitVal ? Number(editLimitVal) : undefined
+                                    });
+                                  }
                                 }
                                 setEditingCatId(null);
                                 setEditLimitVal('');

@@ -639,7 +639,8 @@ export default function SystemTab({
     { id: 'payroll', label: 'Payroll & Slip Gaji' },
     { id: 'letters', label: 'Surat & Dokumen' },
     { id: 'approvals', label: 'Approval Center' },
-    { id: 'system', label: 'Profil & Audit Log (System)' }
+    { id: 'system', label: 'Profil & Audit Log (System)' },
+    { id: 'staff_tasks', label: 'Program & Rapat Staf' }
   ];
 
   const fetchOperators = async () => {

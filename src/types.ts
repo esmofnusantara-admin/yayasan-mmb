@@ -426,3 +426,36 @@ export interface ActivityTransaction {
   createdAt?: string;
 }
 
+export interface StaffTask {
+  id: string; // e.g. ST-2026-00001
+  staffNik: string;
+  staffName: string;
+  title: string;
+  periodType: 'Weekly' | 'Monthly' | 'Yearly';
+  targetDate: string; // e.g. "2026-W28", "2026-07", "2026"
+  status: 'Belum Mulai' | 'Dalam Proses' | 'Selesai' | 'Tertunda';
+  notes?: string;
+  attachmentUrl?: string; // documents id
+  attachmentName?: string;
+  parentTaskId?: string; // relation to another task
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
+}
+
+export interface StaffMeeting {
+  id: string; // e.g. SM-2026-00001
+  title: string;
+  date: string;
+  location: string;
+  leaderName: string;
+  attendees: string[]; // array of staff Names or NIKs
+  notes: string; // Meeting minutes / summary
+  attachmentUrl?: string; // documents id
+  attachmentName?: string;
+  externalLink?: string; // e.g. Google Drive/Zoom URL
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
+}
+

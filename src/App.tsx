@@ -19,7 +19,8 @@ import {
   X,
   Coins,
   FilePieChart,
-  Calendar
+  Calendar,
+  ClipboardList
 } from 'lucide-react';
 
 // Import local components
@@ -38,6 +39,7 @@ import StaffMeTab from './components/StaffMeTab';
 import ReportsTab from './components/ReportsTab';
 import ActivitiesTab from './components/ActivitiesTab';
 import MMBLogo from './components/MMBLogo';
+import StaffTasksTab from './components/StaffTasksTab';
 
 // Import state type bindings & seed data
 import { 
@@ -63,7 +65,9 @@ import {
   Activity,
   ActivityTransaction,
   ActivityRundownItem,
-  ActivityPreparationItem
+  ActivityPreparationItem,
+  StaffTask,
+  StaffMeeting
 } from './types';
 
 import { 
@@ -287,6 +291,8 @@ export default function App() {
   const [activityRundowns, setActivityRundowns] = useState<ActivityRundownItem[]>([]);
   const [activityPreparations, setActivityPreparations] = useState<ActivityPreparationItem[]>([]);
   const [activityTransactions, setActivityTransactions] = useState<ActivityTransaction[]>([]);
+  const [staffTasks, setStaffTasks] = useState<StaffTask[]>([]);
+  const [staffMeetings, setStaffMeetings] = useState<StaffMeeting[]>([]);
   const [structures, setStructures] = useState<any[]>([]);
   const [isSystemSeeded, setIsSystemSeeded] = useState<boolean | null>(null);
 
@@ -509,7 +515,9 @@ export default function App() {
         _act,
         _rund,
         _prep,
-        _acttx
+        _acttx,
+        _tasks,
+        _meets
       ] = await Promise.all([
         loadProfile(),
         loadStructures(),
@@ -534,7 +542,9 @@ export default function App() {
         loadCollection('activities', [], setActivities),
         loadCollection('activity_rundowns', [], setActivityRundowns),
         loadCollection('activity_preparations', [], setActivityPreparations),
-        loadCollection('activity_transactions', [], setActivityTransactions)
+        loadCollection('activity_transactions', [], setActivityTransactions),
+        loadCollection('staff_tasks', [], setStaffTasks),
+        loadCollection('staff_meetings', [], setStaffMeetings)
       ]);
 
       // Automatic database backward compatibility migration:
@@ -2027,6 +2037,103 @@ if (!res.ok) {
     }
   };
 
+  const handleSaveStaffTask = async (task: StaffTask) => {
+    try {
+      // Optimistic visual update
+      setStaffTasks(prev => {
+        const idx = prev.findIndex(x => x.id === task.id);
+        if (idx > -1) {
+          const next = [...prev];
+          next[idx] = task;
+          return next;
+        }
+        return [...prev, task];
+      });
+
+      const isEdit = staffTasks.some(x => x.id === task.id);
+      const res = await fetch(`/api/data/staff_tasks/${task.id}`, {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(task)
+      });
+      if (!res.ok) {
+        throw new Error('Gagal menyimpan kegiatan staf ke server');
+      }
+      await logAudit(`${isEdit ? 'Mengubah' : 'Menambah'} Program Kerja Staf: ${task.title}`, 'Kepegawaian');
+      await loadCollection('staff_tasks', [], setStaffTasks);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menyimpan kegiatan: ${e.message}`);
+      await loadCollection('staff_tasks', [], setStaffTasks);
+    }
+  };
+
+  const handleDeleteStaffTask = async (id: string, title: string) => {
+    try {
+      setStaffTasks(prev => prev.filter(x => x.id !== id));
+      const res = await fetch(`/api/data/staff_tasks/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        throw new Error('Gagal menghapus kegiatan staf dari server');
+      }
+      await logAudit(`Menghapus Program Kerja Staf: ${title}`, 'Kepegawaian');
+      await loadCollection('staff_tasks', [], setStaffTasks);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menghapus kegiatan: ${e.message}`);
+      await loadCollection('staff_tasks', [], setStaffTasks);
+    }
+  };
+
+  const handleSaveStaffMeeting = async (meeting: StaffMeeting) => {
+    try {
+      setStaffMeetings(prev => {
+        const idx = prev.findIndex(x => x.id === meeting.id);
+        if (idx > -1) {
+          const next = [...prev];
+          next[idx] = meeting;
+          return next;
+        }
+        return [...prev, meeting];
+      });
+
+      const isEdit = staffMeetings.some(x => x.id === meeting.id);
+      const res = await fetch(`/api/data/staff_meetings/${meeting.id}`, {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(meeting)
+      });
+      if (!res.ok) {
+        throw new Error('Gagal menyimpan notulensi rapat ke server');
+      }
+      await logAudit(`${isEdit ? 'Mengubah' : 'Menambah'} Dokumentasi Rapat Staf: ${meeting.title}`, 'Kepegawaian');
+      await loadCollection('staff_meetings', [], setStaffMeetings);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menyimpan log rapat: ${e.message}`);
+      await loadCollection('staff_meetings', [], setStaffMeetings);
+    }
+  };
+
+  const handleDeleteStaffMeeting = async (id: string, title: string) => {
+    try {
+      setStaffMeetings(prev => prev.filter(x => x.id !== id));
+      const res = await fetch(`/api/data/staff_meetings/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        throw new Error('Gagal menghapus log rapat dari server');
+      }
+      await logAudit(`Menghapus Dokumentasi Rapat Staf: ${title}`, 'Kepegawaian');
+      await loadCollection('staff_meetings', [], setStaffMeetings);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menghapus log rapat: ${e.message}`);
+      await loadCollection('staff_meetings', [], setStaffMeetings);
+    }
+  };
+
   // Post Approval handler to wire HR collective payrolls
   const handlePostApproval = async (app: ApprovalRequest) => {
     try {
@@ -2315,7 +2422,7 @@ if (!res.ok) {
                 </button>
               )}
 
-              {(hasFeatureAccess('partners') || hasFeatureAccess('staff') || hasFeatureAccess('payroll') || hasFeatureAccess('letters') || hasFeatureAccess('approvals') || hasFeatureAccess('reports')) && (
+              {(hasFeatureAccess('partners') || hasFeatureAccess('staff') || hasFeatureAccess('payroll') || hasFeatureAccess('letters') || hasFeatureAccess('approvals') || hasFeatureAccess('reports') || hasFeatureAccess('staff_tasks')) && (
                 <span className="text-[9px] uppercase font-bold tracking-wider text-slate-400 block pt-4 pb-2 px-3">Administrasi</span>
               )}
 
@@ -2338,6 +2445,17 @@ if (!res.ok) {
                   }`}
                 >
                   <UserSquare2 className="w-4 h-4 shrink-0" /> Database Staf
+                </button>
+              )}
+
+              {hasFeatureAccess('staff_tasks') && (
+                <button 
+                  onClick={() => { setActiveTab('staff_tasks'); setIsMobileMenuOpen(false); }}
+                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
+                    activeTab === 'staff_tasks' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
+                  }`}
+                >
+                  <ClipboardList className="w-4 h-4 shrink-0" /> Program & Rapat Staf
                 </button>
               )}
 
@@ -2598,6 +2716,20 @@ if (!res.ok) {
                 currentRole={currentRole}
                 profile={profile}
                 structures={structures}
+              />
+            )}
+
+            {activeTab === 'staff_tasks' && (
+              <StaffTasksTab 
+                staffTasks={staffTasks}
+                staffMeetings={staffMeetings}
+                staffs={staffs}
+                currentUser={currentUser}
+                currentRole={currentRole}
+                onSaveTask={handleSaveStaffTask}
+                onDeleteTask={handleDeleteStaffTask}
+                onSaveMeeting={handleSaveStaffMeeting}
+                onDeleteMeeting={handleDeleteStaffMeeting}
               />
             )}
 

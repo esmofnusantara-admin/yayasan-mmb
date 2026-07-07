@@ -343,4 +343,46 @@ router.post('/forgot-password/reset', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/change-password', authenticateToken, async (req: any, res: Response) => {
+  const { currentPassword, newPassword } = req.body;
+  const userEmail = req.user?.email;
+
+  if (!userEmail) {
+    return res.status(401).json({ success: false, message: 'Sesi tidak valid.' });
+  }
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ success: false, message: 'Password lama dan baru wajib diisi.' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ success: false, message: 'Password baru minimal 6 karakter.' });
+  }
+
+  try {
+    // Fetch user from DB
+    let user: any = await dbDriver.getDoc('users', userEmail);
+    if (!user || user.deleted) {
+      const allUsers = await dbDriver.getDocs('users');
+      user = allUsers.find((u: any) => !u.deleted && (u.email?.toLowerCase() === userEmail.toLowerCase() || u.phone === userEmail));
+    }
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Akun tidak ditemukan.' });
+    }
+
+    // Verify current password
+    if (user.password !== currentPassword) {
+      return res.status(401).json({ success: false, message: 'Password saat ini salah.' });
+    }
+
+    // Update password
+    const docId = user.email || userEmail;
+    await dbDriver.updateDoc('users', docId, { password: newPassword });
+
+    res.json({ success: true, message: 'Password berhasil diperbarui.' });
+  } catch (error: any) {
+    console.error('Change password error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 export const authRouter = router;

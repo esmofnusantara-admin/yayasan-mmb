@@ -628,6 +628,16 @@ export default function SystemTab({
   // Active password viewing toggle for users table
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
 
+  // Change password modal state (for Super Admin changing other user's password)
+  const [changePassTarget, setChangePassTarget] = useState<{ email: string; name: string } | null>(null);
+  const [changePassNew, setChangePassNew] = useState('');
+  const [changePassConfirm, setChangePassConfirm] = useState('');
+  const [changePassError, setChangePassError] = useState<string | null>(null);
+  const [changePassSuccess, setChangePassSuccess] = useState<string | null>(null);
+  const [showChangePassNew, setShowChangePassNew] = useState(false);
+  const [showChangePassConfirm, setShowChangePassConfirm] = useState(false);
+  const [isSavingPass, setIsSavingPass] = useState(false);;
+
   const ALL_FEATURES = [
     { id: 'dashboard', label: 'Dashboard Utama' },
     { id: 'members', label: 'Anggota Pelayanan' },
@@ -1093,6 +1103,59 @@ export default function SystemTab({
       ...prev,
       [email]: !prev[email]
     }));
+  };
+
+  const handleChangeUserPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!changePassTarget) return;
+    setChangePassError(null);
+    setChangePassSuccess(null);
+
+    if (!changePassNew || !changePassConfirm) {
+      setChangePassError('Harap isi kedua kolom password.');
+      return;
+    }
+    if (changePassNew.length < 6) {
+      setChangePassError('Password minimal 6 karakter.');
+      return;
+    }
+    if (changePassNew !== changePassConfirm) {
+      setChangePassError('Konfirmasi password tidak cocok.');
+      return;
+    }
+
+    setIsSavingPass(true);
+    try {
+      const targetUser = operators.find(op => op.email === changePassTarget.email);
+      if (!targetUser) {
+        setChangePassError('Operator tidak ditemukan.');
+        return;
+      }
+
+      const payload = { ...targetUser, password: changePassNew };
+      const res = await fetch(`/api/data/users/${encodeURIComponent(changePassTarget.email)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        setChangePassSuccess(`Password untuk ${changePassTarget.name} berhasil diperbarui.`);
+        setChangePassNew('');
+        setChangePassConfirm('');
+        await fetchOperators();
+        setTimeout(() => {
+          setChangePassTarget(null);
+          setChangePassSuccess(null);
+        }, 2000);
+      } else {
+        setChangePassError('Gagal memperbarui password di database.');
+      }
+    } catch (err) {
+      setChangePassError('Kesalahan jaringan saat memperbarui password.');
+    } finally {
+      setIsSavingPass(false);
+    }
   };
 
   const handleNewOpFeatureToggle = (featureId: string) => {
@@ -2293,6 +2356,23 @@ export default function SystemTab({
                             </button>
                           )}
 
+                          {hasAdminRights && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setChangePassTarget({ email: op.email, name: op.name });
+                                setChangePassNew('');
+                                setChangePassConfirm('');
+                                setChangePassError(null);
+                                setChangePassSuccess(null);
+                              }}
+                              className="p-1 px-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors cursor-pointer text-[10px] font-bold flex items-center gap-1"
+                              title="Ganti password operator ini"
+                            >
+                              <Lock className="w-3 h-3" /> Ganti Password
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={() => handleTogglePasswordVisibility(op.email)}
@@ -3255,6 +3335,116 @@ export default function SystemTab({
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Ganti Password Operator (Super Admin Only) */}
+      {changePassTarget && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(6px)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Lock className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-extrabold text-white leading-tight">Ganti Password Operator</h2>
+                  <p className="text-[10px] text-amber-100 mt-0.5">Super Admin &bull; Aksi Keamanan</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setChangePassTarget(null); setChangePassError(null); setChangePassSuccess(null); }}
+                className="w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <form onSubmit={handleChangeUserPassword} className="p-6 space-y-4 text-xs">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[11px] leading-relaxed">
+                <span className="font-bold block mb-0.5">Target Akun:</span>
+                <span className="font-mono">{changePassTarget.name} &mdash; {changePassTarget.email}</span>
+              </div>
+
+              {changePassError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-[11px] flex items-center gap-2">
+                  <X className="w-3.5 h-3.5 shrink-0" />
+                  {changePassError}
+                </div>
+              )}
+              {changePassSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-[11px] flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 shrink-0" />
+                  {changePassSuccess}
+                </div>
+              )}
+
+              <div>
+                <label className="block font-semibold text-slate-600 mb-1">Password Baru :</label>
+                <div className="relative">
+                  <input
+                    type={showChangePassNew ? 'text' : 'password'}
+                    value={changePassNew}
+                    onChange={e => setChangePassNew(e.target.value)}
+                    placeholder="Minimal 6 karakter..."
+                    className="w-full border border-slate-200 rounded-xl pl-3 pr-10 py-2.5 text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-amber-400/50"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowChangePassNew(!showChangePassNew)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {showChangePassNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-600 mb-1">Konfirmasi Password Baru :</label>
+                <div className="relative">
+                  <input
+                    type={showChangePassConfirm ? 'text' : 'password'}
+                    value={changePassConfirm}
+                    onChange={e => setChangePassConfirm(e.target.value)}
+                    placeholder="Ulangi password baru..."
+                    className="w-full border border-slate-200 rounded-xl pl-3 pr-10 py-2.5 text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-amber-400/50"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowChangePassConfirm(!showChangePassConfirm)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {showChangePassConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => { setChangePassTarget(null); setChangePassError(null); setChangePassSuccess(null); }}
+                  className="flex-1 py-2.5 border border-slate-200 text-slate-600 font-semibold rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingPass}
+                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-colors cursor-pointer shadow-sm shadow-amber-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isSavingPass ? (
+                    <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block"></span> Menyimpan...</>
+                  ) : (
+                    <><Lock className="w-3.5 h-3.5" /> Simpan Password</>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

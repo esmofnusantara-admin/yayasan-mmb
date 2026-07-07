@@ -469,7 +469,7 @@ export default function StaffTasksTab({
     <div className="space-y-6">
       {/* HEADER BANNER WITH SOPHISTICATED GRADIENT ACCENT */}
       {!selectedStaff && (
-        <div className="bg-gradient-to-r from-indigo-700 via-violet-650 to-indigo-900 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden font-sans border-b-4 border-indigo-500/20">
+        <div className="bg-gradient-to-r from-indigo-700 via-violet-600 to-indigo-900 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden font-sans border-b-4 border-indigo-500/20">
           <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 bg-white/5 rounded-full blur-2xl"></div>
           <div className="relative z-10 space-y-2">
             <div className="flex items-center gap-3">
@@ -492,7 +492,7 @@ export default function StaffTasksTab({
             onClick={() => setSubTab('tasks')}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-bold rounded-xl transition-all cursor-pointer ${
               subTab === 'tasks'
-                ? 'bg-gradient-to-r from-indigo-600 via-indigo-650 to-violet-600 text-white shadow-md shadow-indigo-500/25'
+                ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/25'
                 : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
             }`}
           >
@@ -502,7 +502,7 @@ export default function StaffTasksTab({
             onClick={() => setSubTab('meetings')}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-bold rounded-xl transition-all cursor-pointer ${
               subTab === 'meetings'
-                ? 'bg-gradient-to-r from-indigo-600 via-indigo-650 to-violet-600 text-white shadow-md shadow-indigo-500/25'
+                ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/25'
                 : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
             }`}
           >
@@ -574,7 +574,7 @@ export default function StaffTasksTab({
             <div className="flex gap-2">
               <button
                 onClick={() => handleOpenAddTask()}
-                className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-650 hover:from-indigo-700 hover:to-violet-750 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-500/15 transition-all cursor-pointer"
+                className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-500/15 transition-all cursor-pointer"
               >
                 <Plus className="w-4 h-4" /> Entri Kegiatan Staf
               </button>
@@ -603,7 +603,7 @@ export default function StaffTasksTab({
                 const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
                 return (
-                  <div key={st.nik} className="bg-white rounded-3xl border-t-4 border-indigo-650 border-x border-b border-slate-100 shadow-xs hover:shadow-md hover:scale-[1.01] transition-all duration-300 p-5 flex flex-col justify-between space-y-4">
+                  <div key={st.nik} className="bg-white rounded-3xl border-t-4 border-indigo-600 border-x border-b border-slate-100 shadow-xs hover:shadow-md hover:scale-[1.01] transition-all duration-300 p-5 flex flex-col justify-between space-y-4">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <div className="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center font-bold text-indigo-700 uppercase shrink-0 text-sm">
@@ -647,7 +647,7 @@ export default function StaffTasksTab({
                         setTaskYearFilter('Semua');
                         setTaskStatusFilter('Semua');
                       }}
-                      className="w-full py-2 bg-indigo-50/60 hover:bg-indigo-650 border border-indigo-100 hover:border-indigo-650 text-indigo-700 hover:text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1 transition-all cursor-pointer"
+                      className="w-full py-2 bg-indigo-50/60 hover:bg-indigo-600 border border-indigo-100 hover:border-indigo-600 text-indigo-700 hover:text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1 transition-all cursor-pointer"
                     >
                       Lihat Rincian Kerja <ChevronRight className="w-4 h-4" />
                     </button>
@@ -667,7 +667,7 @@ export default function StaffTasksTab({
             <div className="space-y-2">
               <button
                 onClick={() => setSelectedStaff(null)}
-                className="flex items-center gap-1.5 text-xs text-indigo-650 hover:text-indigo-800 font-bold transition-all cursor-pointer bg-white px-3 py-1.5 rounded-xl border border-indigo-150 shadow-xs"
+                className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-bold transition-all cursor-pointer bg-white px-3 py-1.5 rounded-xl border border-indigo-200 shadow-xs"
               >
                 <ArrowLeft className="w-4 h-4 text-indigo-600" /> ← Kembali ke Daftar Staf
               </button>
@@ -690,7 +690,7 @@ export default function StaffTasksTab({
             {(isSuperAdmin || (matchedCurrentStaff && selectedStaff.nik === matchedCurrentStaff.nik)) && (
               <button
                 onClick={() => handleOpenAddTask(selectedStaff.nik)}
-                className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-650 hover:from-indigo-700 hover:to-violet-750 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-500/15 transition-all cursor-pointer"
+                className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-500/15 transition-all cursor-pointer"
               >
                 <Plus className="w-4 h-4" /> Tambah Kegiatan
               </button>
@@ -764,7 +764,7 @@ export default function StaffTasksTab({
 
                           {parentTask && (
                             <div className="flex items-center gap-1 text-[10px] bg-white border border-indigo-100 p-2 rounded-lg text-indigo-700 font-bold">
-                              <TrendingUp className="w-3.5 h-3.5 text-indigo-650 shrink-0 animate-bounce" />
+                              <TrendingUp className="w-3.5 h-3.5 text-indigo-600 shrink-0 animate-bounce" />
                               <span className="truncate">Melanjutkan: <strong>{parentTask.title}</strong></span>
                             </div>
                           )}
@@ -873,7 +873,7 @@ export default function StaffTasksTab({
                               href={`/api/documents/download/${task.attachmentUrl}?token=${getSessionUserToken()}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-[10px] text-indigo-650 hover:underline font-semibold bg-white border border-slate-200 px-2 py-0.5 rounded"
+                              className="inline-flex items-center gap-1 text-[10px] text-indigo-600 hover:underline font-semibold bg-white border border-slate-200 px-2 py-0.5 rounded"
                             >
                               <Paperclip className="w-3.5 h-3.5" /> Berkas
                             </a>
@@ -950,14 +950,12 @@ export default function StaffTasksTab({
                   />
                 </div>
 
-                {isSuperAdmin && (
-                  <button
+                <button
                     onClick={handleOpenAddMeeting}
-                    className="px-4 py-2 bg-gradient-to-r from-indigo-650 to-violet-650 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-500/15 transition-all cursor-pointer"
+                    className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-500/20 hover:from-indigo-700 hover:to-violet-700 transition-all cursor-pointer"
                   >
                     <Plus className="w-4 h-4" /> Catat Rapat
                   </button>
-                )}
               </div>
             </div>
           </div>
@@ -1420,7 +1418,7 @@ export default function StaffTasksTab({
                               setMeetingAttendees(prev => [...prev, s.name]);
                             }
                           }}
-                          className="rounded text-indigo-650 focus:ring-indigo-500 scale-95 cursor-pointer"
+                          className="rounded text-indigo-600 focus:ring-indigo-500 scale-95 cursor-pointer"
                         />
                         <span className="truncate">{s.name}</span>
                       </label>

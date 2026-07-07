@@ -20,7 +20,11 @@ import {
   Coins,
   FilePieChart,
   Calendar,
-  ClipboardList
+  ClipboardList,
+  Lock,
+  Eye,
+  EyeOff,
+  KeyRound
 } from 'lucide-react';
 
 // Import local components
@@ -2240,6 +2244,69 @@ if (!res.ok) {
   // Pending counts for notifications
   const pendingApprovalsCount = approvals.filter(item => item.status === 'Pending').length;
 
+  // Self-password change modal state
+  const [showSelfPassModal, setShowSelfPassModal] = useState(false);
+  const [selfPassCurrent, setSelfPassCurrent] = useState('');
+  const [selfPassNew, setSelfPassNew] = useState('');
+  const [selfPassConfirm, setSelfPassConfirm] = useState('');
+  const [selfPassError, setSelfPassError] = useState<string | null>(null);
+  const [selfPassSuccess, setSelfPassSuccess] = useState<string | null>(null);
+  const [showSelfPassCurrent, setShowSelfPassCurrent] = useState(false);
+  const [showSelfPassNew, setShowSelfPassNew] = useState(false);
+  const [showSelfPassConfirm, setShowSelfPassConfirm] = useState(false);
+  const [isSavingSelfPass, setIsSavingSelfPass] = useState(false);
+
+  const handleChangeSelfPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSelfPassError(null);
+    setSelfPassSuccess(null);
+
+    if (!selfPassCurrent || !selfPassNew || !selfPassConfirm) {
+      setSelfPassError('Harap isi semua kolom password.');
+      return;
+    }
+    if (selfPassNew.length < 6) {
+      setSelfPassError('Password baru minimal 6 karakter.');
+      return;
+    }
+    if (selfPassNew !== selfPassConfirm) {
+      setSelfPassError('Konfirmasi password tidak cocok.');
+      return;
+    }
+
+    setIsSavingSelfPass(true);
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: selfPassCurrent,
+          newPassword: selfPassNew
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSelfPassSuccess('Password berhasil diperbarui! Anda akan otomatis keluar...');
+        setSelfPassCurrent('');
+        setSelfPassNew('');
+        setSelfPassConfirm('');
+        setTimeout(() => {
+          setShowSelfPassModal(false);
+          setSelfPassSuccess(null);
+          localStorage.removeItem('esm_session_user');
+          setCurrentUser(null);
+        }, 2500);
+      } else {
+        setSelfPassError(data.message || 'Gagal menyimpan password baru.');
+      }
+    } catch (err) {
+      setSelfPassError('Kesalahan jaringan. Coba lagi.');
+    } finally {
+      setIsSavingSelfPass(false);
+    }
+  };
+
   if (isVerifyingSession) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#F8FAFC] font-sans">
@@ -2281,6 +2348,23 @@ if (!res.ok) {
 
         {/* Authenticated Session Dashboard Controls */}
         <div className="flex items-center gap-4">
+          {/* Change own password button - always visible */}
+          <button
+            onClick={() => {
+              setSelfPassCurrent('');
+              setSelfPassNew('');
+              setSelfPassConfirm('');
+              setSelfPassError(null);
+              setSelfPassSuccess(null);
+              setShowSelfPassModal(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold transition-all cursor-pointer shadow-sm shadow-indigo-200"
+            title="Ganti Password Saya"
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Ganti Password</span>
+          </button>
+
           <div className="hidden sm:flex items-center gap-3 text-xs">
             <div className="text-right mr-2">
               <div className="font-semibold text-xs text-slate-800">{currentUser.name}</div>
@@ -2346,6 +2430,21 @@ if (!res.ok) {
               </div>
               <div className="border-t border-slate-200/50 pt-1.5 flex items-center justify-between text-[11px]">
                 <span className="text-slate-500 font-mono font-semibold">{currentUser.role}</span>
+                <button
+                  onClick={() => {
+                    setSelfPassCurrent('');
+                    setSelfPassNew('');
+                    setSelfPassConfirm('');
+                    setSelfPassError(null);
+                    setSelfPassSuccess(null);
+                    setShowSelfPassModal(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer"
+                  title="Ganti Password Saya"
+                >
+                  <KeyRound className="w-3 h-3" /> Ganti Password
+                </button>
               </div>
             </div>
 
@@ -2779,7 +2878,137 @@ if (!res.ok) {
 
         </main>
 
-      </div>
+      {/* MODAL: Ganti Password Sendiri (All Users) */}
+      {showSelfPassModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(6px)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
+                  <KeyRound className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-extrabold text-white leading-tight">Ganti Password Saya</h2>
+                  <p className="text-[10px] text-indigo-200 mt-0.5">{currentUser?.name} &bull; {currentUser?.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowSelfPassModal(false); setSelfPassError(null); setSelfPassSuccess(null); }}
+                className="w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <form onSubmit={handleChangeSelfPassword} className="p-6 space-y-4 text-xs">
+              {selfPassError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-[11px] flex items-center gap-2">
+                  <X className="w-3.5 h-3.5 shrink-0" />
+                  {selfPassError}
+                </div>
+              )}
+              {selfPassSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-[11px] flex items-center gap-2">
+                  <Lock className="w-3.5 h-3.5 shrink-0" />
+                  {selfPassSuccess}
+                </div>
+              )}
+
+              <div>
+                <label className="block font-semibold text-slate-600 mb-1">Password Saat Ini :</label>
+                <div className="relative">
+                  <input
+                    type={showSelfPassCurrent ? 'text' : 'password'}
+                    value={selfPassCurrent}
+                    onChange={e => setSelfPassCurrent(e.target.value)}
+                    placeholder="Masukkan password aktif Anda..."
+                    className="w-full border border-slate-200 rounded-xl pl-3 pr-10 py-2.5 text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSelfPassCurrent(!showSelfPassCurrent)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {showSelfPassCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-600 mb-1">Password Baru :</label>
+                <div className="relative">
+                  <input
+                    type={showSelfPassNew ? 'text' : 'password'}
+                    value={selfPassNew}
+                    onChange={e => setSelfPassNew(e.target.value)}
+                    placeholder="Minimal 6 karakter..."
+                    className="w-full border border-slate-200 rounded-xl pl-3 pr-10 py-2.5 text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSelfPassNew(!showSelfPassNew)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {showSelfPassNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-600 mb-1">Konfirmasi Password Baru :</label>
+                <div className="relative">
+                  <input
+                    type={showSelfPassConfirm ? 'text' : 'password'}
+                    value={selfPassConfirm}
+                    onChange={e => setSelfPassConfirm(e.target.value)}
+                    placeholder="Ulangi password baru..."
+                    className="w-full border border-slate-200 rounded-xl pl-3 pr-10 py-2.5 text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSelfPassConfirm(!showSelfPassConfirm)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {showSelfPassConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-slate-400 leading-relaxed">
+                ⚠️ Setelah password berhasil diperbarui, Anda akan otomatis keluar dan diminta login ulang.
+              </p>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => { setShowSelfPassModal(false); setSelfPassError(null); setSelfPassSuccess(null); }}
+                  className="flex-1 py-2.5 border border-slate-200 text-slate-600 font-semibold rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingSelfPass}
+                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors cursor-pointer shadow-sm shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isSavingSelfPass ? (
+                    <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block"></span> Menyimpan...</>
+                  ) : (
+                    <><KeyRound className="w-3.5 h-3.5" /> Perbarui Password</>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
-  );
+  </div>
+);
 }

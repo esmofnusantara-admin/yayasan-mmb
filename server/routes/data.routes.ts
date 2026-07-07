@@ -43,7 +43,8 @@ router.get('/:colName', authenticateToken, checkCollectionPermission, async (req
       const role = req.user?.role;
       const features = req.user?.features || [];
       const hasReportsAccess = Array.isArray(features) && features.includes('reports');
-      const isPrivileged = role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Bendahara' || hasReportsAccess;
+      const hasStaffTasksAccess = Array.isArray(features) && features.includes('staff_tasks');
+      const isPrivileged = role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Bendahara' || hasReportsAccess || hasStaffTasksAccess;
 
       if (!isPrivileged) {
         const userEmail = req.user?.email?.toLowerCase().trim();

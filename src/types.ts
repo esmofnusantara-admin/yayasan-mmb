@@ -202,6 +202,21 @@ export interface SalaryComponent {
   type: 'allowance' | 'deduction';
 }
 
+export interface StructureNode {
+  id: string;
+  title: string;
+  name: string;
+  sub?: string;
+  order?: number;
+  parentId?: string | null;
+  level?: number;
+  deleted?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  createdBy?: string;
+  updatedBy?: string;
+}
+
 export interface StaffSalary {
   id: string; // Matches staff's NIK
   salaryBase: number;

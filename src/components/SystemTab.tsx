@@ -31,7 +31,16 @@ import {
   RotateCw,
   RotateCcw,
   Image,
-  Calendar
+  Calendar,
+  Network,
+  Layers,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  GitFork,
+  ChevronRight,
+  ChevronDown,
+  ListFilter
 } from 'lucide-react';
 import { InstitutionalProfile, AuditLog } from '../types';
 import { getCutoffPeriodRange, INDO_MONTHS } from '../utils/cutoff';
@@ -64,6 +73,7 @@ export default function SystemTab({
   const [editTitle, setEditTitle] = useState('');
   const [editSub, setEditSub] = useState('');
   const [editOrder, setEditOrder] = useState<number>(100);
+  const [editParentId, setEditParentId] = useState<string>('');
 
   // Add custom node states
   const [isAddingNode, setIsAddingNode] = useState(false);
@@ -72,6 +82,11 @@ export default function SystemTab({
   const [newNodeName, setNewNodeName] = useState('');
   const [newNodeSub, setNewNodeSub] = useState('');
   const [newNodeOrder, setNewNodeOrder] = useState<number>(100);
+  const [newNodeParentId, setNewNodeParentId] = useState<string>('');
+
+  // View mode and scale for org chart
+  const [structureViewMode, setStructureViewMode] = useState<'chart' | 'hierarchy'>('chart');
+  const [chartScale, setChartScale] = useState<number>(1);
 
   // States for custom modal confirmations
   const [deleteConfirmOp, setDeleteConfirmOp] = useState<{ email: string; role: string; name: string } | null>(null);
@@ -125,6 +140,11 @@ export default function SystemTab({
       return;
     }
 
+    if (editParentId && editParentId === activeNodeId) {
+      alert('Error: Suatu jabatan tidak dapat menjadi atasan untuk dirinya sendiri.');
+      return;
+    }
+
     setIsSavingTree(true);
     try {
       const updatedNode = {
@@ -133,6 +153,7 @@ export default function SystemTab({
         name: editName,
         sub: editSub,
         order: Number(editOrder) || 100,
+        parentId: editParentId ? editParentId : null,
         deleted: false
       };
 
@@ -187,6 +208,7 @@ export default function SystemTab({
         name: newNodeName,
         sub: newNodeSub,
         order: Number(newNodeOrder) || 100,
+        parentId: newNodeParentId ? newNodeParentId : null,
         deleted: false
       };
 
@@ -206,6 +228,7 @@ export default function SystemTab({
         setNewNodeName('');
         setNewNodeSub('');
         setNewNodeOrder(100);
+        setNewNodeParentId('');
         setActiveNodeId(cleanId);
         await fetchOrgTree();
         if (onReloadStructures) onReloadStructures();
@@ -275,6 +298,7 @@ export default function SystemTab({
       setEditTitle(activeNode.title || '');
       setEditSub(activeNode.sub || '');
       setEditOrder(typeof activeNode.order === 'number' ? activeNode.order : 100);
+      setEditParentId(activeNode.parentId || '');
     }
   }, [activeNodeId, orgTree]);
 
@@ -1927,279 +1951,609 @@ export default function SystemTab({
             </button>
           </div>
         </form>
-      )}
+      )}      {/* SUBVIEW 2: DYNAMIC ORGANIZATIONAL STRUCTURE */}
+      {activeSubView === 'structure' && (() => {
+        const rootNodes = orgTree
+          .filter(n => !n.parentId || !orgTree.some(p => p.id === n.parentId))
+          .sort((a, b) => (Number(a.order) || 100) - (Number(b.order) || 100));
 
-      {/* SUBVIEW 2: DYNAMIC ORGANIZATIONAL STRUCTURE */}
-      {activeSubView === 'structure' && (
-        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-5 text-left text-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">Visual Bagan Struktur Organisasi & Pengambil Keputusan</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Pilih salah satu tingkatan hierarki untuk mempelajari hak otorisasi dan rantai komando internal MMB.</p>
-            </div>
-            
-            {(currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan') && (
-              <button
-                onClick={() => setIsAddingNode(!isAddingNode)}
-                className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs shrink-0"
+        const getChildren = (parentId: string) => {
+          return orgTree
+            .filter(n => n.parentId === parentId && n.id !== parentId && !n.deleted)
+            .sort((a, b) => (Number(a.order) || 100) - (Number(b.order) || 100));
+        };
+
+        const renderOrgBranch = (node: any, level: number = 1): React.ReactNode => {
+          if (!node) return null;
+          const isSelected = activeNodeId === node.id;
+          const children = getChildren(node.id);
+          const isTopLevel = level === 1;
+
+          return (
+            <div key={node.id} className="flex flex-col items-center select-none shrink-0">
+              {/* The Node Card */}
+              <div 
+                onClick={() => setActiveNodeId(node.id)}
+                className={`w-52 p-3.5 rounded-xl border text-center transition-all cursor-pointer relative group ${
+                  isSelected 
+                    ? 'bg-[#0c2340] text-white border-[#0c2340] shadow-xl ring-4 ring-blue-400/50 scale-[1.03] z-20' 
+                    : isTopLevel
+                      ? 'bg-[#0c2340] text-white border-[#1b365d] shadow-md hover:border-blue-400 hover:shadow-lg'
+                      : 'bg-white text-slate-800 border-slate-200 shadow-2xs hover:border-slate-400 hover:shadow-md'
+                }`}
               >
-                <PlusCircle className="w-3.5 h-3.5" />
-                <span>{isAddingNode ? 'Batal Tambah' : 'Tambah Jabatan Baru'}</span>
-              </button>
-            )}
-          </div>
+                {/* Level / Order row */}
+                <div className="flex items-center justify-between gap-1 mb-1.5">
+                  <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${
+                    isSelected || isTopLevel ? 'bg-slate-700/80 text-amber-300' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    #{node.order || 100}
+                  </span>
 
-          {/* Form to add new structural node */}
-          {isAddingNode && (currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan') && (
-            <form onSubmit={handleCreateStructureNode} className="p-4 bg-slate-50 border border-slate-200 rounded space-y-3">
-              <div className="border-b border-slate-200 pb-2">
-                <h4 className="font-bold text-slate-900 text-xs">Formulir Penambahan Jabatan / Struktur Baru</h4>
-                <p className="text-[11px] text-slate-500">Isi data di bawah ini untuk menghubungkan tingkatan hierarki baru.</p>
+                  {children.length > 0 && (
+                    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                      isSelected || isTopLevel ? 'bg-blue-900/70 text-blue-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                    }`}>
+                      <GitFork className="w-2.5 h-2.5" />
+                      {children.length} {children.length === 1 ? 'Bawahan' : 'Divisi'}
+                    </span>
+                  )}
+                </div>
+
+                {/* Role title */}
+                <div className={`text-[10px] font-extrabold uppercase tracking-wider line-clamp-1 mb-1 ${
+                  isSelected || isTopLevel ? 'text-blue-200' : 'text-slate-500'
+                }`}>
+                  {node.title}
+                </div>
+
+                {/* Person name */}
+                <h4 className={`text-xs font-bold leading-tight line-clamp-2 ${
+                  isSelected || isTopLevel ? 'text-white' : 'text-slate-900'
+                }`}>
+                  {node.name || '(Belum Ditentukan)'}
+                </h4>
+
+                {/* Sub text / description */}
+                {node.sub && (
+                  <p className={`text-[10px] mt-1.5 line-clamp-2 leading-snug border-t pt-1 ${
+                    isSelected || isTopLevel ? 'text-slate-300 border-slate-700' : 'text-slate-500 border-slate-100'
+                  }`}>
+                    {node.sub}
+                  </p>
+                )}
+
+                {/* Selected active indicator */}
+                {isSelected && (
+                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-md">
+                    <Check className="w-2.5 h-2.5" />
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="text-slate-700 font-semibold mb-1 block text-xs">ID Jabatan (misal: wakil_ketua):</label>
-                  <input
-                    type="text"
-                    value={newNodeId}
-                    onChange={(e) => setNewNodeId(e.target.value)}
-                    placeholder="contoh: wakil_ketua"
-                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 font-mono focus:outline-none focus:border-[#0c2340]"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-700 font-semibold mb-1 block text-xs">Gelar Jabatan :</label>
-                  <input
-                    type="text"
-                    value={newNodeTitle}
-                    onChange={(e) => setNewNodeTitle(e.target.value)}
-                    placeholder="contoh: Wakil Ketua Bidang Pelayanan"
-                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-700 font-semibold mb-1 block text-xs">Nama Pengurus/Staf :</label>
-                  <input
-                    type="text"
-                    value={newNodeName}
-                    onChange={(e) => setNewNodeName(e.target.value)}
-                    placeholder="contoh: Samuel Pratama, M.Div."
-                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
-                    required
-                  />
-                </div>
-              </div>
+              {/* Children branches connected by tree lines */}
+              {children.length > 0 && (
+                <div className="flex flex-col items-center w-full">
+                  {/* Vertical stem from bottom of parent */}
+                  <div className="w-0.5 h-6 bg-slate-300"></div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <div className="sm:col-span-1">
-                  <label className="text-slate-700 font-semibold mb-1 block text-xs">Urutan Tampilan (Angka):</label>
-                  <input
-                    type="number"
-                    value={newNodeOrder}
-                    onChange={(e) => setNewNodeOrder(Number(e.target.value) || 100)}
-                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
-                    required
-                  />
-                  <span className="text-[10px] text-slate-400 block mt-0.5">Ketua (10), Sekretaris (20), Bendahara (30), dst.</span>
+                  {children.length === 1 ? (
+                    /* Single child: direct vertical continuation */
+                    <div className="pt-0">
+                      {renderOrgBranch(children[0], level + 1)}
+                    </div>
+                  ) : (
+                    /* Multiple children: horizontal connecting crossbar */
+                    <div className="relative pt-4 flex items-start justify-center gap-6">
+                      {/* Horizontal branch bar spanning from first child center to last child center */}
+                      <div 
+                        className="absolute top-0 h-0.5 bg-slate-300"
+                        style={{
+                          left: `calc(13rem / 2)`,
+                          right: `calc(13rem / 2)`
+                        }}
+                      />
+                      {children.map((child) => (
+                        <div key={child.id} className="flex flex-col items-center relative shrink-0">
+                          {/* Vertical drop line from crossbar into this child */}
+                          <div className="w-0.5 h-4 bg-slate-300 absolute -top-4"></div>
+                          {renderOrgBranch(child, level + 1)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="sm:col-span-3">
-                  <label className="text-slate-700 font-semibold mb-1 block text-xs">Deskripsi Tugas & Hak Komando :</label>
-                  <input
-                    type="text"
-                    value={newNodeSub}
-                    onChange={(e) => setNewNodeSub(e.target.value)}
-                    placeholder="Sebutkan wewenang, kewenangan persetujuan budget, audit internal, atau pendampingan..."
-                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
-                    required
-                  />
-                </div>
-              </div>
+              )}
+            </div>
+          );
+        };
 
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddingNode(false);
-                    setNewNodeId('');
-                    setNewNodeTitle('');
-                    setNewNodeName('');
-                    setNewNodeSub('');
-                    setNewNodeOrder(100);
-                  }}
-                  className="px-3 py-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded text-xs cursor-pointer"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingTree}
-                  className="px-3.5 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50 shadow-xs"
-                >
-                  {isSavingTree && <RefreshCw className="w-3 h-3 animate-spin" />}
-                  <span>Simpan Struktur Baru</span>
-                </button>
-              </div>
-            </form>
-          )}
+        const activeNode = orgTree.find(n => n?.id === activeNodeId);
+        const activeParent = activeNode?.parentId ? orgTree.find(n => n.id === activeNode.parentId) : null;
+        const activeSubordinates = activeNode ? getChildren(activeNode.id) : [];
+        const canEdit = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan';
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
+        return (
+          <div className="space-y-5 text-left text-xs">
             
-            {/* Tree nodes (Chart layout) */}
-            <div className="space-y-2 max-w-sm mx-auto w-full relative">
-              <div className="absolute top-4 bottom-4 left-6 w-0.5 bg-slate-200 pointer-events-none"></div>
+            {/* Header & Controls Bar */}
+            <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Network className="w-5 h-5 text-[#0c2340]" />
+                  <h3 className="text-sm font-bold text-slate-900">Bagan Struktur Organisasi & Pengambil Keputusan</h3>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Struktur dinamis bertingkat: atur posisi sejajar (divisi setara) maupun bertingkat (atasan & bawahan).
+                </p>
+              </div>
 
-              {orgTree.map((node) => {
-                if (!node) return null;
-                const isSelected = activeNodeId === node.id;
-                return (
-                  <div 
-                    key={node.id} 
-                    onClick={() => setActiveNodeId(node.id)}
-                    className={`ml-4 pl-7 pr-3.5 py-2.5 rounded border transition-colors cursor-pointer relative ${
-                      isSelected ? 'bg-[#0c2340] text-white border-[#0c2340] shadow-xs font-semibold' : 
-                      'bg-white border-slate-200 text-slate-800 hover:bg-slate-50'
+              <div className="flex flex-wrap items-center gap-2">
+                {/* View Mode Toggle */}
+                <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                  <button
+                    onClick={() => setStructureViewMode('chart')}
+                    className={`px-3 py-1 rounded text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                      structureViewMode === 'chart' 
+                        ? 'bg-white text-[#0c2340] shadow-xs' 
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    <div className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1.5 w-2.5 h-2.5 rounded-full border ${
-                      isSelected ? 'bg-white border-[#0c2340]' : 'bg-slate-200 border-slate-300'
-                    }`} />
-                    
-                    <div className="flex justify-between items-center gap-1">
-                      <span className={`text-[9px] uppercase tracking-wider block font-bold truncate ${
-                        isSelected ? 'text-slate-300' : 'text-slate-500'
-                      }`}>{node.title}</span>
-                      <span className={`text-[9px] font-mono shrink-0 px-1 py-0.2 rounded ${
-                        isSelected ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600'
-                      }`}>
-                        #{node.order || 100}
-                      </span>
-                    </div>
-                    <h4 className="text-xs font-bold leading-tight mt-0.5">{node.name}</h4>
+                    <Network className="w-3.5 h-3.5" />
+                    <span>Bagan Pohon</span>
+                  </button>
+                  <button
+                    onClick={() => setStructureViewMode('hierarchy')}
+                    className={`px-3 py-1 rounded text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                      structureViewMode === 'hierarchy' 
+                        ? 'bg-white text-[#0c2340] shadow-xs' 
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <ListFilter className="w-3.5 h-3.5" />
+                    <span>Daftar Hirarki</span>
+                  </button>
+                </div>
+
+                {/* Zoom controls for Org Chart */}
+                {structureViewMode === 'chart' && (
+                  <div className="flex items-center bg-slate-100 rounded-lg border border-slate-200 p-0.5">
+                    <button
+                      onClick={() => setChartScale(prev => Math.max(0.6, prev - 0.1))}
+                      className="p-1 text-slate-600 hover:text-slate-900 rounded hover:bg-white cursor-pointer"
+                      title="Perkecil Bagan"
+                    >
+                      <ZoomOut className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-[10px] font-mono px-1.5 text-slate-600 font-bold">
+                      {Math.round(chartScale * 100)}%
+                    </span>
+                    <button
+                      onClick={() => setChartScale(prev => Math.min(1.4, prev + 0.1))}
+                      className="p-1 text-slate-600 hover:text-slate-900 rounded hover:bg-white cursor-pointer"
+                      title="Perbesar Bagan"
+                    >
+                      <ZoomIn className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setChartScale(1)}
+                      className="px-1.5 py-0.5 text-[10px] text-slate-600 hover:text-slate-900 font-semibold rounded hover:bg-white cursor-pointer ml-0.5"
+                      title="Reset Ukuran 100%"
+                    >
+                      Reset
+                    </button>
                   </div>
-                );
-              })}
+                )}
+
+                {/* Add New Node Button */}
+                {canEdit && (
+                  <button
+                    onClick={() => setIsAddingNode(!isAddingNode)}
+                    className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs shrink-0"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>{isAddingNode ? 'Tutup Formulir' : 'Tambah Jabatan Baru'}</span>
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Structure info block */}
-            <div className="p-5 bg-slate-50 border border-slate-200 rounded-lg flex flex-col justify-between min-h-[300px]">
-              {activeNodeId ? (() => {
-                const activeNode = orgTree.find(n => n?.id === activeNodeId);
-                const canEdit = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan';
+            {/* Form to add new structural node */}
+            {isAddingNode && canEdit && (
+              <form onSubmit={handleCreateStructureNode} className="p-5 bg-white border border-blue-200 rounded-lg shadow-sm space-y-4">
+                <div className="border-b border-slate-200 pb-2.5 flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                      <PlusCircle className="w-4 h-4 text-blue-600" />
+                      Formulir Penambahan Jabatan / Divisi Baru
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Tentukan atasan langsung dan urutan horizontal agar tersusun otomatis di bagan organisasi.
+                    </p>
+                  </div>
+                </div>
 
-                return (
-                  <div className="space-y-4">
-                    <span className="bg-[#0c2340] text-white font-semibold text-[10px] px-2 py-0.5 rounded tracking-wider">
-                      STATUS JABATAN : {activeNodeId.toUpperCase()}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-slate-700 font-semibold mb-1 block text-xs">ID Unik Jabatan (huruf kecil & strip):</label>
+                    <input
+                      type="text"
+                      value={newNodeId}
+                      onChange={(e) => setNewNodeId(e.target.value)}
+                      placeholder="contoh: divisi_keuangan, korwil_jateng"
+                      className="w-full bg-slate-50 border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 font-mono focus:outline-none focus:border-[#0c2340] focus:bg-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-700 font-semibold mb-1 block text-xs">Gelar / Nama Jabatan :</label>
+                    <input
+                      type="text"
+                      value={newNodeTitle}
+                      onChange={(e) => setNewNodeTitle(e.target.value)}
+                      placeholder="contoh: Divisi Keuangan, Koordinator Wilayah Jateng"
+                      className="w-full bg-slate-50 border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340] focus:bg-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-700 font-semibold mb-1 block text-xs">Nama Pejabat / Pengurus :</label>
+                    <input
+                      type="text"
+                      value={newNodeName}
+                      onChange={(e) => setNewNodeName(e.target.value)}
+                      placeholder="contoh: Angelina Meilia Putri Manalu"
+                      className="w-full bg-slate-50 border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340] focus:bg-white"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+                  <div className="sm:col-span-6">
+                    <label className="text-slate-700 font-semibold mb-1 block text-xs">Atasan Langsung / Induk Jabatan :</label>
+                    <select
+                      value={newNodeParentId}
+                      onChange={(e) => setNewNodeParentId(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340] focus:bg-white"
+                    >
+                      <option value="">— Puncak Bagan (Root / Tanpa Atasan) —</option>
+                      {orgTree.map(n => (
+                        <option key={n.id} value={n.id}>
+                          {n.title} — {n.name} (#{n.order || 100})
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                      Pilih atasan agar jabatan ini menjadi cabang/divisi di bawahnya.
                     </span>
-                    
-                    <div className="space-y-0.5">
-                      <h4 className="text-sm font-bold text-slate-900">{activeNode?.name}</h4>
-                      <span className="text-xs text-slate-600 font-medium block">{activeNode?.title}</span>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-slate-700 font-semibold mb-1 block text-xs">Urutan Sejajar (Angka):</label>
+                    <input
+                      type="number"
+                      value={newNodeOrder}
+                      onChange={(e) => setNewNodeOrder(Number(e.target.value) || 100)}
+                      className="w-full bg-slate-50 border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340] focus:bg-white"
+                      required
+                    />
+                    <span className="text-[10px] text-slate-400 block mt-0.5">10, 20, 30... (kiri ke kanan)</span>
+                  </div>
+
+                  <div className="sm:col-span-4">
+                    <label className="text-slate-700 font-semibold mb-1 block text-xs">Deskripsi Tugas & Wewenang :</label>
+                    <input
+                      type="text"
+                      value={newNodeSub}
+                      onChange={(e) => setNewNodeSub(e.target.value)}
+                      placeholder="Sebutkan wewenang atau tanggung jawab operasional..."
+                      className="w-full bg-slate-50 border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340] focus:bg-white"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddingNode(false);
+                      setNewNodeId('');
+                      setNewNodeTitle('');
+                      setNewNodeName('');
+                      setNewNodeSub('');
+                      setNewNodeOrder(100);
+                      setNewNodeParentId('');
+                    }}
+                    className="px-3.5 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded text-xs cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingTree}
+                    className="px-4 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-xs"
+                  >
+                    {isSavingTree && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                    <span>Simpan Struktur Baru</span>
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* VISUAL CHART VIEW */}
+            {structureViewMode === 'chart' && (
+              <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-8 overflow-x-auto overflow-y-auto min-h-[460px] flex justify-center items-start shadow-inner">
+                {isFetchingTree ? (
+                  <div className="py-24 text-center">
+                    <span className="w-7 h-7 border-3 border-slate-300 border-t-[#0c2340] rounded-full animate-spin inline-block mb-2"></span>
+                    <p className="text-xs text-slate-500">Memuat bagan struktur organisasi...</p>
+                  </div>
+                ) : rootNodes.length === 0 ? (
+                  <div className="py-24 text-center">
+                    <p className="text-slate-400">Belum ada struktur organisasi terdaftar.</p>
+                  </div>
+                ) : (
+                  <div 
+                    className="transition-transform origin-top flex items-start justify-center gap-10 min-w-max pb-6"
+                    style={{ transform: `scale(${chartScale})` }}
+                  >
+                    {rootNodes.map(root => renderOrgBranch(root, 1))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* HIERARCHICAL LIST VIEW */}
+            {structureViewMode === 'hierarchy' && (
+              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+                <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                  <span className="font-bold text-slate-800 text-xs">Daftar Hirarki Jabatan & Hubungan Struktural</span>
+                  <span className="text-[11px] text-slate-500">Total {orgTree.length} Jabatan Terdaftar</span>
+                </div>
+
+                <div className="divide-y divide-slate-200">
+                  {orgTree.map(node => {
+                    const isSelected = activeNodeId === node.id;
+                    const parent = node.parentId ? orgTree.find(p => p.id === node.parentId) : null;
+                    const children = getChildren(node.id);
+                    const isTop = !node.parentId || !parent;
+
+                    return (
+                      <div 
+                        key={node.id}
+                        onClick={() => setActiveNodeId(node.id)}
+                        className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer transition-colors ${
+                          isSelected ? 'bg-blue-50/80 border-l-4 border-l-[#0c2340]' : 'hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold">
+                              #{node.order || 100}
+                            </span>
+                            <span className="font-bold text-slate-900 text-xs">{node.title}</span>
+                            {isTop && (
+                              <span className="bg-amber-100 text-amber-800 text-[9px] px-1.5 py-0.2 rounded font-bold">
+                                Tingkat Puncak
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-slate-700 font-medium">{node.name}</div>
+                          {node.sub && <p className="text-[11px] text-slate-500 leading-snug">{node.sub}</p>}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                          {parent ? (
+                            <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-1 rounded border border-slate-200">
+                              Atasan: <strong>{parent.title}</strong>
+                            </span>
+                          ) : (
+                            <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-1 rounded border border-emerald-200 font-semibold">
+                              Direksi / Pembina
+                            </span>
+                          )}
+
+                          {children.length > 0 && (
+                            <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1 rounded border border-indigo-200 font-semibold">
+                              {children.length} Divisi Bawahan
+                            </span>
+                          )}
+
+                          <button
+                            type="button"
+                            className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors ${
+                              isSelected ? 'bg-[#0c2340] text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                            }`}
+                          >
+                            {isSelected ? 'Terpilih' : 'Pilih'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* DETAIL & EDIT PANEL FOR SELECTED JABATAN */}
+            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
+              {activeNode ? (
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <span className="bg-[#0c2340] text-white font-bold text-[10px] px-2.5 py-1 rounded-md tracking-wider">
+                        STATUS JABATAN : {activeNode.id.toUpperCase()}
+                      </span>
+                      <span className="text-xs text-slate-500 font-mono">
+                        Urutan #{activeNode.order || 100}
+                      </span>
                     </div>
 
-                    <p className="text-xs text-slate-700 leading-relaxed bg-white p-3 rounded border border-slate-200">
-                      {activeNode?.sub}
-                    </p>
+                    {activeParent && (
+                      <span className="text-xs text-slate-600 bg-slate-100 px-2.5 py-1 rounded border border-slate-200">
+                        Atasan Langsung: <strong>{activeParent.title}</strong> ({activeParent.name})
+                      </span>
+                    )}
+                  </div>
 
-                    {canEdit && (
-                      <form onSubmit={handleUpdateStructureNode} className="pt-3 border-t border-slate-200 space-y-3 text-xs">
-                        <span className="text-[10px] uppercase font-bold text-slate-700 tracking-wider block">Edit Data Pengurus & Tugas</span>
-                        
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Gelar Jabatan</span>
+                      <h4 className="text-xs font-bold text-slate-900">{activeNode.title}</h4>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Nama Pejabat/Pengurus</span>
+                      <h4 className="text-xs font-bold text-slate-900">{activeNode.name || '(Belum Ditentukan)'}</h4>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Divisi Bawahan Langsung</span>
+                      {activeSubordinates.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          {activeSubordinates.map(sub => (
+                            <button
+                              key={sub.id}
+                              type="button"
+                              onClick={() => setActiveNodeId(sub.id)}
+                              className="text-[10px] bg-white border border-slate-300 text-blue-700 hover:bg-blue-50 px-1.5 py-0.5 rounded cursor-pointer font-medium"
+                            >
+                              {sub.title} →
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-500 italic">Tidak ada bawahan langsung</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-700 leading-relaxed">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Uraian Tanggung Jawab & Hak Komando :</span>
+                    {activeNode.sub || '(Belum ada uraian tugas)'}
+                  </div>
+
+                  {canEdit && (
+                    <form onSubmit={handleUpdateStructureNode} className="pt-4 border-t border-slate-200 space-y-4">
+                      <span className="text-[11px] uppercase font-bold text-slate-800 tracking-wider block flex items-center gap-1.5">
+                        <Edit className="w-3.5 h-3.5 text-blue-600" />
+                        Edit Data Pengurus, Atasan & Rantai Komando
+                      </span>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <label className="text-[10px] text-slate-600 font-semibold block">Nama Pengurus/Staf :</label>
                           <input 
                             type="text" 
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
-                            className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
+                            className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
                             placeholder="Masukkan nama pengurus..."
                             required
                           />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <label className="text-[10px] text-slate-600 font-semibold block">Gelar Jabatan :</label>
-                            <input 
-                              type="text" 
-                              value={editTitle}
-                              onChange={(e) => setEditTitle(e.target.value)}
-                              className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
-                              placeholder="Contoh: Ketua Dewan Pembina"
-                              required
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[10px] text-slate-600 font-semibold block">Urutan Tampilan :</label>
-                            <input 
-                              type="number" 
-                              value={editOrder}
-                              onChange={(e) => setEditOrder(Number(e.target.value) || 100)}
-                              className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
-                              placeholder="contoh: 15"
-                              required
-                            />
-                          </div>
-                        </div>
-
                         <div className="space-y-1">
-                          <label className="text-[10px] text-slate-600 font-semibold block">Deskripsi Tugas & Hak Otoritas :</label>
-                          <textarea 
-                            value={editSub}
-                            onChange={(e) => setEditSub(e.target.value)}
-                            rows={3}
-                            className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 leading-relaxed focus:outline-none focus:border-[#0c2340]"
-                            placeholder="Sebutkan wewenang, komando, atau tugas pelayanan..."
+                          <label className="text-[10px] text-slate-600 font-semibold block">Gelar Jabatan :</label>
+                          <input 
+                            type="text" 
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
+                            placeholder="Contoh: Divisi Keuangan"
                             required
                           />
                         </div>
+                      </div>
 
-                        <div className="flex justify-between items-center pt-1 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const isAuthorized = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan';
-                              if (!isAuthorized) {
-                                alert('Akses Terbatas: Hanya Super Admin / Ketua / Pembina Yayasan yang berhak menghapus struktur.');
-                                return;
-                              }
-                              const nodeToDelete = orgTree.find(n => n.id === activeNodeId);
-                              const titleLabel = nodeToDelete?.title || activeNodeId;
-                              setDeleteConfirmNode({ id: activeNodeId, title: titleLabel });
-                            }}
-                            disabled={isSavingTree}
-                            className="px-3 py-1.5 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 rounded text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 font-semibold"
-                            title="Hapus Jabatan Ini dari Bagan"
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+                        <div className="sm:col-span-8 space-y-1">
+                          <label className="text-[10px] text-slate-600 font-semibold block">Atasan Langsung / Induk Jabatan :</label>
+                          <select
+                            value={editParentId}
+                            onChange={(e) => setEditParentId(e.target.value)}
+                            className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>Hapus Jabatan</span>
-                          </button>
-
-                          <button
-                            type="submit"
-                            disabled={isSavingTree}
-                            className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs disabled:opacity-50"
-                          >
-                            {isSavingTree && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                            <span>Simpan Perubahan</span>
-                          </button>
+                            <option value="">— Tingkat Puncak (Root / Tanpa Atasan) —</option>
+                            {orgTree
+                              .filter(n => n.id !== activeNodeId)
+                              .map(n => (
+                                <option key={n.id} value={n.id}>
+                                  {n.title} — {n.name} (#{n.order || 100})
+                                </option>
+                              ))}
+                          </select>
+                          <span className="text-[10px] text-slate-400 block">
+                            Pilih jabatan induk/atasan langsung agar tersambung di bagan cabang.
+                          </span>
                         </div>
-                      </form>
-                    )}
-                  </div>
-                );
-              })() : (
-                <p className="text-xs text-slate-400 text-center py-20">Pilih salah satu tingkat organisasi untuk meninjau penugasan formal.</p>
+
+                        <div className="sm:col-span-4 space-y-1">
+                          <label className="text-[10px] text-slate-600 font-semibold block">Urutan Tampilan Sejajar :</label>
+                          <input 
+                            type="number" 
+                            value={editOrder}
+                            onChange={(e) => setEditOrder(Number(e.target.value) || 100)}
+                            className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
+                            placeholder="contoh: 15"
+                            required
+                          />
+                          <span className="text-[10px] text-slate-400 block">Posisi kiri ke kanan di level sejajar.</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-slate-600 font-semibold block">Deskripsi Tugas & Hak Otoritas :</label>
+                        <textarea 
+                          value={editSub}
+                          onChange={(e) => setEditSub(e.target.value)}
+                          rows={3}
+                          className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 leading-relaxed focus:outline-none focus:border-[#0c2340]"
+                          placeholder="Sebutkan wewenang, komando, atau tugas pelayanan..."
+                          required
+                        />
+                      </div>
+
+                      <div className="flex justify-between items-center pt-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!canEdit) {
+                              alert('Akses Terbatas: Hanya Super Admin / Ketua / Pembina Yayasan yang berhak menghapus struktur.');
+                              return;
+                            }
+                            const nodeToDelete = orgTree.find(n => n.id === activeNodeId);
+                            const titleLabel = nodeToDelete?.title || activeNodeId;
+                            setDeleteConfirmNode({ id: activeNodeId, title: titleLabel });
+                          }}
+                          disabled={isSavingTree}
+                          className="px-3.5 py-1.5 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 rounded text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 font-semibold"
+                          title="Hapus Jabatan Ini dari Bagan"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Hapus Jabatan</span>
+                        </button>
+
+                        <button
+                          type="submit"
+                          disabled={isSavingTree}
+                          className="px-4 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                        >
+                          {isSavingTree && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                          <span>Simpan Perubahan</span>
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 text-center py-10">Pilih salah satu tingkat organisasi pada bagan di atas untuk meninjau detail penugasan.</p>
               )}
             </div>
 
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* SUBVIEW 4: OPERATOR LIST & FEATURE CHECKLISTS */}
       {activeSubView === 'operators' && (

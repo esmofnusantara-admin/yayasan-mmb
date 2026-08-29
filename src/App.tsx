@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { 
   Building2, 
   Users, 
@@ -27,23 +27,25 @@ import {
   KeyRound
 } from 'lucide-react';
 
-// Import local components
-import DashboardTab from './components/DashboardTab';
-import MembersTab from './components/MembersTab';
-import SmallGroupsTab from './components/SmallGroupsTab';
-import FinanceTab from './components/FinanceTab';
-import PartnersTab from './components/PartnersTab';
-import StaffTab from './components/StaffTab';
-import PayrollTab from './components/PayrollTab';
-import LettersTab from './components/LettersTab';
-import ApprovalsTab from './components/ApprovalsTab';
-import SystemTab from './components/SystemTab';
+// Import essential static components
 import LoginScreen from './components/LoginScreen';
-import StaffMeTab from './components/StaffMeTab';
-import ReportsTab from './components/ReportsTab';
-import ActivitiesTab from './components/ActivitiesTab';
 import MMBLogo from './components/MMBLogo';
-import StaffTasksTab from './components/StaffTasksTab';
+
+// Code-split on-demand lazy-loaded Tab components
+const DashboardTab = lazy(() => import('./components/DashboardTab'));
+const MembersTab = lazy(() => import('./components/MembersTab'));
+const SmallGroupsTab = lazy(() => import('./components/SmallGroupsTab'));
+const FinanceTab = lazy(() => import('./components/FinanceTab'));
+const PartnersTab = lazy(() => import('./components/PartnersTab'));
+const StaffTab = lazy(() => import('./components/StaffTab'));
+const PayrollTab = lazy(() => import('./components/PayrollTab'));
+const LettersTab = lazy(() => import('./components/LettersTab'));
+const ApprovalsTab = lazy(() => import('./components/ApprovalsTab'));
+const SystemTab = lazy(() => import('./components/SystemTab'));
+const StaffMeTab = lazy(() => import('./components/StaffMeTab'));
+const ReportsTab = lazy(() => import('./components/ReportsTab'));
+const ActivitiesTab = lazy(() => import('./components/ActivitiesTab'));
+const StaffTasksTab = lazy(() => import('./components/StaffTasksTab'));
 
 // Import state type bindings & seed data
 import { 
@@ -102,6 +104,50 @@ interface AuthUser {
   role: string;
   features?: string[];
   token?: string;
+}
+
+const TAB_TO_HASH: Record<string, string> = {
+  dashboard: 'dashboard',
+  members: 'members',
+  small_groups: 'small-groups',
+  finance: 'finance',
+  kegiatan: 'kegiatan',
+  partners: 'partners',
+  staff: 'staff',
+  staff_tasks: 'staff-tasks',
+  payroll: 'payroll',
+  letters: 'letters',
+  reports: 'reports',
+  approvals: 'approvals',
+  system: 'system',
+  staff_profile: 'staff-profile'
+};
+
+const HASH_TO_TAB: Record<string, string> = {
+  dashboard: 'dashboard',
+  members: 'members',
+  'small-groups': 'small_groups',
+  small_groups: 'small_groups',
+  finance: 'finance',
+  kegiatan: 'kegiatan',
+  activities: 'kegiatan',
+  partners: 'partners',
+  staff: 'staff',
+  'staff-tasks': 'staff_tasks',
+  staff_tasks: 'staff_tasks',
+  payroll: 'payroll',
+  letters: 'letters',
+  reports: 'reports',
+  approvals: 'approvals',
+  system: 'system',
+  'staff-profile': 'staff_profile',
+  staff_profile: 'staff_profile'
+};
+
+function getTabFromUrl(): string {
+  if (typeof window === 'undefined') return 'dashboard';
+  const hash = window.location.hash.replace(/^#\/?/, '').trim().toLowerCase();
+  return HASH_TO_TAB[hash] || 'dashboard';
 }
 
 // Global secure request interceptor wrapping vanilla window.fetch safely
@@ -270,8 +316,44 @@ export default function App() {
     };
   }, [currentUser]);
 
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [activeTab, setActiveTab] = useState<string>(() => getTabFromUrl());
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+
+  const navigateTab = (tab: string) => {
+    setActiveTab(tab);
+    const targetHash = TAB_TO_HASH[tab] || tab;
+    if (window.location.hash.replace(/^#\/?/, '') !== targetHash) {
+      window.location.hash = `#/${targetHash}`;
+    }
+    setIsMobileMenuOpen(false);
+  };
+
+  // Sync with browser URL hash change (e.g. Back/Forward button or direct link on refresh)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const targetTab = getTabFromUrl();
+      if (targetTab && hasFeatureAccess(targetTab)) {
+        setActiveTab(targetTab);
+      }
+    };
+
+    if (currentUser) {
+      const initialTab = getTabFromUrl();
+      if (hasFeatureAccess(initialTab)) {
+        setActiveTab(initialTab);
+        const targetHash = TAB_TO_HASH[initialTab] || initialTab;
+        if (window.location.hash.replace(/^#\/?/, '') !== targetHash) {
+          window.location.hash = `#/${targetHash}`;
+        }
+      } else {
+        setActiveTab('dashboard');
+        window.location.hash = '#/dashboard';
+      }
+    }
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [currentUser]);
 
   // States
   const [profile, setProfile] = useState<InstitutionalProfile>(INITIAL_PROFILE);
@@ -2424,7 +2506,7 @@ if (!res.ok) {
             
             {pendingApprovalsCount > 0 && (
               <div 
-                onClick={() => setActiveTab('approvals')}
+                onClick={() => navigateTab('approvals')}
                 className="bg-amber-50 text-amber-800 font-semibold px-2.5 py-1 rounded flex items-center gap-1.5 cursor-pointer border border-amber-200 text-xs hover:bg-amber-100 transition-colors"
               >
                 <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
@@ -2491,7 +2573,7 @@ if (!res.ok) {
               
               {hasFeatureAccess('dashboard') && (
                 <button 
-                  onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }}
+                  onClick={() => navigateTab('dashboard')}
                   className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
                     activeTab === 'dashboard' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
@@ -2502,7 +2584,7 @@ if (!res.ok) {
 
               {hasFeatureAccess('members') && (
                 <button 
-                  onClick={() => { setActiveTab('members'); setIsMobileMenuOpen(false); }}
+                  onClick={() => navigateTab('members')}
                   className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
                     activeTab === 'members' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
@@ -2513,7 +2595,7 @@ if (!res.ok) {
 
               {hasFeatureAccess('small_groups') && (
                 <button 
-                  onClick={() => { setActiveTab('small_groups'); setIsMobileMenuOpen(false); }}
+                  onClick={() => navigateTab('small_groups')}
                   className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
                     activeTab === 'small_groups' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
@@ -2524,7 +2606,7 @@ if (!res.ok) {
 
               {hasFeatureAccess('finance') && (
                 <button 
-                  onClick={() => { setActiveTab('finance'); setIsMobileMenuOpen(false); }}
+                  onClick={() => navigateTab('finance')}
                   className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
                     activeTab === 'finance' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
@@ -2535,7 +2617,7 @@ if (!res.ok) {
 
               {hasFeatureAccess('kegiatan') && (
                 <button 
-                  onClick={() => { setActiveTab('kegiatan'); setIsMobileMenuOpen(false); }}
+                  onClick={() => navigateTab('kegiatan')}
                   className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
                     activeTab === 'kegiatan' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
@@ -2550,7 +2632,7 @@ if (!res.ok) {
 
               {hasFeatureAccess('partners') && (
                 <button 
-                  onClick={() => { setActiveTab('partners'); setIsMobileMenuOpen(false); }}
+                  onClick={() => navigateTab('partners')}
                   className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
                     activeTab === 'partners' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
@@ -2561,7 +2643,7 @@ if (!res.ok) {
 
               {hasFeatureAccess('staff') && (
                 <button 
-                  onClick={() => { setActiveTab('staff'); setIsMobileMenuOpen(false); }}
+                  onClick={() => navigateTab('staff')}
                   className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
                     activeTab === 'staff' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
@@ -2572,7 +2654,7 @@ if (!res.ok) {
 
               {hasFeatureAccess('staff_tasks') && (
                 <button 
-                  onClick={() => { setActiveTab('staff_tasks'); setIsMobileMenuOpen(false); }}
+                  onClick={() => navigateTab('staff_tasks')}
                   className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
                     activeTab === 'staff_tasks' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
@@ -2583,7 +2665,7 @@ if (!res.ok) {
 
               {hasFeatureAccess('payroll') && (
                 <button 
-                  onClick={() => { setActiveTab('payroll'); setIsMobileMenuOpen(false); }}
+                  onClick={() => navigateTab('payroll')}
                   className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
                     activeTab === 'payroll' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
@@ -2594,7 +2676,7 @@ if (!res.ok) {
 
               {hasFeatureAccess('letters') && (
                 <button 
-                  onClick={() => { setActiveTab('letters'); setIsMobileMenuOpen(false); }}
+                  onClick={() => navigateTab('letters')}
                   className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
                     activeTab === 'letters' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
@@ -2605,7 +2687,7 @@ if (!res.ok) {
 
               {hasFeatureAccess('reports') && (
                 <button 
-                  onClick={() => { setActiveTab('reports'); setIsMobileMenuOpen(false); }}
+                  onClick={() => navigateTab('reports')}
                   className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
                     activeTab === 'reports' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
@@ -2616,7 +2698,7 @@ if (!res.ok) {
 
               {hasFeatureAccess('approvals') && (
                 <button 
-                  onClick={() => { setActiveTab('approvals'); setIsMobileMenuOpen(false); }}
+                  onClick={() => navigateTab('approvals')}
                   className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center justify-between transition-colors cursor-pointer text-left ${
                     activeTab === 'approvals' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
@@ -2637,7 +2719,7 @@ if (!res.ok) {
 
               {currentUser?.role !== 'Super Admin' && hasFeatureAccess('staff_profile') && (
                 <button 
-                  onClick={() => { setActiveTab('staff_profile'); setIsMobileMenuOpen(false); }}
+                  onClick={() => navigateTab('staff_profile')}
                   className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center justify-between transition-colors cursor-pointer text-left ${
                     activeTab === 'staff_profile' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
@@ -2653,7 +2735,7 @@ if (!res.ok) {
                   <span className="text-[11px] uppercase font-bold tracking-wider text-slate-400 block pt-3.5 pb-1 px-2.5">Pengaturan</span>
 
                   <button 
-                    onClick={() => { setActiveTab('system'); setIsMobileMenuOpen(false); }}
+                    onClick={() => navigateTab('system')}
                     className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
                       activeTab === 'system' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                     }`}
@@ -2679,6 +2761,12 @@ if (!res.ok) {
           
           {/* Main conditional module tabs switching renderer */}
           <div className="max-w-7xl mx-auto space-y-6">
+            <Suspense fallback={
+              <div className="flex flex-col items-center justify-center py-32 min-h-[350px]">
+                <div className="w-8 h-8 border-3 border-[#0c2340]/20 border-t-[#0c2340] rounded-full animate-spin mb-3"></div>
+                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Memuat Halaman...</p>
+              </div>
+            }>
             
             {activeTab === 'dashboard' && (
               <DashboardTab 
@@ -2688,9 +2776,9 @@ if (!res.ok) {
                 smallGroups={smallGroups}
                 approvals={approvals}
                 audits={auditLogs}
-                setTab={setActiveTab}
-                onOpenQuickTx={() => { setActiveTab('finance'); setTimeout(() => alert('Silakan klik tombol "Entri Kas" di kanan atas untuk memproses pencatatan jurnal keuangan.'), 400); }}
-                onOpenQuickMember={() => { setActiveTab('members'); setTimeout(() => alert('Silakan klik tombol "Registrasi Anggota" di kanan atas.'), 400); }}
+                setTab={navigateTab}
+                onOpenQuickTx={() => { navigateTab('finance'); setTimeout(() => alert('Silakan klik tombol "Entri Kas" di kanan atas untuk memproses pencatatan jurnal keuangan.'), 400); }}
+                onOpenQuickMember={() => { navigateTab('members'); setTimeout(() => alert('Silakan klik tombol "Registrasi Anggota" di kanan atas.'), 400); }}
                 profile={profile}
                 staffs={staffs}
                 hasFeatureAccess={hasFeatureAccess}
@@ -2898,6 +2986,7 @@ if (!res.ok) {
               />
             )}
 
+            </Suspense>
           </div>
 
         </main>

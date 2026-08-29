@@ -63,12 +63,12 @@ export const checkCollectionPermission = (req: any, res: Response, next: NextFun
 
   // 1. Highly restricted system admin collections
   if (colName === 'users' || colName === 'system_state' || colName === 'audits') {
-    if (role !== 'Super Admin' && role !== 'Ketua Yayasan') {
-      return res.status(403).json({ success: false, message: 'Hak Akses Terbatas: Hanya Super Admin atau Ketua Yayasan yang diizinkan mengelola data sistem ini.' });
+    if (role !== 'Super Admin' && role !== 'Ketua Yayasan' && role !== 'Pembina Yayasan' && !(role === 'Pengawas Yayasan' && req.method === 'GET')) {
+      return res.status(403).json({ success: false, message: 'Hak Akses Terbatas: Hanya Super Admin, Pembina, atau Ketua Yayasan yang diizinkan mengelola data sistem ini.' });
     }
   }
 
-  // 2. Financial, Payroll & Kas collections (Only Super Admin, Ketua Yayasan and Bendahara are authorized, or users with explicit 'reports' access for read-only GET requests)
+  // 2. Financial, Payroll & Kas collections (Super Admin, Pembina, Pengawas, Ketua Yayasan and Bendahara are authorized, or users with explicit 'reports' access for read-only GET requests)
   if (colName === 'transactions' || colName === 'kas' || colName === 'salaries' || colName === 'staff' || colName === 'partners' || colName === 'categories' || colName === 'donations' || colName === 'incomes' || colName === 'expenses' || colName === 'detail_pengeluaran' || colName === 'detail_expenses' || colName === 'fundraising' || colName === 'payroll_payments') {
     const isReadRequest = req.method === 'GET';
     const hasReportsAccess = Array.isArray(user.features) && user.features.includes('reports');
@@ -83,14 +83,14 @@ export const checkCollectionPermission = (req: any, res: Response, next: NextFun
 
     const isBypassed = isStaffOrSalaryRead || isPartnersAccess || isDonationsRead;
 
-    if (!isBypassed && !(role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Bendahara' || (isReadRequest && hasReportsAccess))) {
+    if (!isBypassed && !(role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Pembina Yayasan' || role === 'Pengawas Yayasan' || role === 'Bendahara' || (isReadRequest && hasReportsAccess))) {
       return res.status(403).json({ success: false, message: 'Hak Akses Terbatas: Anda tidak memiliki wewenang untuk melihat atau memodifikasi data keuangan/kepegawaian/kemitraan.' });
     }
   }
 
-  // 3. Staff Tasks & Meetings access (Requires 'staff_tasks' feature, or Super Admin/Ketua Yayasan role)
+  // 3. Staff Tasks & Meetings access (Requires 'staff_tasks' feature, or Super Admin/Pembina/Ketua Yayasan role)
   if (colName === 'staff_tasks' || colName === 'staff_meetings') {
-    const isSuperAdmin = role === 'Super Admin' || role === 'Ketua Yayasan';
+    const isSuperAdmin = role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Pembina Yayasan' || role === 'Pengawas Yayasan';
     const hasAccess = Array.isArray(user.features) && user.features.includes('staff_tasks');
     if (!isSuperAdmin && !hasAccess) {
       return res.status(403).json({ success: false, message: 'Hak Akses Terbatas: Anda tidak memiliki wewenang untuk mengakses modul Program & Rapat Staf.' });

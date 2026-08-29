@@ -27,7 +27,7 @@ export async function syncTransactionSubcollections(tx: any, isDeleted = false, 
   try {
     const txId = tx.id;
     if (!txId) return;
-    
+
     if (isDeleted) {
       const subCols = ['incomes', 'expenses', 'detail_pengeluaran', 'detail_expenses', 'fundraising', 'payroll_payments'];
       for (const col of subCols) {
@@ -35,15 +35,48 @@ export async function syncTransactionSubcollections(tx: any, isDeleted = false, 
           await dbDriver.deleteDoc(col, txId);
         } catch (e) {}
       }
+
+      // Cascade revert: if transaction references a donation, remove/mark donation as well
+      if (tx.reference_type === 'donation' && tx.reference_id) {
+        try {
+          await dbDriver.deleteDoc('donations', tx.reference_id);
+        } catch (e) {}
+      }
+
+      // Cascade revert: if transaction is activity allocation, recalculate activity wallet
+      if (tx.reference_type === 'activity_allocation' && tx.reference_id) {
+        try {
+          const act = await dbDriver.getDoc('activities', tx.reference_id);
+          if (act) {
+            const allActTxs = (await dbDriver.getDocs('activity_transactions')).filter((at: any) => !at.deleted && at.activityId === tx.reference_id);
+            const recomputedWallet = allActTxs.reduce((sum: number, t: any) => {
+              const type = t.type as string;
+              if (type === 'In' || type === 'Transfer_From_Main') return sum + Number(t.amount);
+              if (type === 'Out' || type === 'Transfer_To_Main') return sum - Number(t.amount);
+              return sum;
+            }, 0);
+            await dbDriver.updateDoc('activities', tx.reference_id, { budgetWalletBalance: recomputedWallet, updatedAt: new Date().toISOString() });
+          }
+        } catch (e) {}
+      }
+
       return;
     }
 
     const isIncome = (tx.type || '').toLowerCase() === 'income';
-    const txSource = (tx.source || '').toLowerCase();
+    const rawCategory = tx.category || tx.category_id || 'Lain-lain';
+    const isPayrollCategory = rawCategory === 'Penggajian Staff' || rawCategory === 'Payroll Staff & BPJS' || (tx.source || '').toLowerCase() === 'payroll';
+    const isDonationSource = (tx.source || '').toLowerCase() === 'donation' || tx.reference_type === 'donation' || rawCategory === 'Donasi Kemitraan';
+
+    const standardizedCategory = isPayrollCategory ? 'Penggajian Staff' : isDonationSource ? 'Donasi Kemitraan' : rawCategory;
+    const resolvedSource = isDonationSource ? 'donation' : isPayrollCategory ? 'payroll' : (tx.source || 'manual');
 
     // Prepare payload
     const payload = {
       ...tx,
+      category: standardizedCategory,
+      category_id: standardizedCategory,
+      source: resolvedSource,
       deleted: isDeleted,
       deletedAt: isDeleted ? new Date().toISOString() : null,
       deleted_at: isDeleted ? new Date().toISOString() : null,
@@ -73,12 +106,12 @@ export async function syncTransactionSubcollections(tx: any, isDeleted = false, 
         id: txId,
         transaction_id: txId,
         amount: Number(payload.amount || 0),
-        category: payload.category || payload.category_id || 'Lain-lain',
+        category: standardizedCategory,
         description: payload.description || '',
         recipient: payload.sourceOrRecipient || payload.reference_id || 'Internal',
         date: payload.date || payload.transaction_date || new Date().toISOString().split('T')[0],
         created_by: payload.created_by || payload.updatedBy || payload.createdBy || 'System',
-        source: payload.source || 'manual',
+        source: resolvedSource,
         timestamp: payload.created_at || new Date().toISOString(),
         deleted: isDeleted,
         deletedAt: isDeleted ? new Date().toISOString() : null
@@ -88,9 +121,9 @@ export async function syncTransactionSubcollections(tx: any, isDeleted = false, 
     }
 
     // 2. Map to fundraising or payroll_payments if applicable
-    if (txSource === 'donation') {
+    if (resolvedSource === 'donation') {
       await dbDriver.setDoc('fundraising', txId, cleaned);
-    } else if (txSource === 'payroll') {
+    } else if (resolvedSource === 'payroll') {
       await dbDriver.setDoc('payroll_payments', txId, cleaned);
     }
   } catch (err) {

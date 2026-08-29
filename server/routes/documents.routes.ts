@@ -8,37 +8,45 @@ const router = Router();
 
 // Custom File Upload & Document Archive Support (up to 5 MB limit is automatically handled by express body parsers)
 router.post('/upload', authenticateToken, async (req: Request, res: Response) => {
-  const { id, name, category, fileData, fileSize } = req.body;
-  if (!id || !name || !fileData) {
+  const { id, name, category, fileData, fileSize, externalLink } = req.body;
+  if (!id || !name || (!fileData && !externalLink)) {
     return res.status(400).json({ error: 'Data dokumen tidak lengkap untuk diunggah.' });
   }
 
   try {
-    // 1. Validate that payload isn't empty and extract base64 components
-    const match = fileData.match(/^data:(.+);base64,(.+)$/);
-    if (!match) {
-      return res.status(400).json({ error: 'Format berkas dokumen tidak valid (harus data URL base64).' });
+    let mimeType = 'application/octet-stream';
+    let hasFile = false;
+    let computedFileSize = fileSize || '0 MB';
+
+    if (fileData) {
+      // 1. Validate that payload isn't empty and extract base64 components
+      const match = fileData.match(/^data:(.+);base64,(.+)$/);
+      if (!match) {
+        return res.status(400).json({ error: 'Format berkas dokumen tidak valid (harus data URL base64).' });
+      }
+
+      mimeType = match[1];
+      const base64Data = match[2];
+      const buffer = Buffer.from(base64Data, 'base64');
+
+      // Validate size (max 5 MB fallback)
+      const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+      if (buffer.length > MAX_SIZE) {
+        return res.status(400).json({ error: 'Ukuran dokumen melebihi batas maksimum 5 MB.' });
+      }
+
+      // 2. Ensure uploads directory exists
+      const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+      if (!fs.existsSync(UPLOADS_DIR)) {
+        fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+      }
+
+      // 3. Write physical file to uploads directory
+      const filePath = path.join(UPLOADS_DIR, id);
+      fs.writeFileSync(filePath, buffer);
+      hasFile = true;
+      computedFileSize = fileSize || `${(buffer.length / (1024 * 1024)).toFixed(2)} MB`;
     }
-
-    const mimeType = match[1];
-    const base64Data = match[2];
-    const buffer = Buffer.from(base64Data, 'base64');
-
-    // Validate size (max 5 MB)
-    const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
-    if (buffer.length > MAX_SIZE) {
-      return res.status(400).json({ error: 'Ukuran dokumen melebihi batas maksimum 5 MB.' });
-    }
-
-    // 2. Ensure uploads directory exists
-    const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
-    if (!fs.existsSync(UPLOADS_DIR)) {
-      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-    }
-
-    // 3. Write physical file to uploads directory
-    const filePath = path.join(UPLOADS_DIR, id);
-    fs.writeFileSync(filePath, buffer);
 
     // 4. Save metadata in Firestore documents collection
     const metadata = {
@@ -46,15 +54,16 @@ router.post('/upload', authenticateToken, async (req: Request, res: Response) =>
       name,
       category: category || 'Lain-lain',
       uploadedDate: new Date().toISOString().substring(0, 10),
-      fileSize: fileSize || `${(buffer.length / (1024 * 1024)).toFixed(2)} MB`,
+      fileSize: computedFileSize,
       mimeType,
       originalName: name,
-      hasFile: true,
+      hasFile,
+      externalLink: externalLink || undefined,
       deleted: false
     };
 
     await dbDriver.setDoc('documents', id, metadata);
-    console.log(`[DOCUMENTS UPLOAD] Successfully saved file and metadata for ${name} (id: ${id}, size: ${metadata.fileSize})`);
+    console.log(`[DOCUMENTS UPLOAD] Successfully saved metadata for ${name} (id: ${id}, size: ${metadata.fileSize})`);
     res.json({ success: true, metadata });
   } catch (error: any) {
     console.error('[DOCUMENTS UPLOAD] Error uploading document:', error);

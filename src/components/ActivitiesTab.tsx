@@ -927,68 +927,68 @@ export default function ActivitiesTab({
     <div className="space-y-6">
       {!activeActivity ? (
         // LIST OF ACTIVITIES PANEL
-        <div id="activities-overview-panel" className="bg-white rounded-2xl border border-slate-200/80 shadow-xs/10 overflow-hidden">
-          <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div id="activities-overview-panel" className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
+          <div className="p-5 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-bold text-slate-900 tracking-tight">Manajemen Kegiatan & Acara</h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Kelola kepanitiaan, rundown, serta keuangan mandiri ("kantong kas terpisah") per acara Yayasan Murid Muda Bermisi.
+              <p className="text-xs text-slate-500 mt-0.5">
+                Kelola kepanitiaan, rundown, serta alokasi kas terpisah per acara Yayasan Murid Muda Bermisi.
               </p>
             </div>
             
             <button
               onClick={() => setIsNewActivityFormOpen(true)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl flex items-center gap-1.5 transition-all w-fit cursor-pointer self-start"
+              className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold text-xs rounded flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs self-start"
             >
-              <Plus className="w-4 h-4" /> Rintis Kegiatan
+              <Plus className="w-3.5 h-3.5" /> Rintis Kegiatan
             </button>
           </div>
 
-          <div className="p-6 bg-slate-50/50 border-b border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row gap-4 items-center justify-between">
             <div className="max-w-md w-full flex gap-2">
               <input
                 type="text"
                 placeholder="Cari kegiatan berdasarkan nama, kordinator, tempat..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                className="w-full px-3 py-1.5 text-xs bg-white text-slate-800 border border-slate-300 rounded focus:outline-none focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340]"
               />
             </div>
-            <div className="text-xs flex items-center gap-1.5 text-slate-500 px-1 font-mono sm:mr-auto">
-              Saldo Kas Utama Yayasan saat ini: <strong className="text-slate-900">Rp {mainKasBalance.toLocaleString('id-ID')}</strong>
+            <div className="text-xs flex items-center gap-1.5 text-slate-600 px-1 sm:mr-auto">
+              Saldo Kas Utama Yayasan: <strong className="text-slate-900 font-mono">Rp {mainKasBalance.toLocaleString('id-ID')}</strong>
             </div>
             
             {/* Display viewMode Toggle */}
-            <div className="flex bg-slate-100 p-0.5 rounded-lg text-[10px] font-bold self-start sm:self-auto h-fit">
+            <div className="flex bg-slate-200 p-0.5 rounded text-xs font-semibold self-start sm:self-auto h-fit">
               <button 
                 type="button"
                 onClick={() => setViewMode('table')}
-                className={`px-3 py-1.5 rounded-md transition-all cursor-pointer ${viewMode === 'table' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`px-3 py-1 rounded transition-colors cursor-pointer ${viewMode === 'table' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900'}`}
               >
-                Tampilan Tabel
+                Tabel
               </button>
               <button 
                 type="button"
                 onClick={() => setViewMode('cards')}
-                className={`px-3 py-1.5 rounded-md transition-all cursor-pointer ${viewMode === 'cards' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`px-3 py-1 rounded transition-colors cursor-pointer ${viewMode === 'cards' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900'}`}
               >
-                Tampilan Kartu
+                Kartu
               </button>
             </div>
           </div>
 
           {/* Activities GRID / LIST Layout */}
           {filteredActivities.length === 0 ? (
-            <div className="p-12 text-center text-slate-400">
-              <Calendar className="w-12 h-12 mx-auto text-slate-300 stroke-1.5 mb-3 animate-bounce" />
-              <p className="text-xs font-semibold">Tidak ada data kegiatan diarsipkan.</p>
-              <p className="text-[11px] text-slate-400 mt-1">Silakan rintis kegiatan baru seperti Perayaan Natal, Retreat, dll.</p>
+            <div className="p-12 text-center text-slate-500">
+              <Calendar className="w-10 h-10 mx-auto text-slate-400 stroke-1.5 mb-2" />
+              <p className="text-xs font-semibold text-slate-700">Tidak ada data kegiatan.</p>
+              <p className="text-xs text-slate-500 mt-0.5">Silakan rintis kegiatan baru seperti Perayaan Natal, Retreat, dll.</p>
             </div>
           ) : viewMode === 'table' ? (
-            <div className="p-6 overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs border border-slate-150 rounded-xl overflow-hidden shadow-xs">
+            <div className="p-5 overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs border border-slate-200 rounded overflow-hidden shadow-xs">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase font-mono text-[9px] tracking-wider">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase text-[10px] tracking-wider">
                     <th className="p-3">ID</th>
                     <th className="p-3">Nama Kegiatan</th>
                     <th className="p-3">Tema & Deskripsi</th>
@@ -996,23 +996,23 @@ export default function ActivitiesTab({
                     <th className="p-3">Tempat & Waktu</th>
                     <th className="p-3 text-right">Taksasi Anggaran</th>
                     <th className="p-3 text-right">Saldo Kantong</th>
-                    <th className="p-3 text-center">Tindakan</th>
+                    <th className="p-3 text-center">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
                   {filteredActivities.map((act) => {
                     return (
-                      <tr key={act.id} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="p-3 font-mono text-[10px] font-semibold text-slate-400">
+                      <tr key={act.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="p-3 font-mono text-xs font-semibold text-slate-500">
                           {act.id}
                         </td>
-                        <td className="p-3 font-bold text-slate-850 text-xs sm:text-sm">
+                        <td className="p-3 font-bold text-slate-900 text-xs">
                           <div className="flex flex-col gap-1">
                             <span className="block">{act.title}</span>
-                            <span className={`inline-block w-fit px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase ${
+                            <span className={`inline-block w-fit px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase border ${
                               act.status === 'Selesai' 
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                                : 'bg-amber-50 text-amber-800 border-amber-200'
                             }`}>
                               {act.status === 'Selesai' ? 'Selesai' : 'Sedang Berjalan'}
                             </span>
@@ -1020,40 +1020,40 @@ export default function ActivitiesTab({
                         </td>
                         <td className="p-3 max-w-xs">
                           {act.theme && (
-                            <div className="italic text-slate-600 font-semibold mb-1 text-[11px]">
+                            <div className="italic text-slate-700 font-semibold mb-0.5 text-xs">
                               Tema: "{act.theme}"
                             </div>
                           )}
-                          <div className="text-slate-400 line-clamp-1 text-[11px]">
+                          <div className="text-slate-500 line-clamp-1 text-xs">
                             {act.description || 'Tidak ada deskripsi.'}
                           </div>
                         </td>
-                        <td className="p-3 text-slate-700 font-semibold text-[11px] uppercase font-mono">
+                        <td className="p-3 text-slate-700 font-medium text-xs">
                           {act.ministers || 'Belum diatur'}
                         </td>
                         <td className="p-3">
-                          <div className="flex flex-col gap-1 text-[11px] text-slate-600">
+                          <div className="flex flex-col gap-0.5 text-xs text-slate-600">
                             <span className="flex items-center gap-1 truncate"><MapPin className="w-3.5 h-3.5 text-slate-400" /> {act.place || 'Belum diatur'}</span>
                             <span className="flex items-center gap-1 truncate"><Clock className="w-3.5 h-3.5 text-slate-400" /> {act.time || 'Belum diatur'}</span>
                           </div>
                         </td>
-                        <td className="p-3 text-right font-mono font-bold text-slate-500">
+                        <td className="p-3 text-right font-mono font-semibold text-slate-600">
                           Rp {act.budgetEstimated.toLocaleString('id-ID')}
                         </td>
-                        <td className="p-3 text-right font-mono font-extrabold text-[#10B981]">
+                        <td className="p-3 text-right font-mono font-bold text-emerald-800">
                           Rp {act.budgetWalletBalance.toLocaleString('id-ID')}
                         </td>
                         <td className="p-3 text-center">
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => setSelectedActivityId(act.id)}
-                              className="px-3 py-1.5 bg-[#F1F5F9] hover:bg-blue-600 hover:text-white text-slate-700 text-[10px] font-extrabold rounded-lg transition-all cursor-pointer shadow-xs"
+                              className="px-2.5 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white text-xs font-medium rounded transition-colors cursor-pointer shadow-xs"
                             >
                               Kelola
                             </button>
                             <button
                               onClick={() => handleDeleteActivityRecord(act.id, act.title)}
-                              className="p-1.5 border border-red-100 hover:bg-red-50 text-red-500 hover:text-red-600 rounded-lg transition-colors cursor-pointer"
+                              className="p-1 border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded transition-colors cursor-pointer"
                               title="Hapus Kegiatan"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -1067,92 +1067,90 @@ export default function ActivitiesTab({
               </table>
             </div>
           ) : (
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
               {filteredActivities.map((act) => {
-                const totalRests = act.budgetWalletBalance;
-                const isUnderbudget = totalRests < act.budgetEstimated;
                 return (
                   <div 
                     key={act.id}
-                    className="group border border-slate-200/90 hover:border-blue-300 rounded-2xl p-5 bg-white hover:shadow-md transition-all flex flex-col justify-between"
+                    className="border border-slate-200 hover:border-[#0c2340] rounded-lg p-5 bg-white hover:shadow-xs transition-colors flex flex-col justify-between"
                   >
                     <div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
-                          <CalendarCheck className="w-5 h-5" />
+                        <span className="p-2 bg-slate-100 text-slate-700 rounded border border-slate-200">
+                          <CalendarCheck className="w-4 h-4" />
                         </span>
-                        <div className="flex flex-col items-end gap-1.5">
-                          <span className="text-[10px] font-bold px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg h-fit font-mono">
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-[10px] font-semibold px-2 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200 font-mono">
                             {act.id}
                           </span>
-                          <span className={`px-2 py-0.5 rounded text-[8px] font-extrabold uppercase ${
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase border ${
                             act.status === 'Selesai' 
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-250/50' 
-                              : 'bg-amber-50 text-amber-700 border border-amber-250/50'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                              : 'bg-amber-50 text-amber-800 border-amber-200'
                           }`}>
                             {act.status === 'Selesai' ? 'Selesai' : 'Sedang Berjalan'}
                           </span>
                         </div>
                       </div>
 
-                      <h3 className="font-bold text-slate-900 mt-4 text-base tracking-tight leading-snug group-hover:text-blue-600 transition-colors">
+                      <h3 className="font-bold text-slate-900 mt-3 text-sm tracking-tight leading-snug">
                         {act.title}
                       </h3>
                       
                       {act.theme && (
-                        <p className="text-[11px] text-slate-500 italic mt-1.5 font-sans line-clamp-1 border-l-2 border-indigo-200 pl-2">
+                        <p className="text-xs text-slate-600 italic mt-1 line-clamp-1 border-l-2 border-slate-300 pl-2">
                           Tema: "{act.theme}"
                         </p>
                       )}
 
-                      <p className="text-xs text-slate-500 mt-3 line-clamp-2">
+                      <p className="text-xs text-slate-500 mt-2 line-clamp-2">
                         {act.description || 'Tidak ada uraian deskripsi kegiatan.'}
                       </p>
 
-                      {/* Detail metadata list with micro icons */}
-                      <div className="space-y-2 mt-4 pt-4 border-t border-slate-100 text-xs">
-                        <div className="flex items-center gap-2 text-slate-500">
+                      {/* Detail metadata list */}
+                      <div className="space-y-1.5 mt-3 pt-3 border-t border-slate-200 text-xs">
+                        <div className="flex items-center gap-1.5 text-slate-600">
                           <User className="w-3.5 h-3.5 text-slate-400" />
-                          <span className="truncate">Pelayan/PIC: <strong>{act.ministers || 'Belum diatur'}</strong></span>
+                          <span className="truncate">PIC: <strong>{act.ministers || 'Belum diatur'}</strong></span>
                         </div>
-                        <div className="flex items-center gap-2 text-slate-500">
-                          <MapPin className="w-3.5 h-3.5 text-slate-400 font-bold" />
+                        <div className="flex items-center gap-1.5 text-slate-600">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400" />
                           <span className="truncate">Tempat: <strong>{act.place || 'Belum diatur'}</strong></span>
                         </div>
-                        <div className="flex items-center gap-2 text-slate-500">
+                        <div className="flex items-center gap-1.5 text-slate-600">
                           <Clock className="w-3.5 h-3.5 text-slate-400" />
                           <span>Waktu: <strong>{act.time || 'Belum diatur'}</strong></span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="mt-5 pt-4 border-t border-slate-100">
-                      {/* Financial snapshots summary per card */}
-                      <div className="grid grid-cols-2 gap-2 text-left bg-slate-50 p-3 rounded-xl mb-4 font-mono text-[11px]">
+                    <div className="mt-4 pt-3 border-t border-slate-200">
+                      {/* Financial snapshots */}
+                      <div className="grid grid-cols-2 gap-2 text-left bg-slate-50 p-2.5 rounded border border-slate-200 mb-3 font-mono text-xs">
                         <div>
-                          <span className="text-slate-400 text-[9px] block">TAKSASI ANGGARAN</span>
-                          <strong className="text-slate-700 font-semibold">Rp {act.budgetEstimated.toLocaleString('id-ID')}</strong>
+                          <span className="text-slate-500 text-[10px] block font-medium">TAKSASI ANGGARAN</span>
+                          <strong className="text-slate-800 font-semibold">Rp {act.budgetEstimated.toLocaleString('id-ID')}</strong>
                         </div>
-                        <div className="border-l border-slate-200/60 pl-3">
-                          <span className="text-[#2563EB] text-[9px] block uppercase font-bold">SALDO KANTONG</span>
-                          <strong className="text-[#10B981] font-bold">Rp {act.budgetWalletBalance.toLocaleString('id-ID')}</strong>
+                        <div className="border-l border-slate-200 pl-2.5">
+                          <span className="text-slate-500 text-[10px] block uppercase font-medium">SALDO KANTONG</span>
+                          <strong className="text-emerald-800 font-bold">Rp {act.budgetWalletBalance.toLocaleString('id-ID')}</strong>
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center justify-between gap-2">
                         <button
                           onClick={() => setSelectedActivityId(act.id)}
-                          className="flex-1 py-2 bg-[#F1F5F9] hover:bg-blue-600 hover:text-white text-slate-700 text-xs font-bold rounded-xl text-center transition-all cursor-pointer"
+                          className="flex-1 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white text-xs font-semibold rounded text-center transition-colors cursor-pointer shadow-xs"
                         >
                           Kelola Kegiatan
                         </button>
 
                         <button
                           onClick={() => handleDeleteActivityRecord(act.id, act.title)}
-                          className="p-2 border border-red-100 hover:bg-red-50 text-red-500 hover:text-red-600 rounded-xl transition-colors cursor-pointer"
+                          className="p-1.5 border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded transition-colors cursor-pointer"
                           title="Hapus Kegiatan"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -1164,169 +1162,169 @@ export default function ActivitiesTab({
 
           {/* NEW ACTIVITY MODAL DIALOG */}
           {isNewActivityFormOpen && (
-            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden border border-slate-200 shadow-2xl animate-in fade-in zoom-in-95 duration-250">
-                <div className="px-6 py-4 bg-[#2563EB] text-white flex justify-between items-center">
-                  <h3 className="font-bold text-sm tracking-tight">Rintis Dokumen Rencana Kegiatan Baru</h3>
+            <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4 overflow-y-auto">
+              <div className="bg-white rounded-lg max-w-lg w-full overflow-hidden border border-slate-300 shadow-xl my-8">
+                <div className="px-5 py-3.5 bg-[#0c2340] text-white flex justify-between items-center">
+                  <h3 className="font-bold text-sm tracking-tight">Rintis Dokumen Kegiatan Baru</h3>
                   <button 
                     onClick={() => setIsNewActivityFormOpen(false)}
-                    className="text-white/80 hover:text-white text-xs font-bold cursor-pointer font-mono"
+                    className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
                   >
-                    [Tutup X]
+                    ✕
                   </button>
                 </div>
                 
-                <form onSubmit={handleSubmitNewActivity} className="p-6 space-y-4">
+                <form onSubmit={handleSubmitNewActivity} className="p-5 space-y-3.5 text-xs">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block">Nama Kegiatan / Agenda Resmi (Wajib)</label>
+                    <label className="text-slate-700 font-semibold block">Nama Kegiatan / Agenda Resmi (Wajib)</label>
                     <input
                       type="text"
                       required
                       placeholder="Contoh: Perayaan Natal Yayasan MMB 2026"
                       value={newTitle}
                       onChange={(e) => setNewTitle(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340]"
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase block">Tema Kegiatan (Acara)</label>
+                      <label className="text-slate-700 font-semibold block">Tema Kegiatan</label>
                       <input
                         type="text"
                         placeholder="Contoh: Terang Dunia Terbitlah"
                         value={newTheme}
                         onChange={(e) => setNewTheme(e.target.value)}
-                        className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none"
+                        className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340]"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase block">Taksasi Dana yang Dibutuhkan (Rp)</label>
+                      <label className="text-slate-700 font-semibold block">Taksasi Dana Dibutuhkan (Rp)</label>
                       <input
                         type="number"
-                        placeholder="Berapa perkiraan dana acara?"
+                        placeholder="Perkiraan dana..."
                         value={newBudgetEstimated || ''}
                         onChange={(e) => setNewBudgetEstimated(Number(e.target.value))}
-                        className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none"
+                        className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340]"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block">Kordinator Kegiatan / Pelayan</label>
+                    <label className="text-slate-700 font-semibold block">Kordinator Kegiatan / Pelayan</label>
                     <input
                       type="text"
                       placeholder="Contoh: Yusuf (Kordinator Natal), Angel (Logistik), dll."
                       value={newMinisters}
                       onChange={(e) => setNewMinisters(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none"
+                      className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340]"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block">Tempat / Lokasi</label>
+                    <label className="text-slate-700 font-semibold block">Tempat / Lokasi</label>
                     <input
                       type="text"
                       required
                       placeholder="Contoh: Aula Serbaguna Wisma MMB"
                       value={newPlace}
                       onChange={(e) => setNewPlace(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340]"
                     />
                   </div>
 
-                  {/* High Quality Dynamic Date/Time Picker */}
-                  <div className="p-3 border border-slate-200 rounded-lg bg-slate-50/50 space-y-3">
+                  {/* Dynamic Date/Time Picker */}
+                  <div className="p-3 border border-slate-200 rounded bg-slate-50 space-y-2.5">
                     <div className="flex justify-between items-center">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase">Input Format Waktu</label>
+                      <label className="text-xs font-bold text-slate-800">Format Waktu</label>
                       <button
                         type="button"
                         onClick={() => setIsTimeManual(!isTimeManual)}
-                        className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
+                        className="text-xs text-[#0c2340] hover:underline font-semibold cursor-pointer"
                       >
-                        {isTimeManual ? "Gunakan Kalender Dinamik" : "Tulis Teks Manual"}
+                        {isTimeManual ? "Gunakan Kalender" : "Tulis Manual"}
                       </button>
                     </div>
 
                     {!isTimeManual ? (
                       <div className="space-y-2">
                         <div>
-                          <label className="text-[9px] font-bold text-slate-400 block mb-0.5">TANGGAL KEGIATAN</label>
+                          <label className="text-[11px] font-semibold text-slate-600 block mb-0.5">Tanggal Kegiatan</label>
                           <input
                             type="date"
                             required
                             value={newDate}
                             onChange={(e) => setNewDate(e.target.value)}
-                            className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                           />
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <label className="text-[9px] font-bold text-slate-400 block mb-0.5">JAM MULAI</label>
+                            <label className="text-[11px] font-semibold text-slate-600 block mb-0.5">Jam Mulai</label>
                             <input
                               type="time"
                               required
                               value={newStartTime}
                               onChange={(e) => setNewStartTime(e.target.value)}
-                              className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                              className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                             />
                           </div>
                           <div>
-                            <label className="text-[9px] font-bold text-slate-400 block mb-0.5">JAM SELESAI</label>
+                            <label className="text-[11px] font-semibold text-slate-600 block mb-0.5">Jam Selesai</label>
                             <input
                               type="time"
                               required
                               value={newEndTime}
                               onChange={(e) => setNewEndTime(e.target.value)}
-                              className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                              className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                             />
                           </div>
                         </div>
                         {newDate && (
-                          <div className="p-2 bg-blue-50/50 rounded text-[10px] text-slate-600 font-mono border border-blue-100">
-                            <strong>Pratinjau Hasil:</strong> {formatIndonesianDateFull(newDate)} (Pkl. {newStartTime} - {newEndTime} WIB)
+                          <div className="p-2 bg-white rounded text-xs text-slate-700 border border-slate-200">
+                            <strong>Pratinjau:</strong> {formatIndonesianDateFull(newDate)} (Pkl. {newStartTime} - {newEndTime} WIB)
                           </div>
                         )}
                       </div>
                     ) : (
                       <div>
-                        <label className="text-[9px] font-bold text-slate-400 block mb-0.5">TULIS ALASAN / WAKTU BEBAS</label>
+                        <label className="text-[11px] font-semibold text-slate-600 block mb-0.5">Tulis Waktu Bebas</label>
                         <input
                           type="text"
                           required
                           placeholder="Contoh: Setiap hari Jumat sepanjang bulan Desember"
                           value={newTime}
                           onChange={(e) => setNewTime(e.target.value)}
-                          className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                          className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                         />
                       </div>
                     )}
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block">Gambaran Ringkas Acara (Deskripsi)</label>
+                    <label className="text-slate-700 font-semibold block">Gambaran Ringkas Acara (Deskripsi)</label>
                     <textarea
                       placeholder="Uraikan deskripsi singkat maksud diadakan perayaan natal atau retreat ini..."
                       rows={3}
                       value={newDescription}
                       onChange={(e) => setNewDescription(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none"
+                      className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340]"
                     />
                   </div>
 
-                  <div className="flex gap-3 justify-end pt-3 border-t border-slate-100">
+                  <div className="flex gap-2.5 justify-end pt-3 border-t border-slate-200">
                     <button
                       type="button"
                       onClick={() => setIsNewActivityFormOpen(false)}
-                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer"
+                      className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium rounded cursor-pointer transition-colors"
                     >
                       Batal
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl cursor-pointer"
+                      className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white text-xs font-semibold rounded cursor-pointer shadow-xs transition-colors"
                     >
-                      Simpan & Buka Dashboard Acara
+                      Simpan & Buka Dashboard
                     </button>
                   </div>
                 </form>
@@ -1343,7 +1341,7 @@ export default function ActivitiesTab({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <button
               onClick={() => setSelectedActivityId(null)}
-              className="px-3 py-1.5 bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 rounded-xl flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer shadow-xs self-start"
+              className="px-3 py-1.5 bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 rounded flex items-center gap-1.5 text-xs font-medium transition-colors cursor-pointer shadow-xs self-start"
             >
               <ChevronLeft className="w-4 h-4" /> Kembali ke Daftar Kegiatan
             </button>
@@ -1352,18 +1350,18 @@ export default function ActivitiesTab({
               <button
                 onClick={() => handleStartEditActivity(activeActivity)}
                 disabled={isCompleted}
-                className="px-3 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-xl flex items-center gap-1.5 text-xs font-black transition-all cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3 py-1.5 bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 rounded flex items-center gap-1.5 text-xs font-medium transition-colors cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Edit data rincian agenda acara"
               >
-                <Edit3 className="w-3.5 h-3.5" /> Edit Rincian
+                <Edit3 className="w-3.5 h-3.5 text-slate-600" /> Edit Rincian
               </button>
 
               <button
                 onClick={() => handleExportActivityCSV(activeActivity)}
-                className="px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl flex items-center gap-1.5 text-xs font-black transition-all cursor-pointer shadow-xs"
+                className="px-3 py-1.5 bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 rounded flex items-center gap-1.5 text-xs font-medium transition-colors cursor-pointer shadow-xs"
                 title="Download / Ekspor rekap jurnal keuangan acara"
               >
-                <DollarSign className="w-3.5 h-3.5" /> Unduh Jurnal CSV
+                <DollarSign className="w-3.5 h-3.5 text-slate-600" /> Unduh Jurnal CSV
               </button>
 
               <button
@@ -1375,7 +1373,7 @@ export default function ActivitiesTab({
                   profile,
                   structures
                 )}
-                className="px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-xl flex items-center gap-1.5 text-xs font-black transition-all cursor-pointer shadow-xs"
+                className="px-3 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded flex items-center gap-1.5 text-xs font-semibold transition-colors cursor-pointer shadow-xs"
                 title="Download / Ekspor laporan rincian detail keuangan & agenda PDF"
               >
                 <Download className="w-3.5 h-3.5" /> Unduh Laporan PDF
@@ -1389,113 +1387,109 @@ export default function ActivitiesTab({
                     status: newStatus
                   });
                 }}
-                className={`px-3 py-1.5 border rounded-xl flex items-center gap-1.5 text-xs font-black transition-all cursor-pointer shadow-xs ${
+                className={`px-3 py-1.5 border rounded flex items-center gap-1.5 text-xs font-semibold transition-colors cursor-pointer shadow-xs ${
                   activeActivity.status === 'Selesai'
-                    ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200'
-                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200'
+                    ? 'bg-amber-50 text-amber-800 hover:bg-amber-100 border-amber-200'
+                    : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border-emerald-200'
                 }`}
                 title={activeActivity.status === 'Selesai' ? 'Buka kembali status kegiatan menjadi Sedang Berjalan' : 'Tandai kegiatan ini telah selesai dilaksanakan'}
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                {activeActivity.status === 'Selesai' ? 'Buka Kembali Kegiatan' : 'Tandai Kegiatan Selesai'}
+                {activeActivity.status === 'Selesai' ? 'Buka Kembali Kegiatan' : 'Tandai Selesai'}
               </button>
 
               <button
                 onClick={() => handleDeleteActivityRecord(activeActivity.id, activeActivity.title)}
                 disabled={isCompleted}
-                className="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-xl flex items-center gap-1.5 text-xs font-black transition-all cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Hapus dan tutup permanen seluruh dokumen data acara"
+                className="px-3 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded flex items-center gap-1.5 text-xs font-medium transition-colors cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Hapus permanen dokumen data acara"
               >
-                <Trash2 className="w-3.5 h-3.5" /> Hapus Kegiatan
+                <Trash2 className="w-3.5 h-3.5" /> Hapus
               </button>
 
-              <div className="text-xs text-slate-400 font-mono pl-2 border-l border-slate-200 hidden md:block">
-                ID UNIT: <strong>{activeActivity.id}</strong>
+              <div className="text-xs text-slate-500 font-mono pl-2 border-l border-slate-300 hidden md:block">
+                ID: <strong>{activeActivity.id}</strong>
               </div>
             </div>
           </div>
 
           {/* Upper Summary Banner Card */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col md:flex-row gap-6 md:items-center justify-between">
-            <div className="space-y-2">
+          <div className="bg-white rounded-lg border border-slate-200 p-5 flex flex-col md:flex-row gap-5 md:items-center justify-between shadow-xs">
+            <div className="space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] font-extrabold px-2.5 py-0.5 bg-blue-50 text-blue-600 rounded-md uppercase font-mono tracking-wider border border-blue-100">
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-700 rounded uppercase font-mono tracking-wider border border-slate-200">
                   Dashboard Kegiatan Terpadu
                 </span>
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                <span className="text-[10px] text-slate-400 font-mono font-bold">KAS TERISOLASI</span>
-                <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-md uppercase font-mono tracking-wider border ${
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase font-mono tracking-wider border ${
                   activeActivity.status === 'Selesai' 
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                    : 'bg-amber-50 text-amber-800 border-amber-200'
                 }`}>
                   Status: {activeActivity.status === 'Selesai' ? 'Selesai' : 'Sedang Berjalan'}
                 </span>
               </div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-tight">
                 {activeActivity.title}
               </h1>
               {activeActivity.theme && (
-                <p className="text-sm text-slate-500 italic">
+                <p className="text-xs text-slate-600 italic">
                   Tema: "{activeActivity.theme}"
                 </p>
               )}
             </div>
 
-            {/* Standalone Activity Pocket Balances Highlights */}
-            <div className="flex-none flex shrink-0 divide-x divide-slate-200 bg-slate-50 border border-slate-150 rounded-2xl p-4 gap-4 md:gap-6">
+            {/* Balances Highlights */}
+            <div className="flex-none flex shrink-0 divide-x divide-slate-200 bg-slate-50 border border-slate-200 rounded p-3.5 gap-4 md:gap-5">
               <div className="text-left font-mono">
-                <span className="text-slate-400 text-[9px] block font-bold uppercase tracking-wider">Taksasi Dana Acara</span>
-                <strong className="text-slate-800 text-lg font-black">Rp {activeActivity.budgetEstimated.toLocaleString('id-ID')}</strong>
+                <span className="text-slate-500 text-[10px] block font-semibold uppercase">Taksasi Dana</span>
+                <strong className="text-slate-900 text-base font-bold">Rp {activeActivity.budgetEstimated.toLocaleString('id-ID')}</strong>
               </div>
-              <div className="text-left font-mono pl-4 md:pl-6">
-                <span className="text-emerald-600 text-[9px] block font-extrabold uppercase tracking-wider flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span> Kas Kantong Kegiatan
-                </span>
-                <strong className="text-emerald-500 text-lg font-black">Rp {activeActivity.budgetWalletBalance.toLocaleString('id-ID')}</strong>
+              <div className="text-left font-mono pl-4 md:pl-5">
+                <span className="text-slate-500 text-[10px] block font-semibold uppercase">Kas Kantong Kegiatan</span>
+                <strong className="text-emerald-800 text-base font-bold">Rp {activeActivity.budgetWalletBalance.toLocaleString('id-ID')}</strong>
               </div>
             </div>
           </div>
 
           {/* Quick Info Grid panel */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white p-4 border border-slate-200/80 rounded-2xl flex items-center gap-3">
-              <span className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white p-4 border border-slate-200 rounded-lg flex items-center gap-3 shadow-xs">
+              <span className="p-2 bg-slate-100 text-slate-700 rounded border border-slate-200">
                 <User className="w-4 h-4" />
               </span>
               <div className="truncate">
-                <span className="text-[9px] text-slate-400 block font-bold">PELAYAN / KORDINATOR</span>
-                <strong className="text-xs text-slate-700 truncate block">{activeActivity.ministers || 'Belum diisi'}</strong>
+                <span className="text-[10px] text-slate-500 block font-semibold uppercase">PELAYAN / KORDINATOR</span>
+                <strong className="text-xs text-slate-800 truncate block">{activeActivity.ministers || 'Belum diatur'}</strong>
               </div>
             </div>
 
-            <div className="bg-white p-4 border border-slate-200/80 rounded-2xl flex items-center gap-3">
-              <span className="p-2.5 bg-amber-50 text-amber-600 rounded-xl">
+            <div className="bg-white p-4 border border-slate-200 rounded-lg flex items-center gap-3 shadow-xs">
+              <span className="p-2 bg-slate-100 text-slate-700 rounded border border-slate-200">
                 <MapPin className="w-4 h-4" />
               </span>
               <div className="truncate">
-                <span className="text-[9px] text-slate-400 block font-bold">LOKASI & TEMPAT</span>
-                <strong className="text-xs text-slate-700 truncate block">{activeActivity.place || 'Belum diisi'}</strong>
+                <span className="text-[10px] text-slate-500 block font-semibold uppercase">LOKASI & TEMPAT</span>
+                <strong className="text-xs text-slate-800 truncate block">{activeActivity.place || 'Belum diatur'}</strong>
               </div>
             </div>
 
-            <div className="bg-white p-4 border border-slate-200/80 rounded-2xl flex items-center gap-3">
-              <span className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
+            <div className="bg-white p-4 border border-slate-200 rounded-lg flex items-center gap-3 shadow-xs">
+              <span className="p-2 bg-slate-100 text-slate-700 rounded border border-slate-200">
                 <Clock className="w-4 h-4" />
               </span>
               <div className="truncate">
-                <span className="text-[9px] text-slate-400 block font-bold">WAKTU PERINTISAN</span>
-                <strong className="text-xs text-slate-700 truncate block">{activeActivity.time || 'Belum diisi'}</strong>
+                <span className="text-[10px] text-slate-500 block font-semibold uppercase">WAKTU</span>
+                <strong className="text-xs text-slate-800 truncate block">{activeActivity.time || 'Belum diatur'}</strong>
               </div>
             </div>
 
-            <div className="bg-white p-4 border border-slate-200/80 rounded-2xl flex items-center gap-3">
-              <span className="p-2.5 bg-sky-50 text-sky-600 rounded-xl">
+            <div className="bg-white p-4 border border-slate-200 rounded-lg flex items-center gap-3 shadow-xs">
+              <span className="p-2 bg-slate-100 text-slate-700 rounded border border-slate-200">
                 <Info className="w-4 h-4" />
               </span>
               <div className="truncate">
-                <span className="text-[9px] text-slate-400 block font-bold">SURPLUS SISA</span>
-                <strong className="text-xs text-slate-700 block text-emerald-600">
+                <span className="text-[10px] text-slate-500 block font-semibold uppercase">STATUS KAS</span>
+                <strong className="text-xs text-emerald-800 block">
                   {activeActivity.budgetWalletBalance > activeActivity.budgetEstimated ? 'SURPLUS' : 'Sedang Berjalan'}
                 </strong>
               </div>
@@ -1504,109 +1498,107 @@ export default function ActivitiesTab({
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            {/* COLUMN 1: INTERACTIVE SEPARATE POCKET TREASURY (KEUANGAN & TRANSFERS) */}
+            {/* COLUMN 1: KEUANGAN & TRANSFERS */}
             <div className="lg:col-span-2 space-y-6">
               
-              {/* Isolated Sub-Wallet Controls */}
-              <div id="sub-wallet-panel" className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-5">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h3 className="font-bold text-slate-900 text-sm tracking-tight flex items-center gap-2">
-                    <DollarSign className="w-4.5 h-4.5 text-blue-600" /> Kantong Dana Kegiatan Sendiri
+              {/* Sub-Wallet Controls */}
+              <div id="sub-wallet-panel" className="bg-white rounded-lg border border-slate-200 shadow-xs p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
+                  <h3 className="font-bold text-slate-900 text-xs tracking-tight flex items-center gap-1.5">
+                    <DollarSign className="w-4 h-4 text-slate-700" /> Kantong Dana Kegiatan
                   </h3>
-                  <span className="text-[10px] bg-slate-100 px-2 py-1 rounded text-slate-500 font-bold uppercase">Keuangan Mandiri</span>
+                  <span className="text-[10px] bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-slate-700 font-semibold uppercase">Kas Mandiri</span>
                 </div>
 
-                <div className="p-4 bg-blue-50/50 border border-blue-100/60 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="text-xs text-slate-600">
-                    <p className="font-semibold text-slate-800">Uang Masuk & Keluar Kegiatan ini Terpisah!</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">Semoga kegiatan {activeActivity.title} berjalan sukses dan penuh berkat.</p>
+                    <p className="font-semibold text-slate-800">Uang Masuk & Keluar Kegiatan ini Terpisah</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Semoga kegiatan {activeActivity.title} berjalan sukses dan penuh berkat.</p>
                   </div>
-                  <div className="px-4 py-2 bg-white rounded-xl border border-blue-200 font-mono text-center">
-                    <span className="text-[8px] text-slate-400 block">SALDO UTAMA YAYASAN</span>
-                    <strong className="text-blue-700 font-extrabold text-xs">Rp {mainKasBalance.toLocaleString('id-ID')}</strong>
+                  <div className="px-3 py-1.5 bg-white rounded border border-slate-200 font-mono text-center shrink-0">
+                    <span className="text-[9px] text-slate-500 block">SALDO UTAMA YAYASAN</span>
+                    <strong className="text-slate-900 font-bold text-xs">Rp {mainKasBalance.toLocaleString('id-ID')}</strong>
                   </div>
                 </div>
 
-                {/* Direct Manual Entry (An-Acara Pocket Logs) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Direct Manual Entry */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Form 1: Keuangan Pemasukan & Pengeluaran Mandiri */}
-                  <form onSubmit={handleAddPocketTransaction} className="space-y-4 p-4 border border-slate-150 rounded-xl bg-slate-50/40">
-                    <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-slate-600" /> Entri Kas Mandiri Acara
+                  <form onSubmit={handleAddPocketTransaction} className="space-y-3 p-3.5 border border-slate-200 rounded bg-white text-xs">
+                    <h4 className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-slate-600" /> Entri Kas Kegiatan
                     </h4>
                     
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2.5">
                       <div>
-                        <label className="text-[9px] font-bold text-slate-400 block mb-1">ARUS TRANSAKSI</label>
+                        <label className="text-[10px] font-semibold text-slate-600 block mb-1">Arus Transaksi</label>
                         <select
                           value={txType}
                           disabled={isCompleted}
                           onChange={(e) => setTxType(e.target.value as 'In' | 'Out')}
-                          className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                          className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:border-[#0c2340] focus:outline-none"
                         >
                           <option value="In">Uang Masuk (Pemasukan)</option>
                           <option value="Out">Uang Keluar (Belanja)</option>
                         </select>
                       </div>
                       <div>
-                        <label className="text-[9px] font-bold text-slate-400 block mb-1">JUMLAH (RP)</label>
+                        <label className="text-[10px] font-semibold text-slate-600 block mb-1">Jumlah (Rp)</label>
                         <input
                           type="number"
                           required
                           disabled={isCompleted}
                           value={txAmount || ''}
                           onChange={(e) => setTxAmount(Number(e.target.value))}
-                          placeholder="Rp..."
-                          className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                          placeholder="Nominal..."
+                          className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:border-[#0c2340] focus:outline-none"
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="col-span-2">
-                        <label className="text-[9px] font-bold text-slate-400 block mb-1">KETERANGAN BELANJA / SUMBER DANA</label>
-                        <input
-                          type="text"
-                          required
-                          disabled={isCompleted}
-                          value={txDescription}
-                          onChange={(e) => setTxDescription(e.target.value)}
-                          placeholder="e.g. Pembelian lilin natal / Donatur perorangan"
-                          className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
-                        />
-                      </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-600 block mb-1">Keterangan / Sumber Dana</label>
+                      <input
+                        type="text"
+                        required
+                        disabled={isCompleted}
+                        value={txDescription}
+                        onChange={(e) => setTxDescription(e.target.value)}
+                        placeholder="Contoh: Pembelian lilin / Donasi"
+                        className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:border-[#0c2340] focus:outline-none"
+                      />
                     </div>
 
                     <button
                       type="submit"
                       disabled={isCompleted}
-                      className="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold text-xs rounded cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
                     >
                       Buku Transaksi Kegiatan
                     </button>
                   </form>
 
                   {/* Form 2: TRANSFER DANA DARI/KE KAS YAYASAN */}
-                  <form onSubmit={handleFundTransfer} className="space-y-4 p-4 border border-blue-100 rounded-xl bg-blue-50/20">
-                    <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                      <ArrowLeftRight className="w-3.5 h-3.5 text-blue-600 font-bold" /> Subsidi-Kirim Balik Kas Yayasan
+                  <form onSubmit={handleFundTransfer} className="space-y-3 p-3.5 border border-slate-200 rounded bg-white text-xs">
+                    <h4 className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                      <ArrowLeftRight className="w-3.5 h-3.5 text-slate-600" /> Subsidi / Transfer Kas Yayasan
                     </h4>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2.5">
                       <div>
-                        <label className="text-[9px] font-bold text-slate-400 block mb-1">TIPE PERPINDAHAN</label>
+                        <label className="text-[10px] font-semibold text-slate-600 block mb-1">Tipe Transfer</label>
                         <select
                           value={transferDirection}
                           disabled={isCompleted}
                           onChange={(e) => setTransferDirection(e.target.value as 'From_Main' | 'To_Main')}
-                          className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                          className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:border-[#0c2340] focus:outline-none"
                         >
-                          <option value="From_Main">Ambil dari Kas Yayasan (Subsidi)</option>
-                          <option value="To_Main">Kirim Balik Sisa ke Yayasan (Surplus)</option>
+                          <option value="From_Main">Ambil Subsidi Yayasan</option>
+                          <option value="To_Main">Kembalikan Surplus Sisa</option>
                         </select>
                       </div>
                       <div>
-                        <label className="text-[9px] font-bold text-slate-400 block mb-1">TRANSFER NOMINAL (RP)</label>
+                        <label className="text-[10px] font-semibold text-slate-600 block mb-1">Nominal (Rp)</label>
                         <input
                           type="number"
                           required
@@ -1614,53 +1606,53 @@ export default function ActivitiesTab({
                           value={transferAmount || ''}
                           onChange={(e) => setTransferAmount(Number(e.target.value))}
                           placeholder="Nominal..."
-                          className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                          className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:border-[#0c2340] focus:outline-none"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-[9px] font-bold text-slate-400 block mb-1">CATATAN TRANSFER</label>
+                      <label className="text-[10px] font-semibold text-slate-600 block mb-1">Catatan Transfer</label>
                       <input
                         type="text"
                         disabled={isCompleted}
                         value={transferNotes}
                         onChange={(e) => setTransferNotes(e.target.value)}
-                        placeholder="Contoh: Tambahan anggaran Natal Sie Konsumsi"
-                        className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                        placeholder="Contoh: Tambahan anggaran Sie Konsumsi"
+                        className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:border-[#0c2340] focus:outline-none"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={isCompleted}
-                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold text-xs rounded cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
                     >
-                      Eksekusi Perpindahan Dana Kas
+                      Eksekusi Transfer Kas
                     </button>
                   </form>
                 </div>
               </div>
 
               {/* Transaction Logs list specific to this activity */}
-              <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-sm">
-                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                  <h3 className="font-bold text-slate-900 text-sm tracking-tight">
+              <div className="bg-white rounded-lg border border-slate-200 p-5 space-y-3 shadow-xs">
+                <div className="flex justify-between items-center border-b border-slate-200 pb-2.5">
+                  <h3 className="font-bold text-slate-900 text-xs tracking-tight">
                     Log Jurnal Keuangan Mandiri Acara ({activeTxList.length})
                   </h3>
-                  <span className="text-[10px] text-slate-400 font-mono">ARUS SURAT SEJARAH KAS</span>
+                  <span className="text-[10px] text-slate-500 font-mono">ARUS KAS KEGIATAN</span>
                 </div>
 
                 {activeTxList.length === 0 ? (
-                  <div className="text-center p-8 text-slate-400">
-                    <AlertCircle className="w-8 h-8 text-slate-300 mx-auto stroke-1.5 mb-2" />
-                    <p className="text-[11px]">Belum ada data jurnal uang dicatatkan untuk kantong modal kegiatan ini.</p>
+                  <div className="text-center p-6 text-slate-500">
+                    <AlertCircle className="w-6 h-6 text-slate-400 mx-auto stroke-1.5 mb-1.5" />
+                    <p className="text-xs">Belum ada data transaksi dicatat untuk kantong kegiatan ini.</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse font-mono text-xs">
+                    <table className="w-full text-left border-collapse text-xs">
                       <thead>
-                        <tr className="border-b border-slate-200 text-[10px] text-slate-400 uppercase tracking-widest bg-slate-50/50">
+                        <tr className="border-b border-slate-200 text-[10px] text-slate-700 uppercase font-bold tracking-wider bg-slate-50">
                           <th className="p-2.5">Tanggal</th>
                           <th className="p-2.5">Kategori / Sumber</th>
                           <th className="p-2.5">Keterangan</th>
@@ -1668,33 +1660,33 @@ export default function ActivitiesTab({
                           <th className="p-2.5 text-center">Aksi</th>
                         </tr>
                       </thead>
-                      <tbody>
+                      <tbody className="divide-y divide-slate-100">
                         {activeTxList.map((tx) => {
                           const isInFlow = tx.type === 'In' || tx.type === 'Transfer_From_Main';
                           const isTransfer = tx.type === 'Transfer_From_Main' || tx.type === 'Transfer_To_Main';
                           
                           return (
-                            <tr key={tx.id} className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
-                              <td className="p-2.5 text-slate-500">{tx.date}</td>
+                            <tr key={tx.id} className="hover:bg-slate-50/70 transition-colors">
+                              <td className="p-2.5 text-slate-500 font-mono">{tx.date}</td>
                               <td className="p-2.5">
-                                <span className={`inline-block text-[9px] font-extrabold px-2 py-0.5 rounded-md ${
+                                <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded border ${
                                   isTransfer
-                                    ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                                    ? 'bg-slate-100 text-slate-800 border-slate-300'
                                     : isInFlow 
-                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
-                                      : 'bg-red-50 text-red-700 border border-red-100'
+                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                                      : 'bg-rose-50 text-rose-800 border-rose-200'
                                 }`}>
                                   {isTransfer 
                                     ? (tx.type === 'Transfer_From_Main' ? 'SUBSIDI IN' : 'PULANG OUT') 
                                     : (isInFlow ? 'PEMASUKAN' : 'BELANJA ACARA')}
                                 </span>
                               </td>
-                              <td className="p-2.5 text-slate-700 font-sans max-w-xs truncate" title={tx.description}>
+                              <td className="p-2.5 text-slate-800 max-w-xs truncate" title={tx.description}>
                                 {tx.description}
-                                <span className="block text-[8px] text-slate-400 font-mono">Buku oleh: {tx.operator}</span>
+                                <span className="block text-[10px] text-slate-400 font-mono">Dicatat oleh: {tx.operator}</span>
                               </td>
-                              <td className={`p-2.5 text-right font-bold text-xs ${
-                                isInFlow ? 'text-emerald-600' : 'text-red-500'
+                              <td className={`p-2.5 text-right font-mono font-bold text-xs ${
+                                isInFlow ? 'text-emerald-800' : 'text-rose-700'
                               }`}>
                                 {isInFlow ? '+' : '-'} Rp {tx.amount.toLocaleString('id-ID')}
                               </td>
@@ -1703,18 +1695,18 @@ export default function ActivitiesTab({
                                   <button
                                     onClick={() => handleStartEditTx(tx)}
                                     disabled={isCompleted}
-                                    className="p-1 hover:bg-amber-50 text-amber-600 hover:text-amber-700 rounded transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                    className="p-1 hover:bg-slate-100 text-slate-600 rounded transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                                     title="Edit Jurnal"
                                   >
-                                    <Edit3 className="w-3 pb-0.5 h-3" />
+                                    <Edit3 className="w-3.5 h-3.5" />
                                   </button>
                                   <button
                                     onClick={() => handleDeleteActivityTxRecord(tx)}
                                     disabled={isCompleted}
-                                    className="p-1 hover:bg-red-50 text-red-500 hover:text-red-600 rounded transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                    className="p-1 hover:bg-rose-50 text-rose-700 rounded transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                                     title="Hapus Jurnal"
                                   >
-                                    <Trash2 className="w-3 h-3" />
+                                    <Trash2 className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
                               </td>
@@ -1726,25 +1718,25 @@ export default function ActivitiesTab({
 
                     {/* EDIT TRANSACTION MODAL DIALOG */}
                     {editingTxId && (
-                      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-                        <div className="bg-white rounded-2xl max-w-sm w-full overflow-hidden border border-slate-200 shadow-2xl animate-in fade-in zoom-in-95 duration-250">
-                          <div className="px-5 py-3.5 bg-blue-600 text-white flex justify-between items-center">
-                            <h3 className="font-bold text-xs tracking-tight uppercase font-mono">Edit Jurnal Transaksi</h3>
+                      <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-lg max-w-sm w-full overflow-hidden border border-slate-300 shadow-xl">
+                          <div className="px-4 py-3 bg-[#0c2340] text-white flex justify-between items-center">
+                            <h3 className="font-bold text-xs tracking-tight">Edit Jurnal Transaksi</h3>
                             <button 
                               onClick={() => setEditingTxId(null)}
-                              className="text-white/80 hover:text-white text-xs font-bold cursor-pointer font-mono"
+                              className="w-6 h-6 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer"
                             >
-                              [X]
+                              ✕
                             </button>
                           </div>
                           
-                          <form onSubmit={handleSaveEditTx} className="p-5 space-y-4">
+                          <form onSubmit={handleSaveEditTx} className="p-4 space-y-3 text-xs">
                             <div>
-                              <label className="text-[10px] font-bold text-slate-400 block mb-1">ARUS TRANSAKSI</label>
+                              <label className="text-slate-700 font-semibold block mb-1">Arus Transaksi</label>
                               <select
                                 value={editTxType}
                                 onChange={(e) => setEditTxType(e.target.value as 'In' | 'Out')}
-                                className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                                className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                               >
                                 <option value="In">Uang Masuk (Pemasukan)</option>
                                 <option value="Out">Uang Keluar (Belanja)</option>
@@ -1752,51 +1744,51 @@ export default function ActivitiesTab({
                             </div>
 
                             <div>
-                              <label className="text-[10px] font-bold text-slate-400 block mb-1">JUMLAH (RP)</label>
+                              <label className="text-slate-700 font-semibold block mb-1">Jumlah (Rp)</label>
                               <input
                                 type="number"
                                 required
                                 value={editTxAmount}
                                 onChange={(e) => setEditTxAmount(Number(e.target.value))}
                                 placeholder="Rp..."
-                                className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                                className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                               />
                             </div>
 
                             <div>
-                              <label className="text-[10px] font-bold text-slate-400 block mb-1">TANGGAL TRANSAKSI</label>
+                              <label className="text-slate-700 font-semibold block mb-1">Tanggal Transaksi</label>
                               <input
                                 type="date"
                                 required
                                 value={editTxDate}
                                 onChange={(e) => setEditTxDate(e.target.value)}
-                                className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                                className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                               />
                             </div>
 
                             <div>
-                              <label className="text-[10px] font-bold text-slate-400 block mb-1">KETERANGAN BELANJA / SUMBER DANA</label>
+                              <label className="text-slate-700 font-semibold block mb-1">Keterangan Belanja / Sumber</label>
                               <input
                                 type="text"
                                 required
                                 value={editTxDescription}
                                 onChange={(e) => setEditTxDescription(e.target.value)}
                                 placeholder="Pembelian rincian..."
-                                className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                                className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                               />
                             </div>
 
-                            <div className="flex gap-3 justify-end pt-3 border-t border-slate-100">
+                            <div className="flex gap-2.5 justify-end pt-3 border-t border-slate-200">
                               <button
                                 type="button"
                                 onClick={() => setEditingTxId(null)}
-                                className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg cursor-pointer"
+                                className="px-3.5 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium rounded cursor-pointer transition-colors"
                               >
                                 Batal
                               </button>
                               <button
                                 type="submit"
-                                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg cursor-pointer"
+                                className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white text-xs font-semibold rounded cursor-pointer transition-colors shadow-xs"
                               >
                                 Simpan Perubahan
                               </button>
@@ -1814,69 +1806,68 @@ export default function ActivitiesTab({
             <div className="space-y-6">
               
               {/* Detailed Agenda & Persiapan Workspace */}
-              <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                  <h3 className="font-bold text-slate-900 text-sm tracking-tight flex items-center gap-2">
-                    <ListOrdered className="w-4.5 h-4.5 text-indigo-600" /> Agenda & Schedule Kerja
+              <div className="bg-white rounded-lg border border-slate-200 p-5 space-y-3.5 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
+                  <h3 className="font-bold text-slate-900 text-xs tracking-tight flex items-center gap-1.5">
+                    <ListOrdered className="w-4 h-4 text-slate-700" /> Agenda & Jadwal Kerja
                   </h3>
-                  <div className="flex bg-slate-100 p-0.5 rounded-lg text-[10px] font-bold self-start sm:self-auto">
+                  <div className="flex bg-slate-200 p-0.5 rounded text-xs font-semibold self-start sm:self-auto">
                     <button 
                       type="button"
                       onClick={() => setActiveAgendaTab('rundown')}
-                      className={`px-3 py-1 rounded-md transition-all cursor-pointer ${activeAgendaTab === 'rundown' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${activeAgendaTab === 'rundown' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900'}`}
                     >
-                      Rundown Acara (Hari-H)
+                      Rundown Acara
                     </button>
                     <button 
                       type="button"
                       onClick={() => setActiveAgendaTab('preparation')}
-                      className={`px-3 py-1 rounded-md transition-all cursor-pointer ${activeAgendaTab === 'preparation' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${activeAgendaTab === 'preparation' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900'}`}
                     >
-                      Agenda Persiapan Task
+                      Tugas Persiapan
                     </button>
                   </div>
                 </div>
 
                 {activeAgendaTab === 'rundown' ? (
                   <>
-                    <span className="text-[10px] text-slate-500 font-mono tracking-wider block bg-slate-50 px-2 py-1 rounded border border-slate-100">
-                      INFO: Rundown waktu acara Hari-H khusus kordinasi alur ibadah/pesta tanpa unsur pendanaan langsung.
+                    <span className="text-[11px] text-slate-600 block bg-slate-50 px-2 py-1 rounded border border-slate-200">
+                      Rundown waktu acara Hari-H untuk koordinasi alur acara.
                     </span>
                     {/* Rundown list */}
                     {(!activeRundownItemsList || activeRundownItemsList.length === 0) ? (
-                      <div className="text-center p-8 text-slate-400">
-                        <CheckCircle2 className="w-8 h-8 text-slate-300 mx-auto stroke-1.5 mb-2 animate-pulse" />
-                        <p className="text-[11px]">Agenda rundown belum terdaftar.</p>
-                        <p className="text-[9px] text-indigo-400 mt-1">Gunakan form di bawah untuk mendaftarkan jadwal rundown.</p>
+                      <div className="text-center p-6 text-slate-500">
+                        <CheckCircle2 className="w-6 h-6 text-slate-400 mx-auto stroke-1.5 mb-1" />
+                        <p className="text-xs">Agenda rundown belum terdaftar.</p>
                       </div>
                     ) : (
                       <div className="overflow-x-auto max-h-[350px]">
-                        <table className="w-full text-left border-collapse text-xs border border-slate-150 rounded-xl overflow-hidden shadow-xs">
+                        <table className="w-full text-left border-collapse text-xs border border-slate-200 rounded overflow-hidden shadow-xs">
                           <thead>
-                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase font-mono text-[9px] tracking-wider">
-                              <th className="p-3">Waktu (Hari-H)</th>
-                              <th className="p-3">Agenda & Deskripsi Kegiatan</th>
-                              <th className="p-3">PIC / Pelayan</th>
-                              <th className="p-3 text-center">Aksi</th>
+                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase text-[10px] tracking-wider">
+                              <th className="p-2.5">Waktu</th>
+                              <th className="p-2.5">Agenda Kegiatan</th>
+                              <th className="p-2.5">PIC</th>
+                              <th className="p-2.5 text-center">Aksi</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 bg-white">
                             {activeRundownItemsList.map((item) => (
-                              <tr key={item.id} className="hover:bg-slate-50/40 transition-colors">
-                                <td className="p-3 font-mono font-bold text-blue-600">
+                              <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                                <td className="p-2.5 font-mono font-bold text-slate-800">
                                   {item.time}
                                 </td>
-                                <td className="p-3 text-slate-700 font-semibold whitespace-pre-wrap">
+                                <td className="p-2.5 text-slate-800 font-medium whitespace-pre-wrap">
                                   {item.activity}
                                 </td>
-                                <td className="p-3 font-mono text-[10px] font-bold text-indigo-600 uppercase">
+                                <td className="p-2.5 font-mono text-[10px] font-semibold text-slate-600 uppercase">
                                   {item.pic}
                                 </td>
-                                <td className="p-3 text-center">
+                                <td className="p-2.5 text-center">
                                   <button
                                     onClick={() => handleDeleteRundownItem(item.id)}
                                     disabled={isCompleted}
-                                    className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                    className="p-1 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                                     title="Hapus Rincian"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -1890,8 +1881,8 @@ export default function ActivitiesTab({
                     )}
 
                     {/* Add Rundown Item form */}
-                    <form onSubmit={handleAddRundownItem} className="pt-4 border-t border-slate-100 space-y-3 bg-slate-50 p-4 rounded-xl">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Tambah Agenda Schedule</span>
+                    <form onSubmit={handleAddRundownItem} className="pt-3 border-t border-slate-200 space-y-2.5 bg-slate-50 p-3.5 rounded text-xs">
+                      <span className="text-xs font-bold text-slate-800 block mb-0.5">Tambah Agenda Rundown</span>
                       <div className="grid grid-cols-3 gap-2">
                         <div className="col-span-1">
                           <input
@@ -1901,7 +1892,7 @@ export default function ActivitiesTab({
                             placeholder="Waktu (e.g. 18:00)"
                             value={rundownTime}
                             onChange={(e) => setRundownTime(e.target.value)}
-                            className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                            className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                           />
                         </div>
                         <div className="col-span-2">
@@ -1911,7 +1902,7 @@ export default function ActivitiesTab({
                             placeholder="Penanggung Jawab (PIC)"
                             value={rundownPic}
                             onChange={(e) => setRundownPic(e.target.value)}
-                            className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                            className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                           />
                         </div>
                       </div>
@@ -1923,98 +1914,97 @@ export default function ActivitiesTab({
                           placeholder="Uraian detail rincian acara..."
                           value={rundownActivity}
                           onChange={(e) => setRundownActivity(e.target.value)}
-                          className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                          className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                         />
                       </div>
                       <button
                         type="submit"
                         disabled={isCompleted}
-                        className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold text-xs rounded cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
                       >
-                        Tambah Agenda rundown
+                        Tambah Agenda Rundown
                       </button>
                     </form>
                   </>
                 ) : (
                   <>
-                    <span className="text-[10px] text-amber-800 font-mono tracking-wider block bg-amber-50 px-2 py-1 rounded border border-amber-100">
-                      INFO: Alur kerja koordinasi persiapan pra-acara. Tugas dapat ditandai butuh dana kerja kegiatan.
+                    <span className="text-[11px] text-slate-600 block bg-slate-50 px-2 py-1 rounded border border-slate-200">
+                      Alur kerja persiapan pra-acara. Dapat ditandai bila membutuhkan pencairan dana kas.
                     </span>
                     {/* Preparation items list */}
                     {(!activePreparationItemsList || activePreparationItemsList.length === 0) ? (
-                      <div className="text-center p-8 text-slate-400">
-                        <CheckCircle2 className="w-8 h-8 text-slate-300 mx-auto stroke-1.5 mb-2 animate-pulse" />
-                        <p className="text-[11px]">Daftar tugas persiapan masih kosong.</p>
-                        <p className="text-[9px] text-amber-500 mt-1">Gunakan form di bawah untuk menambahkan poin agenda persiapan.</p>
+                      <div className="text-center p-6 text-slate-500">
+                        <CheckCircle2 className="w-6 h-6 text-slate-400 mx-auto stroke-1.5 mb-1" />
+                        <p className="text-xs">Daftar tugas persiapan masih kosong.</p>
                       </div>
                     ) : (
                       <div className="overflow-x-auto max-h-[350px]">
-                        <table className="w-full text-left border-collapse text-xs border border-slate-150 rounded-xl overflow-hidden shadow-xs">
+                        <table className="w-full text-left border-collapse text-xs border border-slate-200 rounded overflow-hidden shadow-xs">
                           <thead>
-                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase font-mono text-[9px] tracking-wider">
-                              <th className="p-3">Target Tanggal</th>
-                              <th className="p-3">Uraian Tugas / Agenda Persiapan</th>
-                              <th className="p-3">PIC</th>
-                              <th className="p-3 text-right">Biaya / Status</th>
-                              <th className="p-3 text-center">Status Selesai</th>
-                              <th className="p-3 text-center">Tindakan</th>
+                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase text-[10px] tracking-wider">
+                              <th className="p-2.5">Target</th>
+                              <th className="p-2.5">Tugas Persiapan</th>
+                              <th className="p-2.5">PIC</th>
+                              <th className="p-2.5 text-right">Biaya / Status</th>
+                              <th className="p-2.5 text-center">Status</th>
+                              <th className="p-2.5 text-center">Aksi</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 bg-white">
                             {activePreparationItemsList.map((item) => {
                               const canFund = activeActivity.budgetWalletBalance >= (item.requiredAmount || 0);
                               return (
-                                <tr key={item.id} className={`hover:bg-slate-50/40 transition-colors ${item.status === 'Completed' ? 'bg-emerald-50/10' : ''}`}>
-                                  <td className="p-3 font-mono text-[10px] text-slate-400 font-bold">
+                                <tr key={item.id} className={`hover:bg-slate-50/70 transition-colors ${item.status === 'Completed' ? 'bg-slate-50/50' : ''}`}>
+                                  <td className="p-2.5 font-mono text-[10px] text-slate-500 font-semibold">
                                     {item.date}
                                   </td>
-                                  <td className="p-3">
+                                  <td className="p-2.5">
                                     <span className={`font-semibold text-slate-800 ${item.status === 'Completed' ? 'line-through text-slate-400' : ''}`}>
                                       {item.task}
                                     </span>
                                   </td>
-                                  <td className="p-3 font-mono text-[10px] font-bold text-indigo-600 uppercase">
+                                  <td className="p-2.5 font-mono text-[10px] font-semibold text-slate-600 uppercase">
                                     {item.pic}
                                   </td>
-                                  <td className="p-3 text-right">
+                                  <td className="p-2.5 text-right">
                                     {item.needsFunding ? (
                                       <div className="flex flex-col items-end gap-1">
-                                        <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded border uppercase font-mono tracking-wide ${
+                                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border uppercase font-mono ${
                                           item.funded 
-                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-150' 
-                                            : 'bg-amber-50 text-amber-800 border-amber-150'
+                                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                                            : 'bg-amber-50 text-amber-800 border-amber-200'
                                         }`}>
                                           {item.funded ? 'Cair' : `Minta Rp ${item.requiredAmount?.toLocaleString('id-ID')}`}
                                         </span>
                                       </div>
                                     ) : (
-                                      <span className="text-[10px] text-slate-400 font-medium italic">Seksi Non-Dana</span>
+                                      <span className="text-[10px] text-slate-500 font-medium italic">Non-Dana</span>
                                     )}
                                   </td>
-                                  <td className="p-3 text-center">
+                                  <td className="p-2.5 text-center">
                                     <button
                                       type="button"
                                       onClick={() => handleTogglePrepStatus(item.id)}
                                       disabled={isCompleted}
-                                      className={`px-2 py-1 text-[9px] font-bold rounded-md transition-all border disabled:opacity-50 disabled:cursor-not-allowed ${
+                                      className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors border disabled:opacity-50 disabled:cursor-not-allowed ${
                                         item.status === 'Completed'
-                                          ? 'bg-emerald-50 text-emerald-700 border-emerald-150'
-                                          : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                          : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
                                       }`}
                                     >
                                       {item.status === 'Completed' ? 'Selesai ✓' : 'Belum'}
                                     </button>
                                   </td>
-                                  <td className="p-3">
-                                    <div className="flex items-center justify-center gap-1.5">
+                                  <td className="p-2.5">
+                                    <div className="flex items-center justify-center gap-1">
                                       {item.needsFunding && !item.funded && (
                                         <button
                                           type="button"
                                           disabled={isCompleted || !canFund}
                                           onClick={() => handleFundPrepTask(item)}
-                                          className={`px-2 py-1 text-[9px] font-extrabold rounded-md shadow-xs transition-all ${
+                                          className={`px-2 py-0.5 text-[10px] font-semibold rounded shadow-xs transition-colors ${
                                             (canFund && !isCompleted)
-                                              ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer' 
+                                              ? 'bg-[#0c2340] hover:bg-[#1b365d] text-white cursor-pointer' 
                                               : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
                                           }`}
                                           title={canFund ? 'Cairkan Kas' : 'Saldo Sisa Kantong Tidak Cukup'}
@@ -2027,7 +2017,7 @@ export default function ActivitiesTab({
                                         type="button"
                                         onClick={() => handleStartEditPrepItem(item)}
                                         disabled={isCompleted}
-                                        className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-amber-600 transition-colors cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                                        className="p-1 hover:bg-slate-100 rounded text-slate-500 hover:text-slate-800 transition-colors cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                                         title="Edit Tugas"
                                       >
                                         <Edit3 className="w-3.5 h-3.5" />
@@ -2037,7 +2027,7 @@ export default function ActivitiesTab({
                                         type="button"
                                         onClick={() => handleDeletePrepItem(item.id)}
                                         disabled={isCompleted}
-                                        className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-red-500 transition-colors cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                                        className="p-1 hover:bg-rose-50 rounded text-slate-400 hover:text-rose-700 transition-colors cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                                         title="Hapus Agenda"
                                       >
                                         <Trash2 className="w-3.5 h-3.5" />
@@ -2053,8 +2043,8 @@ export default function ActivitiesTab({
                     )}
 
                     {/* Add Prep Item form */}
-                    <form onSubmit={handleAddPreparationItem} className="pt-4 border-t border-slate-100 space-y-3 bg-amber-50/10 p-4 rounded-xl">
-                      <span className="text-[10px] font-bold text-amber-800 uppercase block mb-1">Tambah Tugas Persiapan</span>
+                    <form onSubmit={handleAddPreparationItem} className="pt-3 border-t border-slate-200 space-y-2.5 bg-slate-50 p-3.5 rounded text-xs">
+                      <span className="text-xs font-bold text-slate-800 block mb-0.5">Tambah Tugas Persiapan</span>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <input
@@ -2063,7 +2053,7 @@ export default function ActivitiesTab({
                             disabled={isCompleted}
                             value={prepDate}
                             onChange={(e) => setPrepDate(e.target.value)}
-                            className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                            className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                           />
                         </div>
                         <div>
@@ -2073,7 +2063,7 @@ export default function ActivitiesTab({
                             placeholder="PIC / Petugas"
                             value={prepPic}
                             onChange={(e) => setPrepPic(e.target.value)}
-                            className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                            className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                           />
                         </div>
                       </div>
@@ -2085,24 +2075,24 @@ export default function ActivitiesTab({
                           placeholder="Nama tugas persiapan kerja..."
                           value={prepTask}
                           onChange={(e) => setPrepTask(e.target.value)}
-                          className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                          className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                         />
                       </div>
                       <div className="flex items-center gap-2">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                        <label className="text-xs font-medium text-slate-700 flex items-center gap-1.5 cursor-pointer select-none">
                           <input
                             type="checkbox"
                             disabled={isCompleted}
                             checked={prepNeedsFunding}
                             onChange={(e) => setPrepNeedsFunding(e.target.checked)}
-                            className="rounded border-slate-300 focus:ring-0 w-3.5 h-3.5 cursor-pointer"
+                            className="rounded border-slate-300 text-[#0c2340] focus:ring-[#0c2340] w-3.5 h-3.5"
                           />
-                          Butuh Dana Pembayaran
+                          Butuh Pencairan Dana
                         </label>
                         
                         {prepNeedsFunding && (
                           <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-slate-400">Rp</span>
+                            <span className="text-xs text-slate-500">Rp</span>
                             <input
                               type="number"
                               required
@@ -2110,7 +2100,7 @@ export default function ActivitiesTab({
                               placeholder="Nominal..."
                               value={prepRequiredAmount || ''}
                               onChange={(e) => setPrepRequiredAmount(Number(e.target.value))}
-                              className="px-2 py-1 text-xs bg-white border border-slate-200 rounded-lg w-28 focus:outline-none"
+                              className="px-2 py-1 text-xs bg-white border border-slate-300 rounded text-slate-800 w-28 focus:outline-none focus:border-[#0c2340]"
                             />
                           </div>
                         )}
@@ -2118,7 +2108,7 @@ export default function ActivitiesTab({
                       <button
                         type="submit"
                         disabled={isCompleted}
-                        className="w-full py-1.5 bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs rounded-lg cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold text-xs rounded cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
                       >
                         Tambah Tugas Persiapan
                       </button>
@@ -2128,35 +2118,35 @@ export default function ActivitiesTab({
               </div>
 
               {/* Detailed Committee & Servants List Panel */}
-              <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-sm">
-                <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                  <h4 className="font-bold text-slate-900 text-sm tracking-tight flex items-center gap-2">
-                    <User className="w-4.5 h-4.5 text-indigo-500" /> Susunan Pengurus & Pelayan Acara
+              <div className="bg-white rounded-lg border border-slate-200 p-5 space-y-3.5 shadow-xs">
+                <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                  <h4 className="font-bold text-slate-900 text-xs tracking-tight flex items-center gap-1.5">
+                    <User className="w-4 h-4 text-slate-700" /> Susunan Pengurus & Pelayan Acara
                   </h4>
-                  <span className="text-[9px] text-slate-400 font-mono tracking-widest">COMMITTEE & MINISTERS</span>
+                  <span className="text-[10px] text-slate-500 font-mono">PANITIA ACARA</span>
                 </div>
 
                 {(!activeActivity.committeeMembers || activeActivity.committeeMembers.length === 0) ? (
-                  <div className="text-center p-6 text-slate-400">
-                    <User className="w-6 h-6 text-slate-300 mx-auto stroke-1.5 mb-1" />
-                    <p className="text-[11px]">Belum ada susunan panitia atau pelayan acara yang ditambahkan.</p>
+                  <div className="text-center p-5 text-slate-500">
+                    <User className="w-6 h-6 text-slate-400 mx-auto stroke-1.5 mb-1" />
+                    <p className="text-xs">Belum ada susunan panitia atau pelayan acara yang ditambahkan.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
                     {activeActivity.committeeMembers.map((member) => (
-                      <div key={member.id} className="p-2.5 border border-slate-100 bg-slate-50/50 rounded-xl flex items-center justify-between gap-1 group">
+                      <div key={member.id} className="p-2 border border-slate-200 bg-slate-50 rounded flex items-center justify-between gap-1 group">
                         <div className="truncate">
-                          <span className="text-[8px] bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded-md font-extrabold uppercase font-mono block w-max max-w-full truncate mb-0.5">
+                          <span className="text-[9px] bg-slate-100 text-slate-700 border border-slate-300 px-1.5 py-0.2 rounded font-semibold uppercase font-mono block w-max max-w-full truncate mb-0.5">
                             {member.role}
                           </span>
                           <strong className="text-xs text-slate-800 block truncate">{member.name}</strong>
-                          {member.contact && <span className="text-[9px] text-slate-400 font-mono block">{member.contact}</span>}
+                          {member.contact && <span className="text-[10px] text-slate-500 font-mono block">{member.contact}</span>}
                         </div>
                         <button
                           type="button"
                           onClick={() => handleDeleteCommitteeMember(member.id)}
                           disabled={isCompleted}
-                          className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 p-1 rounded-md hover:bg-red-50 transition-all cursor-pointer flex-none disabled:opacity-0 disabled:pointer-events-none"
+                          className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-700 p-1 rounded hover:bg-rose-50 transition-colors cursor-pointer flex-none disabled:opacity-0 disabled:pointer-events-none"
                           title="Hapus Pengurus"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -2167,17 +2157,17 @@ export default function ActivitiesTab({
                 )}
 
                 {/* Add Committee Member form */}
-                <form onSubmit={handleAddCommitteeMember} className="pt-3 border-t border-slate-100 space-y-2 bg-slate-50/50 p-3 rounded-xl">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Tambah Panitia / Pelayan</span>
+                <form onSubmit={handleAddCommitteeMember} className="pt-2.5 border-t border-slate-200 space-y-2 bg-slate-50 p-3 rounded text-xs">
+                  <span className="text-xs font-bold text-slate-800 block mb-0.5">Tambah Panitia / Pelayan</span>
                   <div className="grid grid-cols-2 gap-2">
                     <input
                       type="text"
                       required
                       disabled={isCompleted}
-                      placeholder="Peran (e.g. Pembicara / MC / Ketua)"
+                      placeholder="Peran (e.g. Pembicara / MC)"
                       value={memberRole}
                       onChange={(e) => setMemberRole(e.target.value)}
-                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-300"
+                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                     />
                     <input
                       type="text"
@@ -2186,7 +2176,7 @@ export default function ActivitiesTab({
                       placeholder="Nama Pengurus/Pelayan"
                       value={memberName}
                       onChange={(e) => setMemberName(e.target.value)}
-                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                     />
                   </div>
                   <div className="flex gap-2">
@@ -2196,12 +2186,12 @@ export default function ActivitiesTab({
                       placeholder="Kontak / Keterangan (Opsional)"
                       value={memberContact}
                       onChange={(e) => setMemberContact(e.target.value)}
-                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none flex-1"
+                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340] flex-1"
                     />
                     <button
                       type="submit"
                       disabled={isCompleted}
-                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg cursor-pointer flex-none block disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold text-xs rounded cursor-pointer flex-none block disabled:opacity-50 disabled:cursor-not-allowed shadow-xs transition-colors"
                     >
                       Tambah
                     </button>
@@ -2210,9 +2200,9 @@ export default function ActivitiesTab({
               </div>
 
               {/* Detailed Description Panel */}
-              <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-3 shadow-sm">
-                <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                  <h4 className="font-bold text-slate-800 text-xs">Uraian Deskripsi & Agenda Kegiatan</h4>
+              <div className="bg-white rounded-lg border border-slate-200 p-5 space-y-2.5 shadow-xs">
+                <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                  <h4 className="font-bold text-slate-900 text-xs">Uraian Deskripsi & Agenda Kegiatan</h4>
                   <button
                     onClick={() => {
                       if (isEditingDescription) {
@@ -2223,7 +2213,7 @@ export default function ActivitiesTab({
                       setIsEditingDescription(!isEditingDescription);
                     }}
                     disabled={isCompleted}
-                    className="text-xs text-blue-600 hover:underline flex items-center gap-1 cursor-pointer font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="text-xs text-[#0c2340] hover:underline flex items-center gap-1 cursor-pointer font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Edit3 className="w-3.5 h-3.5" /> {isEditingDescription ? 'Selesai Edit' : 'Edit Deskripsi'}
                   </button>
@@ -2231,13 +2221,13 @@ export default function ActivitiesTab({
 
                 {isEditingDescription ? (
                   <textarea
-                    className="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"
+                    className="w-full p-2.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                     rows={6}
                     value={localDescription}
                     onChange={(e) => setLocalDescription(e.target.value)}
                   />
                 ) : (
-                  <p className="text-xs text-slate-600 leading-relaxed font-sans whitespace-pre-line">
+                  <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">
                     {activeActivity.description || 'Tidak ada catatan deskripsi tambahan untuk rincian kegiatan ini.'}
                   </p>
                 )}
@@ -2250,92 +2240,92 @@ export default function ActivitiesTab({
 
       {/* EDIT PREPARATION ITEM MODAL DIALOG */}
       {editingPrepId && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full overflow-hidden border border-slate-200 shadow-2xl animate-in fade-in zoom-in-95 duration-250">
-            <div className="px-5 py-3.5 bg-indigo-600 text-white flex justify-between items-center">
-              <h3 className="font-bold text-xs tracking-tight uppercase font-mono">Edit Agenda Persiapan</h3>
+        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-sm w-full overflow-hidden border border-slate-300 shadow-xl">
+            <div className="px-4 py-3 bg-[#0c2340] text-white flex justify-between items-center">
+              <h3 className="font-bold text-xs tracking-tight">Edit Agenda Persiapan</h3>
               <button 
                 type="button"
                 onClick={() => setEditingPrepId(null)}
-                className="text-white/80 hover:text-white text-xs font-bold cursor-pointer font-mono"
+                className="w-6 h-6 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer"
               >
-                [X]
+                ✕
               </button>
             </div>
             
-            <form onSubmit={handleSaveEditPrepItem} className="p-5 space-y-4 font-sans text-xs">
+            <form onSubmit={handleSaveEditPrepItem} className="p-4 space-y-3 text-xs">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 block mb-1">PROGRAM / TUGAS PERSIAPAN</label>
+                <label className="text-slate-700 font-semibold block mb-1">Tugas Persiapan</label>
                 <input
                   type="text"
                   required
                   placeholder="Contoh: Cetak banner spanduk, Sewa tenda"
                   value={editPrepTask}
                   onChange={(e) => setEditPrepTask(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-300"
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-400 block mb-1">TARGET TANGGAL BARU</label>
+                <label className="text-slate-700 font-semibold block mb-1">Target Tanggal</label>
                 <input
                   type="date"
                   required
                   value={editPrepDate}
                   onChange={(e) => setEditPrepDate(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-300"
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-400 block mb-1">PENANGGUNG JAWAB (PIC)</label>
+                <label className="text-slate-700 font-semibold block mb-1">Penanggung Jawab (PIC)</label>
                 <input
                   type="text"
                   required
                   placeholder="Nama PIC"
                   value={editPrepPic}
                   onChange={(e) => setEditPrepPic(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-300"
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                 />
               </div>
 
-              <div className="pt-2">
-                <label className="flex items-center gap-2 cursor-pointer">
+              <div className="pt-1">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={editPrepNeedsFunding}
                     onChange={(e) => setEditPrepNeedsFunding(e.target.checked)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-300"
+                    className="rounded border-slate-300 text-[#0c2340] focus:ring-[#0c2340] w-3.5 h-3.5"
                   />
-                  <span className="text-[11px] font-bold text-slate-700">Agenda ini butuh dana kas kegiatan</span>
+                  <span className="text-xs font-semibold text-slate-700">Agenda ini butuh dana kas kegiatan</span>
                 </label>
               </div>
 
               {editPrepNeedsFunding && (
-                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <label className="text-[9px] font-bold text-indigo-600 block mb-1">ALOKASI ANGGARAN (RP) *</label>
+                <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1">
+                  <label className="text-[10px] font-bold text-slate-700 block mb-0.5">Alokasi Anggaran (Rp) *</label>
                   <input
                     type="number"
                     required={editPrepNeedsFunding}
                     placeholder="Contoh: 150000"
                     value={editPrepRequiredAmount || ''}
                     onChange={(e) => setEditPrepRequiredAmount(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-300"
+                    className="w-full px-2.5 py-1 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                   />
                 </div>
               )}
 
-              <div className="flex gap-3 justify-end pt-3 border-t border-slate-100">
+              <div className="flex gap-2.5 justify-end pt-3 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setEditingPrepId(null)}
-                  className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg cursor-pointer"
+                  className="px-3.5 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium rounded cursor-pointer transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg cursor-pointer"
+                  className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white text-xs font-semibold rounded cursor-pointer shadow-xs transition-colors"
                 >
                   Simpan Perubahan
                 </button>
@@ -2344,165 +2334,166 @@ export default function ActivitiesTab({
           </div>
         </div>
       )}
+
       {/* EDIT ACTIVITY MODAL DIALOG */}
       {isEditActivityFormOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden border border-slate-200 shadow-2xl animate-in fade-in zoom-in-95 duration-250">
-            <div className="px-6 py-4 bg-amber-600 text-white flex justify-between items-center">
-              <h3 className="font-bold text-sm tracking-tight">Edit Rincian Rencana Kegiatan</h3>
+        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg max-w-lg w-full overflow-hidden border border-slate-300 shadow-xl my-8">
+            <div className="px-5 py-3.5 bg-[#0c2340] text-white flex justify-between items-center">
+              <h3 className="font-bold text-sm tracking-tight">Edit Rincian Kegiatan</h3>
               <button 
                 onClick={() => setIsEditActivityFormOpen(false)}
-                className="text-white/85 hover:text-white text-xs font-bold cursor-pointer font-mono"
+                className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
               >
-                [Tutup X]
+                ✕
               </button>
             </div>
             
-            <form onSubmit={handleSaveEditActivity} className="p-6 space-y-4">
+            <form onSubmit={handleSaveEditActivity} className="p-5 space-y-3.5 text-xs">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase block">Nama Kegiatan / Agenda Resmi (Wajib)</label>
+                <label className="text-slate-700 font-semibold block">Nama Kegiatan / Agenda Resmi (Wajib)</label>
                 <input
                   type="text"
                   required
                   placeholder="Contoh: Perayaan Natal Yayasan MMB 2026"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none"
+                  className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Tema / Slogan Acara (Opsional)</label>
+                  <label className="text-slate-700 font-semibold block">Tema / Slogan Acara (Opsional)</label>
                   <input
                     type="text"
                     placeholder="Contoh: Kasih Menembus Batas"
                     value={editTheme}
                     onChange={(e) => setEditTheme(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none"
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                   />
                 </div>
                 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Kordinator Umum / Pelayan PIC</label>
+                  <label className="text-slate-700 font-semibold block">Kordinator Umum / Pelayan PIC</label>
                   <input
                     type="text"
                     placeholder="Contoh: Yusuf R. Tamba"
                     value={editMinisters}
                     onChange={(e) => setEditMinisters(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none"
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Tempat / Venue Lokasi</label>
+                  <label className="text-slate-700 font-semibold block">Tempat / Venue Lokasi</label>
                   <input
                     type="text"
                     placeholder="Contoh: Gedung Aula Yayasan MMB"
                     value={editPlace}
                     onChange={(e) => setEditPlace(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none"
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Taksasi Perkiraan Anggaran Mulai (Rp)</label>
+                  <label className="text-slate-700 font-semibold block">Taksasi Perkiraan Anggaran (Rp)</label>
                   <input
                     type="number"
                     placeholder="Contoh: 5000000"
                     value={editBudgetEstimated}
                     onChange={(e) => setEditBudgetEstimated(Number(e.target.value) || 0)}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none"
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                   />
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 rounded-xl space-y-2.5 border border-slate-150">
+              <div className="p-3 bg-slate-50 rounded space-y-2 border border-slate-200">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase block">Format Tanggal & Waktu Acara</span>
-                  <label className="flex items-center gap-1 text-[10px] font-bold text-amber-800 cursor-pointer">
+                  <span className="text-xs font-bold text-slate-800">Format Tanggal & Waktu Acara</span>
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={editIsTimeManual}
                       onChange={(e) => setEditIsTimeManual(e.target.checked)}
-                      className="rounded text-amber-600 focus:ring-amber-500 h-3 w-3"
+                      className="rounded text-[#0c2340] focus:ring-[#0c2340] h-3.5 w-3.5"
                     />
-                    Atur deskripsi waktu bebas
+                    Tulis Manual
                   </label>
                 </div>
 
                 {!editIsTimeManual ? (
                   <div className="grid grid-cols-3 gap-2">
                     <div className="col-span-1">
-                      <label className="text-[8px] text-slate-400 font-bold block mb-0.5">HARI / TANGGAL</label>
+                      <label className="text-[10px] text-slate-500 font-semibold block mb-0.5">Tanggal</label>
                       <input
                         type="date"
                         required
                         value={editDate}
                         onChange={(e) => setEditDate(e.target.value)}
-                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-[11px] focus:outline-none"
+                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
                       />
                     </div>
                     <div className="col-span-1">
-                      <label className="text-[8px] text-slate-400 font-bold block mb-0.5">MULAI (WIB)</label>
+                      <label className="text-[10px] text-slate-500 font-semibold block mb-0.5">Mulai (WIB)</label>
                       <input
                         type="text"
                         required
                         value={editStartTime}
                         onChange={(e) => setEditStartTime(e.target.value)}
-                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-[11px] focus:outline-none"
+                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
                       />
                     </div>
                     <div className="col-span-1">
-                      <label className="text-[8px] text-slate-400 font-bold block mb-0.5">SELESAI</label>
+                      <label className="text-[10px] text-slate-500 font-semibold block mb-0.5">Selesai</label>
                       <input
                         type="text"
                         required
                         value={editEndTime}
                         onChange={(e) => setEditEndTime(e.target.value)}
-                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-[11px] focus:outline-none"
+                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
                       />
                     </div>
                   </div>
                 ) : (
                   <div>
-                    <label className="text-[8px] font-bold text-slate-400 block mb-0.5">TULIS ALASAN / WAKTU BEBAS</label>
+                    <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Tulis Waktu Bebas</label>
                     <input
                       type="text"
                       required
                       placeholder="Contoh: Setiap hari Jumat sepanjang bulan Desember"
                       value={editTimeValueManual}
                       onChange={(e) => setEditTimeValueManual(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none"
+                      className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                     />
                   </div>
                 )}
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase block">Gambaran Ringkas Acara (Deskripsi)</label>
+                <label className="text-slate-700 font-semibold block">Gambaran Ringkas Acara (Deskripsi)</label>
                 <textarea
                   placeholder="Uraikan deskripsi singkat maksud diadakan perayaan natal atau retreat ini..."
                   rows={3}
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none"
+                  className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                 />
               </div>
 
-              <div className="flex gap-3 justify-end pt-3 border-t border-slate-100">
+              <div className="flex gap-2.5 justify-end pt-3 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setIsEditActivityFormOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium rounded cursor-pointer transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl cursor-pointer"
+                  className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white text-xs font-semibold rounded cursor-pointer shadow-xs transition-colors"
                 >
                   Simpan Perubahan
                 </button>
@@ -2512,35 +2503,35 @@ export default function ActivitiesTab({
         </div>
       )}
 
-      {/* CUSTOM CONFIRMATION OVERLAY (SANDBOX ROBUST) */}
+      {/* CUSTOM CONFIRMATION OVERLAY */}
       {confirmDialog && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-sm w-full overflow-hidden border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className={`p-4 flex items-center gap-3 ${confirmDialog.isDanger ? 'bg-red-50 border-b border-red-100 text-red-800' : 'bg-indigo-50 border-b border-indigo-100 text-indigo-800'}`}>
-              <AlertCircle className={`w-5 h-5 flex-shrink-0 ${confirmDialog.isDanger ? 'text-red-500 animate-bounce' : 'text-indigo-600'}`} />
-              <h3 className="font-extrabold text-xs tracking-tight uppercase font-mono">{confirmDialog.title}</h3>
+        <div className="fixed inset-0 z-[100] bg-slate-900/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-sm w-full overflow-hidden border border-slate-300 shadow-xl">
+            <div className="bg-[#0c2340] px-4 py-3 text-white flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-slate-200" />
+              <h3 className="font-bold text-xs tracking-tight">{confirmDialog.title}</h3>
             </div>
             
-            <div className="p-5 space-y-4 font-sans">
-              <p className="text-slate-650 text-xs leading-relaxed font-medium">
+            <div className="p-4 space-y-3.5 text-xs">
+              <p className="text-slate-700 leading-relaxed">
                 {confirmDialog.message}
               </p>
               
-              <div className="flex gap-2.5 justify-end pt-3 border-t border-slate-100">
+              <div className="flex gap-2 justify-end pt-2.5 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setConfirmDialog(null)}
-                  className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg cursor-pointer transition-colors"
+                  className="px-3.5 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium rounded cursor-pointer transition-colors"
                 >
                   {confirmDialog.cancelText || 'Batal'}
                 </button>
                 <button
                   type="button"
                   onClick={confirmDialog.onConfirm}
-                  className={`px-3.5 py-1.5 text-white text-xs font-bold rounded-lg cursor-pointer transition-colors ${
+                  className={`px-3.5 py-1.5 text-white text-xs font-semibold rounded cursor-pointer transition-colors shadow-xs ${
                     confirmDialog.isDanger 
-                      ? 'bg-red-500 hover:bg-red-650' 
-                      : 'bg-indigo-600 hover:bg-indigo-750'
+                      ? 'bg-rose-700 hover:bg-rose-800' 
+                      : 'bg-[#0c2340] hover:bg-[#1b365d]'
                   }`}
                 >
                   {confirmDialog.confirmText || 'Ya, Lanjutkan'}

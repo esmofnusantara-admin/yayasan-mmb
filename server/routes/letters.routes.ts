@@ -1,6 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { dbDriver } from '../db/driver';
 import { authenticateToken } from './auth.routes';
+import { cleanObjectForFirestore } from '../services/transaction-sync.service';
+import { generateInwardLetterId, generateOutwardLetterId, generateOutwardLetterNumber, generateApprovalId } from '../utils/id-generator';
+import { writeAuditLog, auditFromReq } from '../utils/audit.util';
 
 const router = Router();
 
@@ -215,6 +218,124 @@ router.get('/preview/:id', authenticateToken, async (req: Request, res: Response
     console.error('Error previewing inward letter:', error);
     res.status(500).send(`Gagal memuat pratinjau: ${error.message}`);
   }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Inward Letters CRUD
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/inward', authenticateToken, async (_req: any, res: Response) => {
+  try {
+    const letters = (await dbDriver.getDocs('inward_letters')).filter((l: any) => !l.deleted);
+    res.json(letters);
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/inward', authenticateToken, async (req: any, res: Response) => {
+  const { userName, userRole } = auditFromReq(req);
+  try {
+    const id = await generateInwardLetterId();
+    const letter = cleanObjectForFirestore({ ...req.body, id, createdBy: userName, createdAt: new Date().toISOString(), deleted: false });
+    await dbDriver.setDoc('inward_letters', id, letter);
+    await writeAuditLog({ userName, userRole, action: `Arsip Surat Masuk: ${letter.letterNumber} dari ${letter.sender}`, module: 'Surat & Dokumen' });
+    res.json({ success: true, id, letter });
+  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+router.put('/inward/:id', authenticateToken, async (req: any, res: Response) => {
+  const { userName, userRole } = auditFromReq(req);
+  try {
+    const { id } = req.params;
+    const old = await dbDriver.getDoc('inward_letters', id);
+    const updated = cleanObjectForFirestore({ ...old, ...req.body, id, updatedBy: userName, updatedAt: new Date().toISOString() });
+    await dbDriver.setDoc('inward_letters', id, updated);
+    await writeAuditLog({ userName, userRole, action: `Update Surat Masuk: ${updated.letterNumber}`, module: 'Surat & Dokumen' });
+    res.json({ success: true, letter: updated });
+  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+router.delete('/inward/:id', authenticateToken, async (req: any, res: Response) => {
+  const { userName, userRole } = auditFromReq(req);
+  try {
+    const { id } = req.params;
+    const old = await dbDriver.getDoc('inward_letters', id);
+    await dbDriver.updateDoc('inward_letters', id, { deleted: true, deletedAt: new Date().toISOString(), deletedBy: userName });
+    await writeAuditLog({ userName, userRole, action: `Hapus Surat Masuk: ${old?.letterNumber || id} (Soft-Delete)`, module: 'Surat & Dokumen' });
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Outward Letters CRUD (auto-generate nomor surat resmi)
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/outward', authenticateToken, async (_req: any, res: Response) => {
+  try {
+    const letters = (await dbDriver.getDocs('outward_letters')).filter((l: any) => !l.deleted);
+    res.json(letters);
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/outward', authenticateToken, async (req: any, res: Response) => {
+  const { userName, userRole } = auditFromReq(req);
+  try {
+    const id = await generateOutwardLetterId();
+    const templateType = req.body.templateType || 'SK';
+    const letterNumber = req.body.letterNumber || await generateOutwardLetterNumber(templateType);
+    const letter = cleanObjectForFirestore({ ...req.body, id, letterNumber, author: req.body.author || userName, status: req.body.status || 'Draft', createdBy: userName, createdAt: new Date().toISOString(), deleted: false });
+    await dbDriver.setDoc('outward_letters', id, letter);
+    await writeAuditLog({ userName, userRole, action: `Buat Surat Keluar: ${letterNumber} (${templateType})`, module: 'Surat & Dokumen' });
+    res.json({ success: true, id, letter });
+  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+router.put('/outward/:id', authenticateToken, async (req: any, res: Response) => {
+  const { userName, userRole } = auditFromReq(req);
+  try {
+    const { id } = req.params;
+    const old = await dbDriver.getDoc('outward_letters', id);
+    const updated = cleanObjectForFirestore({ ...old, ...req.body, id, updatedBy: userName, updatedAt: new Date().toISOString() });
+    await dbDriver.setDoc('outward_letters', id, updated);
+    await writeAuditLog({ userName, userRole, action: `Update Surat Keluar: ${updated.letterNumber}`, module: 'Surat & Dokumen', beforeValue: JSON.stringify(old), afterValue: JSON.stringify(updated) });
+    res.json({ success: true, letter: updated });
+  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+router.delete('/outward/:id', authenticateToken, async (req: any, res: Response) => {
+  const { userName, userRole } = auditFromReq(req);
+  try {
+    const { id } = req.params;
+    const old = await dbDriver.getDoc('outward_letters', id);
+    await dbDriver.updateDoc('outward_letters', id, { deleted: true, deletedAt: new Date().toISOString(), deletedBy: userName });
+    await writeAuditLog({ userName, userRole, action: `Hapus Surat Keluar: ${old?.letterNumber || id} (Soft-Delete)`, module: 'Surat & Dokumen' });
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+router.post('/outward/:id/submit', authenticateToken, async (req: any, res: Response) => {
+  const { userName, userRole } = auditFromReq(req);
+  try {
+    const { id } = req.params;
+    const letter = await dbDriver.getDoc('outward_letters', id);
+    if (!letter) return res.status(404).json({ success: false, message: 'Surat tidak ditemukan.' });
+    await dbDriver.updateDoc('outward_letters', id, { status: 'Pending Approval', updatedAt: new Date().toISOString() });
+    const approvalId = await generateApprovalId('Surat');
+    const approval = cleanObjectForFirestore({ id: approvalId, module: 'Surat', title: `Persetujuan Surat Keluar: ${letter.letterNumber}`, description: `Perihal: ${letter.subject}. Ditujukan kepada: ${letter.recipient}.`, requestedBy: userName, requestedAt: new Date().toISOString().replace('T', ' ').slice(0, 16), status: 'Pending', referenceId: id, createdBy: userName, createdAt: new Date().toISOString(), deleted: false });
+    await dbDriver.setDoc('approvals', approvalId, approval);
+    await writeAuditLog({ userName, userRole, action: `Submit Surat Keluar untuk Approval: ${letter.letterNumber}. Approval ID: ${approvalId}`, module: 'Surat & Dokumen' });
+    res.json({ success: true, approvalId });
+  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+router.patch('/outward/:id/status', authenticateToken, async (req: any, res: Response) => {
+  const role = req.user?.role;
+  const { userName, userRole } = auditFromReq(req);
+  if (role !== 'Super Admin' && role !== 'Ketua Yayasan' && role !== 'Sekretaris') return res.status(403).json({ success: false, message: 'Hak akses terbatas.' });
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    await dbDriver.updateDoc('outward_letters', id, { status, updatedBy: userName, updatedAt: new Date().toISOString() });
+    await writeAuditLog({ userName, userRole, action: `Update Status Surat Keluar ${id} → ${status}`, module: 'Surat & Dokumen' });
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 export const lettersRouter = router;

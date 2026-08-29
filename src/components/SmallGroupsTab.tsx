@@ -22,10 +22,16 @@ import {
   Layout, 
   HeartHandshake, 
   Sliders, 
-  CheckSquare 
+  CheckSquare,
+  ExternalLink,
+  FolderOpen
 } from 'lucide-react';
 import { SmallGroup, MeetingLog, MaterialInfo, Member, InstitutionalProfile } from '../types';
 import { exportToCSV } from '../utils/export';
+
+const GDRIVE_KURIKULUM_URL = "https://drive.google.com/drive/folders/1z9WXkVgZUCNzZHOmyQKh3mBP0axvLxAg?usp=sharing";
+const MAX_KURIKULUM_UPLOAD_MB = 1;
+const MAX_KURIKULUM_UPLOAD_BYTES = MAX_KURIKULUM_UPLOAD_MB * 1024 * 1024;
 
 interface SmallGroupsTabProps {
   groups: SmallGroup[];
@@ -58,7 +64,7 @@ export default function SmallGroupsTab({
   profile,
   currentRole,
 }: SmallGroupsTabProps) {
-  const isEditable = ['Super Admin', 'Ketua Yayasan', 'Sekretaris', 'Staff'].includes(currentRole);
+  const isEditable = ['Super Admin', 'Ketua Yayasan', 'Pembina Yayasan', 'Sekretaris', 'Staff', 'Volunteer'].includes(currentRole);
 
   // Navigation inside groups
   const [activeSubView, setActiveSubView] = useState<'groups' | 'meetings' | 'materials'>('groups');
@@ -95,6 +101,7 @@ export default function SmallGroupsTab({
   const [uploadedFileName, setUploadedFileName] = useState('');
   const [pdfData, setPdfData] = useState<string>('');
   const [fileSizeStr, setFileSizeStr] = useState('');
+  const [materialExternalLink, setMaterialExternalLink] = useState('');
 
   // Function to create group
   const handleCreateGroup = (e: React.FormEvent) => {
@@ -196,7 +203,7 @@ export default function SmallGroupsTab({
     }
   };
 
-  // Handle PDF file selection & conversion to Base64
+  // Handle PDF file selection & conversion to Base64 (Max 1 MB)
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -204,8 +211,11 @@ export default function SmallGroupsTab({
       alert('Hanya file PDF yang diperbolehkan!');
       return;
     }
-    if (file.size > 750 * 1024) {
-      alert('Ukuran file PDF maksimal adalah 750 KB demi efisiensi database!');
+    if (file.size > MAX_KURIKULUM_UPLOAD_BYTES) {
+      alert(
+        `Ukuran file PDF "${file.name}" (${(file.size / (1024 * 1024)).toFixed(2)} MB) melebihi batas upload langsung ${MAX_KURIKULUM_UPLOAD_MB} MB agar database tetap ringan.\n\nSilakan unggah file PDF kurikulum ke Folder Google Drive Yayasan melalui tombol yang tersedia di formulir, lalu cantumkan tautan/link berkasnya.`
+      );
+      e.target.value = '';
       return;
     }
 
@@ -240,8 +250,9 @@ export default function SmallGroupsTab({
       title: materialTitle,
       category: materialCategory,
       description: materialDescription,
-      fileSize: fileSizeStr || 'Generated PDF',
+      fileSize: fileSizeStr || (materialExternalLink ? 'GDrive Link' : 'Generated PDF'),
       pdfData: pdfData || undefined,
+      externalLink: materialExternalLink.trim() || undefined,
     };
 
     onAddMaterial(newMaterial);
@@ -253,6 +264,7 @@ export default function SmallGroupsTab({
     setUploadedFileName('');
     setPdfData('');
     setFileSizeStr('');
+    setMaterialExternalLink('');
     setIsAddMaterialOpen(false);
     alert('Materi Kurikulum Berhasil Diupload & Tersimpan.');
   };
@@ -395,26 +407,26 @@ export default function SmallGroupsTab({
     <div className="space-y-6">
       
       {/* Tab Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Pembinaan Kelompok Kecil (CG)</h2>
-          <p className="text-xs text-slate-500">Tata laksana persekutuan kecil, kurikulum bimbingan, log absensi, & database pemimpin pembuat murid.</p>
+          <h2 className="text-xl font-bold text-slate-900">Pembinaan Kelompok Kecil (CG)</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Tata laksana persekutuan kecil, kurikulum bimbingan, log absensi, & direktori pemimpin pembuat murid.</p>
         </div>
         <div className="flex gap-2">
           {activeSubView === 'groups' && (
             <>
               <button 
                 onClick={handleExportCSV}
-                className="px-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm text-slate-600 hover:text-slate-800 transition-colors"
+                className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 rounded text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-xs text-slate-700 transition-colors"
               >
-                <Download className="w-4 h-4 text-emerald-600" /> Export CSV
+                <Download className="w-3.5 h-3.5 text-slate-600" /> Ekspor CSV
               </button>
               {isEditable && (
                 <button 
                   onClick={() => setIsAddGroupOpen(true)}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                 >
-                  <Plus className="w-4 h-4" /> Tambah Kelompok Kecil
+                  <Plus className="w-3.5 h-3.5" /> Tambah Kelompok
                 </button>
               )}
             </>
@@ -422,47 +434,47 @@ export default function SmallGroupsTab({
           {activeSubView === 'materials' && isEditable && (
             <button 
               onClick={() => setIsAddMaterialOpen(true)}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm"
+              className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
             >
-              <Plus className="w-4 h-4" /> Unggah Kurikulum / Materi
+              <Plus className="w-3.5 h-3.5" /> Unggah Kurikulum / Materi
             </button>
           )}
         </div>
       </div>
 
-      {/* Segmented Menu Control Redesign */}
-      <div className="bg-slate-50 border border-slate-200 p-1 rounded-2xl flex max-w-lg shadow-xs my-2">
+      {/* Segmented Menu Control */}
+      <div className="bg-slate-100 border border-slate-200 p-1 rounded-lg flex max-w-lg shadow-xs my-2">
         <button 
           onClick={() => setActiveSubView('groups')}
-          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 py-1.5 px-3 rounded text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
             activeSubView === 'groups' 
-              ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md transform scale-[1.01]' 
-              : 'text-slate-600 hover:text-indigo-650 hover:bg-slate-100/50'
+              ? 'bg-[#0c2340] text-white shadow-xs' 
+              : 'text-slate-700 hover:text-slate-900'
           }`}
         >
-          <Users className="w-4 h-4" />
+          <Users className="w-3.5 h-3.5" />
           <span>Kelompok Pemuridan</span>
         </button>
         <button 
           onClick={() => setActiveSubView('meetings')}
-          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 py-1.5 px-3 rounded text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
             activeSubView === 'meetings' 
-              ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md transform scale-[1.01]' 
-              : 'text-slate-600 hover:text-indigo-650 hover:bg-slate-100/50'
+              ? 'bg-[#0c2340] text-white shadow-xs' 
+              : 'text-slate-700 hover:text-slate-900'
           }`}
         >
-          <Calendar className="w-4 h-4" />
+          <Calendar className="w-3.5 h-3.5" />
           <span>Log Pertemuan</span>
         </button>
         <button 
           onClick={() => setActiveSubView('materials')}
-          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 py-1.5 px-3 rounded text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
             activeSubView === 'materials' 
-              ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md transform scale-[1.01]' 
-              : 'text-slate-600 hover:text-indigo-650 hover:bg-slate-100/50'
+              ? 'bg-[#0c2340] text-white shadow-xs' 
+              : 'text-slate-700 hover:text-slate-900'
           }`}
         >
-          <BookMarked className="w-4 h-4" />
+          <BookMarked className="w-3.5 h-3.5" />
           <span>Bahan Kurikulum</span>
         </button>
       </div>
@@ -476,13 +488,13 @@ export default function SmallGroupsTab({
             
             {/* Search Input bar */}
             <div className="relative">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-2 w-3.5 h-3.5 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="Cari Kelompok kecil..."
+                placeholder="Cari kelompok kecil, pemimpin, atau wilayah..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-1.5 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded text-xs bg-white text-slate-800 focus:outline-none focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340]"
               />
             </div>
 
@@ -494,55 +506,55 @@ export default function SmallGroupsTab({
                   <div 
                     key={group.id}
                     onClick={() => setSelectedGroup(group)}
-                    className={`bg-white p-5 rounded-2xl border transition-all cursor-pointer relative group flex flex-col justify-between ${
+                    className={`bg-white p-4 rounded-lg border transition-colors cursor-pointer relative group flex flex-col justify-between ${
                       selectedGroup?.id === group.id 
-                        ? 'border-indigo-500 shadow-md ring-1 ring-indigo-500/10' 
-                        : 'border-slate-100 hover:shadow-md shadow-xs'
+                        ? 'border-[#0c2340] ring-1 ring-[#0c2340] shadow-xs' 
+                        : 'border-slate-200 hover:border-slate-300 shadow-xs'
                     }`}
                   >
                     <div>
-                      <div className="flex justify-between items-start mb-3">
+                      <div className="flex justify-between items-start mb-2.5">
                         <div>
-                          <h3 className="font-bold text-slate-800 text-sm group-hover:text-indigo-600 transition-colors">{group.name}</h3>
-                          <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono font-bold mt-1 inline-block">{group.id}</span>
+                          <h3 className="font-bold text-slate-900 text-xs">{group.name}</h3>
+                          <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono font-semibold mt-1 inline-block border border-slate-200">{group.id}</span>
                         </div>
-                        <span className="text-[10px] text-indigo-700 font-semibold bg-indigo-50 px-2 py-0.5 rounded-md">
+                        <span className="text-[10px] text-slate-700 font-semibold bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
                           {group.region}
                         </span>
                       </div>
 
                       {/* Info details */}
-                      <div className="space-y-1.5 text-xs text-slate-600 my-4">
+                      <div className="space-y-1 text-xs text-slate-600 my-3">
                         <div className="flex items-center gap-1.5">
                           <User className="w-3.5 h-3.5 text-slate-400" />
-                          <span>PM (Pemimpin): <strong className="text-slate-800">{group.leaderName}</strong></span>
+                          <span>Pemimpin: <strong className="text-slate-800">{group.leaderName}</strong></span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 text-slate-400" />
-                          <span>Pertemuan: {group.meetingDay}, Jam {group.meetingTime} wib</span>
+                          <span>{group.meetingDay}, {group.meetingTime} WIB</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <MapPin className="w-3.5 h-3.5 text-slate-400 line-clamp-1" />
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           <span className="truncate">{group.location}</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="pt-3 border-t border-slate-50 flex items-center justify-between mt-auto">
-                      <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
-                        <Users className="w-4 h-4 text-slate-400" /> {grpMembersCount} Kader Tergabung
+                    <div className="pt-2.5 border-t border-slate-200 flex items-center justify-between mt-auto">
+                      <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
+                        <Users className="w-3.5 h-3.5 text-slate-400" /> {grpMembersCount} Kader
                       </span>
                       {isEditable && (
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (window.confirm('Apakah Anda yakin ingin menghapus kelompok sel ini?')) {
+                            if (window.confirm('Apakah Anda yakin ingin menghapus kelompok ini?')) {
                               onDeleteGroup(group.id);
                             }
                           }}
-                          className="text-[10px] text-red-500 hover:underline cursor-pointer"
+                          className="text-xs text-rose-700 hover:underline cursor-pointer font-medium"
                         >
-                          Hapus Kelompok
+                          Hapus
                         </button>
                       )}
                     </div>
@@ -553,55 +565,55 @@ export default function SmallGroupsTab({
           </div>
 
           {/* Group details & Members breakdown side widget */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
+          <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-5">
             {selectedGroup ? (
-              <div className="space-y-5">
-                <div className="text-center pb-4 border-b border-slate-50">
-                  <BookMarked className="w-10 h-10 text-indigo-500 mx-auto mb-2 animate-pulse" />
-                  <h3 className="font-bold text-slate-800 text-base">{selectedGroup.name}</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Staff Advisor: {selectedGroup.staffAdvisor}</p>
+              <div className="space-y-4">
+                <div className="text-center pb-3 border-b border-slate-200">
+                  <BookMarked className="w-8 h-8 text-[#0c2340] mx-auto mb-1.5" />
+                  <h3 className="font-bold text-slate-900 text-sm">{selectedGroup.name}</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Staff Pembina: {selectedGroup.staffAdvisor}</p>
                 </div>
 
                 {/* Anggota Kelompok Roster */}
                 <div>
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest font-mono mb-3">Daftar Roster Anggota</h4>
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5">Daftar Anggota</h4>
                   {activeGroupMembers.length > 0 ? (
-                    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
                       {activeGroupMembers.map(member => (
-                        <div key={member.id} className="p-2.5 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between hover:bg-slate-100/50 transition-all">
+                        <div key={member.id} className="p-2 bg-slate-50 border border-slate-200 rounded flex items-center justify-between hover:bg-slate-100 transition-colors">
                           <div>
                             <span className="font-semibold text-xs text-slate-800 block">{member.fullName}</span>
-                            <span className="text-[9px] font-mono font-medium text-slate-400">{member.id} &bull; {member.component}</span>
+                            <span className="text-[10px] font-mono text-slate-500">{member.id} &bull; {member.component}</span>
                           </div>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-100">{member.statusKeaktifan}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-semibold border border-emerald-200">{member.statusKeaktifan}</span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="p-4 bg-slate-50 rounded-xl text-center text-xs text-slate-400">
-                      Belum ada anggota yang dialokasikan ke kelompok kecil ini. Anda dapat mengalokasikan kelompok kecil di Profil Anggota.
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded text-center text-xs text-slate-500">
+                      Belum ada anggota di kelompok ini. Alokasikan di Profil Anggota.
                     </div>
                   )}
                 </div>
 
                 {isEditable && (
-                  <div className="pt-4 border-t border-slate-50 text-center">
+                  <div className="pt-3 border-t border-slate-200 text-center">
                     <button 
                       onClick={() => {
                         setMeetingMaterial('Pertumbuhan Rohani Kristen');
                         setIsAddMeetingOpen(true);
                         setActiveSubView('meetings');
                       }}
-                      className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-transparent rounded-xl text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-all"
+                      className="w-full py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                     >
-                      <CheckSquare className="w-4 h-4" /> Presensi Pertemuan Mingguan
+                      <CheckSquare className="w-3.5 h-3.5" /> Presensi Pertemuan Mingguan
                     </button>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="text-center py-12 text-slate-400 text-xs">
-                Silahkan pilih salah satu kelompok kecil untuk mengulas detail anggota & membuat catatan mingguan.
+              <div className="text-center py-10 text-slate-500 text-xs">
+                Pilih salah satu kelompok kecil untuk melihat detail anggota & membuat catatan pertemuan.
               </div>
             )}
           </div>
@@ -614,34 +626,34 @@ export default function SmallGroupsTab({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* List of past logged meetings */}
-          <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-            <h3 className="text-md font-semibold text-slate-800">Arsip Pertemuan Kelompok Kecil</h3>
+          <div className="lg:col-span-2 bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4">
+            <h3 className="text-sm font-bold text-slate-900">Arsip Pertemuan Kelompok Kecil</h3>
             
             <div className="divide-y divide-slate-100 max-h-160 overflow-y-auto">
               {meetings
                 .filter(m => {
                   const grp = groups.find(g => g.id === m.groupId);
-                  if (!grp) return false; // Hide orphan meeting logs if group is deleted
+                  if (!grp) return false;
                   return !selectedGroup || m.groupId === selectedGroup.id;
                 })
                 .map((meet) => {
                   const grp = groups.find(g => g.id === meet.groupId);
                   return (
-                    <div key={meet.id} className="py-4 hover:bg-slate-50/50 px-2 rounded-xl transition-all space-y-2">
+                    <div key={meet.id} className="py-3 hover:bg-slate-50 px-2 rounded transition-colors space-y-2">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h4 className="text-xs font-bold text-slate-800 font-mono tracking-tight uppercase text-indigo-700">Materi: {meet.materialName}</h4>
-                          <p className="text-[10px] text-slate-400 mt-0.5">Kelompok: <span className="text-slate-600 font-bold">{grp?.name}</span> &bull; Tgl: {meet.date}</p>
+                          <h4 className="text-xs font-bold text-slate-900 tracking-tight">Materi: {meet.materialName}</h4>
+                          <p className="text-xs text-slate-500 mt-0.5">Kelompok: <span className="text-slate-700 font-semibold">{grp?.name}</span> &bull; Tanggal: {meet.date}</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full border border-slate-200 font-bold">
-                            Attendance: {meet.attendance.length} Hadir
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 font-semibold">
+                            {meet.attendance.length} Hadir
                           </span>
                           <button
                             onClick={() => handleEditMeeting(meet)}
                             title="Edit Laporan"
                             type="button"
-                            className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                            className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors cursor-pointer"
                           >
                             <Edit className="w-3.5 h-3.5" />
                           </button>
@@ -651,19 +663,18 @@ export default function SmallGroupsTab({
                             }}
                             title="Hapus Laporan"
                             type="button"
-                            className="p-1 text-slate-400 hover:text-red-655 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                            className="p-1 text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
                           >
                             <Trash className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
-                      <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                      <p className="text-xs text-slate-700 leading-relaxed bg-slate-50 p-2.5 rounded border border-slate-200">
                         "{meet.notes}"
                       </p>
                       
-                      {/* Attendance list icons */}
-                      <div className="text-[10px] text-slate-400 font-medium">
-                        Kader hadir: <span className="text-slate-700 font-semibold">{
+                      <div className="text-xs text-slate-500 font-medium">
+                        Kader hadir: <span className="text-slate-800 font-semibold">{
                           meet.attendance.length > 0
                             ? meet.attendance.map(id => members.find(m => m.id === id)?.fullName || id).join(', ')
                             : 'Nihil / Belum didata'
@@ -676,38 +687,38 @@ export default function SmallGroupsTab({
           </div>
 
           {/* Form to submit a meeting presensi */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-           <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-1.5 border-b border-slate-50 pb-2">
+          <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
+           <h3 className="text-xs font-bold text-slate-900 mb-3.5 flex items-center gap-1.5 border-b border-slate-200 pb-2">
              {editingMeeting ? (
                <>
-                 <Edit className="w-4 h-4 text-indigo-500" /> Edit Laporan: {selectedGroup ? selectedGroup.name : 'Pilih Kelompok dulu'}
+                 <Edit className="w-3.5 h-3.5 text-slate-700" /> Edit Laporan: {selectedGroup ? selectedGroup.name : 'Pilih Kelompok'}
                </>
              ) : (
                <>
-                 <Plus className="w-4 h-4 text-indigo-500" /> Presensi Baru: {selectedGroup ? selectedGroup.name : 'Pilih Kelompok dulu'}
+                 <Plus className="w-3.5 h-3.5 text-slate-700" /> Presensi Baru: {selectedGroup ? selectedGroup.name : 'Pilih Kelompok'}
                </>
              )}
            </h3>
             {selectedGroup ? (
-              <form onSubmit={handleCreateMeeting} className="space-y-4 text-xs">
+              <form onSubmit={handleCreateMeeting} className="space-y-3.5 text-xs">
                 
                 <div>
-                  <label className="text-slate-500 block mb-1">Tanggal Kelompok Kecil :</label>
+                  <label className="text-slate-700 block mb-1 font-semibold">Tanggal Pertemuan :</label>
                   <input 
                     type="date"
                     value={meetingDate}
                     onChange={(e) => setMeetingDate(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="text-slate-500 block mb-1">Materi / Bab Modul yang Dibahas :</label>
+                  <label className="text-slate-700 block mb-1 font-semibold">Materi yang Dibahas :</label>
                   <select 
                     value={meetingMaterial}
                     onChange={(e) => setMeetingMaterial(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   >
                     {materials.map(m => (
                       <option key={m.id} value={m.title}>{m.title}</option>
@@ -715,58 +726,58 @@ export default function SmallGroupsTab({
                   </select>
                 </div>
 
-                {/* Checkbox attendance for each active roster */}
+                {/* Checkbox attendance */}
                 <div>
-                  <label className="text-slate-500 block mb-2 font-bold uppercase tracking-wider text-[10px]">Roster Absensi (Tick Hadir):</label>
+                  <label className="text-slate-700 block mb-1.5 font-bold uppercase tracking-wider text-[10px]">Daftar Hadir:</label>
                   {activeGroupMembers.length > 0 ? (
-                    <div className="space-y-2 border border-slate-100 p-2.5 rounded-xl max-h-48 overflow-y-auto">
+                    <div className="space-y-1.5 border border-slate-200 p-2 rounded max-h-48 overflow-y-auto bg-slate-50">
                       {activeGroupMembers.map(member => {
                         const isChecked = presentMembers.includes(member.id);
                         return (
-                          <label key={member.id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 p-1.5 rounded-lg">
+                          <label key={member.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-1.5 rounded transition-colors">
                             <input 
                               type="checkbox" 
                               checked={isChecked}
                               onChange={() => toggleAttendance(member.id)}
-                              className="accent-indigo-600 rounded"
+                              className="accent-[#0c2340] rounded"
                             />
                             <div>
-                              <span className="font-semibold text-slate-800 block">{member.fullName}</span>
-                              <span className="text-[9px] text-slate-400 font-mono">{member.id}</span>
+                              <span className="font-semibold text-slate-800 block text-xs">{member.fullName}</span>
+                              <span className="text-[10px] text-slate-500 font-mono">{member.id}</span>
                             </div>
                           </label>
                         );
                       })}
                     </div>
                   ) : (
-                    <p className="text-[10px] text-red-500 italic">Tambahkan anggota ke dalam CG dulu di tab "Directory" agar bisa diabsensi.</p>
+                    <p className="text-xs text-rose-700 italic">Tambahkan anggota ke dalam kelompok ini di tab "Direktori Anggota" terlebih dahulu.</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="text-slate-500 block mb-1">Catatan Pertemuan / Hambatan :</label>
+                  <label className="text-slate-700 block mb-1 font-semibold">Catatan Pertemuan :</label>
                   <textarea 
                     rows={3}
-                    placeholder="Contoh: Diskusi luar biasa hangat, Yusuf membagikan refleksi yang memicu teman-teman bersemangat..."
+                    placeholder="Catatan diskusi, perkembangan rohani, refleksi, dll..."
                     value={meetingNotes}
                     onChange={(e) => setMeetingNotes(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 leading-relaxed"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 leading-relaxed focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   />
                 </div>
 
-                 <div className="flex gap-2">
+                 <div className="flex gap-2 pt-1">
                    <button 
                      type="submit"
                      disabled={activeGroupMembers.length === 0}
-                     className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer disabled:bg-slate-300 disabled:cursor-not-allowed"
+                     className="flex-1 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:bg-slate-300 disabled:cursor-not-allowed"
                    >
-                     {editingMeeting ? 'Perbarui Log & Absensi' : 'Selesaikan Log & Absensi'}
+                     {editingMeeting ? 'Perbarui Log Pertemuan' : 'Simpan Presensi'}
                    </button>
                    {editingMeeting && (
                      <button 
                        type="button"
                        onClick={handleCancelEditMeeting}
-                       className="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer"
+                       className="px-3 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-xs font-medium shadow-xs transition-colors cursor-pointer"
                      >
                        Batal
                      </button>
@@ -774,8 +785,8 @@ export default function SmallGroupsTab({
                  </div>
               </form>
             ) : (
-              <div className="text-center py-6 text-slate-400 text-xs">
-                Pilih salah satu kelompok kecil di tab "Konfigurasi Kelompok" terlebih dahulu untuk mendata daftar presensi kader.
+              <div className="text-center py-6 text-slate-500 text-xs">
+                Pilih salah satu kelompok kecil terlebih dahulu.
               </div>
             )}
           </div>
@@ -785,48 +796,59 @@ export default function SmallGroupsTab({
 
       {/* SUBVIEW 3: CURRICULUM materials */}
       {activeSubView === 'materials' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4">
           <div>
-            <h3 className="text-md font-semibold text-slate-800">Kurikulum & Materi Pelayanan (Discipleship Library)</h3>
-            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Arsip bahan ajar resmi yang didistribusikan untuk bahan diskusi Kelompok Kecil MMB di semua tingkatan wilayah. Diakreditasi oleh Sekretariat Yayasan.
+            <h3 className="text-sm font-bold text-slate-900">Kurikulum & Materi Pelayanan (Discipleship Library)</h3>
+            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+              Arsip bahan ajar resmi yang didistribusikan untuk bahan diskusi Kelompok Kecil MMB di semua tingkatan wilayah.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {materials.map(material => (
-              <div key={material.id} className="p-5 border border-slate-100 rounded-2xl hover:shadow-md transition-all flex flex-col justify-between bg-slate-50/10">
+              <div key={material.id} className="p-4 border border-slate-200 rounded-lg hover:border-[#0c2340] transition-colors flex flex-col justify-between bg-white shadow-xs">
                 <div>
                   <div className="flex justify-between items-start mb-2">
-                    <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-bold px-2.5 py-0.5 rounded font-mono">
+                    <span className="bg-slate-100 border border-slate-300 text-slate-700 text-[10px] font-semibold px-2 py-0.5 rounded font-mono">
                       {material.category}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono font-medium">{material.fileSize}</span>
+                    <span className="text-xs text-slate-400 font-mono font-medium">{material.fileSize}</span>
                   </div>
-                  <h4 className="font-bold text-slate-800 text-sm">{material.title}</h4>
-                  <p className="text-xs text-slate-600 mt-2.5 leading-relaxed bg-slate-50/50 p-2.5 rounded-xl border border-slate-100/50">
+                  <h4 className="font-bold text-slate-900 text-xs">{material.title}</h4>
+                  <p className="text-xs text-slate-600 mt-2 leading-relaxed bg-slate-50 p-2.5 rounded border border-slate-200">
                     "{material.description}"
                   </p>
                 </div>
-                <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between">
-                  <span className="text-[10px] text-slate-400 font-medium">Bahan Versi Cetak: Tersedia</span>
-                  <div className="flex items-center gap-2">
+                <div className="pt-3 border-t border-slate-200 mt-3 flex items-center justify-between">
+                  <span className="text-[11px] text-slate-500 font-medium">Salinan Resmi</span>
+                  <div className="flex items-center gap-1.5">
+                    {material.externalLink && (
+                      <a 
+                        href={material.externalLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="py-1 px-2.5 bg-white hover:bg-slate-50 text-xs text-slate-700 font-medium border border-slate-300 rounded flex items-center gap-1 transition-colors cursor-pointer shadow-xs"
+                        title="Buka materi di Google Drive"
+                      >
+                        <ExternalLink className="w-3 h-3 text-slate-600" /> GDrive
+                      </a>
+                    )}
                     {isEditable && (
                       <button 
                         onClick={() => {
                           setDeleteConfirmMaterial(material);
                         }}
-                        className="p-1 px-3 bg-red-50 hover:bg-red-100 text-[10px] text-red-700 font-bold border border-red-100 rounded-lg flex items-center gap-1 hover:text-red-900 transition-colors cursor-pointer"
+                        className="py-1 px-2 bg-rose-50 hover:bg-rose-100 text-xs text-rose-700 font-medium border border-rose-200 rounded flex items-center gap-1 transition-colors cursor-pointer"
                         title="Hapus materi kurikulum ini"
                       >
-                        <Trash className="w-3 h-3 text-red-500" /> Hapus
+                        <Trash className="w-3 h-3" /> Hapus
                       </button>
                     )}
                     <button 
                       onClick={() => handleDownloadPDF(material)}
-                      className="p-1 px-3 bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-700 font-bold border border-slate-200 rounded-lg flex items-center gap-1 hover:text-indigo-600 transition-colors cursor-pointer"
+                      className="py-1 px-2.5 bg-[#0c2340] hover:bg-[#1b365d] text-xs text-white font-medium rounded flex items-center gap-1 transition-colors cursor-pointer shadow-xs"
                     >
-                      <Download className="w-3 h-3 text-indigo-500" /> Unduh PDF
+                      <Download className="w-3 h-3" /> Unduh PDF
                     </button>
                   </div>
                 </div>
@@ -838,37 +860,42 @@ export default function SmallGroupsTab({
 
       {/* MODAL: CREATE SMALL GROUP */}
       {isAddGroupOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden scale-95 transition-all">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-300 w-full max-w-md overflow-hidden my-8">
             
-            <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
+            <div className="bg-[#0c2340] px-5 py-3.5 text-white flex justify-between items-center">
               <div>
                 <dt className="text-sm font-bold">Tambah Kelompok Kecil Baru</dt>
-                <dd className="text-[11px] text-slate-300">Buat rintisan kelompok pemuridan baru di bawah naungan wilayah.</dd>
+                <dd className="text-xs text-slate-300 mt-0.5">Buat rintisan kelompok pemuridan baru di bawah naungan wilayah.</dd>
               </div>
-              <button onClick={() => setIsAddGroupOpen(false)} className="text-slate-400 hover:text-white cursor-pointer"><Plus className="w-5 h-5 rotate-45" /></button>
+              <button 
+                onClick={() => setIsAddGroupOpen(false)} 
+                className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
+              >
+                <Plus className="w-4 h-4 rotate-45" />
+              </button>
             </div>
 
-            <form onSubmit={handleCreateGroup} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleCreateGroup} className="p-5 space-y-3.5 text-xs">
               <div>
-                <label className="text-slate-500 block mb-1">Nama Kelompok Kecil (CG) :</label>
+                <label className="text-slate-700 block mb-1 font-semibold">Nama Kelompok Kecil (CG) :</label>
                 <input 
                   type="text" 
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
                   placeholder="Contoh: Tunas Kasih UGM"
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-500 block mb-1">Wilayah Pelayanan :</label>
+                  <label className="text-slate-700 block mb-1 font-semibold">Wilayah Pelayanan :</label>
                   <select 
                     value={groupRegion}
                     onChange={(e) => setGroupRegion(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-850"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   >
                     {(profile?.regions || ["Yogyakarta", "Surabaya", "Jakarta", "Bandung", "Medan"]).map((r, idx) => (
                       <option key={idx} value={r}>{r}</option>
@@ -876,36 +903,36 @@ export default function SmallGroupsTab({
                   </select>
                 </div>
                 <div>
-                  <label className="text-slate-500 block mb-1">Staff Advisor Pembina :</label>
+                  <label className="text-slate-700 block mb-1 font-semibold">Staff Advisor :</label>
                   <input 
                     type="text" 
                     value={groupStaff}
                     onChange={(e) => setGroupStaff(e.target.value)}
                     placeholder="Ahmad Faisal, S.Th."
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-slate-500 block mb-1">Nama Pemimpin PKK (Kader Senior) :</label>
+                <label className="text-slate-700 block mb-1 font-semibold">Nama Pemimpin (PKK) :</label>
                 <input 
                   type="text" 
                   value={groupLeader}
                   onChange={(e) => setGroupLeader(e.target.value)}
                   placeholder="Nama Lengkap Pemimpin..."
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-500 block mb-1">Hari Pertemuan rutin :</label>
+                  <label className="text-slate-700 block mb-1 font-semibold">Hari Pertemuan :</label>
                   <select 
                     value={groupDay}
                     onChange={(e) => setGroupDay(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-850"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   >
                     {(profile?.meetingDays || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]).map((day, idx) => (
                       <option key={idx} value={day}>{day}</option>
@@ -913,42 +940,42 @@ export default function SmallGroupsTab({
                   </select>
                 </div>
                 <div>
-                  <label className="text-slate-500 block mb-1">Jam Temu rutin (wib) :</label>
+                  <label className="text-slate-700 block mb-1 font-semibold">Waktu Temu (WIB) :</label>
                   <input 
                     type="text" 
                     value={groupTime}
                     onChange={(e) => setGroupTime(e.target.value)}
                     placeholder="17:00"
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-slate-500 block mb-1">Lokasi Pertemuan rutin :</label>
+                <label className="text-slate-700 block mb-1 font-semibold">Lokasi Pertemuan :</label>
                 <input 
                   type="text" 
                   value={groupLocation}
                   onChange={(e) => setGroupLocation(e.target.value)}
                   placeholder="Contoh: Perpustakaan UGM / Kost Wisma Salatiga"
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   required
                 />
               </div>
 
-              <div className="pt-4 border-t border-slate-50 flex justify-end gap-3.5">
+              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2.5">
                 <button 
                   type="button" 
                   onClick={() => setIsAddGroupOpen(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 font-semibold cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 rounded text-slate-700 font-medium cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   Batal
                 </button>
                 <button 
                   type="submit"
-                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+                  className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors"
                 >
-                  <Save className="w-4 h-4 inline mr-1" /> Simpan Kelompok kecil
+                  <Save className="w-3.5 h-3.5 inline mr-1" /> Simpan Kelompok
                 </button>
               </div>
 
@@ -960,13 +987,13 @@ export default function SmallGroupsTab({
 
       {/* MODAL: CREATE / UPLOAD MATERIAL */}
       {isAddMaterialOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden scale-95 transition-all">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-300 w-full max-w-md overflow-hidden my-8">
             
-            <div className="bg-indigo-900 px-6 py-4 text-white flex justify-between items-center">
+            <div className="bg-[#0c2340] px-5 py-3.5 text-white flex justify-between items-center">
               <div>
                 <dt className="text-sm font-bold">Unggah Kurikulum & Materi Baru</dt>
-                <dd className="text-[11px] text-indigo-200">Arsipkan bahan ajar KTB baru ke dalam Discipleship Library MMB.</dd>
+                <dd className="text-xs text-slate-300 mt-0.5">Arsipkan bahan ajar KTB baru ke dalam Discipleship Library MMB.</dd>
               </div>
               <button 
                 onClick={() => {
@@ -975,31 +1002,31 @@ export default function SmallGroupsTab({
                   setPdfData('');
                   setFileSizeStr('');
                 }} 
-                className="text-indigo-300 hover:text-white cursor-pointer"
+                className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
               >
-                <Plus className="w-5 h-5 rotate-45" />
+                <Plus className="w-4 h-4 rotate-45" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateMaterial} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleCreateMaterial} className="p-5 space-y-3.5 text-xs">
               <div>
-                <label className="text-slate-500 block mb-1">Judul Materi / Modul kurikulum :</label>
+                <label className="text-slate-700 block mb-1 font-semibold">Judul Materi / Modul :</label>
                 <input 
                   type="text" 
                   value={materialTitle}
                   onChange={(e) => setMaterialTitle(e.target.value)}
                   placeholder="Contoh: Bertumbuh dalam Karakter Kristus (Buku 3)"
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-slate-500 block mb-1">Kategori Sasaran Bimbingan :</label>
+                <label className="text-slate-700 block mb-1 font-semibold">Kategori Sasaran Bimbingan :</label>
                 <select 
                   value={materialCategory}
                   onChange={(e) => setMaterialCategory(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-850"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                 >
                   {(profile?.materialCategories || [
                     "Materi Dasar / Siswa",
@@ -1014,37 +1041,62 @@ export default function SmallGroupsTab({
               </div>
 
               <div>
-                <label className="text-slate-500 block mb-1">Deskripsi & Garis Besar Pembahasan :</label>
+                <label className="text-slate-700 block mb-1 font-semibold">Deskripsi & Garis Besar :</label>
                 <textarea 
                   rows={4}
                   value={materialDescription}
                   onChange={(e) => setMaterialDescription(e.target.value)}
-                  placeholder="Deskripsikan secara ringkas bab bimbingan ini, sasaran pembimbingan, referensi ayat firman tuhan, dll..."
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 leading-relaxed"
+                  placeholder="Deskripsikan secara ringkas bab bimbingan ini, sasaran pembimbingan, referensi firman..."
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 leading-relaxed focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   required
                 />
               </div>
 
+              {/* EXTERNAL LINK & GDRIVE HELPER */}
               <div>
-                <label className="text-slate-500 block mb-1">Lampiran File PDF (Maksimal 750 KB):</label>
-                <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-xl p-4 transition-colors cursor-pointer relative bg-slate-50 hover:bg-slate-100/30">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-slate-700 block font-semibold">
+                    Tautan Google Drive Kurikulum (Opsional) :
+                  </label>
+                  <a
+                    href={GDRIVE_KURIKULUM_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-semibold text-[#0c2340] hover:underline flex items-center gap-1"
+                    title="Buka Folder Google Drive Kurikulum MMB"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" /> Buka Folder GDrive <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <input
+                  type="url"
+                  placeholder="https://drive.google.com/... (Cantumkan tautan jika file PDF > 1 MB)"
+                  value={materialExternalLink}
+                  onChange={(e) => setMaterialExternalLink(e.target.value)}
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 text-xs font-mono text-slate-800 bg-white focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-700 block mb-1 font-semibold">Lampiran File PDF Langsung (Maks. 1 MB):</label>
+                <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 hover:border-[#0c2340] rounded p-4 transition-colors cursor-pointer relative bg-slate-50 hover:bg-slate-100">
                   <input 
                     type="file" 
                     accept="application/pdf"
                     onChange={handleFileChange}
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                   />
-                  <Download className="w-6 h-6 text-indigo-500 mb-1.5" />
-                  <span className="text-[11px] font-semibold text-slate-600 block text-center truncate max-w-[280px]">
-                    {uploadedFileName || 'Klik atau seret file PDF di sini'}
+                  <Download className="w-6 h-6 text-slate-400 mb-1" />
+                  <span className="text-xs font-semibold text-slate-700 block text-center truncate max-w-[280px]">
+                    {uploadedFileName || 'Klik atau seret file PDF di sini (≤ 1 MB)'}
                   </span>
-                  <span className="text-[9px] text-slate-400 mt-0.5 text-center px-1.5 block">
-                    Opsional. Jika tidak dilampirkan, sistem akan mengompilasi dan mensintesis PDF lembar modul secara otomatis saat diunduh.
+                  <span className="text-[11px] text-slate-500 mt-0.5 text-center px-1 block">
+                    Jika modul &gt; 1 MB, unggah ke Google Drive di atas & cantumkan tautannya.
                   </span>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-50 flex justify-end gap-3.5">
+              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2.5">
                 <button 
                   type="button" 
                   onClick={() => {
@@ -1052,16 +1104,17 @@ export default function SmallGroupsTab({
                     setUploadedFileName('');
                     setPdfData('');
                     setFileSizeStr('');
+                    setMaterialExternalLink('');
                   }}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 font-semibold cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 rounded text-slate-700 font-medium cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   Batal
                 </button>
                 <button 
                   type="submit"
-                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+                  className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors"
                 >
-                  <Save className="w-4 h-4 inline mr-1" /> Unggah & Simpan
+                  <Save className="w-3.5 h-3.5 inline mr-1" /> Unggah & Simpan
                 </button>
               </div>
 
@@ -1073,17 +1126,17 @@ export default function SmallGroupsTab({
 
       {/* CONFIRM MODAL: HAPUS PERTEMUAN */}
       {deleteConfirmMeeting && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden p-6 space-y-4">
-            <h3 className="text-lg font-bold text-slate-900">Konfirmasi Hapus Laporan Pertemuan</h3>
-            <p className="text-slate-500 text-xs leading-relaxed">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-300 w-full max-w-md overflow-hidden p-5 space-y-4">
+            <h3 className="text-sm font-bold text-slate-900">Konfirmasi Hapus Laporan Pertemuan</h3>
+            <p className="text-slate-600 text-xs leading-relaxed">
               Apakah Anda yakin ingin menghapus laporan pertemuan tanggal <strong>{deleteConfirmMeeting.date}</strong> untuk materi <strong>"{deleteConfirmMeeting.materialName}"</strong>? Tindakan ini tidak dapat dibatalkan.
             </p>
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setDeleteConfirmMeeting(null)}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs cursor-pointer"
+                className="px-4 py-2 border border-slate-300 rounded text-slate-700 font-medium text-xs cursor-pointer hover:bg-slate-50 transition-colors"
               >
                 Batal
               </button>
@@ -1095,7 +1148,7 @@ export default function SmallGroupsTab({
                   }
                   setDeleteConfirmMeeting(null);
                 }}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+                className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors"
               >
                 Ya, Hapus Laporan
               </button>
@@ -1106,17 +1159,17 @@ export default function SmallGroupsTab({
 
       {/* CONFIRM MODAL: HAPUS MATERI KURIKULUM */}
       {deleteConfirmMaterial && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden p-6 space-y-4">
-            <h3 className="text-lg font-bold text-slate-900">Konfirmasi Hapus Materi Kurikulum</h3>
-            <p className="text-slate-500 text-xs leading-relaxed">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-300 w-full max-w-md overflow-hidden p-5 space-y-4">
+            <h3 className="text-sm font-bold text-slate-900">Konfirmasi Hapus Materi Kurikulum</h3>
+            <p className="text-slate-600 text-xs leading-relaxed">
               Apakah Anda yakin ingin menghapus materi pengajaran kurikulum <strong className="text-slate-800">"{deleteConfirmMaterial.title}"</strong> ({deleteConfirmMaterial.category}) ini dari katalog kurikulum?
             </p>
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setDeleteConfirmMaterial(null)}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs cursor-pointer"
+                className="px-4 py-2 border border-slate-300 rounded text-slate-700 font-medium text-xs cursor-pointer hover:bg-slate-50 transition-colors"
               >
                 Batal
               </button>
@@ -1126,7 +1179,7 @@ export default function SmallGroupsTab({
                   onDeleteMaterial(deleteConfirmMaterial.id);
                   setDeleteConfirmMaterial(null);
                 }}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+                className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors"
               >
                 Ya, Hapus Materi
               </button>

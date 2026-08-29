@@ -5,11 +5,14 @@
 
 export type RoleType = 
   | 'Super Admin'
+  | 'Pembina Yayasan'
+  | 'Pengawas Yayasan'
   | 'Ketua Yayasan'
   | 'Bendahara'
   | 'Sekretaris'
   | 'Koordinator Wilayah'
-  | 'Staff';
+  | 'Staff'
+  | 'Volunteer';
 
 export interface UserPermission {
   module: string;
@@ -115,6 +118,7 @@ export interface MaterialInfo {
   description: string;
   fileSize?: string;
   pdfData?: string;
+  externalLink?: string;
 }
 
 export interface Transaction {
@@ -181,6 +185,7 @@ export interface CampaignDonation {
   date: string;
   channel: string; // Transfer Bank, Cash, dll
   notes?: string;
+  verifiedBy?: string;
 }
 
 export interface CustomPayrollField {
@@ -264,6 +269,7 @@ export interface LetterInward {
   subject: string; // Perihal
   receivedDate: string;
   attachmentUrl?: string;
+  externalLink?: string;
   status: 'Arsip' | 'Disposisi' | 'Tindak Lanjut';
 }
 
@@ -299,6 +305,7 @@ export interface OrgDocument {
   category: string;
   uploadedDate: string;
   fileSize: string;
+  externalLink?: string;
   deleted?: boolean;
 }
 
@@ -339,6 +346,7 @@ export interface InstitutionalProfile {
   partnerStatuses?: string[];
   partnerTypes?: string[];
   donationChannels?: Array<{ name: string; detail: string }>;
+  cutoffDay?: number; // Tanggal cut-off finansial & penggajian (default: 7)
   // Stamp and Role-based custom signatures
   stampUrl?: string;
   signatureChairmanUrl?: string;
@@ -437,6 +445,7 @@ export interface StaffTask {
   notes?: string;
   attachmentUrl?: string; // documents id
   attachmentName?: string;
+  externalLink?: string; // e.g. Google Drive URL for files > 1 MB
   parentTaskId?: string; // relation to another task
   createdAt: string;
   updatedAt: string;

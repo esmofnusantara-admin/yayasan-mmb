@@ -30,9 +30,11 @@ import {
   Edit,
   RotateCw,
   RotateCcw,
-  Image
+  Image,
+  Calendar
 } from 'lucide-react';
 import { InstitutionalProfile, AuditLog } from '../types';
+import { getCutoffPeriodRange, INDO_MONTHS } from '../utils/cutoff';
 
 interface SystemTabProps {
   profile: InstitutionalProfile;
@@ -131,8 +133,8 @@ export default function SystemTab({
 
   const handleUpdateStructureNode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentRole !== 'Super Admin' && currentRole !== 'Ketua Yayasan') {
-      alert('Akses Terbatas: Hanya Super Admin / Ketua Yayasan yang berhak mengubah struktur organisasi.');
+    if (currentRole !== 'Super Admin' && currentRole !== 'Ketua Yayasan' && currentRole !== 'Pembina Yayasan') {
+      alert('Akses Terbatas: Hanya Super Admin / Ketua / Pembina Yayasan yang berhak mengubah struktur organisasi.');
       return;
     }
 
@@ -192,8 +194,8 @@ export default function SystemTab({
 
   const handleCreateStructureNode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentRole !== 'Super Admin' && currentRole !== 'Ketua Yayasan') {
-      alert('Akses Terbatas: Hanya Super Admin / Ketua Yayasan yang berhak menambahkan struktur baru.');
+    if (currentRole !== 'Super Admin' && currentRole !== 'Ketua Yayasan' && currentRole !== 'Pembina Yayasan') {
+      alert('Akses Terbatas: Hanya Super Admin / Ketua / Pembina Yayasan yang berhak menambahkan struktur baru.');
       return;
     }
 
@@ -271,8 +273,8 @@ export default function SystemTab({
   };
 
   const handleDeleteStructureNode = async (nodeId: string) => {
-    if (currentRole !== 'Super Admin' && currentRole !== 'Ketua Yayasan') {
-      alert('Akses Terbatas: Hanya Super Admin / Ketua Yayasan yang berhak menghapus struktur.');
+    if (currentRole !== 'Super Admin' && currentRole !== 'Ketua Yayasan' && currentRole !== 'Pembina Yayasan') {
+      alert('Akses Terbatas: Hanya Super Admin / Ketua / Pembina Yayasan yang berhak menghapus struktur.');
       return;
     }
 
@@ -477,6 +479,7 @@ export default function SystemTab({
       { name: "Dana Cash (Fisik)", detail: "Tunai / Cash Fisik" }
     ]
   );
+  const [cutoffDay, setCutoffDay] = useState<number>(profile.cutoffDay || 7);
 
   // Temporary single input text fields for adding items
   const [newRegion, setNewRegion] = useState('');
@@ -603,6 +606,7 @@ export default function SystemTab({
         { name: "Transfer BNI", detail: "BNI 0928-x" },
         { name: "Dana Cash (Fisik)", detail: "Tunai / Cash Fisik" }
       ]);
+      setCutoffDay(profile.cutoffDay || 7);
       
       lastSyncedProfileRef.current = profile;
     } else if (matchesCurrentProfileProp) {
@@ -707,8 +711,8 @@ export default function SystemTab({
 
   const handleUpdateProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentRole !== 'Super Admin' && currentRole !== 'Ketua Yayasan') {
-      alert('Akses Terbatas: Hanya Super Admin / Ketua Yayasan yang berhak mengubah identitas hukum lembaga.');
+    if (currentRole !== 'Super Admin' && currentRole !== 'Ketua Yayasan' && currentRole !== 'Pembina Yayasan') {
+      alert('Akses Terbatas: Hanya Super Admin / Ketua / Pembina Yayasan yang berhak mengubah identitas hukum lembaga.');
       return;
     }
     const updated: InstitutionalProfile = {
@@ -730,6 +734,7 @@ export default function SystemTab({
       signatureTreasurerUrl,
       customSignatures,
       logoUrl,
+      cutoffDay,
     };
     onUpdateProfile(updated);
     setIsSignatureDirty(false);
@@ -738,8 +743,8 @@ export default function SystemTab({
 
   const handleSaveVariables = (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentRole !== 'Super Admin' && currentRole !== 'Ketua Yayasan') {
-      alert('Akses Terbatas: Hanya Super Admin / Ketua Yayasan yang berhak memodifikasi parameter utilitas sistem.');
+    if (currentRole !== 'Super Admin' && currentRole !== 'Ketua Yayasan' && currentRole !== 'Pembina Yayasan') {
+      alert('Akses Terbatas: Hanya Super Admin / Ketua / Pembina Yayasan yang berhak memodifikasi parameter utilitas sistem.');
       return;
     }
     const updated: InstitutionalProfile = {
@@ -770,10 +775,14 @@ export default function SystemTab({
       memberComponents,
       partnerStatuses,
       partnerTypes,
-      donationChannels
+      donationChannels,
+      cutoffDay
     };
     onUpdateProfile(updated);
-    alert('Sukses: Konfigurasi variabel kustom dan utilitas judul berhasil diperbarui & disimpan!');
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem('esm_target_payroll_day', String(cutoffDay));
+    }
+    alert('Sukses: Konfigurasi variabel kustom, siklus cut-off, dan utilitas judul berhasil diperbarui & disimpan!');
   };
 
   const handleCreateOperator = async (e: React.FormEvent) => {
@@ -781,9 +790,9 @@ export default function SystemTab({
     setFormError(null);
     setFormSuccess(null);
 
-    const isAuthorized = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan';
+    const isAuthorized = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan';
     if (!isAuthorized) {
-      setFormError('Akses Ditolak: Hanya Super Admin atau Ketua Yayasan yang dapat menambahkan akun operator.');
+      setFormError('Akses Ditolak: Hanya Super Admin, Pembina, atau Ketua Yayasan yang dapat menambahkan akun operator.');
       return;
     }
 
@@ -868,9 +877,9 @@ export default function SystemTab({
   };
 
   const handleToggleFeature = async (userEmail: string, featureId: string) => {
-    const isAuthorized = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan';
+    const isAuthorized = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan';
     if (!isAuthorized) {
-      alert('Akses Terbatas: Hanya Super Admin atau Ketua Yayasan yang dapat mengubah konfigurasi checklist hak akses.');
+      alert('Akses Terbatas: Hanya Super Admin, Pembina, atau Ketua Yayasan yang dapat mengubah konfigurasi checklist hak akses.');
       return;
     }
 
@@ -919,9 +928,9 @@ export default function SystemTab({
   };
 
   const handleApproveOperator = async (userEmail: string) => {
-    const isAuthorized = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan';
+    const isAuthorized = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan';
     if (!isAuthorized) {
-      alert('Akses Terbatas: Hanya Super Admin atau Ketua Yayasan yang dapat menyetujui akun operator baru.');
+      alert('Akses Terbatas: Hanya Super Admin, Pembina, atau Ketua Yayasan yang dapat menyetujui akun operator baru.');
       return;
     }
 
@@ -995,9 +1004,9 @@ export default function SystemTab({
   };
 
   const handleDeleteOperator = async (userEmail: string, userRole: string) => {
-    const isAuthorized = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan';
+    const isAuthorized = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan';
     if (!isAuthorized) {
-      alert('Akses Terbatas: Hanya Ketua Yayasan atau Super Admin yang dapat menonaktifkan operator.');
+      alert('Akses Terbatas: Hanya Ketua Yayasan, Pembina, atau Super Admin yang dapat menonaktifkan operator.');
       return;
     }
 
@@ -1179,182 +1188,181 @@ export default function SystemTab({
     <div className="space-y-6">
       
       {/* Config buttons bar */}
-      <div className="flex flex-wrap gap-2 p-1.5 bg-slate-100 rounded-xl max-w-full">
+      <div className="flex flex-wrap gap-1.5 p-1.5 bg-slate-100 rounded-lg border border-slate-200 max-w-full">
         <button 
           onClick={() => setActiveSubView('profile')}
-          className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-            activeSubView === 'profile' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+          className={`px-3.5 py-2 rounded text-xs font-semibold cursor-pointer transition-colors ${
+            activeSubView === 'profile' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
           }`}
         >
           Profil Institusi & Legalitas
         </button>
         <button 
           onClick={() => setActiveSubView('structure')}
-          className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-            activeSubView === 'structure' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+          className={`px-3.5 py-2 rounded text-xs font-semibold cursor-pointer transition-colors ${
+            activeSubView === 'structure' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
           }`}
         >
           Struktur Organisasi (Interaktif)
         </button>
-        {/* NEW OPERATORS TAB COLLABORATION CHECKLIST */}
         <button 
           onClick={() => setActiveSubView('operators')}
-          className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-all ${
-            activeSubView === 'operators' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+          className={`px-3.5 py-2 rounded text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-colors ${
+            activeSubView === 'operators' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
           }`}
         >
-          <UserCheck className="w-3.5 h-3.5 text-indigo-505" /> Hak Akses Operator & Checklist
+          <UserCheck className="w-3.5 h-3.5" /> Hak Akses Operator & Checklist
         </button>
         <button 
           onClick={() => setActiveSubView('variables')}
-          className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-all ${
-            activeSubView === 'variables' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+          className={`px-3.5 py-2 rounded text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-colors ${
+            activeSubView === 'variables' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
           }`}
           title="Konfigurasi Dapatkan dropdown dinamis & ubah judul sistem"
         >
-          <Sliders className="w-3.5 h-3.5 text-indigo-505" /> Variabel & Utilitas Judul
+          <Sliders className="w-3.5 h-3.5" /> Variabel & Utilitas Judul
         </button>
         <button 
           onClick={() => setActiveSubView('audit')}
-          className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1 transition-all ${
-            activeSubView === 'audit' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+          className={`px-3.5 py-2 rounded text-xs font-semibold cursor-pointer flex items-center gap-1 transition-colors ${
+            activeSubView === 'audit' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
           }`}
         >
-          <Terminal className="w-3.5 h-3.5 text-indigo-500 animate-pulse" /> Audit Trail Logs
+          <Terminal className="w-3.5 h-3.5" /> Audit Trail Logs
         </button>
       </div>
 
       {/* SUBVIEW 1: LEGAL PROFILE FORM */}
       {activeSubView === 'profile' && (
-        <form onSubmit={handleUpdateProfile} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6 text-xs text-left">
-          <div>
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1"><Building className="w-4 h-4 text-indigo-650" /> Identitas Hukum Yayasan MMB</h3>
-            <p className="text-slate-500 text-[11px] mt-0.5">Identitas ini otomatis disematkan pada slip gaji pegawai, kepala surat keluar, dan laporan fundraising donor.</p>
+        <form onSubmit={handleUpdateProfile} className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-5 text-xs text-left">
+          <div className="pb-3 border-b border-slate-200">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5"><Building className="w-4 h-4 text-slate-700" /> Identitas Hukum Yayasan MMB</h3>
+            <p className="text-slate-500 text-xs mt-0.5">Identitas ini otomatis disematkan pada slip gaji pegawai, kepala surat keluar, dan laporan fundraising donor.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-slate-500 block mb-1 font-semibold">Nama Resmi Yayasan :</label>
+              <label className="text-slate-600 block mb-1 font-semibold text-xs">Nama Resmi Yayasan :</label>
               <input 
                 type="text" 
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold text-sm bg-slate-50"
+                className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-900 font-bold text-xs bg-slate-50"
                 disabled
               />
             </div>
             <div>
-              <label className="text-slate-500 block mb-1 font-semibold">Nomor Pokok Wajib Pajak (NPWP) :</label>
+              <label className="text-slate-600 block mb-1 font-semibold text-xs">Nomor Pokok Wajib Pajak (NPWP) :</label>
               <input 
                 type="text" 
                 value={npwp}
                 onChange={(e) => setNpwp(e.target.value)}
                 placeholder="12.345.678.9-012.000"
-                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono"
+                className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 font-mono text-xs focus:outline-none focus:border-[#0c2340]"
               />
             </div>
 
             <div>
-              <label className="text-slate-500 block mb-1 font-semibold">E-mail Hubungan Publik :</label>
+              <label className="text-slate-600 block mb-1 font-semibold text-xs">E-mail Hubungan Publik :</label>
               <input 
                 type="email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 text-xs focus:outline-none focus:border-[#0c2340]"
               />
             </div>
             <div>
-              <label className="text-slate-500 block mb-1 font-semibold">Telepon Sekretariat :</label>
+              <label className="text-slate-600 block mb-1 font-semibold text-xs">Telepon Sekretariat :</label>
               <input 
                 type="text" 
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 text-xs focus:outline-none focus:border-[#0c2340]"
               />
             </div>
 
             <div className="sm:col-span-2">
-              <label className="text-slate-500 block mb-1 font-semibold">SK Menkumham Legalitas Akta :</label>
+              <label className="text-slate-600 block mb-1 font-semibold text-xs">SK Menkumham Legalitas Akta :</label>
               <input 
                 type="text" 
                 value={skLegal}
                 onChange={(e) => setSkLegal(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono"
+                className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 font-mono text-xs focus:outline-none focus:border-[#0c2340]"
               />
             </div>
 
             <div className="sm:col-span-2">
-              <label className="text-slate-500 block mb-1 font-semibold"><MapPin className="w-3.5 h-3.5 inline mr-0.5 text-red-500" /> Alamat Kantor Pusat :</label>
+              <label className="text-slate-600 block mb-1 font-semibold text-xs"><MapPin className="w-3.5 h-3.5 inline mr-0.5 text-slate-700" /> Alamat Kantor Pusat :</label>
               <input 
                 type="text" 
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-850"
+                className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 text-xs focus:outline-none focus:border-[#0c2340]"
                 required
               />
             </div>
 
             {/* CONFIG KOP SURAT DYNAMIC FIELDS */}
-            <div className="sm:col-span-2 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/70 space-y-3 mt-2">
-              <h4 className="font-bold text-slate-850 text-xs flex items-center gap-1.5 uppercase tracking-wide">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 block animate-pulse"></span>
+            <div className="sm:col-span-2 bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3 mt-1">
+              <h4 className="font-bold text-slate-900 text-xs flex items-center gap-1.5 uppercase tracking-wider">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#0c2340] block"></span>
                 Kustomisasi Kop Surat Resmi (Letterhead PDF Headings)
               </h4>
-              <p className="text-slate-500 text-[10px] sm:text-[11px]">
-                Ubah isi teks Baris 1 & Baris 2 (Motto) pada kop surat di PDF secara instan ("non-static"). Bagian logo, alamat, email, telepon, dan website di atas juga otomatis berubah menyesuaikan identitas hukum ini.
+              <p className="text-slate-600 text-xs">
+                Ubah isi teks Baris 1 & Baris 2 (Motto) pada kop surat di PDF. Bagian logo, alamat, email, telepon, dan website di atas juga otomatis berubah menyesuaikan identitas hukum ini.
               </p>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-600 block mb-1 font-semibold text-[10px]">Nama Organisasi Kop Surat (Baris 1):</label>
+                  <label className="text-slate-700 block mb-1 font-semibold text-xs">Nama Organisasi Kop Surat (Baris 1):</label>
                   <input 
                     type="text" 
                     value={kopTitle}
                     onChange={(e) => setKopTitle(e.target.value)}
                     placeholder="EVANGELICAL STUDENT MOVEMENT"
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-900 font-bold bg-white text-xs focus:outline-none focus:border-[#0c2340]"
                   />
                 </div>
                 <div>
-                  <label className="text-slate-600 block mb-1 font-semibold text-[10px]">Motto / Tagline Organisasi (Baris 2):</label>
+                  <label className="text-slate-700 block mb-1 font-semibold text-xs">Motto / Tagline Organisasi (Baris 2):</label>
                   <input 
                     type="text" 
                     value={kopMotto}
                     onChange={(e) => setKopMotto(e.target.value)}
                     placeholder="Kabar baik. Pemuridan. Misi."
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-850 bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 bg-white text-xs focus:outline-none focus:border-[#0c2340]"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="sm:col-span-2 border-t border-slate-100/70 pt-4 mt-2 space-y-6">
+            <div className="sm:col-span-2 border-t border-slate-200 pt-4 mt-2 space-y-4">
               <div>
-                <label className="text-slate-800 block mb-1 font-bold text-xs uppercase tracking-wide">
+                <label className="text-slate-900 block mb-0.5 font-bold text-xs uppercase tracking-wider">
                   Media, Stempel Resmi, & Tanda Tangan Lembaga
                 </label>
-                <p className="text-slate-500 text-[11px]">
+                <p className="text-slate-500 text-xs">
                   Unggah berkas gambar transparan (.png / .jpg) untuk disisipkan otomatis di kop surat, slip gaji, dan dokumen resmi lainnya.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* LOGO RESMI YAYASAN */}
-                <div className="bg-slate-50/50 p-4 border border-slate-200/60 rounded-2xl flex flex-col justify-between">
+                <div className="bg-slate-50 p-4 border border-slate-200 rounded-lg flex flex-col justify-between space-y-3">
                   <div>
-                    <label className="text-slate-700 block mb-1 font-bold text-[11px] uppercase tracking-wide flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block"></span>
+                    <label className="text-slate-800 block mb-0.5 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0c2340] inline-block"></span>
                       Logo Resmi Yayasan / Organisasi
                     </label>
-                    <p className="text-slate-400 text-[10px] mb-3">Ditampilkan di header sistem & Kop Surat resmi.</p>
+                    <p className="text-slate-500 text-[11px]">Ditampilkan di header sistem & Kop Surat resmi.</p>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     {logoUrl ? (
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-center relative group w-32 h-24 overflow-hidden shadow-sm">
-                          <img src={logoUrl} alt="Logo Resmi" className="max-h-20 max-w-full object-contain" referrerPolicy="no-referrer" />
-                          <label className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200 cursor-pointer text-[10px] font-bold gap-1">
+                      <div className="flex flex-col items-center gap-1.5">
+                        <div className="bg-white border border-slate-200 rounded p-2 flex items-center justify-center relative group w-28 h-20 overflow-hidden shadow-2xs">
+                          <img src={logoUrl} alt="Logo Resmi" className="max-h-16 max-w-full object-contain" referrerPolicy="no-referrer" />
+                          <label className="absolute inset-0 bg-slate-900/80 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-150 cursor-pointer text-[10px] font-semibold gap-1">
                             <input
                               type="file"
                               accept="image/*"
@@ -1372,11 +1380,11 @@ export default function SystemTab({
                             Ganti Logo
                           </label>
                         </div>
-                        <div className="flex items-center gap-1.5 mt-1 font-semibold text-[9px] text-slate-500">
+                        <div className="flex items-center gap-1.5 font-medium text-[10px] text-slate-500">
                           <button
                             type="button"
                             onClick={() => handleRotateImage(logoUrl, setLogoUrl, 'ccw')}
-                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            className="p-1 hover:bg-slate-200/70 rounded text-slate-600 cursor-pointer"
                             title="Putar CCW"
                           >
                             <RotateCcw className="w-3 h-3" />
@@ -1384,7 +1392,7 @@ export default function SystemTab({
                           <button
                             type="button"
                             onClick={() => handleRotateImage(logoUrl, setLogoUrl, 'cw')}
-                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            className="p-1 hover:bg-slate-200/70 rounded text-slate-600 cursor-pointer"
                             title="Putar CW"
                           >
                             <RotateCw className="w-3 h-3" />
@@ -1393,14 +1401,14 @@ export default function SystemTab({
                           <button
                             type="button"
                             onClick={() => { setLogoUrl(''); setIsSignatureDirty(true); }}
-                            className="p-1 text-red-600 hover:bg-red-50 hover:text-red-700 rounded cursor-pointer font-bold"
+                            className="p-1 text-rose-700 hover:underline cursor-pointer font-semibold"
                           >
                             Hapus
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div className="w-32 h-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-100/50 transition-colors relative cursor-pointer group">
+                      <div className="w-28 h-20 border-2 border-dashed border-slate-300 rounded flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-50 transition-colors relative cursor-pointer group">
                         <input
                           type="file"
                           accept="image/*"
@@ -1414,33 +1422,33 @@ export default function SystemTab({
                           }}
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                         />
-                        <Image className="w-5 h-5 mb-1 text-slate-400 group-hover:text-indigo-505 transition-colors" />
-                        <span className="text-[10px] font-semibold text-slate-500">Pilih Logo</span>
-                        <span className="text-[7.5px] text-slate-400">PNG / JPG transparan</span>
+                        <Image className="w-4 h-4 mb-0.5 text-slate-400 group-hover:text-slate-600" />
+                        <span className="text-[10px] font-semibold text-slate-600">Pilih Logo</span>
+                        <span className="text-[8px] text-slate-400">PNG / JPG</span>
                       </div>
                     )}
-                    <div className="flex-1 text-[10px] text-slate-500 leading-snug">
-                      Unggah logo yayasan agar tercetak otomatis di kop surat legal dan kop gaji pegawai yayasan.
+                    <div className="flex-1 text-[11px] text-slate-500 leading-snug">
+                      Unggah logo yayasan agar tercetak otomatis di kop surat legal dan kop slip gaji pegawai.
                     </div>
                   </div>
                 </div>
 
                 {/* STEMPEL RESMI YAYASAN */}
-                <div className="bg-slate-50/50 p-4 border border-slate-200/60 rounded-2xl flex flex-col justify-between">
+                <div className="bg-slate-50 p-4 border border-slate-200 rounded-lg flex flex-col justify-between space-y-3">
                   <div>
-                    <label className="text-slate-700 block mb-1 font-bold text-[11px] uppercase tracking-wide flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>
+                    <label className="text-slate-800 block mb-0.5 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0c2340] inline-block"></span>
                       Stempel Resmi Yayasan MMB
                     </label>
-                    <p className="text-slate-400 text-[10px] mb-3">Akan dicetak di belakang tanda tangan (Pihak Kiri/Ketua) pada PDF.</p>
+                    <p className="text-slate-500 text-[11px]">Akan dicetak di belakang tanda tangan (Pihak Kiri/Ketua) pada PDF.</p>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     {stampUrl ? (
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-center relative group w-32 h-24 overflow-hidden shadow-sm">
-                          <img src={stampUrl} alt="Stempel Resmi" className="max-h-20 max-w-full object-contain" />
-                          <label className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200 cursor-pointer text-[10px] font-bold gap-1">
+                      <div className="flex flex-col items-center gap-1.5">
+                        <div className="bg-white border border-slate-200 rounded p-2 flex items-center justify-center relative group w-28 h-20 overflow-hidden shadow-2xs">
+                          <img src={stampUrl} alt="Stempel Resmi" className="max-h-16 max-w-full object-contain" />
+                          <label className="absolute inset-0 bg-slate-900/80 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-150 cursor-pointer text-[10px] font-semibold gap-1">
                             <input
                               type="file"
                               accept="image/*"
@@ -1458,11 +1466,11 @@ export default function SystemTab({
                             Ganti Stempel
                           </label>
                         </div>
-                        <div className="flex items-center gap-1.5 mt-1 font-semibold text-[9px] text-slate-500">
+                        <div className="flex items-center gap-1.5 font-medium text-[10px] text-slate-500">
                           <button
                             type="button"
                             onClick={() => handleRotateImage(stampUrl, setStampUrl, 'ccw')}
-                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            className="p-1 hover:bg-slate-200/70 rounded text-slate-600 cursor-pointer"
                             title="Putar CCW"
                           >
                             <RotateCcw className="w-3 h-3" />
@@ -1470,7 +1478,7 @@ export default function SystemTab({
                           <button
                             type="button"
                             onClick={() => handleRotateImage(stampUrl, setStampUrl, 'cw')}
-                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            className="p-1 hover:bg-slate-200/70 rounded text-slate-600 cursor-pointer"
                             title="Putar CW"
                           >
                             <RotateCw className="w-3 h-3" />
@@ -1479,14 +1487,14 @@ export default function SystemTab({
                           <button
                             type="button"
                             onClick={() => { setStampUrl(''); setIsSignatureDirty(true); }}
-                            className="p-1 text-red-600 hover:bg-red-50 hover:text-red-700 rounded cursor-pointer font-bold"
+                            className="p-1 text-rose-700 hover:underline cursor-pointer font-semibold"
                           >
                             Hapus
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div className="w-32 h-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-100/50 transition-colors relative cursor-pointer group">
+                      <div className="w-28 h-20 border-2 border-dashed border-slate-300 rounded flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-50 transition-colors relative cursor-pointer group">
                         <input
                           type="file"
                           accept="image/*"
@@ -1500,33 +1508,33 @@ export default function SystemTab({
                           }}
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                         />
-                        <Image className="w-5 h-5 mb-1 text-slate-400 group-hover:text-indigo-505 transition-colors" />
-                        <span className="text-[10px] font-semibold text-slate-500">Pilih Berkas</span>
-                        <span className="text-[7.5px] text-slate-400">PNG Transparan</span>
+                        <Image className="w-4 h-4 mb-0.5 text-slate-400 group-hover:text-slate-600" />
+                        <span className="text-[10px] font-semibold text-slate-600">Pilih Berkas</span>
+                        <span className="text-[8px] text-slate-400">PNG Transparan</span>
                       </div>
                     )}
-                    <div className="flex-1 text-[10px] text-slate-500 leading-snug">
-                      Gunakan stempel berwarna biru/ungu berlatar belakang transparan agar menyatu dengan baik pada surat.
+                    <div className="flex-1 text-[11px] text-slate-500 leading-snug">
+                      Gunakan stempel berlatar belakang transparan agar menyatu dengan baik pada surat resmi.
                     </div>
                   </div>
                 </div>
 
                 {/* KETUA YAYASAN */}
-                <div className="bg-slate-50/50 p-4 border border-slate-200/60 rounded-2xl flex flex-col justify-between">
+                <div className="bg-slate-50 p-4 border border-slate-200 rounded-lg flex flex-col justify-between space-y-3">
                   <div>
-                    <label className="text-slate-700 block mb-1 font-bold text-[11px] uppercase tracking-wide flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+                    <label className="text-slate-800 block mb-0.5 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0c2340] inline-block"></span>
                       Tanda Tangan Ketua ({ketuaNameResolved})
                     </label>
-                    <p className="text-slate-400 text-[10px] mb-3">Tanda tangan resmi Ketua Yayasan MMB.</p>
+                    <p className="text-slate-500 text-[11px]">Tanda tangan resmi Ketua Yayasan MMB.</p>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     {signatureChairmanUrl ? (
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-center relative group w-32 h-24 overflow-hidden shadow-sm">
-                          <img src={signatureChairmanUrl} alt="TTD Ketua" className="max-h-20 max-w-full object-contain" />
-                          <label className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200 cursor-pointer text-[10px] font-bold gap-1">
+                      <div className="flex flex-col items-center gap-1.5">
+                        <div className="bg-white border border-slate-200 rounded p-2 flex items-center justify-center relative group w-28 h-20 overflow-hidden shadow-2xs">
+                          <img src={signatureChairmanUrl} alt="TTD Ketua" className="max-h-16 max-w-full object-contain" />
+                          <label className="absolute inset-0 bg-slate-900/80 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-150 cursor-pointer text-[10px] font-semibold gap-1">
                             <input
                               type="file"
                               accept="image/*"
@@ -1544,11 +1552,11 @@ export default function SystemTab({
                             Ganti TTD
                           </label>
                         </div>
-                        <div className="flex items-center gap-1.5 mt-1 font-semibold text-[9px] text-slate-500">
+                        <div className="flex items-center gap-1.5 font-medium text-[10px] text-slate-500">
                           <button
                             type="button"
                             onClick={() => handleRotateImage(signatureChairmanUrl, setSignatureChairmanUrl, 'ccw')}
-                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            className="p-1 hover:bg-slate-200/70 rounded text-slate-600 cursor-pointer"
                             title="Putar CCW"
                           >
                             <RotateCcw className="w-3 h-3" />
@@ -1556,7 +1564,7 @@ export default function SystemTab({
                           <button
                             type="button"
                             onClick={() => handleRotateImage(signatureChairmanUrl, setSignatureChairmanUrl, 'cw')}
-                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            className="p-1 hover:bg-slate-200/70 rounded text-slate-600 cursor-pointer"
                             title="Putar CW"
                           >
                             <RotateCw className="w-3 h-3" />
@@ -1565,14 +1573,14 @@ export default function SystemTab({
                           <button
                             type="button"
                             onClick={() => { setSignatureChairmanUrl(''); setIsSignatureDirty(true); }}
-                            className="p-1 text-red-600 hover:bg-red-50 hover:text-red-700 rounded cursor-pointer font-bold"
+                            className="p-1 text-rose-700 hover:underline cursor-pointer font-semibold"
                           >
                             Hapus
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div className="w-32 h-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-100/50 transition-colors relative cursor-pointer group">
+                      <div className="w-28 h-20 border-2 border-dashed border-slate-300 rounded flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-50 transition-colors relative cursor-pointer group">
                         <input
                           type="file"
                           accept="image/*"
@@ -1586,33 +1594,33 @@ export default function SystemTab({
                           }}
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                         />
-                        <Image className="w-5 h-5 mb-1 text-slate-450 group-hover:text-indigo-505 transition-colors" />
-                        <span className="text-[10px] font-semibold text-slate-500">Pilih Berkas</span>
-                        <span className="text-[7.5px] text-slate-400">PNG Transparan</span>
+                        <Image className="w-4 h-4 mb-0.5 text-slate-400 group-hover:text-slate-600" />
+                        <span className="text-[10px] font-semibold text-slate-600">Pilih Berkas</span>
+                        <span className="text-[8px] text-slate-400">PNG Transparan</span>
                       </div>
                     )}
-                    <div className="flex-1 text-[10px] text-slate-500 leading-snug">
+                    <div className="flex-1 text-[11px] text-slate-500 leading-snug">
                       Tanda tangan digital Ketua Yayasan yang akan disisipkan ex-officio pada surat keluar Pihak Kiri.
                     </div>
                   </div>
                 </div>
 
                 {/* SEKRETARIS YAYASAN */}
-                <div className="bg-slate-50/50 p-4 border border-slate-200/60 rounded-2xl flex flex-col justify-between">
+                <div className="bg-slate-50 p-4 border border-slate-200 rounded-lg flex flex-col justify-between space-y-3">
                   <div>
-                    <label className="text-slate-700 block mb-1 font-bold text-[11px] uppercase tracking-wide flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-555 inline-block"></span>
+                    <label className="text-slate-800 block mb-0.5 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0c2340] inline-block"></span>
                       Tanda Tangan Sekretaris ({sekretarisNameResolved})
                     </label>
-                    <p className="text-slate-400 text-[10px] mb-3">Tanda tangan resmi Sekretaris Yayasan MMB.</p>
+                    <p className="text-slate-500 text-[11px]">Tanda tangan resmi Sekretaris Yayasan MMB.</p>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     {signatureSecretaryUrl ? (
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-center relative group w-32 h-24 overflow-hidden shadow-sm">
-                          <img src={signatureSecretaryUrl} alt="TTD Sekretaris" className="max-h-20 max-w-full object-contain" />
-                          <label className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200 cursor-pointer text-[10px] font-bold gap-1">
+                      <div className="flex flex-col items-center gap-1.5">
+                        <div className="bg-white border border-slate-200 rounded p-2 flex items-center justify-center relative group w-28 h-20 overflow-hidden shadow-2xs">
+                          <img src={signatureSecretaryUrl} alt="TTD Sekretaris" className="max-h-16 max-w-full object-contain" />
+                          <label className="absolute inset-0 bg-slate-900/80 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-150 cursor-pointer text-[10px] font-semibold gap-1">
                             <input
                               type="file"
                               accept="image/*"
@@ -1630,11 +1638,11 @@ export default function SystemTab({
                             Ganti TTD
                           </label>
                         </div>
-                        <div className="flex items-center gap-1.5 mt-1 font-semibold text-[9px] text-slate-500">
+                        <div className="flex items-center gap-1.5 font-medium text-[10px] text-slate-500">
                           <button
                             type="button"
                             onClick={() => handleRotateImage(signatureSecretaryUrl, setSignatureSecretaryUrl, 'ccw')}
-                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            className="p-1 hover:bg-slate-200/70 rounded text-slate-600 cursor-pointer"
                             title="Putar CCW"
                           >
                             <RotateCcw className="w-3 h-3" />
@@ -1642,7 +1650,7 @@ export default function SystemTab({
                           <button
                             type="button"
                             onClick={() => handleRotateImage(signatureSecretaryUrl, setSignatureSecretaryUrl, 'cw')}
-                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            className="p-1 hover:bg-slate-200/70 rounded text-slate-600 cursor-pointer"
                             title="Putar CW"
                           >
                             <RotateCw className="w-3 h-3" />
@@ -1651,14 +1659,14 @@ export default function SystemTab({
                           <button
                             type="button"
                             onClick={() => { setSignatureSecretaryUrl(''); setIsSignatureDirty(true); }}
-                            className="p-1 text-red-600 hover:bg-red-50 hover:text-red-700 rounded cursor-pointer font-bold"
+                            className="p-1 text-rose-700 hover:underline cursor-pointer font-semibold"
                           >
                             Hapus
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div className="w-32 h-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-100/50 transition-colors relative cursor-pointer group">
+                      <div className="w-28 h-20 border-2 border-dashed border-slate-300 rounded flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-50 transition-colors relative cursor-pointer group">
                         <input
                           type="file"
                           accept="image/*"
@@ -1672,33 +1680,33 @@ export default function SystemTab({
                           }}
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                         />
-                        <Image className="w-5 h-5 mb-1 text-slate-450 group-hover:text-indigo-505 transition-colors" />
-                        <span className="text-[10px] font-semibold text-slate-500">Pilih Berkas</span>
-                        <span className="text-[7.5px] text-slate-400">PNG Transparan</span>
+                        <Image className="w-4 h-4 mb-0.5 text-slate-400 group-hover:text-slate-600" />
+                        <span className="text-[10px] font-semibold text-slate-600">Pilih Berkas</span>
+                        <span className="text-[8px] text-slate-400">PNG Transparan</span>
                       </div>
                     )}
-                    <div className="flex-1 text-[10px] text-slate-500 leading-snug">
+                    <div className="flex-1 text-[11px] text-slate-500 leading-snug">
                       Tanda tangan digital Sekretaris yang akan disisipkan ex-officio pada surat keluar Pihak Kanan.
                     </div>
                   </div>
                 </div>
 
                 {/* BENDAHARA / SLIP GAJI */}
-                <div className="bg-slate-50/50 p-4 border border-slate-200/60 rounded-2xl flex flex-col justify-between">
+                <div className="bg-slate-50 p-4 border border-slate-200 rounded-lg flex flex-col justify-between space-y-3">
                   <div>
-                    <label className="text-slate-700 block mb-1 font-bold text-[11px] uppercase tracking-wide flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block"></span>
-                      Tanda Tangan Bendahara / Slip Gaji
+                    <label className="text-slate-800 block mb-0.5 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0c2340] inline-block"></span>
+                      Tanda Tangan Bendahara ({bendaharaNameResolved})
                     </label>
-                    <p className="text-slate-400 text-[10px] mb-3">Tanda tangan resmi Bendahara Yayasan ({bendaharaNameResolved}).</p>
+                    <p className="text-slate-500 text-[11px]">Tanda tangan resmi Bendahara Yayasan untuk slip gaji.</p>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     {signatureTreasurerUrl || signatureUrl ? (
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-center relative group w-32 h-24 overflow-hidden shadow-sm">
-                          <img src={signatureTreasurerUrl || signatureUrl} alt="TTD Bendahara" className="max-h-20 max-w-full object-contain" />
-                          <label className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200 cursor-pointer text-[10px] font-bold gap-1">
+                      <div className="flex flex-col items-center gap-1.5">
+                        <div className="bg-white border border-slate-200 rounded p-2 flex items-center justify-center relative group w-28 h-20 overflow-hidden shadow-2xs">
+                          <img src={signatureTreasurerUrl || signatureUrl} alt="TTD Bendahara" className="max-h-16 max-w-full object-contain" />
+                          <label className="absolute inset-0 bg-slate-900/80 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-150 cursor-pointer text-[10px] font-semibold gap-1">
                             <input
                               type="file"
                               accept="image/*"
@@ -1717,7 +1725,7 @@ export default function SystemTab({
                             Ganti TTD
                           </label>
                         </div>
-                        <div className="flex items-center gap-1.5 mt-1 font-semibold text-[9px] text-slate-500">
+                        <div className="flex items-center gap-1.5 font-medium text-[10px] text-slate-500">
                           <button
                             type="button"
                             onClick={() => {
@@ -1727,7 +1735,7 @@ export default function SystemTab({
                                 setSignatureUrl(newVal);
                               }, 'ccw');
                             }}
-                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            className="p-1 hover:bg-slate-200/70 rounded text-slate-600 cursor-pointer"
                             title="Putar CCW"
                           >
                             <RotateCcw className="w-3 h-3" />
@@ -1741,7 +1749,7 @@ export default function SystemTab({
                                 setSignatureUrl(newVal);
                               }, 'cw');
                             }}
-                            className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center gap-0.5"
+                            className="p-1 hover:bg-slate-200/70 rounded text-slate-600 cursor-pointer"
                             title="Putar CW"
                           >
                             <RotateCw className="w-3 h-3" />
@@ -1750,14 +1758,14 @@ export default function SystemTab({
                           <button
                             type="button"
                             onClick={() => { setSignatureTreasurerUrl(''); setSignatureUrl(''); setIsSignatureDirty(true); }}
-                            className="p-1 text-red-600 hover:bg-red-50 hover:text-red-700 rounded cursor-pointer font-bold"
+                            className="p-1 text-rose-700 hover:underline cursor-pointer font-semibold"
                           >
                             Hapus
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div className="w-32 h-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-100/50 transition-colors relative cursor-pointer group">
+                      <div className="w-28 h-20 border-2 border-dashed border-slate-300 rounded flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-50 transition-colors relative cursor-pointer group">
                         <input
                           type="file"
                           accept="image/*"
@@ -1772,12 +1780,12 @@ export default function SystemTab({
                           }}
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                         />
-                        <Image className="w-5 h-5 mb-1 text-slate-450 group-hover:text-indigo-505 transition-colors" />
-                        <span className="text-[10px] font-semibold text-slate-500">Pilih Berkas</span>
-                        <span className="text-[7.5px] text-slate-400">PNG Transparan</span>
+                        <Image className="w-4 h-4 mb-0.5 text-slate-400 group-hover:text-slate-600" />
+                        <span className="text-[10px] font-semibold text-slate-600">Pilih Berkas</span>
+                        <span className="text-[8px] text-slate-400">PNG Transparan</span>
                       </div>
                     )}
-                    <div className="flex-1 text-[10px] text-slate-500 leading-snug">
+                    <div className="flex-1 text-[11px] text-slate-500 leading-snug">
                       Tanda tangan digital Bendahara yang akan disisipkan otomatis di lembar slip gaji karyawan.
                     </div>
                   </div>
@@ -1785,30 +1793,30 @@ export default function SystemTab({
               </div>
 
               {/* TANDA TANGAN TAMBAHAN CUSTOM */}
-              <div className="border-t border-slate-100/70 pt-6 mt-4 space-y-4">
+              <div className="border-t border-slate-200 pt-4 mt-4 space-y-3">
                 <div>
-                  <h4 className="text-slate-800 font-bold text-xs uppercase tracking-wide">
+                  <h4 className="text-slate-900 font-bold text-xs uppercase tracking-wider">
                     Tanda Tangan Pengurus Tambahan (Fakultatif)
                   </h4>
-                  <p className="text-slate-500 text-[10.5px]">
+                  <p className="text-slate-500 text-xs">
                     Tambahkan slot tanda tangan digital untuk posisi atau jabatan lain dari Struktur Organisasi (misal: Koordinator Wilayah, Staf Lapangan, dll).
                   </p>
                 </div>
 
                 {/* List of custom signatures uploaded */}
                 {customSignatures && customSignatures.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {customSignatures.map((cs) => {
                       const matchedNode = orgTree?.find(node => node.id === cs.nodeId);
                       const displayTitle = matchedNode?.title || cs.title || 'Jabatan';
                       const displayName = matchedNode?.name || cs.name || 'Nama';
 
                       return (
-                        <div key={cs.id} className="bg-slate-50/50 p-4 border border-slate-200/60 rounded-2xl flex flex-col justify-between">
-                          <div className="mb-2">
-                            <label className="text-slate-700 block mb-1 font-bold text-[11px] uppercase tracking-wide flex items-center justify-between">
+                        <div key={cs.id} className="bg-slate-50 p-4 border border-slate-200 rounded-lg flex flex-col justify-between space-y-3">
+                          <div>
+                            <label className="text-slate-800 block mb-0.5 font-bold text-xs uppercase tracking-wider flex items-center justify-between">
                               <span className="flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block"></span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#0c2340] inline-block"></span>
                                 {displayTitle} ({displayName})
                               </span>
                               <button
@@ -1817,20 +1825,20 @@ export default function SystemTab({
                                   setCustomSignatures(prev => prev.filter(item => item.id !== cs.id));
                                   setIsSignatureDirty(true);
                                 }}
-                                className="text-red-600 hover:text-red-700 font-bold text-[9px] cursor-pointer transition-colors bg-red-50 hover:bg-red-100/60 px-1.5 py-0.5 rounded uppercase"
+                                className="text-rose-700 hover:text-rose-800 font-semibold text-[10px] cursor-pointer"
                               >
                                 Hapus Slot
                               </button>
                             </label>
-                            <p className="text-slate-400 text-[10px]">Tanda tangan resmi tambahan untuk {displayTitle}.</p>
+                            <p className="text-slate-500 text-[11px]">Tanda tangan resmi tambahan untuk {displayTitle}.</p>
                           </div>
 
-                          <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-3">
                             {cs.signatureUrl ? (
-                              <div className="flex flex-col items-center gap-2">
-                                <div className="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-center relative group w-32 h-24 overflow-hidden shadow-sm">
-                                  <img src={cs.signatureUrl} alt={`TTD ${displayTitle}`} className="max-h-20 max-w-full object-contain" />
-                                  <label className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200 cursor-pointer text-[10px] font-bold gap-1">
+                              <div className="flex flex-col items-center gap-1.5">
+                                <div className="bg-white border border-slate-200 rounded p-2 flex items-center justify-center relative group w-28 h-20 overflow-hidden shadow-2xs">
+                                  <img src={cs.signatureUrl} alt={`TTD ${displayTitle}`} className="max-h-16 max-w-full object-contain" />
+                                  <label className="absolute inset-0 bg-slate-900/80 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-150 cursor-pointer text-[10px] font-semibold gap-1">
                                     <input
                                       type="file"
                                       accept="image/*"
@@ -1848,7 +1856,7 @@ export default function SystemTab({
                                     Ganti TTD
                                   </label>
                                 </div>
-                                <div className="flex items-center gap-1.5 mt-1 font-semibold text-[9px] text-slate-500">
+                                <div className="flex items-center gap-1.5 font-medium text-[10px] text-slate-500">
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -1857,10 +1865,10 @@ export default function SystemTab({
                                         setIsSignatureDirty(true);
                                       }, 'ccw');
                                     }}
-                                    className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center justify-center"
+                                    className="p-1 hover:bg-slate-200/70 rounded text-slate-600 cursor-pointer"
                                     title="Putar CCW"
                                   >
-                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    <RotateCcw className="w-3 h-3" />
                                   </button>
                                   <button
                                     type="button"
@@ -1870,10 +1878,10 @@ export default function SystemTab({
                                         setIsSignatureDirty(true);
                                       }, 'cw');
                                     }}
-                                    className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer flex items-center justify-center"
+                                    className="p-1 hover:bg-slate-200/70 rounded text-slate-600 cursor-pointer"
                                     title="Putar CW"
                                   >
-                                    <RotateCw className="w-3.5 h-3.5" />
+                                    <RotateCw className="w-3 h-3" />
                                   </button>
                                   <span className="text-slate-300">|</span>
                                   <button
@@ -1882,14 +1890,14 @@ export default function SystemTab({
                                       setCustomSignatures(prev => prev.map(item => item.id === cs.id ? { ...item, signatureUrl: '' } : item));
                                       setIsSignatureDirty(true);
                                     }}
-                                    className="p-1 text-red-650 hover:bg-red-50 hover:text-red-700 rounded cursor-pointer font-bold"
+                                    className="p-1 text-rose-700 hover:underline cursor-pointer font-semibold"
                                   >
                                     Hapus
                                   </button>
                                 </div>
                               </div>
                             ) : (
-                              <div className="w-32 h-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-100/50 transition-colors relative cursor-pointer group">
+                              <div className="w-28 h-20 border-2 border-dashed border-slate-300 rounded flex flex-col items-center justify-center text-slate-400 bg-white hover:bg-slate-50 transition-colors relative cursor-pointer group">
                                 <input
                                   type="file"
                                   accept="image/*"
@@ -1903,12 +1911,12 @@ export default function SystemTab({
                                   }}
                                   className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                                 />
-                                <Image className="w-5 h-5 mb-1 text-slate-400 group-hover:text-indigo-500 transition-colors" />
-                                <span className="text-[10px] font-semibold text-slate-500">Pilih Berkas</span>
-                                <span className="text-[7.5px] text-slate-400">PNG Transparan</span>
+                                <Image className="w-4 h-4 mb-0.5 text-slate-400 group-hover:text-slate-600" />
+                                <span className="text-[10px] font-semibold text-slate-600">Pilih Berkas</span>
+                                <span className="text-[8px] text-slate-400">PNG Transparan</span>
                               </div>
                             )}
-                            <div className="flex-1 text-[10px] text-slate-500 leading-snug">
+                            <div className="flex-1 text-[11px] text-slate-500 leading-snug">
                               Tanda tangan digital {displayTitle} yang akan ditarik ex-officio jika dipilih pada modul surat.
                             </div>
                           </div>
@@ -1917,21 +1925,21 @@ export default function SystemTab({
                     })}
                   </div>
                 ) : (
-                  <div className="text-center py-6 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
-                    <p className="text-[11px] text-slate-400 font-medium">Belum ada tanda tangan tambahan yang dibuat. Pilih dari jabatan struktur di bawah untuk menambahkan.</p>
+                  <div className="text-center py-5 border border-dashed border-slate-300 rounded bg-slate-50 text-slate-500 text-xs">
+                    Belum ada tanda tangan tambahan yang dibuat. Pilih dari jabatan struktur di bawah untuk menambahkan.
                   </div>
                 )}
 
                 {/* Add Custom Signature input row */}
-                <div className="bg-slate-550/5 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-end gap-3 text-left">
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 flex flex-col sm:flex-row items-end gap-3 text-left">
                   <div className="flex-1 w-full">
-                    <label className="text-[10.5px] font-bold text-slate-705 block mb-1">
+                    <label className="text-[10px] font-bold text-slate-700 block mb-1 uppercase tracking-wider">
                       PILIH POSISI STRUKTUR UNTUK DIBERIKAN AKSES TANDA TANGAN:
                     </label>
                     <select
                       value={selectedCustomNodeId}
                       onChange={(e) => setSelectedCustomNodeId(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-none text-slate-700 font-medium h-9"
+                      className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 font-medium focus:outline-none focus:border-[#0c2340]"
                     >
                       <option value="">-- Pilih dari Struktur Organisasi --</option>
                       {orgTree && orgTree
@@ -1967,7 +1975,7 @@ export default function SystemTab({
                       setSelectedCustomNodeId('');
                       setIsSignatureDirty(true);
                     }}
-                    className="px-5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-xs cursor-pointer transition-all border border-indigo-100 shrink-0 w-full sm:w-auto h-9 flex items-center justify-center"
+                    className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs cursor-pointer transition-colors shadow-xs shrink-0 w-full sm:w-auto h-[32px] flex items-center justify-center"
                   >
                     + Buat Slot Tanda Tangan
                   </button>
@@ -1975,11 +1983,11 @@ export default function SystemTab({
               </div>
 
               {isSignatureDirty && (
-                <div className="mt-2 p-2.5 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-[10.5px] font-medium flex items-start gap-2 animate-pulse shadow-sm">
-                  <span className="text-sm font-bold leading-none text-amber-605">⚠️</span>
+                <div className="p-3 bg-amber-50 rounded border border-amber-200 text-amber-900 text-xs font-medium flex items-start gap-2">
+                  <span className="font-bold">⚠️</span>
                   <div>
                     <strong>Perubahan Belum Disimpan!</strong>
-                    <p className="text-[9.5px] mt-0.5 text-amber-750">
+                    <p className="text-[11px] mt-0.5 text-amber-800">
                       Anda harus menekan tombol <strong>"Simpan Identitas Lembaga"</strong> di bagian bawah untuk menyimpan gambar/media stempel dan tanda tangan baru.
                     </p>
                   </div>
@@ -1988,10 +1996,10 @@ export default function SystemTab({
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-50 flex justify-end">
+          <div className="pt-4 border-t border-slate-200 flex justify-end">
             <button 
               type="submit"
-              className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl cursor-pointer transition-colors"
+              className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs cursor-pointer transition-colors shadow-xs"
             >
               Simpan Identitas Lembaga
             </button>
@@ -2001,94 +2009,94 @@ export default function SystemTab({
 
       {/* SUBVIEW 2: DYNAMIC ORGANIZATIONAL STRUCTURE */}
       {activeSubView === 'structure' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6 text-left">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-5 text-left text-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
             <div>
-              <h3 className="text-sm font-bold text-slate-800">Visual Bagan Struktur Organisasi & Pengambil Keputusan</h3>
+              <h3 className="text-sm font-bold text-slate-900">Visual Bagan Struktur Organisasi & Pengambil Keputusan</h3>
               <p className="text-xs text-slate-500 mt-0.5">Pilih salah satu tingkatan hierarki untuk mempelajari hak otorisasi dan rantai komando internal MMB.</p>
             </div>
             
-            {(currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan') && (
+            {(currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan') && (
               <button
                 onClick={() => setIsAddingNode(!isAddingNode)}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm shrink-0"
+                className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs shrink-0"
               >
-                <PlusCircle className="w-4 h-4" />
+                <PlusCircle className="w-3.5 h-3.5" />
                 <span>{isAddingNode ? 'Batal Tambah' : 'Tambah Jabatan Baru'}</span>
               </button>
             )}
           </div>
 
           {/* Form to add new structural node */}
-          {isAddingNode && (currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan') && (
-            <form onSubmit={handleCreateStructureNode} className="p-5 bg-indigo-50/50 border border-indigo-100 rounded-2xl space-y-4 text-xs">
-              <div className="border-b border-indigo-100 pb-2">
-                <h4 className="font-bold text-slate-800">Formulir Penambahan Jabatan / Struktur Baru</h4>
-                <p className="text-[10px] text-slate-500">Isi data di bawah ini untuk menghubungkan tingkatan hierarki baru.</p>
+          {isAddingNode && (currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan') && (
+            <form onSubmit={handleCreateStructureNode} className="p-4 bg-slate-50 border border-slate-200 rounded space-y-3">
+              <div className="border-b border-slate-200 pb-2">
+                <h4 className="font-bold text-slate-900 text-xs">Formulir Penambahan Jabatan / Struktur Baru</h4>
+                <p className="text-[11px] text-slate-500">Isi data di bawah ini untuk menghubungkan tingkatan hierarki baru.</p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="text-slate-650 font-semibold mb-1 block">ID Jabatan (Unik, misal: wakil_ketua):</label>
+                  <label className="text-slate-700 font-semibold mb-1 block text-xs">ID Jabatan (misal: wakil_ketua):</label>
                   <input
                     type="text"
                     value={newNodeId}
                     onChange={(e) => setNewNodeId(e.target.value)}
                     placeholder="contoh: wakil_ketua"
-                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-mono"
+                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 font-mono focus:outline-none focus:border-[#0c2340]"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-slate-655 font-semibold mb-1 block">Gelar Jabatan :</label>
+                  <label className="text-slate-700 font-semibold mb-1 block text-xs">Gelar Jabatan :</label>
                   <input
                     type="text"
                     value={newNodeTitle}
                     onChange={(e) => setNewNodeTitle(e.target.value)}
                     placeholder="contoh: Wakil Ketua Bidang Pelayanan"
-                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-slate-655 font-semibold mb-1 block">Nama Pengurus/Staf :</label>
+                  <label className="text-slate-700 font-semibold mb-1 block text-xs">Nama Pengurus/Staf :</label>
                   <input
                     type="text"
                     value={newNodeName}
                     onChange={(e) => setNewNodeName(e.target.value)}
                     placeholder="contoh: Samuel Pratama, M.Div."
-                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
                     required
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div className="sm:col-span-1">
-                  <label className="text-slate-655 font-semibold mb-1 block">Urutan Tampilan (Angka):</label>
+                  <label className="text-slate-700 font-semibold mb-1 block text-xs">Urutan Tampilan (Angka):</label>
                   <input
                     type="number"
                     value={newNodeOrder}
                     onChange={(e) => setNewNodeOrder(Number(e.target.value) || 100)}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
                     required
                   />
-                  <span className="text-[9px] text-slate-400">Ketua (10), Sekretaris (20), Bendahara (30), dst. Pasang nilai di antaranya untuk menyisipkan.</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Ketua (10), Sekretaris (20), Bendahara (30), dst.</span>
                 </div>
                 <div className="sm:col-span-3">
-                  <label className="text-slate-655 font-semibold mb-1 block">Deskripsi Tugas & Hak Komando :</label>
+                  <label className="text-slate-700 font-semibold mb-1 block text-xs">Deskripsi Tugas & Hak Komando :</label>
                   <input
                     type="text"
                     value={newNodeSub}
                     onChange={(e) => setNewNodeSub(e.target.value)}
                     placeholder="Sebutkan wewenang, kewenangan persetujuan budget, audit internal, atau pendampingan..."
-                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
                     required
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => {
@@ -2099,27 +2107,27 @@ export default function SystemTab({
                     setNewNodeSub('');
                     setNewNodeOrder(100);
                   }}
-                  className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg cursor-pointer"
+                  className="px-3 py-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded text-xs cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSavingTree}
-                  className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  className="px-3.5 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50 shadow-xs"
                 >
-                  {isSavingTree && <RefreshCw className="w-3 animate-spin" />}
+                  {isSavingTree && <RefreshCw className="w-3 h-3 animate-spin" />}
                   <span>Simpan Struktur Baru</span>
                 </button>
               </div>
             </form>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
             
             {/* Tree nodes (Chart layout) */}
             <div className="space-y-2 max-w-sm mx-auto w-full relative">
-              <div className="absolute top-4 bottom-4 left-6 w-0.5 bg-slate-205 pointer-events-none"></div>
+              <div className="absolute top-4 bottom-4 left-6 w-0.5 bg-slate-200 pointer-events-none"></div>
 
               {orgTree.map((node) => {
                 if (!node) return null;
@@ -2128,21 +2136,21 @@ export default function SystemTab({
                   <div 
                     key={node.id} 
                     onClick={() => setActiveNodeId(node.id)}
-                    className={`ml-4 pl-8 pr-4 py-3 rounded-xl border transition-all cursor-pointer relative ${
-                      isSelected ? 'bg-indigo-600 text-white border-indigo-600 shadow-md scale-102 font-bold' : 
-                      'bg-slate-50 border-slate-100 text-slate-800 hover:bg-slate-100'
+                    className={`ml-4 pl-7 pr-3.5 py-2.5 rounded border transition-colors cursor-pointer relative ${
+                      isSelected ? 'bg-[#0c2340] text-white border-[#0c2340] shadow-xs font-semibold' : 
+                      'bg-white border-slate-200 text-slate-800 hover:bg-slate-50'
                     }`}
                   >
-                    <div className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1.5 w-3 h-3 rounded-full border-2 ${
-                      isSelected ? 'bg-white border-indigo-600' : 'bg-slate-200 border-slate-300'
+                    <div className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1.5 w-2.5 h-2.5 rounded-full border ${
+                      isSelected ? 'bg-white border-[#0c2340]' : 'bg-slate-200 border-slate-300'
                     }`} />
                     
                     <div className="flex justify-between items-center gap-1">
-                      <span className={`text-[9px] uppercase font-mono tracking-widest block font-bold truncate ${
-                        isSelected ? 'text-indigo-200' : 'text-slate-400'
+                      <span className={`text-[9px] uppercase tracking-wider block font-bold truncate ${
+                        isSelected ? 'text-slate-300' : 'text-slate-500'
                       }`}>{node.title}</span>
-                      <span className={`text-[9px] font-mono shrink-0 px-1.5 py-0.5 rounded ${
-                        isSelected ? 'bg-indigo-700/50 text-indigo-100' : 'bg-slate-200/50 text-slate-550'
+                      <span className={`text-[9px] font-mono shrink-0 px-1 py-0.2 rounded ${
+                        isSelected ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600'
                       }`}>
                         #{node.order || 100}
                       </span>
@@ -2154,62 +2162,62 @@ export default function SystemTab({
             </div>
 
             {/* Structure info block */}
-            <div className="p-6 bg-slate-50 border border-slate-150 rounded-2xl flex flex-col justify-between min-h-[300px]">
+            <div className="p-5 bg-slate-50 border border-slate-200 rounded-lg flex flex-col justify-between min-h-[300px]">
               {activeNodeId ? (() => {
                 const activeNode = orgTree.find(n => n?.id === activeNodeId);
-                const canEdit = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan';
+                const canEdit = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan';
 
                 return (
                   <div className="space-y-4">
-                    <span className="bg-slate-900 text-white font-bold font-mono tracking-wider text-[10px] px-2 py-0.5 rounded">
+                    <span className="bg-[#0c2340] text-white font-semibold text-[10px] px-2 py-0.5 rounded tracking-wider">
                       STATUS JABATAN : {activeNodeId.toUpperCase()}
                     </span>
                     
-                    <div className="space-y-1">
+                    <div className="space-y-0.5">
                       <h4 className="text-sm font-bold text-slate-900">{activeNode?.name}</h4>
-                      <span className="text-xs text-indigo-700 font-semibold block">{activeNode?.title}</span>
+                      <span className="text-xs text-slate-600 font-medium block">{activeNode?.title}</span>
                     </div>
 
-                    <p className="text-xs text-slate-650 leading-relaxed font-sans bg-white p-3 rounded-xl border border-slate-100">
+                    <p className="text-xs text-slate-700 leading-relaxed bg-white p-3 rounded border border-slate-200">
                       {activeNode?.sub}
                     </p>
 
                     {canEdit && (
-                      <form onSubmit={handleUpdateStructureNode} className="pt-4 border-t border-slate-200 space-y-3.5 text-xs">
-                        <span className="text-[10px] uppercase font-bold text-indigo-700 tracking-wider font-mono block">Edit Data Pengurus & Tugas</span>
+                      <form onSubmit={handleUpdateStructureNode} className="pt-3 border-t border-slate-200 space-y-3 text-xs">
+                        <span className="text-[10px] uppercase font-bold text-slate-700 tracking-wider block">Edit Data Pengurus & Tugas</span>
                         
                         <div className="space-y-1">
-                          <label className="text-[10px] text-slate-500 font-semibold block">Nama Pengurus/Staf :</label>
+                          <label className="text-[10px] text-slate-600 font-semibold block">Nama Pengurus/Staf :</label>
                           <input 
                             type="text" 
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
-                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800"
+                            className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
                             placeholder="Masukkan nama pengurus..."
                             required
                           />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1">
-                            <label className="text-[10px] text-slate-500 font-semibold block">Gelar Jabatan :</label>
+                            <label className="text-[10px] text-slate-600 font-semibold block">Gelar Jabatan :</label>
                             <input 
                               type="text" 
                               value={editTitle}
                               onChange={(e) => setEditTitle(e.target.value)}
-                              className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800"
+                              className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
                               placeholder="Contoh: Ketua Dewan Pembina"
                               required
                             />
                           </div>
 
                           <div className="space-y-1">
-                            <label className="text-[10px] text-slate-500 font-semibold block">Urutan Tampilan :</label>
+                            <label className="text-[10px] text-slate-600 font-semibold block">Urutan Tampilan :</label>
                             <input 
                               type="number" 
                               value={editOrder}
                               onChange={(e) => setEditOrder(Number(e.target.value) || 100)}
-                              className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800"
+                              className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
                               placeholder="contoh: 15"
                               required
                             />
@@ -2217,12 +2225,12 @@ export default function SystemTab({
                         </div>
 
                         <div className="space-y-1">
-                          <label className="text-[10px] text-slate-500 font-semibold block">Deskripsi Tugas & Hak Otoritas :</label>
+                          <label className="text-[10px] text-slate-600 font-semibold block">Deskripsi Tugas & Hak Otoritas :</label>
                           <textarea 
                             value={editSub}
                             onChange={(e) => setEditSub(e.target.value)}
                             rows={3}
-                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-sans leading-relaxed"
+                            className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 leading-relaxed focus:outline-none focus:border-[#0c2340]"
                             placeholder="Sebutkan wewenang, komando, atau tugas pelayanan..."
                             required
                           />
@@ -2232,9 +2240,9 @@ export default function SystemTab({
                           <button
                             type="button"
                             onClick={() => {
-                              const isAuthorized = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan';
+                              const isAuthorized = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan';
                               if (!isAuthorized) {
-                                alert('Akses Terbatas: Hanya Super Admin / Ketua Yayasan yang berhak menghapus struktur.');
+                                alert('Akses Terbatas: Hanya Super Admin / Ketua / Pembina Yayasan yang berhak menghapus struktur.');
                                 return;
                               }
                               const nodeToDelete = orgTree.find(n => n.id === activeNodeId);
@@ -2242,7 +2250,7 @@ export default function SystemTab({
                               setDeleteConfirmNode({ id: activeNodeId, title: titleLabel });
                             }}
                             disabled={isSavingTree}
-                            className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-red-200 disabled:opacity-50 font-bold"
+                            className="px-3 py-1.5 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 rounded text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 font-semibold"
                             title="Hapus Jabatan Ini dari Bagan"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -2252,7 +2260,7 @@ export default function SystemTab({
                           <button
                             type="submit"
                             disabled={isSavingTree}
-                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                            className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs disabled:opacity-50"
                           >
                             {isSavingTree && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
                             <span>Simpan Perubahan</span>
@@ -2271,16 +2279,16 @@ export default function SystemTab({
         </div>
       )}
 
-      {/* SUBVIEW 4: OPERATOR LIST & FEATURE CHECKLISTS (REAL-CASE DB CONNECTED) */}
+      {/* SUBVIEW 4: OPERATOR LIST & FEATURE CHECKLISTS */}
       {activeSubView === 'operators' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-left">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 text-left text-xs">
           
           {/* Left panel: List active operators with feature checkboxes */}
-          <div className="lg:col-span-8 bg-white p-5 sm:p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-50 pb-4">
+          <div className="lg:col-span-8 bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
               <div>
-                <h3 className="text-sm font-bold text-indigo-950 flex items-center gap-1.5">
-                  <Sliders className="w-4 h-4 text-indigo-600" />
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                  <Sliders className="w-4 h-4 text-slate-700" />
                   Konfigurasi Hak Akses Operator & Fitur
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -2290,66 +2298,66 @@ export default function SystemTab({
 
               <button 
                 onClick={fetchOperators}
-                className="p-1 px-2.5 rounded bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200 flex items-center gap-1 cursor-pointer"
+                className="p-1 px-2.5 rounded bg-white border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 flex items-center gap-1 cursor-pointer transition-colors"
               >
                 <RefreshCw className="w-3.5 h-3.5" /> Segarkan
               </button>
             </div>
 
             {/* Warn authorization */}
-            {!(currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan') && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex gap-2 font-medium">
+            {!(currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan') && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded text-amber-900 text-xs flex gap-2 font-medium">
                 <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>
-                  Informasi: Hanya <strong>Super Admin</strong> dan <strong>Ketua Yayasan</strong> yang berhak mengedit checkbox fitur operator. Sesi Anda ({currentRole}) saat ini terkunci sebagai baca-saja.
+                  Informasi: Hanya <strong>Super Admin</strong>, <strong>Pembina</strong>, dan <strong>Ketua Yayasan</strong> yang berhak mengedit checkbox fitur operator. Sesi Anda ({currentRole}) saat ini terkunci sebagai baca-saja.
                 </span>
               </div>
             )}
 
             {isFetchingOps ? (
               <div className="py-20 text-center">
-                <span className="w-8 h-8 border-3 border-indigo-200 border-t-indigo-600 rounded-full animate-spin inline-block mb-2"></span>
-                <p className="text-xs text-slate-400">Loading data operator dari database Firestore...</p>
+                <span className="w-6 h-6 border-2 border-slate-300 border-t-[#0c2340] rounded-full animate-spin inline-block mb-2"></span>
+                <p className="text-xs text-slate-500">Memuat data operator dari database...</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {operators.map((op) => {
-                  const hasAdminRights = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan';
+                  const hasAdminRights = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan';
                   const isPasswordVisible = !!visiblePasswords[op.email];
 
                   return (
                     <div 
                       key={op.email} 
-                      className="p-4 bg-slate-50 rounded-xl border border-slate-150/80 space-y-3 shadow-2xs hover:shadow-xs transition-shadow"
+                      className="p-4 bg-white rounded border border-slate-200 space-y-3 shadow-2xs hover:border-slate-300 transition-colors"
                     >
                       <div className="flex justify-between items-start">
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
                             <h4 className="text-xs font-bold text-slate-900">{op.name}</h4>
-                            <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-1.5 py-0.5 rounded-full uppercase">
+                            <span className="text-[10px] bg-slate-100 text-slate-800 border border-slate-300 font-semibold px-2 py-0.5 rounded">
                               {op.role}
                             </span>
                             {op.approved === false ? (
-                              <span className="text-[9px] bg-amber-500 text-white font-extrabold px-1.5 py-0.5 rounded-full uppercase animate-pulse">
+                              <span className="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 font-semibold px-2 py-0.5 rounded">
                                 Menunggu Persetujuan
                               </span>
                             ) : (
-                              <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold px-1.5 py-0.5 rounded-full uppercase">
+                              <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold px-2 py-0.5 rounded">
                                 Aktif
                               </span>
                             )}
                           </div>
-                          <span className="text-[11px] text-slate-500 font-mono block mt-0.5">
+                          <span className="text-xs text-slate-500 font-mono block mt-0.5">
                             {op.email} {op.phone && `• Telp: ${op.phone}`}
                           </span>
                         </div>
 
                         {/* Actions block */}
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           {op.approved === false && hasAdminRights && (
                             <button
                               onClick={() => handleApproveOperator(op.email)}
-                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 text-[10px] font-bold rounded-lg transition-colors cursor-pointer shadow-sm"
+                              className="px-2.5 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white shrink-0 text-[10px] font-semibold rounded transition-colors cursor-pointer shadow-xs"
                               title="Setujui dan aktifkan operator ini"
                             >
                               Setujui Akun
@@ -2366,7 +2374,7 @@ export default function SystemTab({
                                 setChangePassError(null);
                                 setChangePassSuccess(null);
                               }}
-                              className="p-1 px-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors cursor-pointer text-[10px] font-bold flex items-center gap-1"
+                              className="p-1 px-2 rounded bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer text-[10px] font-medium flex items-center gap-1"
                               title="Ganti password operator ini"
                             >
                               <Lock className="w-3 h-3" /> Ganti Password
@@ -2376,7 +2384,7 @@ export default function SystemTab({
                           <button
                             type="button"
                             onClick={() => handleTogglePasswordVisibility(op.email)}
-                            className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 transition-colors cursor-pointer"
+                            className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
                             title="Tampilkan password operator"
                           >
                             {isPasswordVisible ? (
@@ -2388,9 +2396,9 @@ export default function SystemTab({
 
                           <button
                             onClick={() => {
-                              const isAuthorized = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan';
+                              const isAuthorized = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan';
                               if (!isAuthorized) {
-                                alert('Akses Terbatas: Hanya Ketua Yayasan atau Super Admin yang dapat menonaktifkan operator.');
+                                alert('Akses Terbatas: Hanya Ketua Yayasan, Pembina, atau Super Admin yang dapat menonaktifkan operator.');
                                 return;
                               }
                               if (op.email?.toLowerCase().trim() === 'superadmin@esm.or.id') {
@@ -2399,7 +2407,7 @@ export default function SystemTab({
                               }
                               setDeleteConfirmOp({ email: op.email, role: op.role, name: op.name });
                             }}
-                            className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                            className="p-1 rounded text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Hapus Operator"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -2409,18 +2417,18 @@ export default function SystemTab({
 
                       {/* Display password if toggled */}
                       {isPasswordVisible && (
-                        <div className="text-[11px] bg-indigo-50 border border-indigo-100 p-2 rounded-lg flex items-center justify-between font-mono text-indigo-900">
+                        <div className="text-xs bg-slate-50 border border-slate-200 p-2 rounded flex items-center justify-between font-mono text-slate-800">
                           <span>Sandi Operator: <strong>{op.password}</strong></span>
                         </div>
                       )}
 
                       {/* Checklist Features panel */}
-                      <div className="space-y-1.5 border-t border-slate-200/70 pt-2 bg-white/40 p-2.5 rounded-lg">
-                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono block mb-1">
+                      <div className="space-y-1.5 border-t border-slate-200 pt-2">
+                        <span className="text-[10px] text-slate-600 font-bold uppercase tracking-wider block mb-1">
                           Feature Access Checklist :
                         </span>
                         
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 text-[10px]">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5 text-[11px]">
                           {ALL_FEATURES.map((feat) => {
                             const isChecked = Array.isArray(op.features) 
                               ? op.features.includes(feat.id) 
@@ -2429,10 +2437,10 @@ export default function SystemTab({
                             return (
                               <label 
                                 key={feat.id} 
-                                className={`flex items-center gap-1.5 p-1 px-2 rounded-md border cursor-pointer select-none transition-colors ${
+                                className={`flex items-center gap-1.5 p-1 px-2 rounded border cursor-pointer select-none transition-colors ${
                                   isChecked 
-                                    ? 'bg-blue-50 border-blue-200 text-blue-900 font-semibold' 
-                                    : 'bg-[#FCFCFD]/50 border-slate-100 text-slate-600 hover:bg-slate-100'
+                                    ? 'bg-slate-50 border-[#0c2340] text-[#0c2340] font-semibold' 
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                                 }`}
                               >
                                 <input 
@@ -2440,7 +2448,7 @@ export default function SystemTab({
                                   checked={isChecked}
                                   onChange={() => handleToggleFeature(op.email, feat.id)}
                                   disabled={!hasAdminRights}
-                                  className="rounded text-blue-600 focus:ring-0 scale-95"
+                                  className="rounded text-[#0c2340] focus:ring-0 scale-95"
                                 />
                                 <span className="truncate">{feat.label}</span>
                               </label>
@@ -2456,105 +2464,124 @@ export default function SystemTab({
           </div>
 
           {/* Right panel: Add new operator account */}
-          <div className="lg:col-span-4 space-y-6">
-            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-              <div>
-                <h3 className="text-xs uppercase font-mono tracking-widest font-bold text-slate-400 flex items-center gap-1">
-                  <UserPlus2 className="w-4 h-4 text-emerald-500" />
+          <div className="lg:col-span-4 space-y-4">
+            <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-3.5">
+              <div className="pb-2 border-b border-slate-200">
+                <h3 className="text-xs uppercase tracking-wider font-bold text-slate-900 flex items-center gap-1.5">
+                  <UserPlus2 className="w-4 h-4 text-slate-700" />
                   Tambah Operator Baru
                 </h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Daftarkan staf pelaksana atau dewan pengurus baru ke dalam sistem ERP.
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Daftarkan staf pelaksana atau dewan pengurus baru.
                 </p>
               </div>
 
               {formError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 text-[11px] leading-relaxed">
+                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded text-rose-800 text-xs">
                   {formError}
                 </div>
               )}
 
               {formSuccess && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-[11px] leading-relaxed">
+                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded text-emerald-800 text-xs">
                   {formSuccess}
                 </div>
               )}
 
-              <form onSubmit={handleCreateOperator} className="space-y-3.5 text-xs">
+              <form onSubmit={handleCreateOperator} className="space-y-3 text-xs">
                 <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Nama Operator :</label>
+                  <label className="block text-slate-700 font-semibold mb-1">Nama Operator :</label>
                   <input 
                     type="text"
                     value={newOpName}
                     onChange={(e) => { setNewOpName(e.target.value); setFormError(null); }}
                     placeholder="Contoh: Ibu Ruth Sitorus"
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                    className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:border-[#0c2340]"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Alamat Email Resmi :</label>
+                  <label className="block text-slate-700 font-semibold mb-1">Alamat Email Resmi :</label>
                   <input 
                     type="email"
                     value={newOpEmail}
                     onChange={(e) => { setNewOpEmail(e.target.value); setFormError(null); }}
                     placeholder="nama@esm.or.id"
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono"
+                    className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 font-mono focus:outline-none focus:border-[#0c2340]"
                     required
                   />
-                  <span className="text-[9px] text-slate-400 mt-0.5 block">Akun akan login menggunakan alamat email ini</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5 block">Akun akan login menggunakan email ini</span>
                 </div>
 
                 <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Password Masuk :</label>
+                  <label className="block text-slate-700 font-semibold mb-1">Password Masuk :</label>
                   <div className="relative">
                     <input 
                       type={showOpPassword ? 'text' : 'password'}
                       value={newOpPassword}
                       onChange={(e) => { setNewOpPassword(e.target.value); setFormError(null); }}
                       placeholder="Tentukan sandi awal..."
-                      className="w-full border border-slate-200 rounded-xl pl-3 pr-10 py-2 text-slate-800 font-mono"
+                      className="w-full border border-slate-300 rounded pl-2.5 pr-8 py-1.5 text-slate-800 font-mono focus:outline-none focus:border-[#0c2340]"
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowOpPassword(!showOpPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                     >
-                      {showOpPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showOpPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Hak Struktural (Role) :</label>
+                  <label className="block text-slate-700 font-semibold mb-1">Hak Struktural (Role) :</label>
                   <select 
                     value={newOpRole}
-                    onChange={(e) => setNewOpRole(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 bg-white"
+                    onChange={(e) => {
+                      const role = e.target.value;
+                      setNewOpRole(role);
+                      if (role === 'Pembina Yayasan' || role === 'Super Admin' || role === 'Ketua Yayasan') {
+                        setNewOpFeatures(ALL_FEATURES.map(f => f.id));
+                      } else if (role === 'Pengawas Yayasan') {
+                        setNewOpFeatures(['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'letters', 'system', 'reports', 'staff_tasks']);
+                      } else if (role === 'Bendahara') {
+                        setNewOpFeatures(['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'reports', 'staff_tasks']);
+                      } else if (role === 'Sekretaris') {
+                        setNewOpFeatures(['dashboard', 'members', 'small_groups', 'staff', 'letters', 'system', 'reports', 'staff_tasks']);
+                      } else if (role === 'Volunteer') {
+                        setNewOpFeatures(['dashboard', 'members', 'small_groups', 'staff_tasks']);
+                      } else {
+                        setNewOpFeatures(['dashboard', 'members', 'small_groups', 'partners', 'staff_tasks']);
+                      }
+                    }}
+                    className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 bg-white focus:outline-none focus:border-[#0c2340]"
                   >
+                    <option value="Volunteer">Volunteer / Relawan</option>
                     <option value="Staff">Staff Lapangan</option>
                     <option value="Sekretaris">Sekretaris Eksekutif</option>
                     <option value="Bendahara">Bendahara Umum</option>
+                    <option value="Pengawas Yayasan">Pengawas Yayasan</option>
                     <option value="Ketua Yayasan">Ketua Yayasan</option>
+                    <option value="Pembina Yayasan">Pembina Yayasan</option>
                     <option value="Super Admin">Super Admin</option>
                   </select>
                 </div>
 
                 {/* Default starting features checklist for new operator creation */}
-                <div className="space-y-1.5 p-2.5 bg-slate-50 border border-slate-100 rounded-xl">
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Fitur Awal :</span>
+                <div className="space-y-1.5 p-2 bg-slate-50 border border-slate-200 rounded">
+                  <span className="text-[10px] text-slate-600 font-bold uppercase tracking-wider block">Fitur Awal :</span>
                   <div className="space-y-1 max-h-36 overflow-y-auto">
                     {ALL_FEATURES.map((feat) => {
                       const isChecked = newOpFeatures.includes(feat.id);
                       return (
-                        <label key={feat.id} className="flex items-center gap-2 cursor-pointer p-0.5 hover:bg-slate-100 rounded text-[11px] text-slate-700">
+                        <label key={feat.id} className="flex items-center gap-2 cursor-pointer p-0.5 hover:bg-slate-100 rounded text-xs text-slate-700">
                           <input 
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => handleNewOpFeatureToggle(feat.id)}
-                            className="rounded text-indigo-600"
+                            className="rounded text-[#0c2340]"
                           />
                           <span>{feat.label}</span>
                         </label>
@@ -2565,10 +2592,10 @@ export default function SystemTab({
 
                 <button
                   type="submit"
-                  disabled={isSavingOps || !(currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan')}
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-xl cursor-pointer transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                  disabled={isSavingOps || !(currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan')}
+                  className="w-full bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold py-2 rounded cursor-pointer transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed text-xs"
                 >
-                  {isSavingOps ? 'Mengunggah Database...' : 'Daftarkan Akun Operator'}
+                  {isSavingOps ? 'Mengunggah...' : 'Daftarkan Akun Operator'}
                 </button>
               </form>
             </div>
@@ -2578,53 +2605,134 @@ export default function SystemTab({
 
       {/* SUBVIEW: VARIABLES & UTILITY TITLES */}
       {activeSubView === 'variables' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6 text-xs text-left">
-          <div>
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5"><Sliders className="w-4 h-4 text-indigo-650" /> Variabel Dropdown Dinamis & Utilitas Judul</h3>
-            <p className="text-slate-500 text-[11px] mt-0.5">Semua data dropdown untuk isian formulir di sistem dapat diedit, ditambah, atau dihapus secara langsung di sini oleh operator Super Admin atau Ketua Yayasan.</p>
+        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-5 text-xs text-left">
+          <div className="pb-3 border-b border-slate-200">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5"><Sliders className="w-4 h-4 text-slate-700" /> Variabel Dropdown Dinamis & Utilitas Judul</h3>
+            <p className="text-slate-500 text-xs mt-0.5">Semua data dropdown untuk isian formulir di sistem dapat diedit, ditambah, atau dihapus secara langsung di sini.</p>
           </div>
 
-          <form onSubmit={handleSaveVariables} className="space-y-6">
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <form onSubmit={handleSaveVariables} className="space-y-5">
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-slate-600 block mb-1 font-bold">Judul Singkat Sistem (Header Atas) :</label>
+                <label className="text-slate-700 block mb-1 font-bold text-xs">Judul Singkat Sistem (Header Atas) :</label>
                 <input 
                   type="text" 
                   value={systemTitle}
                   onChange={(e) => setSystemTitle(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-850 font-extrabold text-sm bg-white"
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-slate-900 font-bold text-xs bg-white focus:outline-none focus:border-[#0c2340]"
                   placeholder="Contoh: MMB FMS"
                   required
                 />
-                <p className="text-[10px] text-slate-400 mt-1">Muncul sebagai label utama di pojok kiri atas dasbor.</p>
+                <p className="text-[10px] text-slate-500 mt-1">Muncul sebagai label utama di pojok kiri atas dasbor.</p>
               </div>
               <div>
-                <label className="text-slate-600 block mb-1 font-bold">Deskripsi / Sub-Judul Dashboard :</label>
+                <label className="text-slate-700 block mb-1 font-bold text-xs">Deskripsi / Sub-Judul Dashboard :</label>
                 <input 
                   type="text" 
                   value={dashboardTitle}
                   onChange={(e) => setDashboardTitle(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-850 bg-white"
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 bg-white text-xs focus:outline-none focus:border-[#0c2340]"
                   placeholder="Contoh: Institutional Executive ERP"
                   required
                 />
-                <p className="text-[10px] text-slate-400 mt-1">Naskah deskripsi penjelasan di bawah logo dasbor atas.</p>
+                <p className="text-[10px] text-slate-500 mt-1">Naskah deskripsi penjelasan di bawah logo dasbor atas.</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* CUT-OFF & FINANCIAL BILLING CYCLE CONFIGURATION */}
+            <div className="bg-[#0c2340] p-5 rounded-lg text-white shadow-xs border border-slate-700 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-white/10 text-white rounded border border-white/10">
+                    <Calendar className="w-4 h-4 text-slate-300" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-white uppercase tracking-wider flex items-center gap-2">
+                      Siklus Cut-Off Finansial & Tanggal Penggajian
+                      <span className="bg-white/20 text-slate-200 border border-white/20 text-[9px] font-bold px-2 py-0.5 rounded">
+                        Dinamis
+                      </span>
+                    </h4>
+                    <p className="text-xs text-slate-300 mt-0.5">
+                      Menentukan tanggal tutup buku arus kas, donasi mitra, dan pencairan gaji bulanan.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-slate-300 font-medium">Tanggal Cut-Off:</span>
+                  <select
+                    value={cutoffDay}
+                    onChange={(e) => setCutoffDay(Number(e.target.value))}
+                    className="bg-white text-slate-900 border border-slate-300 font-bold text-xs rounded px-2.5 py-1 focus:outline-none cursor-pointer"
+                  >
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                      <option key={day} value={day}>
+                        Setiap Tanggal {day}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between">
+              {/* Dynamic Live Preview of Current and Next Cycle */}
+              {(() => {
+                const today = new Date();
+                const currCycle = getCutoffPeriodRange(today.getFullYear(), today.getMonth(), cutoffDay);
+                const nextMonth = today.getMonth() === 11 ? 0 : today.getMonth() + 1;
+                const nextYear = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
+                const nextCycle = getCutoffPeriodRange(nextYear, nextMonth, cutoffDay);
+
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="bg-white/5 border border-white/10 rounded p-3 space-y-1">
+                      <div className="flex items-center justify-between text-slate-300 font-semibold text-xs">
+                        <span>Siklus Berjalan ({currCycle.targetMonthName} {currCycle.targetYear})</span>
+                        <span className="font-mono text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">Cut-off: Tgl {cutoffDay}</span>
+                      </div>
+                      <div className="text-xs font-mono font-bold text-white tracking-tight">
+                        {currCycle.formattedRange}
+                      </div>
+                      <div className="text-[10px] text-slate-300 flex items-center gap-1 mt-0.5">
+                        <span>Target Pencairan Gaji:</span>
+                        <strong className="text-emerald-300 font-mono">{currCycle.targetPayDateStr}</strong>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/5 border border-white/10 rounded p-3 space-y-1">
+                      <div className="flex items-center justify-between text-slate-300 font-semibold text-xs">
+                        <span>Siklus Berikutnya ({nextCycle.targetMonthName} {nextCycle.targetYear})</span>
+                        <span className="font-mono text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">Cut-off: Tgl {cutoffDay}</span>
+                      </div>
+                      <div className="text-xs font-mono font-bold text-white tracking-tight">
+                        {nextCycle.formattedRange}
+                      </div>
+                      <div className="text-[10px] text-slate-300 flex items-center gap-1 mt-0.5">
+                        <span>Target Pencairan Gaji:</span>
+                        <strong className="text-emerald-300 font-mono">{nextCycle.targetPayDateStr}</strong>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <p className="text-[11px] text-slate-300 leading-relaxed bg-white/5 p-2.5 rounded border border-white/10">
+                <strong>Catatan:</strong> Transaksi donasi mitra yang masuk dari tanggal <strong>{cutoffDay + 1}</strong> hingga tanggal <strong>{cutoffDay}</strong> bulan berikutnya otomatis dialokasikan sebagai pendapatan siklus penggajian tersebut. Pengubahan tanggal cut-off di sini otomatis berlaku di seluruh modul terkait.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              <div className="border border-slate-200 p-4 rounded-lg bg-white flex flex-col justify-between space-y-3">
                 <div>
-                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">📍 Daftar Wilayah & Cabang ({regions.length})</h4>
-                  <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto">
+                  <h4 className="font-bold text-slate-800 mb-2 border-b border-slate-200 pb-1.5 text-xs">Daftar Wilayah & Cabang ({regions.length})</h4>
+                  <div className="flex flex-wrap gap-1.5 mb-2 max-h-36 overflow-y-auto">
                     {regions.map((reg, index) => (
-                      <span key={index} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-lg text-[11px] font-semibold border border-blue-100">
+                      <span key={index} className="inline-flex items-center gap-1 bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-xs font-medium border border-slate-200">
                         {reg}
                         <button 
                           type="button"
                           onClick={() => setRegions(prev => prev.filter(r => r !== reg))}
-                          className="hover:text-red-650 font-extrabold ml-1 text-xs cursor-pointer focus:outline-none"
+                          className="hover:text-rose-700 font-bold ml-1 text-xs cursor-pointer focus:outline-none"
                         >
                           ×
                         </button>
@@ -2638,7 +2746,7 @@ export default function SystemTab({
                     value={newRegion}
                     onChange={(e) => setNewRegion(e.target.value)}
                     placeholder="Tambah wilayah baru..."
-                    className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1 text-xs"
+                    className="flex-1 border border-slate-300 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-[#0c2340]"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -2657,24 +2765,24 @@ export default function SystemTab({
                         setNewRegion('');
                       }
                     }}
-                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                    className="px-3 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded font-bold text-xs cursor-pointer transition-colors"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between">
+              <div className="border border-slate-200 p-4 rounded-lg bg-white flex flex-col justify-between space-y-3">
                 <div>
-                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">📚 Kategori Sasaran Kurikulum ({materialCategories.length})</h4>
-                  <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto">
+                  <h4 className="font-bold text-slate-800 mb-2 border-b border-slate-200 pb-1.5 text-xs">Kategori Sasaran Kurikulum ({materialCategories.length})</h4>
+                  <div className="flex flex-wrap gap-1.5 mb-2 max-h-36 overflow-y-auto">
                     {materialCategories.map((cat, index) => (
-                      <span key={index} className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 px-2 py-1 rounded-lg text-[11px] font-semibold border border-amber-100">
+                      <span key={index} className="inline-flex items-center gap-1 bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-xs font-medium border border-slate-200">
                         {cat}
                         <button 
                           type="button"
                           onClick={() => setMaterialCategories(prev => prev.filter(c => c !== cat))}
-                          className="hover:text-red-650 font-extrabold ml-1 text-xs cursor-pointer focus:outline-none"
+                          className="hover:text-rose-700 font-bold ml-1 text-xs cursor-pointer focus:outline-none"
                         >
                           ×
                         </button>
@@ -2688,7 +2796,7 @@ export default function SystemTab({
                     value={newMaterialCat}
                     onChange={(e) => setNewMaterialCat(e.target.value)}
                     placeholder="Tambah sasaran kurikulum..."
-                    className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1 text-xs"
+                    className="flex-1 border border-slate-300 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-[#0c2340]"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -2707,25 +2815,25 @@ export default function SystemTab({
                         setNewMaterialCat('');
                       }
                     }}
-                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                    className="px-3 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded font-bold text-xs cursor-pointer transition-colors"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between">
+              <div className="border border-slate-200 p-4 rounded-lg bg-white flex flex-col justify-between space-y-3">
                 <div>
-                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">💼 Tujuan Peruntukan Pemasukan ({incomeAllocations.length})</h4>
-                  <p className="text-[10px] text-slate-400 mb-2">Pilihan alokasi opsional transaksi pemasukan: Gaji/Operasional, Peralatan, dll.</p>
-                  <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto">
+                  <h4 className="font-bold text-slate-800 mb-1 border-b border-slate-200 pb-1.5 text-xs">Tujuan Peruntukan Pemasukan ({incomeAllocations.length})</h4>
+                  <p className="text-[10px] text-slate-500 mb-2">Pilihan alokasi opsional transaksi: Gaji/Operasional, Peralatan, dll.</p>
+                  <div className="flex flex-wrap gap-1.5 mb-2 max-h-36 overflow-y-auto">
                     {incomeAllocations.map((alloc, index) => (
-                      <span key={index} className="inline-flex items-center gap-1 bg-purple-50 text-purple-800 px-2 py-1 rounded-lg text-[11px] font-semibold border border-purple-100">
+                      <span key={index} className="inline-flex items-center gap-1 bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-xs font-medium border border-slate-200">
                         {alloc}
                         <button 
                           type="button"
                           onClick={() => setIncomeAllocations(prev => prev.filter(a => a !== alloc))}
-                          className="hover:text-red-650 font-extrabold ml-1 text-xs cursor-pointer focus:outline-none"
+                          className="hover:text-rose-700 font-bold ml-1 text-xs cursor-pointer focus:outline-none"
                         >
                           ×
                         </button>
@@ -2739,7 +2847,7 @@ export default function SystemTab({
                     value={newAllocation}
                     onChange={(e) => setNewAllocation(e.target.value)}
                     placeholder="Tambah tujuan baru..."
-                    className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1 text-xs"
+                    className="flex-1 border border-slate-300 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-[#0c2340]"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -2758,24 +2866,24 @@ export default function SystemTab({
                         setNewAllocation('');
                       }
                     }}
-                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                    className="px-3 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded font-bold text-xs cursor-pointer transition-colors"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between">
+              <div className="border border-slate-200 p-4 rounded-lg bg-white flex flex-col justify-between space-y-3">
                 <div>
-                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">📅 Opsi Hari Pertemuan ({meetingDays.length})</h4>
-                  <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto">
+                  <h4 className="font-bold text-slate-800 mb-2 border-b border-slate-200 pb-1.5 text-xs">Opsi Hari Pertemuan ({meetingDays.length})</h4>
+                  <div className="flex flex-wrap gap-1.5 mb-2 max-h-36 overflow-y-auto">
                     {meetingDays.map((day, index) => (
-                      <span key={index} className="inline-flex items-center gap-1 bg-teal-50 text-teal-800 px-2 py-1 rounded-lg text-[11px] font-semibold border border-teal-100">
+                      <span key={index} className="inline-flex items-center gap-1 bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-xs font-medium border border-slate-200">
                         {day}
                         <button 
                           type="button"
                           onClick={() => setMeetingDays(prev => prev.filter(d => d !== day))}
-                          className="hover:text-red-650 font-extrabold ml-1 text-xs cursor-pointer focus:outline-none"
+                          className="hover:text-rose-700 font-bold ml-1 text-xs cursor-pointer focus:outline-none"
                         >
                           ×
                         </button>
@@ -2789,7 +2897,7 @@ export default function SystemTab({
                     value={newMeetingDay}
                     onChange={(e) => setNewMeetingDay(e.target.value)}
                     placeholder="Tambah hari..."
-                    className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1 text-xs"
+                    className="flex-1 border border-slate-300 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-[#0c2340]"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -2808,24 +2916,24 @@ export default function SystemTab({
                         setNewMeetingDay('');
                       }
                     }}
-                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                    className="px-3 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded font-bold text-xs cursor-pointer transition-colors"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between">
+              <div className="border border-slate-200 p-4 rounded-lg bg-white flex flex-col justify-between space-y-3">
                 <div>
-                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">🟢 Status Keaktifan Anggota ({memberKeaktifanStatuses.length})</h4>
-                  <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto">
+                  <h4 className="font-bold text-slate-800 mb-2 border-b border-slate-200 pb-1.5 text-xs">Status Keaktifan Anggota ({memberKeaktifanStatuses.length})</h4>
+                  <div className="flex flex-wrap gap-1.5 mb-2 max-h-36 overflow-y-auto">
                     {memberKeaktifanStatuses.map((stat, index) => (
-                      <span key={index} className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-1 rounded-lg text-[11px] font-semibold border border-emerald-100">
+                      <span key={index} className="inline-flex items-center gap-1 bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-xs font-medium border border-slate-200">
                         {stat}
                         <button 
                           type="button"
                           onClick={() => setMemberKeaktifanStatuses(prev => prev.filter(s => s !== stat))}
-                          className="hover:text-red-650 font-extrabold ml-1 text-xs cursor-pointer focus:outline-none"
+                          className="hover:text-rose-700 font-bold ml-1 text-xs cursor-pointer focus:outline-none"
                         >
                           ×
                         </button>
@@ -2839,7 +2947,7 @@ export default function SystemTab({
                     value={newKeaktifanStatus}
                     onChange={(e) => setNewKeaktifanStatus(e.target.value)}
                     placeholder="Tambah status..."
-                    className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1 text-xs"
+                    className="flex-1 border border-slate-300 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-[#0c2340]"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -2858,24 +2966,24 @@ export default function SystemTab({
                         setNewKeaktifanStatus('');
                       }
                     }}
-                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                    className="px-3 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded font-bold text-xs cursor-pointer transition-colors"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between">
+              <div className="border border-slate-200 p-4 rounded-lg bg-white flex flex-col justify-between space-y-3">
                 <div>
-                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">👥 Komponen Pembinaan MMB ({memberComponents.length})</h4>
-                  <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto">
+                  <h4 className="font-bold text-slate-800 mb-2 border-b border-slate-200 pb-1.5 text-xs">Komponen Pembinaan MMB ({memberComponents.length})</h4>
+                  <div className="flex flex-wrap gap-1.5 mb-2 max-h-36 overflow-y-auto">
                     {memberComponents.map((comp, index) => (
-                      <span key={index} className="inline-flex items-center gap-1 bg-sky-50 text-sky-700 px-2 py-1 rounded-lg text-[11px] font-semibold border border-sky-100">
+                      <span key={index} className="inline-flex items-center gap-1 bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-xs font-medium border border-slate-200">
                         {comp}
                         <button 
                           type="button"
                           onClick={() => setMemberComponents(prev => prev.filter(c => c !== comp))}
-                          className="hover:text-red-650 font-extrabold ml-1 text-xs cursor-pointer focus:outline-none"
+                          className="hover:text-rose-700 font-bold ml-1 text-xs cursor-pointer focus:outline-none"
                         >
                           ×
                         </button>
@@ -2889,7 +2997,7 @@ export default function SystemTab({
                     value={newMemberComponent}
                     onChange={(e) => setNewMemberComponent(e.target.value)}
                     placeholder="Tambah komponen..."
-                    className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1 text-xs"
+                    className="flex-1 border border-slate-300 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-[#0c2340]"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -2908,24 +3016,24 @@ export default function SystemTab({
                         setNewMemberComponent('');
                       }
                     }}
-                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                    className="px-3 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded font-bold text-xs cursor-pointer transition-colors"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between">
+              <div className="border border-slate-200 p-4 rounded-lg bg-white flex flex-col justify-between space-y-3">
                 <div>
-                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">🤝 Status Komitmen Mitra ({partnerStatuses.length})</h4>
-                  <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto">
+                  <h4 className="font-bold text-slate-800 mb-2 border-b border-slate-200 pb-1.5 text-xs">Status Komitmen Mitra ({partnerStatuses.length})</h4>
+                  <div className="flex flex-wrap gap-1.5 mb-2 max-h-36 overflow-y-auto">
                     {partnerStatuses.map((pStat, index) => (
-                      <span key={index} className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 px-2 py-1 rounded-lg text-[11px] font-semibold border border-rose-100">
+                      <span key={index} className="inline-flex items-center gap-1 bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-xs font-medium border border-slate-200">
                         {pStat}
                         <button 
                           type="button"
                           onClick={() => setPartnerStatuses(prev => prev.filter(s => s !== pStat))}
-                          className="hover:text-red-650 font-extrabold ml-1 text-xs cursor-pointer focus:outline-none"
+                          className="hover:text-rose-700 font-bold ml-1 text-xs cursor-pointer focus:outline-none"
                         >
                           ×
                         </button>
@@ -2939,7 +3047,7 @@ export default function SystemTab({
                     value={newPartnerStatus}
                     onChange={(e) => setNewPartnerStatus(e.target.value)}
                     placeholder="Tambah status mitra..."
-                    className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1 text-xs"
+                    className="flex-1 border border-slate-300 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-[#0c2340]"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -2958,24 +3066,24 @@ export default function SystemTab({
                         setNewPartnerStatus('');
                       }
                     }}
-                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                    className="px-3 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded font-bold text-xs cursor-pointer transition-colors"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between">
+              <div className="border border-slate-200 p-4 rounded-lg bg-white flex flex-col justify-between space-y-3">
                 <div>
-                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5">🏢 Jenis/Tipe Profil Mitra ({partnerTypes.length})</h4>
-                  <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto">
+                  <h4 className="font-bold text-slate-800 mb-2 border-b border-slate-200 pb-1.5 text-xs">Jenis/Tipe Profil Mitra ({partnerTypes.length})</h4>
+                  <div className="flex flex-wrap gap-1.5 mb-2 max-h-36 overflow-y-auto">
                     {partnerTypes.map((pType, index) => (
-                      <span key={index} className="inline-flex items-center gap-1 bg-orange-50 text-orange-700 px-2 py-1 rounded-lg text-[11px] font-semibold border border-orange-100">
+                      <span key={index} className="inline-flex items-center gap-1 bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-xs font-medium border border-slate-200">
                         {pType}
                         <button 
                           type="button"
                           onClick={() => setPartnerTypes(prev => prev.filter(t => t !== pType))}
-                          className="hover:text-red-650 font-extrabold ml-1 text-xs cursor-pointer focus:outline-none"
+                          className="hover:text-rose-700 font-bold ml-1 text-xs cursor-pointer focus:outline-none"
                         >
                           ×
                         </button>
@@ -2989,7 +3097,7 @@ export default function SystemTab({
                     value={newPartnerType}
                     onChange={(e) => setNewPartnerType(e.target.value)}
                     placeholder="Tambah jenis mitra..."
-                    className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1 text-xs"
+                    className="flex-1 border border-slate-300 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-[#0c2340]"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -3008,7 +3116,7 @@ export default function SystemTab({
                         setNewPartnerType('');
                       }
                     }}
-                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                    className="px-3 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded font-bold text-xs cursor-pointer transition-colors"
                   >
                     +
                   </button>
@@ -3016,22 +3124,22 @@ export default function SystemTab({
               </div>
 
               {/* Saluran Donasi & Rekening Penerima */}
-              <div className="border border-slate-150 p-4 rounded-xl flex flex-col justify-between col-span-1 sm:col-span-2 md:col-span-3">
+              <div className="border border-slate-200 p-4 rounded-lg bg-white flex flex-col justify-between col-span-1 sm:col-span-2 space-y-3">
                 <div>
-                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-1.5 flex items-center gap-2">💳 Saluran Donasi & Rekening Bank Penerima ({donationChannels.length})</h4>
-                  <p className="text-[11px] text-slate-400 mb-3">Daftar dinamis ini akan otomatis menjadi opsi pilihan di modul pencatatan donasi masuk mitra.</p>
+                  <h4 className="font-bold text-slate-800 mb-1 border-b border-slate-200 pb-1.5 text-xs flex items-center gap-1.5">Saluran Donasi & Rekening Bank Penerima ({donationChannels.length})</h4>
+                  <p className="text-[11px] text-slate-500 mb-2">Daftar dinamis ini akan otomatis menjadi opsi pilihan di modul pencatatan donasi masuk mitra.</p>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 max-h-56 overflow-y-auto">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mb-2 max-h-56 overflow-y-auto">
                     {donationChannels.map((channel, idx) => (
-                      <div key={idx} className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex items-start justify-between">
+                      <div key={idx} className="bg-slate-50 border border-slate-200 rounded p-2.5 flex items-start justify-between">
                         <div className="pr-2">
-                          <p className="font-bold text-slate-800 text-[11px]">{channel.name}</p>
-                          <p className="text-[10px] text-slate-500 font-mono mt-0.5">{channel.detail}</p>
+                          <p className="font-bold text-slate-900 text-xs">{channel.name}</p>
+                          <p className="text-[10px] text-slate-600 font-mono mt-0.5">{channel.detail}</p>
                         </div>
                         <button 
                           type="button"
                           onClick={() => setDonationChannels(prev => prev.filter((_, i) => i !== idx))}
-                          className="hover:bg-red-50 hover:text-red-650 p-1 rounded font-extrabold text-xs cursor-pointer focus:outline-none transition-colors align-top"
+                          className="hover:text-rose-700 p-0.5 rounded font-bold text-xs cursor-pointer focus:outline-none transition-colors align-top"
                           title="Hapus saluran donasi"
                         >
                           ×
@@ -3041,25 +3149,25 @@ export default function SystemTab({
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-2 bg-slate-50/50 p-3 rounded-lg border border-slate-100">
+                <div className="flex flex-col sm:flex-row gap-2 bg-slate-50 p-3 rounded border border-slate-200">
                   <div className="flex-1 text-left">
-                    <label className="text-[10px] text-slate-500 font-bold block mb-1">Nama Saluran / Bank :</label>
+                    <label className="text-[10px] text-slate-600 font-bold block mb-1">Nama Saluran / Bank :</label>
                     <input 
                       type="text"
                       value={newChannelName}
                       onChange={(e) => setNewChannelName(e.target.value)}
                       placeholder="Contoh: BCA Yayasan"
-                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-800"
+                      className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
                     />
                   </div>
                   <div className="flex-1 text-left">
-                    <label className="text-[10px] text-slate-500 font-bold block mb-1">Detail Rekening / Keterangan :</label>
+                    <label className="text-[10px] text-slate-600 font-bold block mb-1">Detail Rekening / Keterangan :</label>
                     <input 
                       type="text"
                       value={newChannelDetail}
                       onChange={(e) => setNewChannelDetail(e.target.value)}
                       placeholder="Contoh: No. Rek 123-xxx-xx"
-                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-800"
+                      className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
                     />
                   </div>
                   <div className="flex items-end">
@@ -3074,7 +3182,7 @@ export default function SystemTab({
                           alert('Nama saluran/bank tidak boleh kosong.');
                         }
                       }}
-                      className="w-full sm:w-auto px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-xs h-8 cursor-pointer transition-colors"
+                      className="w-full sm:w-auto px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded font-semibold text-xs cursor-pointer transition-colors shadow-xs"
                     >
                       + Tambah Saluran
                     </button>
@@ -3084,11 +3192,11 @@ export default function SystemTab({
 
             </div>
 
-            <div className="pt-4 border-t border-slate-100 flex justify-end">
+            <div className="pt-4 border-t border-slate-200 flex justify-end">
               <button 
                 type="submit"
                 disabled={!(currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan')}
-                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs cursor-pointer transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Simpan & Sinkronisasi Variabel Sistem
               </button>
@@ -3097,24 +3205,24 @@ export default function SystemTab({
 
           {/* DATABASE CLEANSLATE & CLEANSING AGENT */}
           {(currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan') && (
-            <div className="bg-rose-50/50 p-6 rounded-2xl border border-rose-100 space-y-4">
+            <div className="bg-rose-50 p-5 rounded-lg border border-rose-200 space-y-3 text-left">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <div className="text-left">
-                  <h4 className="font-bold text-rose-900 text-sm flex items-center gap-1.5 leading-none">
-                    <Trash2 className="w-4 h-4 text-rose-600 animate-pulse" />
+                <div>
+                  <h4 className="font-bold text-rose-900 text-xs flex items-center gap-1.5 uppercase tracking-wider">
+                    <Trash2 className="w-4 h-4 text-rose-700" />
                     Pusat Pembersihan Data Kritis (Data Cleansing & Reset)
                   </h4>
-                  <p className="text-slate-500 text-[11px] mt-1.5 max-w-xl leading-relaxed">
-                    Sesuai instruksi kebijakan, fitur ini bertujuan melakukan hard delete terhadap seluruh entitas data percobaan di database secara tuntas (cleansing data) dan menyisakan satu-satunya akun utama yang aktif, yaitu Super Admin operator, untuk mulai menginput data real secara manual.
+                  <p className="text-slate-600 text-xs mt-1 max-w-xl leading-relaxed">
+                    Fitur ini melakukan hard delete terhadap data percobaan di database dan menyisakan satu-satunya akun utama yang aktif, yaitu Super Admin operator.
                   </p>
                 </div>
                 
                 <button
                   type="button"
                   onClick={() => setIsCleanseModalOpen(true)}
-                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl cursor-pointer transition-colors text-xs flex items-center gap-2 shrink-0 shadow-sm shadow-rose-200"
+                  className="px-3.5 py-2 bg-rose-700 hover:bg-rose-800 text-white font-semibold rounded cursor-pointer transition-colors text-xs flex items-center gap-1.5 shrink-0 shadow-xs"
                 >
-                  <Trash2 className="w-4 h-4" /> Cleansing Data Testing
+                  <Trash2 className="w-3.5 h-3.5" /> Cleansing Data Testing
                 </button>
               </div>
             </div>
@@ -3124,48 +3232,48 @@ export default function SystemTab({
 
       {/* SUBVIEW 5: SYSTEM AUDIT LOGGER (AUDIT TRAILS) */}
       {activeSubView === 'audit' && (
-        <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4 font-mono text-[11px] text-slate-350 text-left">
-          <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-            <h3 className="text-xs font-bold text-white flex items-center gap-1.5"><Database className="w-4 h-4 text-indigo-400" /> SYSTEM TRANSACTION AUDIT LOGS</h3>
-            <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">● COMPLIANT LEDGER</span>
+        <div className="bg-[#0c2340] p-5 rounded-lg border border-slate-700 shadow-xs space-y-3 font-mono text-xs text-slate-200 text-left">
+          <div className="flex justify-between items-center border-b border-slate-700 pb-2.5">
+            <h3 className="text-xs font-bold text-white flex items-center gap-1.5"><Database className="w-4 h-4 text-slate-300" /> SYSTEM TRANSACTION AUDIT LOGS</h3>
+            <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">● COMPLIANT LEDGER</span>
           </div>
 
-          <div className="space-y-2 max-h-80 overflow-y-auto leading-relaxed">
+          <div className="space-y-1.5 max-h-80 overflow-y-auto leading-relaxed text-xs divide-y divide-slate-800/80">
             {auditLogs.map((log) => (
-              <div key={log.id} className="hover:bg-slate-900 p-2 rounded-lg border border-transparent hover:border-slate-800/50 flex flex-col sm:flex-row sm:justify-between items-start gap-1 font-mono transition-all">
+              <div key={log.id} className="pt-1.5 hover:bg-white/5 p-1.5 rounded flex flex-col sm:flex-row sm:justify-between items-start gap-1 transition-colors">
                 <div className="flex gap-1.5 shrink-0">
-                  <span className="text-slate-500 font-bold shrink-0">{log.timestamp}</span>
-                  <span className="text-yellow-500 font-bold shrink-0">[{log.userName}]</span>
+                  <span className="text-slate-400 font-medium">{log.timestamp}</span>
+                  <span className="text-amber-300 font-semibold">[{log.userName}]</span>
                 </div>
-                <div className="text-slate-300 md:flex-1 md:px-3 text-left">
+                <div className="text-slate-100 md:flex-1 md:px-3 text-left">
                   {log.action}
                   {log.beforeValue && (
-                    <div className="text-rose-450 mt-1 max-w-full overflow-x-auto text-[9px] bg-rose-950/40 p-1.5 rounded leading-normal border border-rose-900/30">
-                      <span className="font-bold block text-rose-300 uppercase tracking-wider text-[8px] mb-0.5">SBLM (OLD VALUE):</span>
+                    <div className="text-rose-300 mt-0.5 max-w-full overflow-x-auto text-[10px] bg-rose-950/40 p-1 rounded leading-normal border border-rose-900/40">
+                      <span className="font-bold block uppercase text-[8px]">SBLM:</span>
                       {log.beforeValue}
                     </div>
                   )}
                   {log.afterValue && (
-                    <div className="text-emerald-450 mt-1 max-w-full overflow-x-auto text-[9px] bg-emerald-950/40 p-1.5 rounded leading-normal border border-emerald-900/30">
-                      <span className="font-bold block text-emerald-300 uppercase tracking-wider text-[8px] mb-0.5">SSDH (NEW VALUE):</span>
+                    <div className="text-emerald-300 mt-0.5 max-w-full overflow-x-auto text-[10px] bg-emerald-950/40 p-1 rounded leading-normal border border-emerald-900/40">
+                      <span className="font-bold block uppercase text-[8px]">SSDH:</span>
                       {log.afterValue}
                     </div>
                   )}
                 </div>
-                <span className="bg-slate-800 text-[10px] text-indigo-400 px-1.5 py-0.5 rounded font-bold self-end sm:self-auto shrink-0 animate-pulse">
+                <span className="bg-slate-800 text-[10px] text-slate-300 px-1.5 py-0.5 rounded font-semibold self-end sm:self-auto shrink-0">
                   ROLE: {log.userRole || 'System'}
                 </span>
               </div>
             ))}
           </div>
           
-          <div className="border-t border-slate-800 pt-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <p className="text-[9px] text-slate-500 max-w-lg leading-normal">Jurnal audit sistem ini bersifat tertutup, non-destruktif, dan terenkripsi AES-256 otomatis dalam standard audit kepatuhan IT Yayasan.</p>
+          <div className="border-t border-slate-700 pt-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 text-xs font-sans">
+            <p className="text-[10px] text-slate-400 max-w-lg leading-normal">Jurnal audit sistem ini bersifat tertutup, non-destruktif, dan terenkripsi otomatis dalam standard audit kepatuhan IT Yayasan.</p>
             {(currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan') && (
               <button
                 type="button"
                 onClick={() => setIsCleanseModalOpen(true)}
-                className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white font-bold rounded-xl cursor-pointer transition-colors text-[10px] sm:text-xs flex items-center gap-1.5 shrink-0 shadow-sm shadow-rose-900/30 font-sans border border-rose-500/35"
+                className="px-3 py-1.5 bg-rose-700 hover:bg-rose-800 text-white font-semibold rounded cursor-pointer transition-colors text-xs flex items-center gap-1.5 shrink-0 shadow-xs"
               >
                 <Trash2 className="w-3.5 h-3.5" /> Bersihkan Semua Data Uji
               </button>
@@ -3176,31 +3284,29 @@ export default function SystemTab({
 
       {/* Custom Modal Confirmation for Deleting Operator */}
       {deleteConfirmOp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl border border-slate-100 p-6 max-w-md w-full shadow-xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-3 text-red-600">
-              <div className="p-2.5 bg-red-50 rounded-xl">
-                <Trash2 className="w-5 h-5 text-red-600" />
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-lg border border-slate-200 p-5 max-w-md w-full shadow-lg space-y-4">
+            <div className="flex items-center gap-2 text-rose-700">
+              <Trash2 className="w-5 h-5 text-rose-700" />
               <h3 className="text-sm font-bold text-slate-900">Konfirmasi Hapus Operator</h3>
             </div>
             
             <p className="text-xs text-slate-600 leading-relaxed">
               Apakah Anda yakin ingin menghapus operator <strong className="text-slate-800">"{deleteConfirmOp.name}"</strong> ({deleteConfirmOp.email})? 
-              Tindakan ini akan mengubah status data <code className="bg-slate-100 text-red-600 px-1 py-0.5 rounded text-[10px] font-mono">deleted: true</code> (soft delete).
+              Tindakan ini akan mengubah status data menjadi nonaktif (soft delete).
             </p>
             
             {currentRole === 'Super Admin' && (
-              <div className="p-3 bg-amber-50 border border-amber-200/50 rounded-xl text-[11px] text-amber-800 leading-normal font-medium">
-                <strong>Info Kepegawaian & Staf:</strong> Jika operator ini juga tercatat di Staff Database, data kepegawaiannya akan secara otomatis ikut dinonaktifkan (deleted: true) secara menyeluruh.
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-900 leading-normal font-medium">
+                <strong>Info Staf:</strong> Jika operator ini juga tercatat di Staff Database, data kepegawaiannya akan secara otomatis ikut dinonaktifkan.
               </div>
             )}
             
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-1 text-xs">
               <button
                 type="button"
                 onClick={() => setDeleteConfirmOp(null)}
-                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-205 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium rounded transition-colors cursor-pointer"
               >
                 Batal
               </button>
@@ -3212,7 +3318,7 @@ export default function SystemTab({
                   setDeleteConfirmOp(null);
                   await handleDeleteOperator(email, role);
                 }}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm shadow-red-100"
+                className="px-3.5 py-1.5 bg-rose-700 hover:bg-rose-800 text-white font-semibold rounded transition-colors cursor-pointer shadow-xs"
               >
                 Ya, Hapus Operator
               </button>
@@ -3223,12 +3329,10 @@ export default function SystemTab({
 
       {/* Custom Modal Confirmation for Deleting Org Tree Node */}
       {deleteConfirmNode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl border border-slate-100 p-6 max-w-md w-full shadow-xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-3 text-red-600">
-              <div className="p-2.5 bg-red-50 rounded-xl">
-                <Trash2 className="w-5 h-5 text-red-600" />
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-lg border border-slate-200 p-5 max-w-md w-full shadow-lg space-y-4">
+            <div className="flex items-center gap-2 text-rose-700">
+              <Trash2 className="w-5 h-5 text-rose-700" />
               <h3 className="text-sm font-bold text-slate-900">Konfirmasi Hapus Jabatan</h3>
             </div>
             
@@ -3236,11 +3340,11 @@ export default function SystemTab({
               Apakah Anda yakin ingin menghapus struktur jabatan <strong className="text-slate-800">"{deleteConfirmNode.title}"</strong> (ID: {deleteConfirmNode.id}) dari bagan organisasi?
             </p>
             
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-1 text-xs">
               <button
                 type="button"
                 onClick={() => setDeleteConfirmNode(null)}
-                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-205 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium rounded transition-colors cursor-pointer"
               >
                 Batal
               </button>
@@ -3251,7 +3355,7 @@ export default function SystemTab({
                   setDeleteConfirmNode(null);
                   await handleDeleteStructureNode(nodeId);
                 }}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm shadow-red-100"
+                className="px-3.5 py-1.5 bg-rose-700 hover:bg-rose-800 text-white font-semibold rounded transition-colors cursor-pointer shadow-xs"
               >
                 Ya, Hapus Jabatan
               </button>
@@ -3263,42 +3367,40 @@ export default function SystemTab({
       {/* Custom Modal Confirmation for Cleansing Database */}
       {isCleanseModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl border border-rose-100 p-6 md:p-8 max-w-lg w-full shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150 text-left">
-            <div className="flex items-center gap-3.5 text-rose-600">
-              <div className="p-3 bg-rose-50 rounded-2xl border border-rose-100 animate-pulse">
-                <Trash2 className="w-6 h-6 text-rose-600" />
-              </div>
+          <div className="bg-white rounded-lg border border-slate-200 p-6 max-w-lg w-full shadow-xl space-y-4 text-left">
+            <div className="flex items-center gap-2.5 text-rose-700">
+              <Trash2 className="w-5 h-5 text-rose-700" />
               <div>
-                <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-none">PEMBERSIHAN DATABASE KRITIS</h3>
-                <span className="text-[10px] text-rose-600 font-extrabold uppercase tracking-widest block mt-1.5 font-mono">Warning: Hard Delete & Clean Slate</span>
+                <h3 className="text-sm font-bold text-slate-900">Pembersihan Database Kritis</h3>
+                <span className="text-[10px] text-rose-700 font-semibold uppercase tracking-wider block font-mono">Warning: Hard Delete & Clean Slate</span>
               </div>
             </div>
             
-            <div className="space-y-3.5 text-xs text-slate-600 leading-relaxed font-sans">
+            <div className="space-y-3 text-xs text-slate-600 leading-relaxed">
               <p>
-                Apakah Anda benar-benar yakin ingin membersihkan data? Sistem akan melakukan <strong className="text-rose-600 font-extrabold">HARD DELETE permanen</strong> terhadap data uji berikut:
+                Apakah Anda benar-benar yakin ingin membersihkan data? Sistem akan melakukan penghapusan data uji berikut:
               </p>
-              <div className="bg-rose-50/70 p-3.5 rounded-2xl border border-rose-100 text-[10.5px] leading-relaxed text-rose-950 font-medium space-y-1">
-                <p>⚙️ Keuangan, Saldo Jurnal Kas, dan Semua Transaksi</p>
-                <p>⚙️ Data Pegawai, Rekaman Slip Gaji (Payroll), & Staff Profiles</p>
-                <p>⚙️ Data Mitra, Proposal Donasi & Campaign Fundraising</p>
-                <p>⚙️ Anggota, Kelompok Kecil KTB, Riwayat Log Pertemuan</p>
-                <p>⚙️ Surat Masuk & Surat Keluar Beserta Agendanya</p>
-                <p>⚙️ Akun Operator Lain (Kecuali Super Admin utama Anda)</p>
+              <div className="bg-slate-50 p-3 rounded border border-slate-200 text-xs text-slate-800 space-y-1">
+                <p>• Keuangan, Saldo Jurnal Kas, dan Semua Transaksi</p>
+                <p>• Data Pegawai, Rekaman Slip Gaji (Payroll), & Staff Profiles</p>
+                <p>• Data Mitra, Proposal Donasi & Campaign Fundraising</p>
+                <p>• Anggota, Kelompok Kecil KTB, Riwayat Log Pertemuan</p>
+                <p>• Surat Masuk & Surat Keluar Beserta Agendanya</p>
+                <p>• Akun Operator Lain (Kecuali Super Admin utama)</p>
               </div>
-              <p className="text-slate-500 text-[11px]">
-                Hanya akun utama <strong className="text-indigo-600 font-bold">superadmin@esm.or.id</strong> yang dipertahankan. Setelah proses selesai, database akan bersih total dan siap digunakan untuk input manual data organisasi yang riil.
+              <p className="text-slate-500 text-xs">
+                Hanya akun utama <strong className="text-slate-900 font-bold">superadmin@esm.or.id</strong> yang dipertahankan.
               </p>
             </div>
             
-            <div className="flex justify-end gap-2.5 pt-2 font-sans">
+            <div className="flex justify-end gap-2 pt-1 text-xs">
               <button
                 type="button"
                 disabled={isCleansingInProcess}
                 onClick={() => setIsCleanseModalOpen(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-250 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer disabled:opacity-50"
+                className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium rounded transition-colors cursor-pointer disabled:opacity-50"
               >
-                Batal (Amankan Data)
+                Batal
               </button>
               <button
                 type="button"
@@ -3311,7 +3413,7 @@ export default function SystemTab({
                     if (result.success) {
                       setIsCleanseModalOpen(false);
                       setIsCleansingInProcess(false);
-                      alert('SUKSES: Database berhasil dibersihkan total. Halaman web akan dimuat ulang otomatis untuk menampilkan dashboard kosong yang murni.');
+                      alert('SUKSES: Database berhasil dibersihkan total.');
                       window.location.reload();
                     } else {
                       alert('Gagal membersihkan database: ' + result.error);
@@ -3322,7 +3424,7 @@ export default function SystemTab({
                     setIsCleansingInProcess(false);
                   }
                 }}
-                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-md shadow-rose-200 disabled:opacity-50 flex items-center gap-1.5"
+                className="px-3.5 py-1.5 bg-rose-700 hover:bg-rose-800 text-white font-semibold rounded transition-colors cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
               >
                 {isCleansingInProcess ? (
                   <>
@@ -3341,104 +3443,102 @@ export default function SystemTab({
 
       {/* MODAL: Ganti Password Operator (Super Admin Only) */}
       {changePassTarget && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(6px)' }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md border border-slate-200 overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Lock className="w-5 h-5 text-white" />
-                </div>
+            <div className="bg-[#0c2340] px-5 py-3.5 flex items-center justify-between text-white border-b border-slate-700">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-slate-300" />
                 <div>
-                  <h2 className="text-sm font-extrabold text-white leading-tight">Ganti Password Operator</h2>
-                  <p className="text-[10px] text-amber-100 mt-0.5">Super Admin &bull; Aksi Keamanan</p>
+                  <h2 className="text-xs font-bold text-white uppercase tracking-wider">Ganti Password Operator</h2>
+                  <p className="text-[10px] text-slate-300 mt-0.5">Super Admin • Aksi Keamanan</p>
                 </div>
               </div>
               <button
                 onClick={() => { setChangePassTarget(null); setChangePassError(null); setChangePassSuccess(null); }}
-                className="w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors cursor-pointer"
+                className="text-slate-300 hover:text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Body */}
-            <form onSubmit={handleChangeUserPassword} className="p-6 space-y-4 text-xs">
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[11px] leading-relaxed">
+            <form onSubmit={handleChangeUserPassword} className="p-5 space-y-3.5 text-xs text-left">
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded text-slate-800 text-xs">
                 <span className="font-bold block mb-0.5">Target Akun:</span>
-                <span className="font-mono">{changePassTarget.name} &mdash; {changePassTarget.email}</span>
+                <span className="font-mono">{changePassTarget.name} — {changePassTarget.email}</span>
               </div>
 
               {changePassError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-[11px] flex items-center gap-2">
+                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded text-rose-700 text-xs flex items-center gap-2">
                   <X className="w-3.5 h-3.5 shrink-0" />
                   {changePassError}
                 </div>
               )}
               {changePassSuccess && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-[11px] flex items-center gap-2">
+                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded text-emerald-700 text-xs flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 shrink-0" />
                   {changePassSuccess}
                 </div>
               )}
 
               <div>
-                <label className="block font-semibold text-slate-600 mb-1">Password Baru :</label>
+                <label className="block font-semibold text-slate-700 mb-1">Password Baru :</label>
                 <div className="relative">
                   <input
                     type={showChangePassNew ? 'text' : 'password'}
                     value={changePassNew}
                     onChange={e => setChangePassNew(e.target.value)}
                     placeholder="Minimal 6 karakter..."
-                    className="w-full border border-slate-200 rounded-xl pl-3 pr-10 py-2.5 text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-amber-400/50"
+                    className="w-full border border-slate-300 rounded pl-2.5 pr-8 py-1.5 text-slate-800 font-mono text-xs focus:outline-none focus:border-[#0c2340]"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowChangePassNew(!showChangePassNew)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                   >
-                    {showChangePassNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showChangePassNew ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-600 mb-1">Konfirmasi Password Baru :</label>
+                <label className="block font-semibold text-slate-700 mb-1">Konfirmasi Password Baru :</label>
                 <div className="relative">
                   <input
                     type={showChangePassConfirm ? 'text' : 'password'}
                     value={changePassConfirm}
                     onChange={e => setChangePassConfirm(e.target.value)}
                     placeholder="Ulangi password baru..."
-                    className="w-full border border-slate-200 rounded-xl pl-3 pr-10 py-2.5 text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-amber-400/50"
+                    className="w-full border border-slate-300 rounded pl-2.5 pr-8 py-1.5 text-slate-800 font-mono text-xs focus:outline-none focus:border-[#0c2340]"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowChangePassConfirm(!showChangePassConfirm)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                   >
-                    {showChangePassConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showChangePassConfirm ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-1">
+              <div className="flex gap-2 pt-1 text-xs">
                 <button
                   type="button"
                   onClick={() => { setChangePassTarget(null); setChangePassError(null); setChangePassSuccess(null); }}
-                  className="flex-1 py-2.5 border border-slate-200 text-slate-600 font-semibold rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
+                  className="flex-1 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium rounded transition-colors cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSavingPass}
-                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-colors cursor-pointer shadow-sm shadow-amber-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded transition-colors cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
                 >
                   {isSavingPass ? (
-                    <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block"></span> Menyimpan...</>
+                    <><span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block"></span> Menyimpan...</>
                   ) : (
                     <><Lock className="w-3.5 h-3.5" /> Simpan Password</>
                   )}

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   HeartHandshake, 
   Plus, 
@@ -17,22 +17,23 @@ import {
   Phone, 
   Sliders, 
   ChevronRight, 
-  ChevronLeft,
+  ChevronLeft, 
   Tag, 
   CheckCircle, 
   User, 
-  Award,
-  KanbanSquare,
-  Download,
-  MessageSquare,
-  Settings,
-  X,
-  Clock,
-  Bell
+  Award, 
+  KanbanSquare, 
+  Download, 
+  MessageSquare, 
+  Settings, 
+  X, 
+  Clock, 
+  Bell 
 } from 'lucide-react';
 import { Partner, CampaignDonation, InstitutionalProfile } from '../types';
 import { exportToCSV } from '../utils/export';
 import { jsPDF } from 'jspdf';
+import { getCutoffDay, getCutoffPeriodRange, isDateInCutoffPeriod, getCurrentActiveCycle, INDO_MONTHS, parseDateUTC } from '../utils/cutoff';
 
 interface PartnersTabProps {
   partners: Partner[];
@@ -48,17 +49,39 @@ interface PartnersTabProps {
 }
 
 export default function PartnersTab({
-  partners,
+  partners = [],
   onAddPartner,
   onUpdatePartner,
   onDeletePartner,
   currentRole,
-  donations,
+  donations = [],
   onAddDonation,
   onUpdateDonation,
   onDeleteDonation,
   profile,
 }: PartnersTabProps) {
+  // Normalize partners data for rock-solid runtime rendering
+  const safePartners: Partner[] = useMemo(() => {
+    return (partners || []).map(p => ({
+      ...p,
+      id: p?.id || '',
+      name: p?.name || 'Tanpa Nama',
+      phone: p?.phone || '',
+      email: p?.email || '',
+      address: p?.address || '',
+      birthDate: p?.birthDate || '',
+      occupation: p?.occupation || '',
+      partnerType: (p as any)?.partnerType || (p as any)?.type || 'Pribadi',
+      region: p?.region || 'Yogyakarta',
+      staffRelasi: p?.staffRelasi || 'Ahmad Faisal',
+      status: p?.status || 'Prospek',
+      commitmentAmount: Number(p?.commitmentAmount || 0),
+      frequency: p?.frequency || 'Bulanan',
+      startDate: p?.startDate || '',
+      endDate: p?.endDate || '',
+      donationDay: Number(p?.donationDay || 10),
+    }));
+  }, [partners]);
   const canManagePartners = ['Super Admin', 'Ketua Yayasan', 'Sekretaris', 'Staff'].includes(currentRole);
   const canManageDonations = ['Super Admin', 'Ketua Yayasan', 'Bendahara'].includes(currentRole);
   const [subView, setSubView] = useState<'directory' | 'pipeline' | 'donations' | 'schedules' | 'scheduling'>('schedules');
@@ -107,9 +130,9 @@ export default function PartnersTab({
     localStorage.setItem('reminded_partners_log', JSON.stringify(updated));
   };
   
-  // Selected Month & Year for Schedule Tracking (Defaults to current system date)
-  const [scheduleMonth, setScheduleMonth] = useState<number>(new Date().getMonth());
-  const [scheduleYear, setScheduleYear] = useState<number>(new Date().getFullYear());
+  // Selected Month & Year for Schedule Tracking (Defaults to active cut-off cycle)
+  const [scheduleMonth, setScheduleMonth] = useState<number>(() => getCurrentActiveCycle(getCutoffDay(profile)).month);
+  const [scheduleYear, setScheduleYear] = useState<number>(() => getCurrentActiveCycle(getCutoffDay(profile)).year);
   const [detailPartner, setDetailPartner] = useState<Partner | null>(null);
   const [scheduleStatusFilter, setScheduleStatusFilter] = useState<'All' | 'Paid' | 'Unpaid'>('All');
   
@@ -149,6 +172,7 @@ export default function PartnersTab({
 
   // Simulated Donation Logging State
   const [isDonationFormOpen, setIsDonationFormOpen] = useState(false);
+  const [editingDonation, setEditingDonation] = useState<CampaignDonation | null>(null);
   const [donationPartnerId, setDonationPartnerId] = useState('');
   const [donationAmount, setDonationAmount] = useState<number>(500000);
   const [donationDate, setDonationDate] = useState(new Date().toISOString().split('T')[0]);
@@ -166,8 +190,19 @@ export default function PartnersTab({
     { id: 'DON-02', partnerId: 'PTR-02', partnerName: 'GKI Manyar Surabaya', amount: 12000000, date: '2026-05-10', channel: 'BCA Yayasan' }
   ]);
 
-  const [editingDonation, setEditingDonation] = useState<CampaignDonation | null>(null);
-  const finalDonationLogs = donations ? donations : donationLogs;
+  const finalDonationLogs: CampaignDonation[] = useMemo(() => {
+    const list = donations && donations.length > 0 ? donations : donationLogs;
+    return (list || []).map(d => ({
+      ...d,
+      id: d?.id || '',
+      partnerId: d?.partnerId || '',
+      partnerName: d?.partnerName || 'Mitra',
+      amount: Number(d?.amount || 0),
+      date: d?.date || '',
+      channel: d?.channel || 'Transfer Bank Mandiri',
+    }));
+  }, [donations, donationLogs]);
+  const safeDonations = finalDonationLogs;
   const [deleteConfirmDonation, setDeleteConfirmDonation] = useState<CampaignDonation | null>(null);
   const [deleteConfirmPartner, setDeleteConfirmPartner] = useState<Partner | null>(null);
 
@@ -317,46 +352,29 @@ export default function PartnersTab({
 
   // System month & year calculations for Indonesian helper
   const today = new Date();
-  const currentMonthNum = today.getMonth(); // 0-11
-  const currentYearNum = today.getFullYear();
+  const cutoffDay = getCutoffDay(profile);
+  const activeCycle = useMemo(() => getCurrentActiveCycle(cutoffDay), [cutoffDay]);
+  const currentCycleMonth = activeCycle.month;
+  const currentCycleYear = activeCycle.year;
   
-  const prevMonthNum = currentMonthNum === 0 ? 11 : currentMonthNum - 1;
-  const prevYearNum = currentMonthNum === 0 ? currentYearNum - 1 : currentYearNum;
+  const prevCycleMonth = currentCycleMonth === 0 ? 11 : currentCycleMonth - 1;
+  const prevCycleYear = currentCycleMonth === 0 ? currentCycleYear - 1 : currentCycleYear;
 
-  const INDO_MONTHS = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-  ];
-  const currentMonthName = INDO_MONTHS[currentMonthNum];
-  const prevMonthName = INDO_MONTHS[prevMonthNum];
-
-  // Helper function to safely parse YYYY-MM-DD date strings in UTC without local timezone shifts
-  const parseDateUTC = (dateStr: string) => {
-    if (!dateStr) return { year: 0, month: 0, day: 0 };
-    const parts = dateStr.split('-');
-    if (parts.length >= 3) {
-      return {
-        year: parseInt(parts[0], 10),
-        month: parseInt(parts[1], 10) - 1, // 0-indexed
-        day: parseInt(parts[2], 10)
-      };
-    }
-    const d = new Date(dateStr);
-    return { year: d.getFullYear(), month: d.getMonth(), day: d.getDate() };
-  };
+  const currentCutoffPeriod = useMemo(() => {
+    return getCutoffPeriodRange(scheduleYear, scheduleMonth, cutoffDay);
+  }, [scheduleYear, scheduleMonth, cutoffDay]);
 
   const checkDonation = (partnerId: string, year: number, month: number) => {
-    return finalDonationLogs.some(d => {
+    return safeDonations.some(d => {
       if (!d.partnerId || d.partnerId !== partnerId || !d.date) return false;
-      const parsed = parseDateUTC(d.date);
-      return parsed.year === year && parsed.month === month;
+      return isDateInCutoffPeriod(d.date, year, month, cutoffDay);
     });
   };
 
-  const countGivenThisMonth = partners.filter(p => p.status === 'Aktif' && checkDonation(p.id, currentYearNum, currentMonthNum)).length;
-  const countNotGivenThisMonth = partners.filter(p => p.status === 'Aktif' && !checkDonation(p.id, currentYearNum, currentMonthNum)).length;
-  const countGivenLastMonth = partners.filter(p => p.status === 'Aktif' && checkDonation(p.id, prevYearNum, prevMonthNum)).length;
-  const countNotGivenLastMonth = partners.filter(p => p.status === 'Aktif' && !checkDonation(p.id, prevYearNum, prevMonthNum)).length;
+  const countGivenThisMonth = safePartners.filter(p => (p.status === 'Aktif' || p.status === 'Komitmen' || p.status === 'Donasi Pertama') && checkDonation(p.id, currentCycleYear, currentCycleMonth)).length;
+  const countNotGivenThisMonth = safePartners.filter(p => (p.status === 'Aktif' || p.status === 'Komitmen' || p.status === 'Donasi Pertama') && !checkDonation(p.id, currentCycleYear, currentCycleMonth)).length;
+  const countGivenLastMonth = safePartners.filter(p => (p.status === 'Aktif' || p.status === 'Komitmen' || p.status === 'Donasi Pertama') && checkDonation(p.id, prevCycleYear, prevCycleMonth)).length;
+  const countNotGivenLastMonth = safePartners.filter(p => (p.status === 'Aktif' || p.status === 'Komitmen' || p.status === 'Donasi Pertama') && !checkDonation(p.id, prevCycleYear, prevCycleMonth)).length;
 
   const getWhatsAppLink = (p: Partner) => {
     const cleanPhone = p.phone ? p.phone.replace(/[^0-9]/g, '') : '';
@@ -368,20 +386,23 @@ export default function PartnersTab({
     }
     
     const donationDayText = p.donationDay ? `tanggal ${p.donationDay}` : 'setiap bulannya';
-    const commitmentText = `Rp ${p.commitmentAmount.toLocaleString('id-ID')}`;
+    const commitmentText = `Rp ${(Number(p.commitmentAmount) || 0).toLocaleString('id-ID')}`;
     
     const msg = waTemplate
-      .replace(/{nama}/g, p.name)
+      .replace(/{nama}/g, p.name || 'Mitra')
       .replace(/{tanggal}/g, donationDayText)
       .replace(/{komitmen}/g, commitmentText);
     
     return `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(msg)}`;
   };
 
-  const filteredPartners = partners.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          p.email.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          p.id.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredPartners = safePartners.filter(p => {
+    const pName = p.name || '';
+    const pEmail = p.email || '';
+    const pId = p.id || '';
+    const matchesSearch = pName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          pEmail.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          pId.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = filterType === 'Semua' || p.partnerType === filterType;
     
     if (!(matchesSearch && matchesType)) return false;
@@ -392,13 +413,13 @@ export default function PartnersTab({
       if (p.donationDay !== dayNum) return false;
     }
     
-    const givenThisMonth = checkDonation(p.id, currentYearNum, currentMonthNum);
-    const givenLastMonth = checkDonation(p.id, prevYearNum, prevMonthNum);
+    const givenThisMonth = checkDonation(p.id, currentCycleYear, currentCycleMonth);
+    const givenLastMonth = checkDonation(p.id, prevCycleYear, prevCycleMonth);
     
     if (donationFilter === 'GivenThisMonth') return givenThisMonth;
-    if (donationFilter === 'NotGivenThisMonth') return !givenThisMonth && p.status === 'Aktif';
+    if (donationFilter === 'NotGivenThisMonth') return !givenThisMonth && (p.status === 'Aktif' || p.status === 'Komitmen' || p.status === 'Donasi Pertama');
     if (donationFilter === 'GivenLastMonth') return givenLastMonth;
-    if (donationFilter === 'NotGivenLastMonth') return !givenLastMonth && p.status === 'Aktif';
+    if (donationFilter === 'NotGivenLastMonth') return !givenLastMonth && (p.status === 'Aktif' || p.status === 'Komitmen' || p.status === 'Donasi Pertama');
     
     return true;
   });
@@ -440,6 +461,7 @@ export default function PartnersTab({
   };
 
   const openDonationForPartner = (partner: Partner) => {
+    setEditingDonation(null);
     setDonationPartnerId(partner.id);
     setDonationAmount(partner.commitmentAmount);
     // Set date to a suitable date in the selected month/year
@@ -830,9 +852,16 @@ export default function PartnersTab({
     }
   };
 
-  // 1. Get active partners that have ongoing commitment for the selected month/year
-  const activePartnersForPeriod = partners.filter(p => {
-    // Include 'Aktif', 'Komitmen', and 'Donasi Pertama' as committed partners
+  // 1. Get active partners that have ongoing commitment for the selected month/year OR made a donation in this period
+  const activePartnersForPeriod = safePartners.filter(p => {
+    // If they actually made a donation in this specific month/cycle, ALWAYS show them in the schedule status list!
+    const hasDonatedInPeriod = safeDonations.some(d => {
+      if (!d.partnerId || d.partnerId !== p.id || !d.date) return false;
+      return isDateInCutoffPeriod(d.date, scheduleYear, scheduleMonth, cutoffDay);
+    });
+    if (hasDonatedInPeriod) return true;
+
+    // Otherwise, include 'Aktif', 'Komitmen', and 'Donasi Pertama' as committed partners
     if (p.status !== 'Aktif' && p.status !== 'Komitmen' && p.status !== 'Donasi Pertama') return false;
     
     // Check start and end dates
@@ -845,14 +874,6 @@ export default function PartnersTab({
     const endSecs = pEnd ? new Date(pEnd.year, pEnd.month, 28).getTime() : Infinity;
     
     if (currentSecs < startSecs || currentSecs > endSecs) return false;
-    
-    // If they actually made a donation in this specific month, always show them in the schedule status list!
-    const hasDonatedInPeriod = finalDonationLogs.some(d => {
-      if (!d.partnerId || d.partnerId !== p.id || !d.date) return false;
-      const parsed = parseDateUTC(d.date);
-      return parsed.year === scheduleYear && parsed.month === scheduleMonth;
-    });
-    if (hasDonatedInPeriod) return true;
 
     // Frequency filter
     if (p.frequency === 'Bulanan') return true;
@@ -869,26 +890,29 @@ export default function PartnersTab({
 
   // 2. Get total actual donations from each active partner in this selected month
   const getDonationsForPartnerInPeriod = (partnerId: string) => {
-    return finalDonationLogs.filter(d => {
+    return safeDonations.filter(d => {
       if (!d.partnerId || d.partnerId !== partnerId || !d.date) return false;
-      const parsed = parseDateUTC(d.date);
-      return parsed.year === scheduleYear && parsed.month === scheduleMonth;
+      return isDateInCutoffPeriod(d.date, scheduleYear, scheduleMonth, cutoffDay);
     });
   };
 
   const getPartnerPaidAmountInPeriod = (partnerId: string) => {
-    return getDonationsForPartnerInPeriod(partnerId).reduce((sum, d) => sum + d.amount, 0);
+    return getDonationsForPartnerInPeriod(partnerId).reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
   };
 
   // 3. Status determination for each partner in this period
   const isPartnerLunasInPeriod = (p: Partner) => {
     const paid = getPartnerPaidAmountInPeriod(p.id);
-    return paid >= p.commitmentAmount;
+    const commitment = Number(p.commitmentAmount) || 0;
+    if (commitment <= 0) return paid > 0;
+    return paid >= commitment;
   };
 
   const searchedSchedulesPartners = activePartnersForPeriod.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          p.id.toLowerCase().includes(searchQuery.toLowerCase());
+    const pName = p.name || '';
+    const pId = p.id || '';
+    const matchesSearch = pName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          pId.toLowerCase().includes(searchQuery.toLowerCase());
     
     if (!matchesSearch) return false;
 
@@ -930,98 +954,115 @@ export default function PartnersTab({
     }
   };
 
-  const totalActivePartners = partners.filter(p => p.status === 'Aktif').length;
-  const crmProspectsCount = partners.filter(p => p.status !== 'Aktif').length;
-  const unpaidCount = partners.filter(p => {
+  const totalActivePartners = safePartners.filter(p => p.status === 'Aktif' || p.status === 'Komitmen' || p.status === 'Donasi Pertama').length;
+  const crmProspectsCount = safePartners.filter(p => p.status !== 'Aktif').length;
+  const unpaidCount = safePartners.filter(p => {
     const isActive = p.status === 'Aktif' || p.status === 'Komitmen' || p.status === 'Donasi Pertama';
     if (!isActive) return false;
-    return !checkDonation(p.id, currentYearNum, currentMonthNum);
+    return !checkDonation(p.id, currentCycleYear, currentCycleMonth);
   }).length;
 
-  return (
-    <div className="space-y-6">
+  const cycleDonationsTotal = safeDonations
+    .filter(d => isDateInCutoffPeriod(d.date, scheduleYear, scheduleMonth, cutoffDay))
+    .reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+
+  return (    <div className="space-y-6">
       
       {/* Metrics widgets */}
       <div className={`grid grid-cols-1 ${currentRole === 'Staff' ? 'sm:grid-cols-2' : 'sm:grid-cols-4'} gap-4`}>
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)]">
-          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-mono">Mitra Setia Aktif</span>
-          <h2 className="text-xl font-bold text-indigo-600 mt-1">{partners.filter(p => p.status === 'Aktif').length} Mitra</h2>
+        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between">
+          <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Mitra Setia Aktif</span>
+          <div className="mt-2">
+            <h2 className="text-xl font-bold text-slate-900">{totalActivePartners} Mitra</h2>
+            <span className="text-xs text-slate-500 block mt-0.5">Dari total {safePartners.length} mitra terdaftar</span>
+          </div>
         </div>
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)]">
-          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-mono">Tahap Pendekatan CRM</span>
-          <h2 className="text-xl font-bold text-slate-800 mt-1">{partners.filter(p => p.status !== 'Aktif').length} Prospek</h2>
+        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between">
+          <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Tahap Pendekatan CRM</span>
+          <div className="mt-2">
+            <h2 className="text-xl font-bold text-slate-900">{safePartners.filter(p => p.status === 'Prospek' || p.status === 'Kontak Awal' || p.status === 'Presentasi').length} Prospek</h2>
+            <span className="text-xs text-slate-500 block mt-0.5">Calon donatur dalam pipeline</span>
+          </div>
         </div>
         {currentRole !== 'Staff' && (
           <>
-            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)]">
-              <span className="text-[10px] text-slate-400 uppercase tracking-widest font-mono">Dukungan Bulanan</span>
-              <h2 className="text-xl font-bold text-emerald-600 mt-1">
-                Rp {partners.filter(p => p.status === 'Aktif' && p.frequency === 'Bulanan').reduce((sum, p) => sum + p.commitmentAmount, 0).toLocaleString('id-ID')}
-              </h2>
+            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between">
+              <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Komitmen Bulanan</span>
+              <div className="mt-2">
+                <h2 className="text-xl font-bold text-slate-900">
+                  Rp {safePartners.filter(p => (p.status === 'Aktif' || p.status === 'Komitmen') && p.frequency === 'Bulanan').reduce((sum, p) => sum + (Number(p.commitmentAmount) || 0), 0).toLocaleString('id-ID')}
+                </h2>
+                <span className="text-xs text-slate-500 block mt-0.5">Target komitmen rutin bulanan</span>
+              </div>
             </div>
-            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)]">
-              <span className="text-[10px] text-slate-400 tracking-widest uppercase font-mono">Donasi Masuk Mei-Juni</span>
-              <h2 className="text-xl font-bold text-slate-800 mt-1">
-                Rp {finalDonationLogs.reduce((sum, d) => sum + d.amount, 0).toLocaleString('id-ID')}
-              </h2>
+            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between">
+              <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Donasi Siklus {currentCutoffPeriod.targetMonthName}</span>
+              <div className="mt-2">
+                <h2 className="text-xl font-bold text-slate-900">
+                  Rp {cycleDonationsTotal.toLocaleString('id-ID')}
+                </h2>
+                <span className="text-xs text-[#0c2340] font-semibold block mt-0.5">
+                  {currentCutoffPeriod.formattedRange}
+                </span>
+              </div>
             </div>
           </>
         )}
       </div>
 
       {/* View switching bar */}
-      <div className="bg-white border border-slate-200/80 p-2 rounded-2xl shadow-3xs flex flex-col md:flex-row justify-between items-center gap-4">
-        <div className="flex flex-wrap gap-1 w-full md:w-auto">
+      <div className="bg-white border border-slate-200 p-1.5 rounded-lg shadow-xs flex flex-col md:flex-row justify-between items-center gap-3">
+        <div className="flex flex-wrap gap-1.5 w-full md:w-auto">
           <button 
             onClick={() => setSubView('schedules')}
-            className={`flex-1 md:flex-none px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5 transition-all ${
+            className={`flex-1 md:flex-none px-3.5 py-1.5 rounded text-xs font-semibold cursor-pointer flex items-center justify-center gap-1.5 transition-colors ${
               subView === 'schedules' 
-                ? 'bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-3xs' 
-                : 'text-slate-600 hover:text-slate-900 border border-transparent hover:bg-slate-50'
+                ? 'bg-[#0c2340] text-white shadow-xs' 
+                : 'text-slate-700 hover:bg-slate-100'
             }`}
           >
-            <Calendar className="w-3.5 h-3.5 text-indigo-500" /> 
+            <Calendar className="w-3.5 h-3.5" /> 
             <span>Jadwal Bulanan</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold ${
-              subView === 'schedules' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-550'
+            <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+              subView === 'schedules' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
             }`}>
-              {totalActivePartners}
+              {activePartnersForPeriod.length}
             </span>
           </button>
 
           <button 
             onClick={() => setSubView('scheduling')}
-            className={`flex-1 md:flex-none px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5 transition-all ${
+            className={`flex-1 md:flex-none px-3.5 py-1.5 rounded text-xs font-semibold cursor-pointer flex items-center justify-center gap-1.5 transition-colors ${
               subView === 'scheduling' 
-                ? 'bg-rose-50 text-rose-700 border border-rose-100 shadow-3xs' 
-                : 'text-slate-600 hover:text-slate-900 border border-transparent hover:bg-slate-50'
+                ? 'bg-[#0c2340] text-white shadow-xs' 
+                : 'text-slate-700 hover:bg-slate-100'
             }`}
           >
-            <Clock className="w-3.5 h-3.5 text-rose-500" /> 
+            <Clock className="w-3.5 h-3.5" /> 
             <span>Pengingat</span>
             {unpaidCount > 0 ? (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-extrabold ${
-                subView === 'scheduling' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-800'
+              <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                subView === 'scheduling' ? 'bg-[#881337] text-white' : 'bg-rose-100 text-rose-800'
               }`}>
                 {unpaidCount}
               </span>
             ) : (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-mono">0</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">0</span>
             )}
           </button>
 
           <button 
             onClick={() => setSubView('directory')}
-            className={`flex-1 md:flex-none px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5 transition-all ${
+            className={`flex-1 md:flex-none px-3.5 py-1.5 rounded text-xs font-semibold cursor-pointer flex items-center justify-center gap-1.5 transition-colors ${
               subView === 'directory' 
-                ? 'bg-slate-900 text-white border border-slate-950 shadow-3xs' 
-                : 'text-slate-600 hover:text-slate-900 border border-transparent hover:bg-slate-50'
+                ? 'bg-[#0c2340] text-white shadow-xs' 
+                : 'text-slate-700 hover:bg-slate-100'
             }`}
           >
-            <Search className="w-3.5 h-3.5 text-slate-400" /> 
-            <span>Database</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold ${
-              subView === 'directory' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-550'
+            <Search className="w-3.5 h-3.5" /> 
+            <span>Database Mitra</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+              subView === 'directory' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
             }`}>
               {partners.length}
             </span>
@@ -1029,16 +1070,16 @@ export default function PartnersTab({
 
           <button 
             onClick={() => setSubView('pipeline')}
-            className={`flex-1 md:flex-none px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5 transition-all ${
+            className={`flex-1 md:flex-none px-3.5 py-1.5 rounded text-xs font-semibold cursor-pointer flex items-center justify-center gap-1.5 transition-colors ${
               subView === 'pipeline' 
-                ? 'bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-3xs' 
-                : 'text-slate-600 hover:text-slate-900 border border-transparent hover:bg-slate-50'
+                ? 'bg-[#0c2340] text-white shadow-xs' 
+                : 'text-slate-700 hover:bg-slate-100'
             }`}
           >
-            <KanbanSquare className="w-3.5 h-3.5 text-indigo-500" /> 
+            <KanbanSquare className="w-3.5 h-3.5" /> 
             <span>Pipeline CRM</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold ${
-              subView === 'pipeline' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-550'
+            <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+              subView === 'pipeline' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
             }`}>
               {crmProspectsCount}
             </span>
@@ -1047,16 +1088,16 @@ export default function PartnersTab({
           {currentRole !== 'Staff' && (
             <button 
               onClick={() => setSubView('donations')}
-              className={`flex-1 md:flex-none px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5 transition-all ${
+              className={`flex-1 md:flex-none px-3.5 py-1.5 rounded text-xs font-semibold cursor-pointer flex items-center justify-center gap-1.5 transition-colors ${
                 subView === 'donations' 
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-3xs' 
-                  : 'text-slate-600 hover:text-slate-900 border border-transparent hover:bg-slate-50'
+                  ? 'bg-[#0c2340] text-white shadow-xs' 
+                  : 'text-slate-700 hover:bg-slate-100'
               }`}
             >
-              <DollarSign className="w-3.5 h-3.5 text-emerald-500" /> 
+              <DollarSign className="w-3.5 h-3.5" /> 
               <span>Jurnal Donasi</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold ${
-                subView === 'donations' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-550'
+              <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                subView === 'donations' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
               }`}>
                 {finalDonationLogs.length}
               </span>
@@ -1064,53 +1105,53 @@ export default function PartnersTab({
           )}
         </div>
 
-        <div className="hidden lg:flex items-center gap-2 text-[11px] text-slate-450 font-medium bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
-          <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-          <span>Sistem Sinkronisasi CRM Aktif &bull; {currentRole}</span>
+        <div className="hidden lg:flex items-center gap-2 text-xs text-slate-500 font-medium bg-slate-50 px-3 py-1 rounded border border-slate-200">
+          <span className="w-2 h-2 bg-emerald-600 rounded-full"></span>
+          <span>Sistem CRM Sinkron &bull; {currentRole}</span>
         </div>
       </div>
 
       {/* VIEW 0: MONITORING JADWAL & STATUS BULANAN */}
       {subView === 'schedules' && (
-        <div className="space-y-6 animate-in fade-in duration-200">
+        <div className="space-y-6">
           
           {/* Month & Year Navigator */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-indigo-50 text-indigo-700 rounded-xl">
-                <Calendar className="w-5 h-5 text-indigo-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-800 text-sm">Monitoring Jadwal & Komitmen Bulanan</h3>
-                <p className="text-[11px] text-slate-500">Menganalisis pencapaian dan mengirim pengingat donasi terjadwal mitra aktif.</p>
-              </div>
+          <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">Monitoring Jadwal & Komitmen Bulanan</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Analisis pencapaian dan koordinasi pengingat donasi terjadwal mitra aktif.</p>
             </div>
 
             {/* Quick Month Control Navigator */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 bg-slate-50 border border-slate-150 p-1.5 rounded-xl">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 p-1 rounded">
                 <button 
                   onClick={handlePrevMonth}
-                  className="p-1.5 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-slate-600 transition-colors shadow-2xs cursor-pointer"
+                  className="p-1 border border-slate-300 rounded bg-white hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
                   title="Bulan Sebelumnya"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 
-                <div className="flex gap-1.5">
+                <div className="flex gap-1">
                   <select
                     value={scheduleMonth}
                     onChange={(e) => setScheduleMonth(Number(e.target.value))}
-                    className="border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-800 bg-white font-semibold cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-800 bg-white font-medium cursor-pointer outline-none focus:border-[#0c2340]"
                   >
-                    {INDO_MONTHS.map((m, idx) => (
-                      <option key={idx} value={idx}>{m}</option>
-                    ))}
+                    {INDO_MONTHS.map((m, idx) => {
+                      const range = getCutoffPeriodRange(scheduleYear, idx, cutoffDay);
+                      return (
+                        <option key={idx} value={idx}>
+                          Target {m} ({range.startDay} {range.prevMonthName.slice(0, 3)} – {range.endDay} {m.slice(0, 3)})
+                        </option>
+                      );
+                    })}
                   </select>
                   <select
                     value={scheduleYear}
                     onChange={(e) => setScheduleYear(Number(e.target.value))}
-                    className="border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-800 bg-white font-semibold cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-800 bg-white font-medium cursor-pointer outline-none focus:border-[#0c2340]"
                   >
                     {[2024, 2025, 2026, 2027, 2028].map(yr => (
                       <option key={yr} value={yr}>{yr}</option>
@@ -1120,7 +1161,7 @@ export default function PartnersTab({
 
                 <button 
                   onClick={handleNextMonth}
-                  className="p-1.5 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-slate-600 transition-colors shadow-2xs cursor-pointer"
+                  className="p-1 border border-slate-300 rounded bg-white hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
                   title="Bulan Berikutnya"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -1129,85 +1170,107 @@ export default function PartnersTab({
 
               <button
                 onClick={() => {
-                  setScheduleMonth(new Date().getMonth());
-                  setScheduleYear(new Date().getFullYear());
+                  const active = getCurrentActiveCycle(cutoffDay);
+                  setScheduleMonth(active.month);
+                  setScheduleYear(active.year);
                 }}
-                className="px-3.5 py-2 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-slate-600 shadow-2xs cursor-pointer transition-all active:translate-y-0"
+                className="px-3 py-1.5 border border-slate-300 rounded bg-white hover:bg-slate-50 text-xs font-medium text-slate-700 cursor-pointer transition-colors"
               >
-                Bulan Ini
+                Siklus Saat Ini
               </button>
 
               <button 
                 onClick={handleDownloadAllPartnersPDF}
-                className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-3xs cursor-pointer transition-colors"
+                className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium rounded text-xs flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
                 title="Unduh seluruh direktori mitra aktif dalam bentuk tabel PDF"
               >
-                <Download className="w-3.5 h-3.5 text-rose-500" /> 
-                <span>Export PDF</span>
+                <Download className="w-3.5 h-3.5 text-slate-600" /> 
+                <span>Ekspor PDF</span>
               </button>
+            </div>
+          </div>
+
+          {/* Dynamic Cut-Off Cycle Info Banner */}
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 bg-[#0c2340] text-white rounded">
+                <Calendar className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-slate-900">Siklus Finansial: {currentCutoffPeriod.formattedRange}</span>
+                <span className="text-xs text-slate-500 block">Donasi masuk dalam rentang ini dihitung untuk target periode {currentCutoffPeriod.targetMonthName} {currentCutoffPeriod.targetYear}.</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs bg-white text-slate-700 font-semibold px-2.5 py-1 rounded border border-slate-300">
+                Cut-off: Tgl {cutoffDay}
+              </span>
+              <span className="text-xs bg-emerald-50 text-emerald-800 font-semibold px-2.5 py-1 rounded border border-emerald-200">
+                Payroll: {currentCutoffPeriod.targetPayDateStr}
+              </span>
             </div>
           </div>
 
           {/* KPI Bento Box Grid */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between">
               <div>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest font-mono block">Target Komitmen</span>
-                <span className="text-[10px] text-indigo-500 font-medium block">Periode {INDO_MONTHS[scheduleMonth]} {scheduleYear}</span>
+                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">Target Komitmen</span>
+                <span className="text-xs text-slate-500 font-medium block mt-0.5">Siklus {currentCutoffPeriod.formattedRange}</span>
               </div>
-              <h2 className="text-xl font-bold text-slate-800 mt-2 font-mono">
-                Rp {activePartnersForPeriod.reduce((sum, p) => sum + p.commitmentAmount, 0).toLocaleString('id-ID')}
+              <h2 className="text-xl font-bold text-slate-900 mt-2">
+                Rp {activePartnersForPeriod.reduce((sum, p) => sum + (Number(p.commitmentAmount) || 0), 0).toLocaleString('id-ID')}
               </h2>
-              <div className="text-[10px] text-slate-400 mt-1">
-                Dari <strong className="text-slate-600 font-bold">{activePartnersForPeriod.length} mitra</strong> aktif berjadwal.
+              <div className="text-xs text-slate-500 mt-1">
+                Dari <strong className="text-slate-700 font-semibold">{activePartnersForPeriod.length} mitra</strong> aktif.
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between">
               <div>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest font-mono block">Realisasi Terbayar</span>
-                <span className="text-[10px] text-emerald-500 font-medium block">Penerimaan kas terverifikasi</span>
+                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">Realisasi Terbayar</span>
+                <span className="text-xs text-emerald-700 font-medium block mt-0.5">Penerimaan kas terverifikasi</span>
               </div>
-              <h2 className="text-xl font-bold text-emerald-600 mt-2 font-mono">
+              <h2 className="text-xl font-bold text-emerald-800 mt-2">
                 Rp {activePartnersForPeriod.reduce((sum, p) => sum + getPartnerPaidAmountInPeriod(p.id), 0).toLocaleString('id-ID')}
               </h2>
-              <div className="text-[10px] text-slate-400 mt-1">
-                Jumlah lunas: <strong className="text-emerald-700 font-bold">{activePartnersForPeriod.filter(p => isPartnerLunasInPeriod(p)).length} mitra</strong>.
+              <div className="text-xs text-slate-500 mt-1">
+                Lunas: <strong className="text-emerald-700 font-semibold">{activePartnersForPeriod.filter(p => isPartnerLunasInPeriod(p)).length} mitra</strong>.
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between">
               <div>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest font-mono block">Belum Realisasi</span>
-                <span className="text-[10px] text-amber-500 font-medium block">Tunggakan / Belum Menyalurkan</span>
+                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">Belum Realisasi</span>
+                <span className="text-xs text-amber-700 font-medium block mt-0.5">Belum menyalurkan</span>
               </div>
-              <h2 className="text-xl font-bold text-amber-600 mt-2 font-mono">
+              <h2 className="text-xl font-bold text-amber-800 mt-2">
                 Rp {activePartnersForPeriod.reduce((sum, p) => {
                   const paid = getPartnerPaidAmountInPeriod(p.id);
-                  const diff = p.commitmentAmount - paid;
+                  const diff = (Number(p.commitmentAmount) || 0) - paid;
                   return sum + (diff > 0 ? diff : 0);
                 }, 0).toLocaleString('id-ID')}
               </h2>
-              <div className="text-[10px] text-slate-400 mt-1">
-                Belum lunas: <strong className="text-amber-700 font-bold">{activePartnersForPeriod.filter(p => !isPartnerLunasInPeriod(p)).length} mitra</strong>.
+              <div className="text-xs text-slate-500 mt-1">
+                Belum lunas: <strong className="text-amber-700 font-semibold">{activePartnersForPeriod.filter(p => !isPartnerLunasInPeriod(p)).length} mitra</strong>.
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between">
               <div>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest font-mono block">Persentase Capaian</span>
+                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">Persentase Capaian</span>
                 <div className="flex justify-between items-center mt-2">
-                  <span className="text-2xl font-bold text-indigo-600 font-mono">
-                    {activePartnersForPeriod.reduce((sum, p) => sum + p.commitmentAmount, 0) > 0 ? Math.min(100, Math.round((activePartnersForPeriod.reduce((sum, p) => sum + getPartnerPaidAmountInPeriod(p.id), 0) / activePartnersForPeriod.reduce((sum, p) => sum + p.commitmentAmount, 0)) * 100)) : 0}%
+                  <span className="text-2xl font-bold text-[#0c2340]">
+                    {activePartnersForPeriod.reduce((sum, p) => sum + (Number(p.commitmentAmount) || 0), 0) > 0 ? Math.min(100, Math.round((activePartnersForPeriod.reduce((sum, p) => sum + getPartnerPaidAmountInPeriod(p.id), 0) / activePartnersForPeriod.reduce((sum, p) => sum + (Number(p.commitmentAmount) || 0), 0)) * 100)) : 0}%
                   </span>
-                  <span className="text-[10px] text-indigo-500 font-semibold bg-indigo-50 px-2 py-0.5 rounded-md font-mono">Target Kemitraan</span>
+                  <span className="text-xs text-slate-600 font-semibold bg-slate-100 px-2 py-0.5 rounded">Target Kemitraan</span>
                 </div>
               </div>
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-3">
+              <div className="w-full bg-slate-100 h-2 rounded overflow-hidden mt-3">
                 <div 
-                  className="bg-indigo-600 h-full rounded-full transition-all duration-500"
+                  className="bg-[#0c2340] h-full rounded transition-all duration-500"
                   style={{ 
-                    width: `${activePartnersForPeriod.reduce((sum, p) => sum + p.commitmentAmount, 0) > 0 ? Math.min(100, Math.round((activePartnersForPeriod.reduce((sum, p) => sum + getPartnerPaidAmountInPeriod(p.id), 0) / activePartnersForPeriod.reduce((sum, p) => sum + p.commitmentAmount, 0)) * 100)) : 0}%` 
+                    width: `${activePartnersForPeriod.reduce((sum, p) => sum + (Number(p.commitmentAmount) || 0), 0) > 0 ? Math.min(100, Math.round((activePartnersForPeriod.reduce((sum, p) => sum + getPartnerPaidAmountInPeriod(p.id), 0) / activePartnersForPeriod.reduce((sum, p) => sum + (Number(p.commitmentAmount) || 0), 0)) * 100)) : 0}%` 
                   }}
                 />
               </div>
@@ -1216,28 +1279,28 @@ export default function PartnersTab({
 
           {/* Schedule Template WA Alert/Editor */}
           {isWATemplateEditing && (
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4 animate-in fade-in slide-in-from-top-4 duration-200">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 space-y-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-emerald-100 rounded-xl text-emerald-700 shadow-xs">
-                    <MessageSquare className="w-5 h-5" />
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-emerald-50 rounded text-emerald-800 border border-emerald-200">
+                    <MessageSquare className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-800 text-sm">Atur Format WhatsApp Pengingat (Template WA)</h3>
-                    <p className="text-[11px] text-slate-500">Sesuaikan pesan WA otomatis saat melakukan penagihan kemitraan.</p>
+                    <h3 className="font-bold text-slate-900 text-xs">Atur Format WhatsApp Pengingat (Template WA)</h3>
+                    <p className="text-xs text-slate-500">Sesuaikan pesan WA otomatis saat melakukan komunikasi dengan mitra.</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setIsWATemplateEditing(false)}
-                  className="text-slate-500 hover:text-slate-700 font-bold text-xs cursor-pointer px-3 py-1.5 bg-white rounded-xl border border-slate-200 transition-colors shadow-2xs hover:bg-slate-50"
+                  className="text-slate-600 hover:text-slate-900 font-medium text-xs cursor-pointer px-3 py-1 bg-white rounded border border-slate-300 transition-colors shadow-xs"
                 >
                   Tutup Pengaturan [X]
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 block uppercase font-mono tracking-wider">Isi Pesan:</label>
+                  <label className="text-xs font-semibold text-slate-700 block uppercase tracking-wider">Isi Pesan:</label>
                   <textarea
                     rows={4}
                     value={waTemplate}
@@ -1245,19 +1308,19 @@ export default function PartnersTab({
                       setWaTemplate(e.target.value);
                       localStorage.setItem('wa_reminder_template', e.target.value);
                     }}
-                    className="w-full border border-slate-250 rounded-xl p-3 text-xs bg-white text-slate-800 leading-relaxed font-sans focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full border border-slate-300 rounded p-2.5 text-xs bg-white text-slate-800 leading-relaxed focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] outline-none"
                     placeholder="Halo {nama}, kami dari..."
                   />
                   
-                  <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500">
-                    <span className="font-semibold text-slate-650">Masukkan variabel:</span>
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
+                    <span className="font-medium">Variabel:</span>
                     <button 
                       onClick={() => {
                         const newTemp = waTemplate + ' {nama}';
                         setWaTemplate(newTemp);
                         localStorage.setItem('wa_reminder_template', newTemp);
                       }} 
-                      className="px-2 py-0.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 font-mono text-indigo-650 cursor-pointer text-[10px] shadow-3xs"
+                      className="px-2 py-0.5 bg-white border border-slate-300 rounded hover:bg-slate-50 text-[#0c2340] font-semibold cursor-pointer text-xs shadow-xs"
                     >
                       &#123;nama&#125;
                     </button>
@@ -1267,7 +1330,7 @@ export default function PartnersTab({
                         setWaTemplate(newTemp);
                         localStorage.setItem('wa_reminder_template', newTemp);
                       }} 
-                      className="px-2 py-0.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 font-mono text-indigo-650 cursor-pointer text-[10px] shadow-3xs"
+                      className="px-2 py-0.5 bg-white border border-slate-300 rounded hover:bg-slate-50 text-[#0c2340] font-semibold cursor-pointer text-xs shadow-xs"
                     >
                       &#123;tanggal&#125;
                     </button>
@@ -1277,7 +1340,7 @@ export default function PartnersTab({
                         setWaTemplate(newTemp);
                         localStorage.setItem('wa_reminder_template', newTemp);
                       }} 
-                      className="px-2 py-0.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 font-mono text-indigo-650 cursor-pointer text-[10px] shadow-3xs"
+                      className="px-2 py-0.5 bg-white border border-slate-300 rounded hover:bg-slate-50 text-[#0c2340] font-semibold cursor-pointer text-xs shadow-xs"
                     >
                       &#123;komitmen&#125;
                     </button>
@@ -1287,25 +1350,25 @@ export default function PartnersTab({
                         setWaTemplate(def);
                         localStorage.setItem('wa_reminder_template', def);
                       }}
-                      className="ml-auto text-emerald-650 font-bold hover:underline cursor-pointer text-[10px]"
+                      className="ml-auto text-[#0c2340] font-semibold hover:underline cursor-pointer text-xs"
                     >
-                      Reset Default
+                      Setel Ulang
                     </button>
                   </div>
                 </div>
 
-                <div className="bg-emerald-50/40 rounded-2xl border border-emerald-100 p-4 flex flex-col justify-between">
+                <div className="bg-white rounded-lg border border-slate-200 p-4 flex flex-col justify-between">
                   <div>
-                    <span className="text-[10px] font-bold text-emerald-800 uppercase font-mono tracking-wider block mb-1">Pratinjau Hasil Pesan WA (Contoh):</span>
-                    <div className="bg-white border border-emerald-100/70 p-3 rounded-xl text-xs text-slate-700 leading-relaxed shadow-3xs whitespace-pre-line min-h-[95px]">
+                    <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider block mb-1">Pratinjau Hasil Pesan WA:</span>
+                    <div className="bg-slate-50 border border-slate-200 p-3 rounded text-xs text-slate-800 leading-relaxed whitespace-pre-line min-h-[95px]">
                       {waTemplate
                         .replace(/{nama}/g, 'Bapak Hendra Wijaya')
                         .replace(/{tanggal}/g, 'tanggal 5 tiap bulan')
                         .replace(/{komitmen}/g, 'Rp 1.500.000')}
                     </div>
                   </div>
-                  <div className="text-[10px] text-slate-450 mt-2">
-                    *Saat tombol <strong className="text-slate-600 font-bold">"Hubungi WA"</strong> ditekan, variabel di atas akan langsung disubstitusi secara otomatis sesuai data profil mitra tersebut.
+                  <div className="text-xs text-slate-500 mt-2">
+                    *Variabel akan otomatis disubstitusi sesuai profil data mitra bersangkutan saat menghubungi.
                   </div>
                 </div>
               </div>
@@ -1313,58 +1376,58 @@ export default function PartnersTab({
           )}
 
           {/* List Section with Filter Options */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-slate-100 bg-slate-50/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
               
               {/* Search & Filter pills */}
-              <div className="flex flex-wrap items-center gap-2.5">
-                <span className="text-[10px] uppercase font-bold font-mono tracking-wider text-slate-400 mr-1">Status Bayar:</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider mr-1">Status:</span>
                 
                 <button
                   onClick={() => setScheduleStatusFilter('All')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
+                  className={`px-3 py-1 rounded text-xs font-medium cursor-pointer transition-colors ${
                     scheduleStatusFilter === 'All' 
-                      ? 'bg-indigo-650 text-white shadow-sm' 
-                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                      ? 'bg-[#0c2340] text-white shadow-xs' 
+                      : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
                   }`}
                 >
-                  Semua Mitra ({activePartnersForPeriod.length})
+                  Semua ({activePartnersForPeriod.length})
                 </button>
 
                 <button
                   onClick={() => setScheduleStatusFilter('Unpaid')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 ${
+                  className={`px-3 py-1 rounded text-xs font-medium cursor-pointer transition-colors flex items-center gap-1.5 ${
                     scheduleStatusFilter === 'Unpaid' 
-                      ? 'bg-amber-600 text-white shadow-sm font-bold' 
-                      : 'bg-white text-amber-700 border border-amber-200 hover:bg-amber-50/40'
+                      ? 'bg-amber-700 text-white shadow-xs font-semibold' 
+                      : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
                   }`}
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                  Belum Kasih ({activePartnersForPeriod.filter(p => !isPartnerLunasInPeriod(p)).length})
+                  Belum Lunas ({activePartnersForPeriod.filter(p => !isPartnerLunasInPeriod(p)).length})
                 </button>
 
                 <button
                   onClick={() => setScheduleStatusFilter('Paid')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 ${
+                  className={`px-3 py-1 rounded text-xs font-medium cursor-pointer transition-colors flex items-center gap-1.5 ${
                     scheduleStatusFilter === 'Paid' 
-                      ? 'bg-emerald-600 text-white shadow-sm font-bold' 
-                      : 'bg-white text-emerald-750 border border-emerald-200 hover:bg-emerald-50/40'
+                      ? 'bg-emerald-700 text-white shadow-xs font-semibold' 
+                      : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
                   }`}
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                  Sudah Lunas ({activePartnersForPeriod.filter(p => isPartnerLunasInPeriod(p)).length})
+                  Lunas ({activePartnersForPeriod.filter(p => isPartnerLunasInPeriod(p)).length})
                 </button>
               </div>
 
               {/* Filter per tanggal memberi & Search */}
-              <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
-                <div className="relative flex items-center gap-1.5 border border-slate-200 bg-white rounded-xl px-2.5 py-1 text-xs text-slate-700 shadow-3xs hover:bg-slate-50/50">
-                  <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                  <span className="font-semibold text-[11px] text-slate-500">Tgl Memberi:</span>
+              <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+                <div className="relative flex items-center gap-1.5 border border-slate-300 bg-white rounded px-2.5 py-1 text-xs text-slate-700">
+                  <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="font-medium text-xs text-slate-500">Tgl:</span>
                   <select
                     value={selectedDonationDay}
                     onChange={(e) => setSelectedDonationDay(e.target.value)}
-                    className="bg-transparent font-bold text-slate-800 cursor-pointer focus:outline-none"
+                    className="bg-transparent font-semibold text-slate-800 cursor-pointer focus:outline-none"
                   >
                     <option value="Semua">Semua Tanggal</option>
                     {Array.from({ length: 31 }, (_, i) => String(i + 1)).map(day => (
@@ -1375,13 +1438,13 @@ export default function PartnersTab({
 
                 {/* Inline Search in Schedules tab */}
                 <div className="relative w-full md:w-56">
-                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <Search className="absolute left-3 top-2 w-3.5 h-3.5 text-slate-400" />
                   <input 
                     type="text" 
-                    placeholder="Cari mitra dalam jadwal..."
+                    placeholder="Cari mitra..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-1.5 border border-slate-200 rounded-xl text-xs"
+                    className="w-full pl-8 pr-3 py-1 border border-slate-300 rounded text-xs text-slate-800 bg-white focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   />
                 </div>
               </div>
@@ -1389,12 +1452,12 @@ export default function PartnersTab({
             </div>
 
             {searchedSchedulesPartners.length === 0 ? (
-              <div className="p-12 text-center text-slate-400 space-y-2">
-                <Calendar className="w-10 h-10 mx-auto text-slate-300 stroke-1" />
-                <h4 className="font-bold text-slate-700 text-sm">Tidak Ada Jadwal Mitra Ditemukan</h4>
+              <div className="p-10 text-center text-slate-400 space-y-2">
+                <Calendar className="w-8 h-8 mx-auto text-slate-300" />
+                <h4 className="font-bold text-slate-700 text-xs">Tidak Ada Jadwal Mitra Ditemukan</h4>
                 <p className="text-xs text-slate-500 max-w-md mx-auto">
                   {scheduleStatusFilter === 'Unpaid' 
-                    ? "Luar biasa! Seluruh mitra kemitraan telah melunasi dukungan mereka untuk bulan berjalan ini."
+                    ? "Seluruh mitra kemitraan telah melunasi dukungan mereka untuk bulan berjalan ini."
                     : "Tidak ada data mitra aktif yang sesuai dengan kriteria filter pencarian Anda di periode ini."}
                 </p>
               </div>
@@ -1402,13 +1465,13 @@ export default function PartnersTab({
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-slate-50/30 text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono border-b border-slate-100">
-                      <th className="p-4">Kode / Nama Mitra</th>
-                      <th className="p-4">Target Komitmen</th>
-                      <th className="p-4">Tanggal Rencana</th>
-                      <th className="p-4">Realisasi Penerimaan</th>
-                      <th className="p-4">Status Bulan Ini</th>
-                      <th className="p-4 text-center">Aksi & Detail</th>
+                    <tr className="bg-slate-50 text-xs text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200">
+                      <th className="p-3.5">Kode & Nama Mitra</th>
+                      <th className="p-3.5">Target Komitmen</th>
+                      <th className="p-3.5">Tanggal Rencana</th>
+                      <th className="p-3.5">Realisasi Penerimaan</th>
+                      <th className="p-3.5">Status Bulan Ini</th>
+                      <th className="p-3.5 text-center">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
@@ -1419,78 +1482,78 @@ export default function PartnersTab({
                       const donationDayText = partner.donationDay ? `Setiap tanggal ${partner.donationDay}` : 'Akhir bulan';
                       
                       return (
-                        <tr key={partner.id} className="hover:bg-slate-50/30 transition-colors">
-                          <td className="p-4">
+                        <tr key={partner.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="p-3.5">
                             <div className="flex items-center gap-2.5">
-                              <div className={`p-2 rounded-lg font-bold font-mono text-[11px] ${
-                                isLunas ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                              <div className={`p-1.5 rounded font-bold text-xs ${
+                                isLunas ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-slate-100 text-slate-700'
                               }`}>
                                 {partner.id}
                               </div>
                               <div>
-                                <span className="font-bold text-slate-800 block">{partner.name}</span>
-                                <span className="text-[10px] text-slate-450">{partner.partnerType} &bull; Relasi: {partner.staffRelasi}</span>
+                                <span className="font-bold text-slate-900 block">{partner.name}</span>
+                                <span className="text-[11px] text-slate-500">{partner.partnerType} &bull; Relasi: {partner.staffRelasi}</span>
                               </div>
                             </div>
                           </td>
-                          <td className="p-4 font-semibold text-slate-700">
-                            Rp {partner.commitmentAmount.toLocaleString('id-ID')}
-                            <span className="text-[10px] text-slate-450 block font-normal">{partner.frequency}</span>
+                          <td className="p-3.5 font-semibold text-slate-800">
+                            Rp {(Number(partner.commitmentAmount) || 0).toLocaleString('id-ID')}
+                            <span className="text-[11px] text-slate-500 block font-normal">{partner.frequency}</span>
                           </td>
-                          <td className="p-4 font-medium text-slate-600">
-                            <span className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-150 px-2 py-0.5 rounded-md text-[10px]">
-                              <Calendar className="w-3 h-3 text-indigo-500" /> {donationDayText}
+                          <td className="p-3.5 text-slate-600">
+                            <span className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-xs">
+                              <Calendar className="w-3 h-3 text-slate-500" /> {donationDayText}
                             </span>
                           </td>
-                          <td className="p-4">
+                          <td className="p-3.5">
                             {paidAmount > 0 ? (
                               <div>
-                                <span className="font-bold text-emerald-600 font-mono">Rp {paidAmount.toLocaleString('id-ID')}</span>
+                                <span className="font-bold text-emerald-700">Rp {paidAmount.toLocaleString('id-ID')}</span>
                                 {matchedLogs.length > 0 && (
-                                  <span className="text-[9px] text-slate-400 block font-medium">via {matchedLogs[0].channel}</span>
+                                  <span className="text-[11px] text-slate-500 block font-medium">via {matchedLogs[0].channel}</span>
                                 )}
                               </div>
                             ) : (
-                              <span className="text-slate-400 font-mono">Rp 0</span>
+                              <span className="text-slate-400">Rp 0</span>
                             )}
                           </td>
-                          <td className="p-4">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          <td className="p-3.5">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${
                               isLunas 
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-150' 
-                                : 'bg-amber-50 text-amber-700 border border-amber-150'
+                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                                : 'bg-amber-50 text-amber-800 border border-amber-200'
                             }`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${isLunas ? 'bg-emerald-500' : 'bg-amber-400'}`}></span>
                               {isLunas ? 'Lunas ✓' : 'Belum Lunas'}
                             </span>
                           </td>
-                          <td className="p-4">
+                          <td className="p-3.5">
                             <div className="flex items-center justify-center gap-1.5 flex-wrap">
                               {/* Direct WA Remind Button */}
                               <a 
                                 href={getWhatsAppLink(partner)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
                               >
-                                <Phone className="w-3 h-3 fill-white" /> Hubungi WA
+                                <Phone className="w-3 h-3 fill-white" /> WA
                               </a>
 
                               {/* Prefilled Quick Payment Verification */}
                               {!isLunas && canManageDonations && (
                                 <button 
                                   onClick={() => openDonationForPartner(partner)}
-                                  className="px-2.5 py-1.5 bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                                  className="px-2.5 py-1 bg-[#881337] hover:bg-[#9f1239] text-white rounded text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
                                   title="Verifikasi Penerimaan Dana Donasi"
                                 >
-                                  <Heart className="w-3 h-3 fill-white text-white" /> Verifikasi Bayar
+                                  <Heart className="w-3 h-3 text-white" /> Bayar
                                 </button>
                               )}
 
                               {/* Detail Modal Button */}
                               <button 
                                 onClick={() => setDetailPartner(partner)}
-                                className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
+                                className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded text-xs font-medium cursor-pointer transition-colors"
                               >
                                 Detail
                               </button>
@@ -1498,10 +1561,10 @@ export default function PartnersTab({
                               {/* Single PDF Exporter */}
                               <button 
                                 onClick={() => handleDownloadSinglePartnerPDF(partner)}
-                                className="px-2 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                className="px-2 py-1 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors"
                                 title="Unduh Laporan Profil & Kartu Kontribusi PDF"
                               >
-                                <Download className="w-3 h-3 text-red-600" /> PDF
+                                <Download className="w-3 h-3 text-slate-600" /> PDF
                               </button>
                             </div>
                           </td>
@@ -1517,32 +1580,27 @@ export default function PartnersTab({
         </div>
       )}
 
-      {/* VIEW : SCHEDULING & AUTOMATED REMINDERS */}
+      {/* VIEW 1: SCHEDULING & AUTOMATED REMINDERS */}
       {subView === 'scheduling' && (
-        <div className="space-y-6 animate-in fade-in duration-200">
+        <div className="space-y-6">
           
           {/* Section Header Card */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-rose-50 text-rose-700 rounded-xl">
-                <Clock className="w-5 h-5 text-rose-600 animate-pulse" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-800 text-sm">Mesin Pengingat & Notifikasi Kemitraan</h3>
-                <p className="text-[11px] text-slate-500">Kirim pengingat tagihan janji dukungan via WhatsApp secara instan dan efisien.</p>
-              </div>
+          <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">Pengingat & Notifikasi Kemitraan</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Kirim pengingat komitmen dukungan via WhatsApp secara terstruktur dan efisien.</p>
             </div>
 
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => setIsWATemplateEditing(!isWATemplateEditing)}
-                className={`px-3.5 py-2 border rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-3xs cursor-pointer transition-colors ${
+                className={`px-3.5 py-1.5 border rounded text-xs font-medium flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors ${
                   isWATemplateEditing 
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300' 
-                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300' 
+                    : 'bg-white hover:bg-slate-50 border-slate-300 text-slate-700'
                 }`}
               >
-                <MessageSquare className="w-3.5 h-3.5 text-emerald-500" /> 
+                <MessageSquare className="w-3.5 h-3.5" /> 
                 <span>{isWATemplateEditing ? 'Tutup Template WA' : 'Atur Template WA'}</span>
               </button>
             </div>
@@ -1550,28 +1608,28 @@ export default function PartnersTab({
           
           {/* WA Template Editor Panel if active */}
           {isWATemplateEditing && (
-            <div className="bg-slate-50 border border-slate-150 p-6 rounded-2xl space-y-4">
+            <div className="bg-slate-50 border border-slate-200 p-5 rounded-lg space-y-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-emerald-100 rounded-xl text-emerald-700 shadow-xs">
-                    <MessageSquare className="w-5 h-5" />
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-emerald-50 rounded text-emerald-800 border border-emerald-200">
+                    <MessageSquare className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-800 text-sm">Pengaturan Template WhatsApp Pengingat</h3>
-                    <p className="text-[11px] text-slate-500">Konfigurasikan template pesan otomatis untuk menyapa dan mengingatkan mitra.</p>
+                    <h3 className="font-bold text-slate-900 text-xs">Pengaturan Template WhatsApp Pengingat</h3>
+                    <p className="text-xs text-slate-500">Konfigurasikan template pesan otomatis untuk menyapa dan mengingatkan mitra.</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setIsWATemplateEditing(false)}
-                  className="px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  className="px-3 py-1 border border-slate-300 rounded text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 cursor-pointer"
                 >
                   Tutup Pengaturan [X]
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 block uppercase font-mono tracking-wider">Isi Pesan:</label>
+                  <label className="text-xs font-semibold text-slate-700 block uppercase tracking-wider">Isi Pesan:</label>
                   <textarea
                     rows={4}
                     value={waTemplate}
@@ -1579,19 +1637,19 @@ export default function PartnersTab({
                       setWaTemplate(e.target.value);
                       localStorage.setItem('wa_reminder_template', e.target.value);
                     }}
-                    className="w-full border border-slate-250 rounded-xl p-3 text-xs bg-white text-slate-800 leading-relaxed font-sans focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full border border-slate-300 rounded p-2.5 text-xs bg-white text-slate-800 leading-relaxed focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] outline-none"
                     placeholder="Halo {nama}, kami dari..."
                   />
                   
-                  <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500">
-                    <span className="font-semibold text-slate-650">Masukkan variabel:</span>
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
+                    <span className="font-medium">Variabel:</span>
                     <button 
                       onClick={() => {
                         const newTemp = waTemplate + ' {nama}';
                         setWaTemplate(newTemp);
                         localStorage.setItem('wa_reminder_template', newTemp);
                       }} 
-                      className="px-2 py-0.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 font-mono text-indigo-650 cursor-pointer text-[10px] shadow-3xs"
+                      className="px-2 py-0.5 bg-white border border-slate-300 rounded hover:bg-slate-50 text-[#0c2340] font-semibold cursor-pointer text-xs shadow-xs"
                     >
                       &#123;nama&#125;
                     </button>
@@ -1601,7 +1659,7 @@ export default function PartnersTab({
                         setWaTemplate(newTemp);
                         localStorage.setItem('wa_reminder_template', newTemp);
                       }} 
-                      className="px-2 py-0.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 font-mono text-indigo-650 cursor-pointer text-[10px] shadow-3xs"
+                      className="px-2 py-0.5 bg-white border border-slate-300 rounded hover:bg-slate-50 text-[#0c2340] font-semibold cursor-pointer text-xs shadow-xs"
                     >
                       &#123;tanggal&#125;
                     </button>
@@ -1611,7 +1669,7 @@ export default function PartnersTab({
                         setWaTemplate(newTemp);
                         localStorage.setItem('wa_reminder_template', newTemp);
                       }} 
-                      className="px-2 py-0.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 font-mono text-indigo-650 cursor-pointer text-[10px] shadow-3xs"
+                      className="px-2 py-0.5 bg-white border border-slate-300 rounded hover:bg-slate-50 text-[#0c2340] font-semibold cursor-pointer text-xs shadow-xs"
                     >
                       &#123;komitmen&#125;
                     </button>
@@ -1621,25 +1679,25 @@ export default function PartnersTab({
                         setWaTemplate(def);
                         localStorage.setItem('wa_reminder_template', def);
                       }}
-                      className="ml-auto text-emerald-650 font-bold hover:underline cursor-pointer text-[10px]"
+                      className="ml-auto text-[#0c2340] font-semibold hover:underline cursor-pointer text-xs"
                     >
-                      Reset Default
+                      Setel Ulang
                     </button>
                   </div>
                 </div>
 
-                <div className="bg-emerald-50/40 rounded-2xl border border-emerald-100 p-4 flex flex-col justify-between">
+                <div className="bg-white rounded-lg border border-slate-200 p-4 flex flex-col justify-between">
                   <div>
-                    <span className="text-[10px] font-bold text-emerald-800 uppercase font-mono tracking-wider block mb-1">Pratinjau Hasil Pesan WA (Contoh):</span>
-                    <div className="bg-white border border-emerald-100/70 p-3 rounded-xl text-xs text-slate-700 leading-relaxed shadow-3xs whitespace-pre-line min-h-[95px]">
+                    <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider block mb-1">Pratinjau Hasil Pesan WA:</span>
+                    <div className="bg-slate-50 border border-slate-200 p-3 rounded text-xs text-slate-800 leading-relaxed whitespace-pre-line min-h-[95px]">
                       {waTemplate
                         .replace(/{nama}/g, 'Bapak Hendra Wijaya')
                         .replace(/{tanggal}/g, 'tanggal 5 tiap bulan')
                         .replace(/{komitmen}/g, 'Rp 1.500.000')}
                     </div>
                   </div>
-                  <div className="text-[10px] text-slate-450 mt-2">
-                    *Saat tombol <strong className="text-slate-600 font-bold">"Hubungi WA"</strong> ditekan, variabel di atas akan langsung disubstitusi secara otomatis sesuai data profil mitra tersebut.
+                  <div className="text-xs text-slate-500 mt-2">
+                    *Variabel akan otomatis disubstitusi sesuai profil data mitra bersangkutan saat menghubungi.
                   </div>
                 </div>
               </div>
@@ -1647,32 +1705,32 @@ export default function PartnersTab({
           )}
 
           {/* Core Configuration & Status Deck */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             
             {/* Scheduler Setup Card */}
-            <div className="lg:col-span-1 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm space-y-5">
-              <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-                <Clock className="w-5 h-5 text-indigo-650" />
-                <h3 className="font-bold text-slate-800 text-sm">Konfigurasi Penjadwal</h3>
+            <div className="lg:col-span-1 bg-white rounded-lg border border-slate-200 p-4 shadow-xs space-y-4">
+              <div className="flex items-center gap-2 pb-2.5 border-b border-slate-200">
+                <Clock className="w-4 h-4 text-slate-700" />
+                <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Konfigurasi Penjadwal</h3>
               </div>
 
               {/* Toggle Switch */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 block uppercase font-mono tracking-wider">Status Mesin Pengingat</label>
-                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-xs font-semibold text-slate-700 flex items-center gap-2">
-                    <span className={`w-2.5 h-2.5 rounded-full ${isAutoSchedulerEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
-                    {isAutoSchedulerEnabled ? 'Aktif (Berjalan Otomatis)' : 'Mati / Non-Aktif'}
+                <label className="text-xs font-semibold text-slate-600 block">Status Mesin Pengingat</label>
+                <div className="flex items-center justify-between p-3 rounded bg-slate-50 border border-slate-200">
+                  <span className="text-xs font-semibold text-slate-800 flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${isAutoSchedulerEnabled ? 'bg-emerald-600' : 'bg-slate-400'}`}></span>
+                    {isAutoSchedulerEnabled ? 'Aktif (Otomatis)' : 'Non-Aktif'}
                   </span>
                   <button
                     onClick={() => handleToggleScheduler(!isAutoSchedulerEnabled)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer focus:outline-none ${
-                      isAutoSchedulerEnabled ? 'bg-emerald-500' : 'bg-slate-300'
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer focus:outline-none ${
+                      isAutoSchedulerEnabled ? 'bg-[#0c2340]' : 'bg-slate-300'
                     }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        isAutoSchedulerEnabled ? 'translate-x-6' : 'translate-x-1'
+                      className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                        isAutoSchedulerEnabled ? 'translate-x-4.5' : 'translate-x-1'
                       }`}
                     />
                   </button>
@@ -1681,33 +1739,33 @@ export default function PartnersTab({
 
               {/* Trigger Interval Selector */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 block uppercase font-mono tracking-wider">Kriteria Pemicu (Trigger)</label>
+                <label className="text-xs font-semibold text-slate-600 block">Kriteria Pemicu (Trigger)</label>
                 <select
                   value={schedulerTrigger}
                   onChange={(e) => handleUpdateSchedulerTrigger(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 bg-white font-semibold cursor-pointer focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 bg-white font-medium cursor-pointer focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                 >
                   <option value="jatuh_tempo">Sesuai tanggal jatuh tempo masing-masing (H-1 & Hari H)</option>
                   <option value="tanggal_5">Setiap tanggal 5 (Reminder Masal Tahap I)</option>
                   <option value="tanggal_15">Setiap tanggal 15 (Reminder Masal Tahap II)</option>
                   <option value="tanggal_25">Setiap tanggal 25 (Reminder Masal Tahap Akhir)</option>
-                  <option value="harian">Setiap hari untuk yang menunggak (Sistem Harian)</option>
+                  <option value="harian">Setiap hari untuk yang menunggak</option>
                 </select>
               </div>
 
               {/* Hour trigger */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 block uppercase font-mono tracking-wider">Waktu Eksekusi Harian</label>
+                <label className="text-xs font-semibold text-slate-600 block">Waktu Eksekusi Harian</label>
                 <div className="flex gap-2">
                   <input
                     type="time"
                     value={schedulerTime}
                     onChange={(e) => handleUpdateSchedulerTime(e.target.value)}
-                    className="flex-1 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 bg-white font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="flex-1 border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 bg-white focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   />
                   <button 
                     onClick={() => alert(`Pengaturan Penjadwal Otomatis berhasil disimpan! Sistem akan mengecek setiap hari pada jam ${schedulerTime} WIB.`)}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs cursor-pointer shadow-xs transition-all"
+                    className="px-3 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors"
                   >
                     Simpan
                   </button>
@@ -1715,11 +1773,11 @@ export default function PartnersTab({
               </div>
 
               {/* System Note */}
-              <div className="p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-xl text-[11px] text-slate-650 leading-relaxed">
-                <p className="font-semibold text-indigo-700 mb-0.5 flex items-center gap-1">
-                  <Bell className="w-3.5 h-3.5" /> Cara Kerja Penjadwal:
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600 leading-relaxed">
+                <p className="font-semibold text-slate-800 mb-0.5 flex items-center gap-1">
+                  <Bell className="w-3.5 h-3.5 text-slate-700" /> Catatan Operasional:
                 </p>
-                Ketika sistem berjalan di latar belakang (background) pada waktu yang ditentukan, ia akan menyusun daftar mitra yang berjadwal bayar bulan ini namun belum melunasi dukungannya. Notifikasi pengingat satu-klik disiapkan secara personal untuk Anda eksekusi.
+                Sistem menyusun daftar mitra yang berjadwal bayar bulan ini namun belum melunasi dukungannya. Notifikasi siap dikirimkan dengan satu klik.
               </div>
 
             </div>
@@ -1727,44 +1785,44 @@ export default function PartnersTab({
             {/* Bento statistics panel */}
             <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
               
-              <div className="bg-amber-50/50 border border-amber-100 p-5 rounded-2xl flex flex-col justify-between shadow-xs">
+              <div className="bg-white border border-slate-200 p-4 rounded-lg flex flex-col justify-between shadow-xs">
                 <div>
-                  <span className="text-[10px] text-amber-800 tracking-wider uppercase font-mono font-bold block mb-1">Menunggu Donasi Bulan Ini</span>
-                  <h2 className="text-3xl font-extrabold text-amber-800 font-mono">
-                    {partners.filter(p => p.status === 'Aktif' && !checkDonation(p.id, currentYearNum, currentMonthNum)).length} <span className="text-xs font-normal font-sans">Mitra</span>
+                  <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block mb-1">Menunggu Donasi Siklus Ini</span>
+                  <h2 className="text-2xl font-bold text-amber-800">
+                    {safePartners.filter(p => (p.status === 'Aktif' || p.status === 'Komitmen' || p.status === 'Donasi Pertama') && !checkDonation(p.id, currentCycleYear, currentCycleMonth)).length} <span className="text-xs font-normal text-slate-500">Mitra</span>
                   </h2>
                 </div>
-                <p className="text-[11px] text-slate-500 mt-2">
-                  Daftar mitra aktif yang belum tercatat melakukan donasi sama sekali pada bulan {new Date().toLocaleString('id-ID', { month: 'long' })} {new Date().getFullYear()}.
+                <p className="text-xs text-slate-500 mt-2">
+                  Daftar mitra aktif yang belum tercatat melakukan donasi pada siklus berjalan ({currentCutoffPeriod.formattedRange}).
                 </p>
               </div>
 
-              <div className="bg-emerald-50/50 border border-emerald-100 p-5 rounded-2xl flex flex-col justify-between shadow-xs">
+              <div className="bg-white border border-slate-200 p-4 rounded-lg flex flex-col justify-between shadow-xs">
                 <div>
-                  <span className="text-[10px] text-emerald-800 tracking-wider uppercase font-mono font-bold block mb-1">Sudah Diingatkan (WhatsApp)</span>
-                  <h2 className="text-3xl font-extrabold text-emerald-800 font-mono">
-                    {Object.keys(remindedPartners).length} <span className="text-xs font-normal font-sans">Mitra</span>
+                  <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block mb-1">Sudah Diingatkan (WhatsApp)</span>
+                  <h2 className="text-2xl font-bold text-emerald-800">
+                    {Object.keys(remindedPartners).length} <span className="text-xs font-normal text-slate-500">Mitra</span>
                   </h2>
                 </div>
-                <p className="text-[11px] text-slate-500 mt-2">
-                  Jumlah mitra yang telah dikirimi pesan pengingat langsung via aplikasi bulan ini.
+                <p className="text-xs text-slate-500 mt-2">
+                  Jumlah mitra yang telah dikirimi pesan pengingat langsung bulan ini.
                 </p>
               </div>
 
-              <div className="bg-indigo-50/40 border border-indigo-100 p-5 rounded-2xl flex flex-col justify-between shadow-xs sm:col-span-2">
+              <div className="bg-white border border-slate-200 p-4 rounded-lg flex flex-col justify-between shadow-xs sm:col-span-2">
                 <div className="flex justify-between items-start">
                   <div>
-                    <span className="text-[10px] text-indigo-800 tracking-wider uppercase font-mono font-bold block mb-1">Informasi Jatuh Tempo Hari Ini</span>
-                    <h2 className="text-2xl font-extrabold text-indigo-900 font-mono">
-                      {partners.filter(p => p.status === 'Aktif' && p.donationDay === new Date().getDate() && !checkDonation(p.id, currentYearNum, currentMonthNum)).length} <span className="text-xs font-normal font-sans text-indigo-700">Mitra Belum Bayar</span>
+                    <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block mb-1">Informasi Jatuh Tempo Hari Ini</span>
+                    <h2 className="text-xl font-bold text-slate-900">
+                      {safePartners.filter(p => (p.status === 'Aktif' || p.status === 'Komitmen' || p.status === 'Donasi Pertama') && p.donationDay === new Date().getDate() && !checkDonation(p.id, currentCycleYear, currentCycleMonth)).length} <span className="text-xs font-normal text-slate-500">Mitra Belum Bayar</span>
                     </h2>
                   </div>
-                  <span className="bg-white border border-indigo-200 text-indigo-700 text-[10px] font-bold px-2.5 py-1 rounded-lg">
+                  <span className="bg-slate-100 border border-slate-300 text-slate-700 text-xs font-semibold px-2.5 py-0.5 rounded">
                     Tanggal {new Date().getDate()} Hari Ini
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-600 mt-2">
-                  Mendahulukan kontak ke mitra yang jatuh tempo hari ini sangat disarankan untuk menjaga kelancaran cashflow yayasan. Hubungi langsung melalui tabel antrean di bawah.
+                <p className="text-xs text-slate-600 mt-2">
+                  Mendahulukan kontak ke mitra yang jatuh tempo hari ini sangat disarankan untuk menjaga kelancaran penerimaan dana yayasan.
                 </p>
               </div>
 
@@ -1773,43 +1831,45 @@ export default function PartnersTab({
           </div>
 
           {/* List Section: Queue of Unpaid Partners */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-slate-100 bg-slate-50/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
               <div>
-                <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider font-mono">Antrean Pengingat Mitra (Belum Donasi Bulan Ini)</h4>
-                <p className="text-[11px] text-slate-500">Berikut adalah daftar seluruh mitra aktif yang belum menyalurkan komitmen donasinya pada bulan berjalan ({new Date().toLocaleString('id-ID', { month: 'long' })} {new Date().getFullYear()}).</p>
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Antrean Pengingat Mitra (Belum Donasi Siklus Ini)</h4>
+                <p className="text-xs text-slate-500 mt-0.5">Daftar seluruh mitra aktif yang belum menyalurkan komitmen donasinya pada siklus berjalan ({currentCutoffPeriod.formattedRange}).</p>
               </div>
 
               <div className="relative w-full md:w-64">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                <Search className="absolute left-3 top-2 w-3.5 h-3.5 text-slate-400" />
                 <input 
                   type="text" 
                   placeholder="Cari antrean mitra..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-1.5 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full pl-8 pr-3 py-1 border border-slate-300 rounded text-xs text-slate-800 bg-white focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                 />
               </div>
             </div>
 
             {(() => {
-              const unpaidPartners = partners.filter(p => {
+              const unpaidPartners = safePartners.filter(p => {
                 const isActive = p.status === 'Aktif' || p.status === 'Komitmen' || p.status === 'Donasi Pertama';
                 if (!isActive) return false;
                 
-                const hasDonated = checkDonation(p.id, currentYearNum, currentMonthNum);
-                const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.id.toLowerCase().includes(searchQuery.toLowerCase());
+                const hasDonated = checkDonation(p.id, currentCycleYear, currentCycleMonth);
+                const pName = p.name || '';
+                const pId = p.id || '';
+                const matchesSearch = pName.toLowerCase().includes(searchQuery.toLowerCase()) || pId.toLowerCase().includes(searchQuery.toLowerCase());
                 
                 return !hasDonated && matchesSearch;
               });
 
               if (unpaidPartners.length === 0) {
                 return (
-                  <div className="p-12 text-center text-slate-400 space-y-2">
-                    <CheckCircle className="w-10 h-10 mx-auto text-emerald-500" />
-                    <h4 className="font-bold text-slate-700 text-sm">Hebat! Semua Antrean Bersih</h4>
+                  <div className="p-10 text-center text-slate-400 space-y-2">
+                    <CheckCircle className="w-8 h-8 mx-auto text-emerald-600" />
+                    <h4 className="font-bold text-slate-700 text-xs">Semua Antrean Bersih</h4>
                     <p className="text-xs text-slate-500 max-w-md mx-auto">
-                      Seluruh mitra aktif telah melunasi atau menyalurkan komitmen donasi mereka untuk bulan berjalan ini. Tidak ada antrean pengingat yang perlu dikirimkan.
+                      Seluruh mitra aktif telah melunasi komitmen donasi mereka untuk bulan berjalan ini.
                     </p>
                   </div>
                 );
@@ -1819,13 +1879,13 @@ export default function PartnersTab({
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-50/30 text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono border-b border-slate-100">
-                        <th className="p-4">Mitra</th>
-                        <th className="p-4">Komitmen Bulanan</th>
-                        <th className="p-4">Tanggal Rencana</th>
-                        <th className="p-4">Status & Keterlambatan</th>
-                        <th className="p-4">Terakhir Diingatkan</th>
-                        <th className="p-4 text-center">Aksi Pengingat</th>
+                      <tr className="bg-slate-50 text-xs text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200">
+                        <th className="p-3.5">Mitra</th>
+                        <th className="p-3.5">Komitmen Bulanan</th>
+                        <th className="p-3.5">Tanggal Rencana</th>
+                        <th className="p-3.5">Status & Keterlambatan</th>
+                        <th className="p-3.5">Terakhir Diingatkan</th>
+                        <th className="p-3.5 text-center">Aksi Pengingat</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs">
@@ -1838,20 +1898,20 @@ export default function PartnersTab({
                         if (todayDay > targetDay) {
                           const days = todayDay - targetDay;
                           overdueBadge = (
-                            <span className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-100 text-[9px] font-bold">
+                            <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-800 border border-rose-200 text-[10px] font-bold">
                               Terlambat {days} Hari
                             </span>
                           );
                         } else if (todayDay === targetDay) {
                           overdueBadge = (
-                            <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-bold animate-pulse">
+                            <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold">
                               Jatuh Tempo Hari Ini
                             </span>
                           );
                         } else {
                           const daysLeft = targetDay - todayDay;
                           overdueBadge = (
-                            <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 text-[9px] font-semibold">
+                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-medium">
                               H-{daysLeft} Jatuh Tempo
                             </span>
                           );
@@ -1860,62 +1920,62 @@ export default function PartnersTab({
                         const lastRemindedTime = remindedPartners[partner.id];
 
                         return (
-                          <tr key={partner.id} className="hover:bg-slate-50/30 transition-colors animate-in fade-in">
-                            <td className="p-4">
+                          <tr key={partner.id} className="hover:bg-slate-50/70 transition-colors">
+                            <td className="p-3.5">
                               <div className="flex items-center gap-2.5">
-                                <div className="p-2 bg-slate-50 border border-slate-100 text-slate-700 font-bold font-mono text-[11px] rounded-lg">
+                                <div className="p-1.5 bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs rounded">
                                   {partner.id}
                                 </div>
                                 <div>
-                                  <span className="font-bold text-slate-800 block">{partner.name}</span>
-                                  <span className="text-[10px] text-slate-450">{partner.phone || 'Tidak ada nomor telepon'} &bull; PIC: {partner.staffRelasi}</span>
+                                  <span className="font-bold text-slate-900 block">{partner.name}</span>
+                                  <span className="text-[11px] text-slate-500">{partner.phone || '-'} &bull; PIC: {partner.staffRelasi}</span>
                                 </div>
                               </div>
                             </td>
-                            <td className="p-4">
-                              <span className="font-bold text-slate-700">Rp {partner.commitmentAmount.toLocaleString('id-ID')}</span>
-                              <span className="text-[10px] text-slate-400 block">{partner.frequency}</span>
+                            <td className="p-3.5">
+                              <span className="font-bold text-slate-800">Rp {(Number(partner.commitmentAmount) || 0).toLocaleString('id-ID')}</span>
+                              <span className="text-[11px] text-slate-500 block">{partner.frequency}</span>
                             </td>
-                            <td className="p-4">
-                              <span className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-150 px-2 py-0.5 rounded-md text-[10px] text-slate-600 font-medium">
-                                <Calendar className="w-3 h-3 text-indigo-500" /> {donationDayText}
+                            <td className="p-3.5">
+                              <span className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-xs text-slate-700 font-medium">
+                                <Calendar className="w-3 h-3 text-slate-500" /> {donationDayText}
                               </span>
                             </td>
-                            <td className="p-4">
+                            <td className="p-3.5">
                               <div className="flex items-center gap-2">
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-150">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
                                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                                   Belum Bayar
                                 </span>
                                 {overdueBadge}
                               </div>
                             </td>
-                            <td className="p-4 text-slate-500 font-medium">
+                            <td className="p-3.5 text-slate-600 font-medium">
                               {lastRemindedTime ? (
-                                <span className="text-emerald-700 font-bold flex items-center gap-1">
-                                  <CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> {lastRemindedTime}
+                                <span className="text-emerald-700 font-bold flex items-center gap-1 text-xs">
+                                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> {lastRemindedTime}
                                 </span>
                               ) : (
-                                <span className="text-slate-400 italic">Belum diingatkan</span>
+                                <span className="text-slate-400 italic text-xs">Belum diingatkan</span>
                               )}
                             </td>
-                            <td className="p-4">
-                              <div className="flex items-center justify-center gap-2">
+                            <td className="p-3.5">
+                              <div className="flex items-center justify-center gap-1.5">
                                 <a 
                                   href={getWhatsAppLink(partner)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={() => handleMarkAsReminded(partner.id)}
-                                  className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
                                 >
-                                  <Phone className="w-3.5 h-3.5 fill-white" /> Hubungi WA (Pengingat)
+                                  <Phone className="w-3 h-3 fill-white" /> Kirim WA
                                 </a>
                                 {!isPartnerLunasInPeriod(partner) && canManageDonations && (
                                   <button 
                                     onClick={() => openDonationForPartner(partner)}
-                                    className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                                    className="px-2.5 py-1 bg-[#881337] hover:bg-[#9f1239] text-white rounded text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
                                   >
-                                    <Heart className="w-3.5 h-3.5" /> Verifikasi Bayar
+                                    <Heart className="w-3 h-3 text-white" /> Bayar
                                   </button>
                                 )}
                               </div>
@@ -1934,456 +1994,353 @@ export default function PartnersTab({
         </div>
       )}
 
-      {/* VIEW 1: CRM DIRECTORY SPREADSHEET */}
+      {/* VIEW 2: CRM DIRECTORY SPREADSHEET */}
       {subView === 'directory' && (
-        <div className="space-y-4 animate-in fade-in duration-200">
+        <div className="space-y-4">
           
           {/* Section Header Card */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-slate-50 text-indigo-700 border border-slate-150 rounded-xl">
-                <Search className="w-5 h-5 text-indigo-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-800 text-sm">Database Donatur & Mitra Setia</h3>
-                <p className="text-[11px] text-slate-500">Manajemen komprehensif profil kemitraan, info kontak, klasifikasi, dan PIC relasi.</p>
-              </div>
+          <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">Database Donatur & Mitra Setia</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Manajemen profil kemitraan, informasi kontak, klasifikasi, dan PIC relasi yayasan.</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
               <button 
                 onClick={handleDownloadAllPartnersPDF}
-                className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-3xs cursor-pointer transition-colors"
+                className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium rounded text-xs flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
                 title="Unduh seluruh direktori mitra aktif dalam bentuk tabel PDF"
               >
-                <Download className="w-3.5 h-3.5 text-rose-500" /> 
-                <span>Export PDF</span>
+                <Download className="w-3.5 h-3.5 text-slate-600" /> 
+                <span>Ekspor PDF</span>
               </button>
               
               <button 
                 onClick={handleExportCSV}
-                className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-3xs cursor-pointer transition-colors"
+                className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium rounded text-xs flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
               >
-                <Download className="w-3.5 h-3.5 text-emerald-500" /> 
-                <span>Export CSV</span>
+                <Download className="w-3.5 h-3.5 text-slate-600" /> 
+                <span>Ekspor CSV</span>
               </button>
 
               {canManagePartners && (
                 <button 
                   onClick={openAddForm}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-sm shadow-indigo-600/10 cursor-pointer transition-all hover:-translate-y-0.5 active:translate-y-0"
+                  className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
                 >
-                  <Plus className="w-4 h-4 shrink-0" /> 
-                  <span>Registrasi Mitra</span>
+                  <Plus className="w-3.5 h-3.5 shrink-0" /> 
+                  <span>Tambah Mitra</span>
                 </button>
               )}
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          
-          {isWATemplateEditing && (
-            <div className="bg-slate-50 border-b border-slate-200 p-6 space-y-4">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-emerald-100 rounded-xl text-emerald-700 shadow-xs">
-                    <MessageSquare className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-sm">Format Pesan Pengingat WhatsApp (Template WA)</h3>
-                    <p className="text-[11px] text-slate-500">Anda dapat mengubah isi pesan pengingat donasi di bawah ini untuk dikirim via WA.</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setIsWATemplateEditing(false)}
-                  className="text-slate-500 hover:text-slate-700 font-bold text-xs cursor-pointer px-3 py-1.5 bg-white rounded-xl border border-slate-200 transition-colors shadow-2xs hover:bg-slate-50"
-                >
-                  Tutup Pengaturan [X]
-                </button>
+          <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-slate-200 flex flex-col md:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-2 w-3.5 h-3.5 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Cari mitra berdasarkan nama, instansi, atau PIC relasi..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded text-xs text-slate-800 bg-white focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                />
               </div>
+              
+              <select 
+                value={selectedDonationDay}
+                onChange={(e) => setSelectedDonationDay(e.target.value)}
+                className="border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-700 bg-white font-medium cursor-pointer outline-none focus:border-[#0c2340]"
+              >
+                <option value="Semua">Semua Tanggal Rencana</option>
+                {Array.from({ length: 31 }, (_, i) => String(i + 1)).map(day => (
+                  <option key={day} value={day}>Tanggal Rencana: {day}</option>
+                ))}
+              </select>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 block uppercase font-mono tracking-wider">Isi Pesan:</label>
-                  <textarea
-                    rows={5}
-                    value={waTemplate}
-                    onChange={(e) => {
-                      setWaTemplate(e.target.value);
-                      localStorage.setItem('wa_reminder_template', e.target.value);
-                    }}
-                    className="w-full border border-slate-250 rounded-xl p-3 text-xs bg-white text-slate-800 leading-relaxed font-sans focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="Halo {nama}, kami dari..."
-                  />
-                  
-                  <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-500 mt-1">
-                    <span className="font-semibold text-slate-600">Klik untuk menyisipkan variabel:</span>
-                    <button 
-                      onClick={() => {
-                        const newTemp = waTemplate + ' {nama}';
-                        setWaTemplate(newTemp);
-                        localStorage.setItem('wa_reminder_template', newTemp);
-                      }} 
-                      className="px-2 py-1 bg-white border border-slate-250 rounded-lg hover:bg-slate-50 font-mono text-indigo-650 cursor-pointer font-bold shadow-2xs"
-                    >
-                      &#123;nama&#125;
-                    </button>
-                    <button 
-                      onClick={() => {
-                        const newTemp = waTemplate + ' {tanggal}';
-                        setWaTemplate(newTemp);
-                        localStorage.setItem('wa_reminder_template', newTemp);
-                      }} 
-                      className="px-2 py-1 bg-white border border-slate-250 rounded-lg hover:bg-slate-50 font-mono text-indigo-650 cursor-pointer font-bold shadow-2xs"
-                    >
-                      &#123;tanggal&#125;
-                    </button>
-                    <button 
-                      onClick={() => {
-                        const newTemp = waTemplate + ' {komitmen}';
-                        setWaTemplate(newTemp);
-                        localStorage.setItem('wa_reminder_template', newTemp);
-                      }} 
-                      className="px-2 py-1 bg-white border border-slate-250 rounded-lg hover:bg-slate-50 font-mono text-indigo-650 cursor-pointer font-bold shadow-2xs"
-                    >
-                      &#123;komitmen&#125;
-                    </button>
-                    <button
-                      onClick={() => {
-                        const def = 'Halo {nama}, kami dari tim Kemitraan ingin menyapa dan menginfokan kembali terkait jadwal janji dukungan rutin Anda ({komitmen}) yang direncanakan pada {tanggal}. Terima kasih banyak atas komitmen dan dukungan setia Anda. Tuhan memberkati!';
-                        setWaTemplate(def);
-                        localStorage.setItem('wa_reminder_template', def);
-                      }}
-                      className="ml-auto text-emerald-650 font-bold hover:underline cursor-pointer"
-                    >
-                      Reset Default
-                    </button>
-                  </div>
-                </div>
-
-                <div className="bg-emerald-50/50 rounded-2xl border border-emerald-100 p-4 space-y-3 flex flex-col justify-between">
-                  <div>
-                    <span className="text-[10px] font-bold text-emerald-800 uppercase font-mono tracking-wider block mb-1">Pratinjau Hasil Pesan (Live Preview):</span>
-                    <div className="bg-white border border-emerald-100 p-3 rounded-xl text-xs text-slate-705 leading-relaxed shadow-3xs whitespace-pre-line min-h-[105px]">
-                      {waTemplate
-                        .replace(/{nama}/g, 'Bapak Hendra Wijaya')
-                        .replace(/{tanggal}/g, 'tanggal 5 tiap bulan')
-                        .replace(/{komitmen}/g, 'Rp 1.500.000')}
-                    </div>
-                  </div>
-                  <div className="text-[10px] text-slate-450 leading-normal">
-                    *Saat Anda menekan tombol <strong className="text-slate-600 font-bold">"Remind WA"</strong> pada mitra di tabel bawah, teks di atas akan diisi data aslinya dan langsung membuka aplikasi WhatsApp.
-                  </div>
-                </div>
-              </div>
+              <select 
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-700 bg-white font-medium cursor-pointer outline-none focus:border-[#0c2340]"
+              >
+                <option value="Semua">Semua Klasifikasi Mitra</option>
+                {(profile?.partnerTypes || ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]).map((type, idx) => (
+                  <option key={idx} value={type}>{type}</option>
+                ))}
+              </select>
             </div>
-          )}
 
-          <div className="p-4 border-b border-slate-50 flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Cari Mitra berdasarkan nama, instansi, staff relasi..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-1.5 border border-slate-200 rounded-xl text-xs"
-              />
-            </div>
-            
-            <select 
-              value={selectedDonationDay}
-              onChange={(e) => setSelectedDonationDay(e.target.value)}
-              className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 bg-white font-semibold cursor-pointer"
-            >
-              <option value="Semua">Semua Tanggal Rencana</option>
-              {Array.from({ length: 31 }, (_, i) => String(i + 1)).map(day => (
-                <option key={day} value={day}>Tanggal Rencana: {day}</option>
-              ))}
-            </select>
-
-            <select 
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 bg-white"
-            >
-              <option value="Semua">Semua Klasifikasi Mitra</option>
-              {(profile?.partnerTypes || ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]).map((type, idx) => (
-                <option key={idx} value={type}>{type}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/50 text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono border-b border-slate-100">
-                  <th className="p-4">Kode Mitra / Identitas</th>
-                  <th className="p-4">Klasifikasi / Wilayah</th>
-                  <th className="p-4">Hubungan & Relasi Staff</th>
-                  <th className="p-4">Komitmen Bulanan / Kontrak</th>
-                  <th className="p-4 font-semibold text-slate-400">Status</th>
-                  {canManagePartners && <th className="p-4 text-center">Aksi</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
-                {filteredPartners.map((partner) => (
-                  <tr key={partner.id} className="hover:bg-slate-50/50 transition-all">
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-bold font-mono">
-                          PT
-                        </div>
-                        <div>
-                          <span className="font-bold text-slate-800 block text-sm">{partner.name}</span>
-                          <span className="text-[10px] font-mono text-slate-400 text-medium">{partner.id} &bull; {partner.phone} &bull; {partner.email}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="font-semibold text-slate-700">{partner.partnerType}</div>
-                      <span className="text-[10px] text-slate-400">{partner.region}</span>
-                    </td>
-                    <td className="p-4">
-                      <div className="font-medium text-slate-700">Hubungan: {partner.occupation || 'Simpatisan'}</div>
-                      <span className="text-[10px] text-slate-400">Staff Relasi: {partner.staffRelasi}</span>
-                    </td>
-                    <td className="p-4">
-                      <div className="font-bold text-emerald-600 font-mono">
-                        Rp {partner.commitmentAmount.toLocaleString('id-ID')}
-                      </div>
-                      <span className="text-[10px] text-slate-400 font-medium">Frekuensi: {partner.frequency} {partner.donationDay ? `(Tgl ${partner.donationDay})` : ''}</span>
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        partner.status === 'Aktif' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
-                        partner.status === 'Komitmen' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
-                        'bg-slate-150 text-slate-500'
-                      }`}>
-                        {partner.status}
-                      </span>
-                    </td>
-                    {canManagePartners && (
-                      <td className="p-4 text-center">
-                        <div className="flex justify-center gap-2">
-                          <button 
-                            onClick={() => openEditForm(partner)}
-                            className="p-1 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[10px] rounded font-semibold text-slate-650 cursor-pointer"
-                          >
-                            Edit
-                          </button>
-                          <button 
-                            onClick={() => setDeleteConfirmPartner(partner)}
-                            className="p-1 text-red-500 hover:bg-slate-50 text-[10px] cursor-pointer"
-                          >
-                            Hapus
-                          </button>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-xs text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200">
+                    <th className="p-3.5">Kode & Identitas Mitra</th>
+                    <th className="p-3.5">Klasifikasi & Wilayah</th>
+                    <th className="p-3.5">PIC Relasi & Kontak</th>
+                    <th className="p-3.5">Komitmen Donasi</th>
+                    <th className="p-3.5">Status</th>
+                    {canManagePartners && <th className="p-3.5 text-center">Aksi</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {filteredPartners.map((partner) => (
+                    <tr key={partner.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="p-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-1.5 bg-slate-100 border border-slate-200 text-slate-700 rounded font-bold text-xs">
+                            {partner.id}
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-900 block text-xs">{partner.name}</span>
+                            <span className="text-[11px] text-slate-500">{partner.phone || '-'} &bull; {partner.email || '-'}</span>
+                          </div>
                         </div>
                       </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <td className="p-3.5">
+                        <div className="font-semibold text-slate-800">{partner.partnerType}</div>
+                        <span className="text-[11px] text-slate-500">{partner.region}</span>
+                      </td>
+                      <td className="p-3.5">
+                        <div className="font-medium text-slate-800">PIC: {partner.staffRelasi}</div>
+                        <span className="text-[11px] text-slate-500">{partner.occupation || 'Mitra'}</span>
+                      </td>
+                      <td className="p-3.5">
+                        <div className="font-bold text-slate-900">
+                          Rp {(Number(partner.commitmentAmount) || 0).toLocaleString('id-ID')}
+                        </div>
+                        <span className="text-[11px] text-slate-500 font-normal">{partner.frequency} {partner.donationDay ? `(Tgl ${partner.donationDay})` : ''}</span>
+                      </td>
+                      <td className="p-3.5">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                          partner.status === 'Aktif' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                          partner.status === 'Komitmen' ? 'bg-slate-100 text-slate-800 border border-slate-300' :
+                          'bg-slate-100 text-slate-600'
+                        }`}>
+                          {partner.status}
+                        </span>
+                      </td>
+                      {canManagePartners && (
+                        <td className="p-3.5 text-center">
+                          <div className="flex justify-center gap-1.5">
+                            <button 
+                              onClick={() => openEditForm(partner)}
+                              className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-300 text-xs rounded font-medium text-slate-700 cursor-pointer shadow-xs"
+                            >
+                              Edit
+                            </button>
+                            <button 
+                              onClick={() => setDeleteConfirmPartner(partner)}
+                              className="px-2.5 py-1 text-rose-700 hover:bg-rose-50 border border-rose-200 rounded text-xs font-medium cursor-pointer"
+                            >
+                              Hapus
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-      </div>
       )}
 
-      {/* VIEW 2: KANBAN PIPELINE BOARD */}
+      {/* VIEW 3: KANBAN PIPELINE BOARD */}
       {subView === 'pipeline' && (
-        <div className="space-y-4 animate-in fade-in duration-200">
+        <div className="space-y-4">
           
           {/* Section Header Card */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-indigo-50 text-indigo-750 border border-slate-150 rounded-xl">
-                <KanbanSquare className="w-5 h-5 text-indigo-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-800 text-sm">Pipeline Kemitraan & CRM Fundraising</h3>
-                <p className="text-[11px] text-slate-500">Memantau progress pendekatan calon donatur baru sejak sosialisasi hingga komitmen pertama.</p>
-              </div>
+          <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">Pipeline Kemitraan & CRM Fundraising</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Memantau tahapan pendekatan calon donatur baru sejak sosialisasi hingga komitmen aktif.</p>
             </div>
 
             {canManagePartners && (
               <button 
                 onClick={openAddForm}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-sm shadow-indigo-600/10 cursor-pointer transition-all hover:-translate-y-0.5 active:translate-y-0"
+                className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
               >
-                <Plus className="w-4 h-4 shrink-0" /> 
+                <Plus className="w-3.5 h-3.5 shrink-0" /> 
                 <span>Prospek Baru</span>
               </button>
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {STAGES.map((stage) => {
-            const partnersInStage = partners.filter(p => p.status === stage);
-            return (
-              <div key={stage} className="bg-slate-100/70 rounded-2xl p-3 border border-slate-250/30 flex flex-col h-[500px]">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="font-bold text-[11px] text-slate-700 font-mono uppercase truncate">{stage}</span>
-                  <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">{partnersInStage.length}</span>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {STAGES.map((stage) => {
+              const partnersInStage = safePartners.filter(p => p.status === stage);
+              return (
+                <div key={stage} className="bg-slate-50 rounded-lg p-3 border border-slate-200 flex flex-col h-[500px]">
+                  <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-slate-200">
+                    <span className="font-bold text-xs text-slate-800 truncate uppercase">{stage}</span>
+                    <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded font-bold">{partnersInStage.length}</span>
+                  </div>
 
-                <div className="space-y-2.5 overflow-y-auto flex-1 pb-4">
-                  {partnersInStage.map(p => (
-                    <div 
-                      key={p.id} 
-                      onClick={() => openEditForm(p)}
-                      className="bg-white p-3.5 rounded-xl border border-slate-150 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-md transition-all cursor-pointer group hover:border-indigo-300"
-                    >
-                      <h4 className="font-bold text-xs text-slate-800 line-clamp-1 group-hover:text-indigo-650 transition-colors">{p.name}</h4>
-                      <p className="text-[9px] text-slate-400 mt-1">{p.partnerType} &bull; {p.region}</p>
-                      
-                      <div className="pt-2.5 mt-2.5 border-t border-slate-50 flex justify-between items-center text-[10px]">
-                        <span className="text-slate-400 text-[9px]">Komitmen:</span>
-                        <strong className="text-emerald-600 font-mono">Rp {Math.round(p.commitmentAmount/1000)}k</strong>
+                  <div className="space-y-2 overflow-y-auto flex-1 pb-2">
+                    {partnersInStage.map(p => (
+                      <div 
+                        key={p.id} 
+                        onClick={() => openEditForm(p)}
+                        className="bg-white p-3 rounded border border-slate-200 shadow-xs hover:border-[#0c2340] transition-colors cursor-pointer"
+                      >
+                        <h4 className="font-bold text-xs text-slate-900 line-clamp-1">{p.name}</h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5">{p.partnerType} &bull; {p.region}</p>
+                        
+                        <div className="pt-2 mt-2 border-t border-slate-100 flex justify-between items-center text-xs">
+                          <span className="text-slate-500 text-[10px]">Komitmen:</span>
+                          <strong className="text-slate-900 font-semibold">Rp {Math.round((Number(p.commitmentAmount) || 0)/1000)}k</strong>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
       )}
+
+      {/* VIEW 4: JURNAL DONASI */}
       {subView === 'donations' && (
-        <div className="space-y-4 animate-in fade-in duration-200">
+        <div className="space-y-4">
           
           {/* Section Header Card */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-xl">
-                <DollarSign className="w-5 h-5 text-emerald-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-800 text-sm">Log Penerimaan Jurnal Donasi</h3>
-                <p className="text-[11px] text-slate-500">Mencatat, memverifikasi, dan melacak riwayat penyaluran janji komitmen donasi.</p>
-              </div>
+          <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">Log Penerimaan Jurnal Donasi</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Mencatat, memverifikasi, dan melacak riwayat penyaluran janji komitmen donasi yayasan.</p>
             </div>
 
             {canManageDonations && (
               <button 
-                onClick={() => setIsDonationFormOpen(true)}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-all hover:-translate-y-0.5 active:translate-y-0"
+                onClick={() => {
+                  setEditingDonation(null);
+                  setDonationPartnerId('');
+                  setDonationAmount(500000);
+                  setDonationDate(new Date().toISOString().split('T')[0]);
+                  setDonationChannel(profile?.donationChannels?.[0]?.name || 'Transfer Bank Mandiri');
+                  setIsDonationFormOpen(true);
+                }}
+                className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
               >
-                <Heart className="w-4 h-4 text-white shrink-0" /> 
+                <Heart className="w-3.5 h-3.5 text-white shrink-0" /> 
                 <span>Verifikasi Donasi Masuk</span>
               </button>
             )}
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-slate-50">
-              <h3 className="text-xs font-bold font-mono uppercase tracking-widest text-slate-400">Verifikasi Donasi Masuk Jurnal</h3>
+          <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
+            <div className="divide-y divide-slate-100 text-xs">
+              {finalDonationLogs.map((log) => (
+                <div key={log.id} className="p-3.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-slate-100 text-slate-700 rounded">
+                      <Heart className="w-4 h-4 text-[#881337]" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-xs">{log.partnerName}</h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Tanggal terima: {log.date} &bull; Saluran: {log.channel}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-right">
+                    <div>
+                      <span className="font-bold text-xs text-slate-900">
+                        Rp {log.amount.toLocaleString('id-ID')}
+                      </span>
+                      <div className="text-[11px] text-emerald-700 font-semibold flex items-center gap-0.5 mt-0.5 justify-end">
+                        <CheckCircle className="w-3 h-3" /> Terverifikasi
+                      </div>
+                    </div>
+                    {canManageDonations && (
+                      <div className="flex gap-1.5 pl-2 border-l border-slate-200">
+                        <button
+                          onClick={() => {
+                            setEditingDonation(log);
+                            setDonationPartnerId(log.partnerId);
+                            setDonationAmount(log.amount);
+                            setDonationDate(log.date);
+                            setDonationChannel(log.channel);
+                            setIsDonationFormOpen(true);
+                          }}
+                          className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded font-medium cursor-pointer shadow-xs transition-colors"
+                          title="Edit Log Donasi"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDeleteConfirmDonation(log);
+                          }}
+                          className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs rounded font-medium cursor-pointer transition-colors"
+                          title="Hapus Log Donasi"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          
-          <div className="divide-y divide-slate-100 font-sans text-xs">
-            {finalDonationLogs.map((log) => (
-              <div key={log.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
-                    <Heart className="w-5 h-5 fill-emerald-500 text-emerald-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-800 text-sm">{log.partnerName}</h4>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Tanggal terima: {log.date} &bull; Channel: {log.channel}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 text-right">
-                  <div>
-                    <span className="font-bold font-mono text-base text-slate-800">
-                      Rp {log.amount.toLocaleString('id-ID')}
-                    </span>
-                    <div className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5 mt-0.5 justify-end">
-                      <CheckCircle className="w-3.5 h-3.5" /> Jurnal Verified
-                    </div>
-                  </div>
-                  {canManageDonations && (
-                    <div className="flex gap-1.5 pl-2 border-l border-slate-100">
-                      <button
-                        onClick={() => {
-                          setEditingDonation(log);
-                          setDonationPartnerId(log.partnerId);
-                          setDonationAmount(log.amount);
-                          setDonationDate(log.date);
-                          setDonationChannel(log.channel);
-                          setIsDonationFormOpen(true);
-                        }}
-                        className="p-1 px-2.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-750 text-[10.5px] rounded-lg font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                        title="Edit Log Donasi"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => {
-                          setDeleteConfirmDonation(log);
-                        }}
-                        className="p-1 px-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-650 text-[10.5px] rounded-lg font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                        title="Hapus Log Donasi"
-                      >
-                        Hapus
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
-      </div>
       )}
 
       {/* MODAL: ADD / EDIT DONATUR MITRA */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 overflow-y-auto backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-2xl overflow-hidden scale-95 transition-transform">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg border border-slate-300 w-full max-w-2xl overflow-hidden">
             
-            <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
+            <div className="bg-[#0c2340] px-5 py-3.5 text-white flex justify-between items-center">
               <div>
-                <dt className="text-sm font-bold">{editingPartner ? 'Edit Data Mitra Donatur' : 'Registrasi Mitra & Fundraising Baru'}</dt>
-                <dd className="text-[11px] text-slate-200">Manajemen perolehan dana dari individu, instansi, gereja, atau CSR perusahaan.</dd>
+                <dt className="text-sm font-bold">{editingPartner ? 'Edit Data Mitra Donatur' : 'Registrasi Mitra & Donatur Baru'}</dt>
+                <dd className="text-xs text-slate-300 mt-0.5">Kelola data perolehan dana dari individu, gereja, atau lembaga.</dd>
               </div>
-              <button onClick={() => setIsFormOpen(false)} className="text-slate-400 hover:text-white cursor-pointer"><Plus className="w-5 h-5 rotate-45" /></button>
+              <button 
+                onClick={() => setIsFormOpen(false)} 
+                className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            <form onSubmit={handleSavePartner} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleSavePartner} className="p-5 space-y-4 text-xs">
               
               <div className="space-y-3">
-                <h4 className="font-bold text-slate-400 uppercase tracking-widest text-[9px] border-b border-slate-50 pb-1">Bagian A: Profil Pendonor</h4>
+                <h4 className="font-bold text-slate-700 uppercase tracking-wider text-xs border-b border-slate-200 pb-1">Bagian A: Profil Pendonor</h4>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-slate-500 block mb-1">Nama Mitra / Lembaga :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Nama Mitra / Lembaga :</label>
                     <input 
                       type="text" 
                       value={pName}
                       onChange={(e) => setPName(e.target.value)}
                       placeholder="Contoh: Bapak Hendra Wijaya"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-850"
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                       required
                     />
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">E-mail Aktif :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">E-mail Aktif :</label>
                     <input 
                       type="email" 
                       value={pEmail}
                       onChange={(e) => setPEmail(e.target.value)}
-                      placeholder="hendra_w@gmail.com"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-850"
+                      placeholder="hendra@domain.com"
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
 
                   <div>
-                    <label className="text-slate-500 block mb-1">Tipe / Klasifikasi Mitra :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Klasifikasi Mitra :</label>
                     <select 
                       value={pType}
                       onChange={(e) => setPType(e.target.value as any)}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-850"
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     >
                       {(profile?.partnerTypes || ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"]).map((type, idx) => (
                         <option key={idx} value={type}>{type}</option>
@@ -2391,49 +2348,49 @@ export default function PartnersTab({
                     </select>
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Nomor Telepon :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Nomor Telepon :</label>
                     <input 
                       type="text" 
                       value={pPhone}
                       onChange={(e) => setPPhone(e.target.value)}
                       placeholder="0812xxxxxxxx"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-850"
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="text-slate-500 block mb-1">Alamat Korespondensi :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Alamat Korespondensi :</label>
                     <input 
                       type="text" 
                       value={pAddress}
                       onChange={(e) => setPAddress(e.target.value)}
-                      placeholder="Jl. Diponegoro No. 8"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-850"
+                      placeholder="Jl. Kaliurang KM 9.3, Sleman"
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-3 pt-3 border-t border-slate-50">
-                <h4 className="font-bold text-slate-400 uppercase tracking-widest text-[9px] border-b border-slate-50 pb-1">Bagian B: Komitmen Donasi & CRM</h4>
+              <div className="space-y-3 pt-3 border-t border-slate-200">
+                <h4 className="font-bold text-slate-700 uppercase tracking-wider text-xs border-b border-slate-200 pb-1">Bagian B: Komitmen Donasi & CRM</h4>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-slate-500 block mb-1">Nominal Janji Dukungan :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Nominal Janji (IDR) :</label>
                     <input 
                       type="number" 
                       value={pAmount}
                       onChange={(e) => setPAmount(Number(e.target.value))}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono font-bold"
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 font-bold focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                       required
                     />
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Frekuensi Pembayaran :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Frekuensi Pembayaran :</label>
                     <select 
                       value={pFreq}
                       onChange={(e) => setPFreq(e.target.value as any)}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     >
                       <option value="Bulanan">Setiap Bulan (Recurring)</option>
                       <option value="Tahunan">Setiap Tahun (Annually)</option>
@@ -2441,34 +2398,34 @@ export default function PartnersTab({
                     </select>
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Tanggal Donasi Rutin Bulanan (1-31) :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Tanggal Rencana (1-31) :</label>
                     <input 
                       type="number"
                       min={1}
                       max={31}
                       value={pDonationDay}
                       onChange={(e) => setPDonationDay(Number(e.target.value))}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono font-semibold"
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 font-semibold focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                       required={pFreq === 'Bulanan'}
                     />
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Tahap Negosiasi Pipeline :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Tahap Pipeline :</label>
                     <select 
                       value={pStatus}
                       onChange={(e) => setPStatus(e.target.value as any)}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     >
                       {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
 
                   <div>
-                    <label className="text-slate-500 block mb-1 font-mono tracking-tight text-[11px]">Relasi Teritorial :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Wilayah Relasi :</label>
                     <select 
                       value={pRegion}
                       onChange={(e) => setPRegion(e.target.value)}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     >
                       {(profile?.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]).map((r, idx) => (
                         <option key={idx} value={r}>{r}</option>
@@ -2476,40 +2433,40 @@ export default function PartnersTab({
                     </select>
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Staff Pemelihara Hubungan :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">PIC Relasi Yayasan :</label>
                     <input 
                       type="text" 
                       value={pStaff}
                       onChange={(e) => setPStaff(e.target.value)}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
-                  <div>
-                    <label className="text-slate-500 block mb-1">Relasi dengan / Kontak Bisnis :</label>
+                  <div className="sm:col-span-3">
+                    <label className="text-slate-700 font-semibold block mb-1">Hubungan / Pekerjaan :</label>
                     <input 
                       type="text" 
                       value={pOccupation}
                       onChange={(e) => setPOccupation(e.target.value)}
-                      placeholder="Contoh: Direktur CSR / Pendeta Jemaat"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                      placeholder="Contoh: Majelis Jemaat / Pimpinan Komunitas"
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-50 flex justify-end gap-3">
+              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2.5">
                 <button 
                   type="button" 
                   onClick={() => setIsFormOpen(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 font-semibold cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 rounded text-slate-700 font-medium cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   Batal
                 </button>
                 <button 
                   type="submit"
-                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+                  className="px-5 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors flex items-center gap-1"
                 >
-                  <Save className="w-4 h-4 inline mr-1" /> Simpan Janji Dukungan
+                  <Save className="w-3.5 h-3.5 inline mr-1" /> Simpan Data
                 </button>
               </div>
 
@@ -2519,64 +2476,73 @@ export default function PartnersTab({
         </div>
       )}
 
-      {/* MODAL: VERIFY RECEIVED DONATION (Heart logo) */}
+      {/* MODAL: VERIFY RECEIVED DONATION */}
       {isDonationFormOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden scale-95 transition-transform">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-lg border border-slate-300 w-full max-w-md overflow-hidden">
             
-            <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
+            <div className="bg-[#0c2340] px-5 py-3.5 text-white flex justify-between items-center">
               <div>
-                <span className="text-sm font-bold block">Verifikasi Penerimaan Dana Donasi</span>
-                <span className="text-[11px] text-slate-300">Setiap transfer dari mitra harus diverifikasi agar balance dengan cashflow.</span>
+                <span className="text-sm font-bold block">
+                  {editingDonation ? 'Edit Log Penerimaan Donasi' : 'Verifikasi Penerimaan Dana Donasi'}
+                </span>
+                <span className="text-xs text-slate-300 mt-0.5">
+                  Pencatatan transfer donasi mitra ke dalam jurnal kas yayasan.
+                </span>
               </div>
-              <button onClick={() => setIsDonationFormOpen(false)} className="text-slate-400 hover:text-white cursor-pointer"><Plus className="w-5 h-5 rotate-45" /></button>
+              <button 
+                onClick={() => { setIsDonationFormOpen(false); setEditingDonation(null); }} 
+                className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            <form onSubmit={handleLogDonation} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleLogDonation} className="p-5 space-y-4 text-xs">
               
               <div>
-                <label className="text-slate-500 block mb-1">Pilih Rekening Mitra Pengirim :</label>
+                <label className="text-slate-700 font-semibold block mb-1">Pilih Mitra Pengirim :</label>
                 <select 
                   value={donationPartnerId}
                   onChange={(e) => setDonationPartnerId(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-850"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   required
                 >
                   <option value="">-- PILIH MITRA AKTIF --</option>
-                  {partners.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} ({p.frequency} &rarr; Rp {p.commitmentAmount.toLocaleString('id-ID')})</option>
+                  {safePartners.map(p => (
+                    <option key={p.id} value={p.id}>{p.name} ({p.frequency} &rarr; Rp {(Number(p.commitmentAmount) || 0).toLocaleString('id-ID')})</option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="text-slate-500 block mb-1">Nominal yang Ditransfer (IDR) :</label>
+                <label className="text-slate-700 font-semibold block mb-1">Nominal Penerimaan (IDR) :</label>
                 <input 
                   type="number" 
                   value={donationAmount}
                   onChange={(e) => setDonationAmount(Number(e.target.value))}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono font-bold text-sm"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 font-bold text-sm focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-500 block mb-1">Tanggal Terima :</label>
+                  <label className="text-slate-700 font-semibold block mb-1">Tanggal Terima :</label>
                   <input 
                     type="date"
                     value={donationDate}
                     onChange={(e) => setDonationDate(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-slate-500 block mb-1">Saluran & Rek Tujuan Bank :</label>
+                  <label className="text-slate-700 font-semibold block mb-1">Rekening Tujuan :</label>
                   <select 
                     value={donationChannel}
                     onChange={(e) => setDonationChannel(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   >
                     {profile?.donationChannels && profile.donationChannels.length > 0 ? (
                       profile.donationChannels.map((chan, idx) => (
@@ -2587,26 +2553,26 @@ export default function PartnersTab({
                         <option value="Transfer Bank Mandiri">Mandiri Utama 123-00-x</option>
                         <option value="BCA Yayasan flex">BCA Yayasan 552-x</option>
                         <option value="Transfer BNI">BNI 0928-x</option>
-                        <option value="Dana Cash (Fisik)">Tunai / Cash Fisik</option>
+                        <option value="Dana Cash (Fisik)">Tunai / Kas Fisik</option>
                       </>
                     )}
                   </select>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-50 flex justify-end gap-3">
+              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2.5">
                 <button 
                   type="button" 
-                  onClick={() => setIsDonationFormOpen(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 font-semibold cursor-pointer"
+                  onClick={() => { setIsDonationFormOpen(false); setEditingDonation(null); }}
+                  className="px-4 py-2 border border-slate-300 rounded text-slate-700 font-medium cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   Batal
                 </button>
                 <button 
                   type="submit"
-                  className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+                  className="px-5 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors"
                 >
-                  Verifikasi & Masukkan Jurnal
+                  {editingDonation ? 'Simpan Perubahan' : 'Verifikasi ke Jurnal'}
                 </button>
               </div>
 
@@ -2616,147 +2582,136 @@ export default function PartnersTab({
         </div>
       )}
 
-
       {/* DETAILED PARTNER PROFILE MODAL */}
       {detailPartner && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg border border-slate-300 w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
             
             {/* Header */}
-            <div className="p-6 bg-slate-50 border-b border-slate-150 flex justify-between items-start">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-indigo-100 text-indigo-750 rounded-2xl font-black font-mono text-lg">
+            <div className="p-5 bg-slate-50 border-b border-slate-200 flex justify-between items-start">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-[#0c2340] text-white rounded font-bold text-sm">
                   {detailPartner.id.substring(0, 3)}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-bold text-slate-900">{detailPartner.name}</h3>
-                    <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-100 rounded-md text-[10px] font-bold text-indigo-700 font-mono">
+                    <h3 className="text-base font-bold text-slate-900">{detailPartner.name}</h3>
+                    <span className="px-2 py-0.5 bg-slate-100 border border-slate-300 rounded text-xs font-semibold text-slate-700">
                       {detailPartner.id}
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    {detailPartner.partnerType} &bull; Wilayah {detailPartner.region} &bull; Relasi: {detailPartner.staffRelasi}
+                    {detailPartner.partnerType} &bull; Wilayah {detailPartner.region} &bull; PIC: {detailPartner.staffRelasi}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setDetailPartner(null)}
-                className="p-1.5 hover:bg-slate-200/60 rounded-xl text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                className="w-7 h-7 rounded hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
                 title="Tutup Modal"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto space-y-6 flex-1">
+            <div className="p-5 overflow-y-auto space-y-5 flex-1">
               
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 
                 {/* Left Profile Panel */}
                 <div className="lg:col-span-1 space-y-4">
-                  <div className="bg-slate-50/60 border border-slate-100 rounded-2xl p-4 space-y-3.5">
-                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Informasi Kemitraan</h4>
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Informasi Kemitraan</h4>
                     
-                    <div className="space-y-2.5 text-xs">
+                    <div className="space-y-2 text-xs">
                       <div>
-                        <span className="text-slate-400 block text-[10px] uppercase font-mono">Status Keaktifan:</span>
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold mt-0.5 ${
-                          detailPartner.status === 'Aktif' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-150 text-slate-600'
+                        <span className="text-slate-500 block text-xs">Status:</span>
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-semibold mt-0.5 ${
+                          detailPartner.status === 'Aktif' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-slate-100 text-slate-700'
                         }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${detailPartner.status === 'Aktif' ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
                           {detailPartner.status}
                         </span>
                       </div>
 
                       <div>
-                        <span className="text-slate-400 block text-[10px] uppercase font-mono">Komitmen Donasi:</span>
-                        <span className="font-bold text-indigo-750 text-sm font-mono block">
-                          Rp {detailPartner.commitmentAmount.toLocaleString('id-ID')}
+                        <span className="text-slate-500 block text-xs">Komitmen Donasi:</span>
+                        <span className="font-bold text-slate-900 text-sm block">
+                          Rp {(Number(detailPartner.commitmentAmount) || 0).toLocaleString('id-ID')}
                         </span>
-                        <span className="text-[10px] text-slate-500">Direncanakan: {detailPartner.frequency}</span>
+                        <span className="text-xs text-slate-500">{detailPartner.frequency}</span>
                       </div>
 
                       {detailPartner.donationDay && (
                         <div>
-                          <span className="text-slate-400 block text-[10px] uppercase font-mono">Rencana Bayar Bulanan:</span>
-                          <span className="font-semibold text-slate-700 block mt-0.5">
+                          <span className="text-slate-500 block text-xs">Rencana Bayar:</span>
+                          <span className="font-medium text-slate-800 block mt-0.5">
                             Setiap tanggal {detailPartner.donationDay}
                           </span>
                         </div>
                       )}
 
-                      <div>
-                        <span className="text-slate-400 block text-[10px] uppercase font-mono">Masa Kontrak Komitmen:</span>
-                        <span className="font-medium text-slate-700 block mt-0.5">
-                          {detailPartner.startDate ? `${parseDateUTC(detailPartner.startDate).day} ${INDO_MONTHS[parseDateUTC(detailPartner.startDate).month]} ${parseDateUTC(detailPartner.startDate).year}` : 'Tidak ditentukan'}
-                          {detailPartner.endDate ? ` s/d ${parseDateUTC(detailPartner.endDate).day} ${INDO_MONTHS[parseDateUTC(detailPartner.endDate).month]} ${parseDateUTC(detailPartner.endDate).year}` : ' (Berkelanjutan)'}
-                        </span>
-                      </div>
-
-                      <div className="pt-2 border-t border-slate-100">
-                        <span className="text-slate-400 block text-[10px] uppercase font-mono">Kontak Handphone:</span>
-                        <span className="font-semibold text-slate-700 block mt-0.5">{detailPartner.phone || '-'}</span>
+                      <div className="pt-2 border-t border-slate-200">
+                        <span className="text-slate-500 block text-xs">Kontak Telepon:</span>
+                        <span className="font-medium text-slate-800 block mt-0.5">{detailPartner.phone || '-'}</span>
                       </div>
 
                       <div>
-                        <span className="text-slate-400 block text-[10px] uppercase font-mono">Email Korespondensi:</span>
-                        <span className="font-semibold text-slate-700 block mt-0.5 break-all">{detailPartner.email || '-'}</span>
+                        <span className="text-slate-500 block text-xs">Email:</span>
+                        <span className="font-medium text-slate-800 block mt-0.5 break-all">{detailPartner.email || '-'}</span>
                       </div>
 
                       <div>
-                        <span className="text-slate-400 block text-[10px] uppercase font-mono">Alamat Kantor / Domisili:</span>
-                        <span className="text-slate-650 block mt-0.5 leading-relaxed">{detailPartner.address || 'Tidak terdaftar'}</span>
+                        <span className="text-slate-500 block text-xs">Alamat:</span>
+                        <span className="text-slate-700 block mt-0.5 leading-relaxed">{detailPartner.address || '-'}</span>
                       </div>
                     </div>
 
-                    <div className="pt-3 border-t border-slate-100 space-y-2">
+                    <div className="pt-3 border-t border-slate-200 space-y-2">
                       <a 
                         href={getWhatsAppLink(detailPartner)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full py-2 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                        className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs"
                       >
-                        <Phone className="w-4 h-4 fill-white" /> Hubungi WhatsApp
+                        <Phone className="w-3.5 h-3.5 fill-white" /> Hubungi WhatsApp
                       </a>
 
                       {canManageDonations && (
                         <button 
                           onClick={() => openDonationForPartner(detailPartner)}
-                          className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm"
+                          className="w-full py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs"
                         >
-                          <Heart className="w-4 h-4 fill-rose-400 text-rose-400" /> Verifikasi Bayar Donasi
+                          <Heart className="w-3.5 h-3.5 text-white" /> Verifikasi Bayar
                         </button>
                       )}
 
                       <button 
                         onClick={() => handleDownloadSinglePartnerPDF(detailPartner)}
-                        className="w-full py-2 bg-white hover:bg-slate-50 border border-slate-250 text-slate-700 font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-2xs"
+                        className="w-full py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium rounded text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
                       >
-                        <Download className="w-4 h-4 text-red-600" /> Unduh Laporan PDF
+                        <Download className="w-3.5 h-3.5 text-slate-600" /> Unduh Laporan PDF
                       </button>
                     </div>
                   </div>
                 </div>
 
                 {/* Right Calendar and Transaction List Panel */}
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-2 space-y-5">
                   
                   {/* Grid 12 Bulan */}
-                  <div className="bg-slate-50/40 border border-slate-100 rounded-2xl p-5 space-y-3.5">
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
                     <div className="flex justify-between items-center">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                         Kalender Kontribusi 12 Bulan (Tahun {scheduleYear})
                       </h4>
-                      <span className="text-[10px] text-slate-450 font-bold bg-white border border-slate-150 px-2 py-0.5 rounded-md font-mono">
-                        Periode Audit {scheduleYear}
+                      <span className="text-xs text-slate-500 font-medium bg-white border border-slate-300 px-2 py-0.5 rounded">
+                        Periode {scheduleYear}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                       {INDO_MONTHS.map((monthName, mIdx) => {
-                        // Check if active in this month
                         const pStart = detailPartner.startDate ? parseDateUTC(detailPartner.startDate) : null;
                         const pEnd = detailPartner.endDate ? parseDateUTC(detailPartner.endDate) : null;
                         
@@ -2766,48 +2721,47 @@ export default function PartnersTab({
                         
                         const isActiveInMonth = checkSecs >= startSecs && checkSecs <= endSecs;
                         
-                        // Check donations
                         const donationsInMonth = finalDonationLogs.filter(d => {
                           if (d.partnerId !== detailPartner.id || !d.date) return false;
                           const parsed = parseDateUTC(d.date);
                           return parsed.year === scheduleYear && parsed.month === mIdx;
                         });
                         
-                        const totalPaidInMonth = donationsInMonth.reduce((sum, d) => sum + d.amount, 0);
-                        const isLunas = totalPaidInMonth >= detailPartner.commitmentAmount;
+                        const totalPaidInMonth = donationsInMonth.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+                        const isLunas = totalPaidInMonth >= (Number(detailPartner.commitmentAmount) || 0);
 
                         return (
                           <div 
                             key={mIdx} 
-                            className={`p-3 rounded-xl border text-left flex flex-col justify-between h-20 transition-all ${
+                            className={`p-2.5 rounded border text-left flex flex-col justify-between h-20 transition-all ${
                               !isActiveInMonth 
                                 ? 'bg-slate-100 border-slate-200 text-slate-400' 
                                 : isLunas 
-                                  ? 'bg-emerald-50/50 border-emerald-200 text-emerald-850 shadow-3xs' 
+                                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900' 
                                   : totalPaidInMonth > 0
-                                    ? 'bg-amber-50/50 border-amber-200 text-amber-850'
-                                    : 'bg-white border-slate-150 text-slate-700'
+                                    ? 'bg-amber-50 border-amber-200 text-amber-900'
+                                    : 'bg-white border-slate-300 text-slate-800'
                             }`}
                           >
-                            <span className="text-[10px] font-bold block uppercase tracking-wider">{monthName}</span>
+                            <span className="text-xs font-bold block uppercase tracking-wider">{monthName}</span>
                             
-                            <div className="mt-2 text-[9px] leading-tight">
+                            <div className="mt-1 text-[11px] leading-tight">
                               {!isActiveInMonth ? (
-                                <span className="text-slate-400 font-mono font-medium">Belum Aktif</span>
+                                <span className="text-slate-400">Non-Aktif</span>
                               ) : isLunas ? (
                                 <div>
-                                  <span className="font-bold text-emerald-600 block font-mono">Rp {totalPaidInMonth.toLocaleString('id-ID')}</span>
-                                  <span className="text-emerald-700 font-bold block mt-0.5">Lunas ✓</span>
+                                  <span className="font-bold text-emerald-800 block">Rp {totalPaidInMonth.toLocaleString('id-ID')}</span>
+                                  <span className="text-emerald-700 font-semibold block mt-0.5">Lunas ✓</span>
                                 </div>
                               ) : totalPaidInMonth > 0 ? (
                                 <div>
-                                  <span className="font-bold text-amber-600 block font-mono">Rp {totalPaidInMonth.toLocaleString('id-ID')}</span>
-                                  <span className="text-amber-700 block mt-0.5">Kurang Rp {(detailPartner.commitmentAmount - totalPaidInMonth).toLocaleString('id-ID')}</span>
+                                  <span className="font-bold text-amber-800 block">Rp {totalPaidInMonth.toLocaleString('id-ID')}</span>
+                                  <span className="text-amber-700 block mt-0.5">Kurang Rp {((Number(detailPartner.commitmentAmount) || 0) - totalPaidInMonth).toLocaleString('id-ID')}</span>
                                 </div>
                               ) : (
                                 <div>
-                                  <span className="text-slate-400 block font-mono">Rp 0</span>
-                                  <span className="text-rose-600 font-bold block mt-0.5">Belum Realisasi</span>
+                                  <span className="text-slate-400 block">Rp 0</span>
+                                  <span className="text-rose-700 font-semibold block mt-0.5">Belum Bayar</span>
                                 </div>
                               )}
                             </div>
@@ -2818,25 +2772,25 @@ export default function PartnersTab({
                   </div>
 
                   {/* Riwayat Mutasi Jurnal Jangka Panjang */}
-                  <div className="bg-white border border-slate-150 rounded-2xl p-5 space-y-3">
-                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">
-                      Riwayat Log Penerimaan Kas Donasi (Jurnal Kas)
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Riwayat Log Penerimaan Kas Donasi
                     </h4>
                     
                     {finalDonationLogs.filter(d => d.partnerId === detailPartner.id).length === 0 ? (
-                      <div className="p-8 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-150 text-xs">
+                      <div className="p-6 text-center text-slate-500 bg-slate-50 rounded border border-slate-200 text-xs">
                         Tidak ada riwayat mutasi penerimaan terdaftar untuk mitra ini.
                       </div>
                     ) : (
-                      <div className="overflow-hidden border border-slate-100 rounded-xl">
+                      <div className="overflow-hidden border border-slate-200 rounded">
                         <div className="max-h-48 overflow-y-auto">
                           <table className="w-full text-left border-collapse text-xs">
                             <thead>
-                              <tr className="bg-slate-50 text-[9px] uppercase font-mono text-slate-400 font-bold border-b border-slate-100">
-                                <th className="p-3">Tanggal Jurnal</th>
-                                <th className="p-3">Jumlah Kas</th>
-                                <th className="p-3">Kanal Transaksi</th>
-                                <th className="p-3">Verifikator</th>
+                              <tr className="bg-slate-50 text-xs uppercase text-slate-700 font-bold border-b border-slate-200">
+                                <th className="p-2.5">Tanggal Jurnal</th>
+                                <th className="p-2.5">Jumlah Kas</th>
+                                <th className="p-2.5">Kanal Transaksi</th>
+                                <th className="p-2.5">Verifikator</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -2847,18 +2801,16 @@ export default function PartnersTab({
                                   const logDate = parseDateUTC(log.date);
                                   return (
                                     <tr key={log.id} className="hover:bg-slate-50">
-                                      <td className="p-3 font-medium text-slate-650">
+                                      <td className="p-2.5 font-medium text-slate-800">
                                         {logDate.day} {INDO_MONTHS[logDate.month]} {logDate.year}
                                       </td>
-                                      <td className="p-3 font-bold text-emerald-600 font-mono">
+                                      <td className="p-2.5 font-bold text-emerald-700">
                                         Rp {log.amount.toLocaleString('id-ID')}
                                       </td>
-                                      <td className="p-3">
-                                        <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-mono text-slate-600 font-medium">
-                                          {log.channel}
-                                        </span>
+                                      <td className="p-2.5 text-slate-600">
+                                        {log.channel}
                                       </td>
-                                      <td className="p-3 text-slate-450 font-medium">
+                                      <td className="p-2.5 text-slate-500">
                                         {log.verifiedBy || 'Sistem'}
                                       </td>
                                     </tr>
@@ -2878,19 +2830,19 @@ export default function PartnersTab({
             </div>
 
             {/* Footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-150 flex justify-end gap-3">
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
               <button 
                 onClick={() => handleDownloadSinglePartnerPDF(detailPartner)}
-                className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs cursor-pointer shadow-md flex items-center gap-1.5 transition-colors"
+                className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium rounded text-xs cursor-pointer shadow-xs flex items-center gap-1.5 transition-colors"
                 title="Unduh laporan profil & histori kontribusi mitra PDF"
               >
-                <Download className="w-4 h-4" /> Unduh Laporan PDF
+                <Download className="w-3.5 h-3.5" /> Unduh Laporan PDF
               </button>
               <button
                 onClick={() => setDetailPartner(null)}
-                className="px-5 py-2 bg-slate-800 hover:bg-slate-750 text-white font-bold rounded-xl text-xs cursor-pointer shadow-md transition-colors"
+                className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors"
               >
-                Tutup Detail
+                Tutup
               </button>
             </div>
 
@@ -2900,17 +2852,17 @@ export default function PartnersTab({
 
       {/* CONFIRM MODAL: HAPUS MITRA */}
       {deleteConfirmPartner && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden p-6 space-y-4">
-            <h3 className="text-lg font-bold text-slate-900">Konfirmasi Hapus Mitra</h3>
-            <p className="text-slate-500 text-xs">
-              Apakah Anda yakin ingin menghapus data kemitraan/donatur <strong className="text-slate-800">"{deleteConfirmPartner.name}"</strong>? Data transaksi historis yang telah terdaftar tidak akan dihapus otomatis untuk akurasi auditing kas.
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-lg border border-slate-300 w-full max-w-md overflow-hidden p-5 space-y-4">
+            <h3 className="text-sm font-bold text-slate-900">Konfirmasi Hapus Mitra</h3>
+            <p className="text-slate-600 text-xs leading-relaxed">
+              Apakah Anda yakin ingin menghapus data kemitraan/donatur <strong className="text-slate-900 font-semibold">"{deleteConfirmPartner.name}"</strong>? Data transaksi historis yang telah terdaftar tidak akan dihapus otomatis untuk akurasi auditing kas.
             </p>
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-200">
               <button
                 type="button"
                 onClick={() => setDeleteConfirmPartner(null)}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs cursor-pointer"
+                className="px-4 py-2 border border-slate-300 rounded text-slate-700 font-medium text-xs cursor-pointer hover:bg-slate-50 transition-colors"
               >
                 Batal
               </button>
@@ -2920,7 +2872,7 @@ export default function PartnersTab({
                   await onDeletePartner(deleteConfirmPartner.id);
                   setDeleteConfirmPartner(null);
                 }}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+                className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors"
               >
                 Ya, Hapus Mitra
               </button>
@@ -2931,20 +2883,17 @@ export default function PartnersTab({
 
       {/* CONFIRM MODAL: HAPUS LOG DONASI */}
       {deleteConfirmDonation && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-lg overflow-hidden p-6 space-y-4">
-            <h3 className="text-lg font-bold text-slate-900">Konfirmasi Hapus Penerimaan Donasi</h3>
-            <p className="text-slate-550 text-xs">
-              Apakah Anda yakin ingin menghapus log donasi dari <strong className="text-slate-800">"{deleteConfirmDonation.partnerName}"</strong> senilai <strong className="text-slate-850 font-bold">Rp {deleteConfirmDonation.amount.toLocaleString('id-ID')}</strong> ini?
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-lg border border-slate-300 w-full max-w-md overflow-hidden p-5 space-y-4">
+            <h3 className="text-sm font-bold text-slate-900">Konfirmasi Hapus Penerimaan Donasi</h3>
+            <p className="text-slate-600 text-xs leading-relaxed">
+              Apakah Anda yakin ingin menghapus log donasi dari <strong className="text-slate-900 font-semibold">"{deleteConfirmDonation.partnerName}"</strong> senilai <strong className="text-slate-900 font-semibold">Rp {deleteConfirmDonation.amount.toLocaleString('id-ID')}</strong> ini?
             </p>
-            <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl text-amber-800 text-[11px] leading-relaxed">
-              <strong>Pemberitahuan Sistem:</strong> Jurnal kas, rujukan fundraising, dan saldo akhir keuangan terkait akan disesuaikan (Soft-delete & Revert) secara terpadu dan aman di database.
-            </div>
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-200">
               <button
                 type="button"
                 onClick={() => setDeleteConfirmDonation(null)}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs cursor-pointer"
+                className="px-4 py-2 border border-slate-300 rounded text-slate-700 font-medium text-xs cursor-pointer hover:bg-slate-50 transition-colors"
               >
                 Batal
               </button>
@@ -2957,7 +2906,7 @@ export default function PartnersTab({
                     await onDeleteDonation(donationId);
                   }
                 }}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+                className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors"
               >
                 Ya, Hapus Log Donasi
               </button>

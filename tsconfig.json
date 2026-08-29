@@ -22,6 +22,14 @@
     },
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "noEmit": true
-  }
+  },
+  "include": [
+    "src/**/*",
+    "server/**/*",
+    "scratch/**/*",
+    "*.ts"
+  ]
 }

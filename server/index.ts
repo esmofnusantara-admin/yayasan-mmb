@@ -7,7 +7,15 @@ import { dataRouter } from './routes/data.routes';
 import { documentsRouter } from './routes/documents.routes';
 import { lettersRouter } from './routes/letters.routes';
 import { financeRouter } from './routes/finance.routes';
-import { seedUsersIfEmpty, seedStructuresIfEmpty } from './services/seed.service';
+import { partnersRouter } from './routes/partners.routes';
+import { membersRouter } from './routes/members.routes';
+import { staffRouter } from './routes/staff.routes';
+import { masterRouter } from './routes/master.routes';
+import { smallGroupsRouter } from './routes/small-groups.routes';
+import { approvalsRouter } from './routes/approvals.routes';
+import { activitiesRouter } from './routes/activities.routes';
+import { staffTasksRouter } from './routes/staff-tasks.routes';
+import { seedAllInitialData } from './services/seed.service';
 
 const PORT = 3000;
 
@@ -20,13 +28,22 @@ app.use('/api/auth', authRouter);
 app.use('/api/system', systemRouter);
 app.use('/api/data', dataRouter);
 app.use('/api/documents', documentsRouter);
-app.use('/api/inward_letters', lettersRouter);
+app.use('/api/letters', lettersRouter);
+app.use('/api/inward_letters', lettersRouter); // backward compat alias
 app.use('/api/finance', financeRouter);
+app.use('/api/partners', partnersRouter);
+app.use('/api/members', membersRouter);
+app.use('/api/staff', staffRouter);
+app.use('/api/master', masterRouter);
+app.use('/api/small-groups', smallGroupsRouter);
+app.use('/api/approvals', approvalsRouter);
+app.use('/api/activities', activitiesRouter);
+app.use('/api/staff-tasks', staffTasksRouter);
 
 // Initialize server engine and register static assets handlers
 async function startServer() {
-  await seedUsersIfEmpty();
-  await seedStructuresIfEmpty();
+  // Seed semua data awal dari BE (bukan dari FE)
+  await seedAllInitialData();
 
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

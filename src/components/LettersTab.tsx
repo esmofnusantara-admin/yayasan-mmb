@@ -22,10 +22,16 @@ import {
   Calendar,
   User,
   Eye,
-  FileCheck2
+  FileCheck2,
+  ExternalLink,
+  FolderOpen
 } from 'lucide-react';
 import { LetterInward, LetterOutward, OrgDocument, InstitutionalProfile } from '../types';
 import { exportToCSV, exportLetterToPDF } from '../utils/export';
+
+const GDRIVE_LETTERS_URL = "https://drive.google.com/drive/folders/1xNPhf2uik17NU9RnaL_muZguqiCifQBJ?usp=drive_link";
+const MAX_LETTERS_UPLOAD_MB = 1;
+const MAX_LETTERS_UPLOAD_BYTES = MAX_LETTERS_UPLOAD_MB * 1024 * 1024;
 
 const getSessionUserToken = () => {
   try {
@@ -51,7 +57,7 @@ interface LettersTabProps {
   onUpdateOutwardLetter: (l: LetterOutward) => void;
   onUpdateOutwardStatus: (id: string, status: any) => void;
   onDeleteOutwardLetter?: (id: string, letterNum: string) => void;
-  onAddDocument?: (docObj: { id: string; name: string; category: string; fileData: string; fileSize: string }) => Promise<void> | void;
+  onAddDocument?: (docObj: { id: string; name: string; category: string; fileData?: string; fileSize: string; externalLink?: string }) => Promise<void> | void;
   onDeleteDocument?: (id: string, name: string) => Promise<void> | void;
   currentRole: string;
   profile: InstitutionalProfile;
@@ -99,10 +105,11 @@ export default function LettersTab({
   const [subTab, setSubTab] = useState<'inward' | 'outward' | 'repository'>('outward');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // States and functions for standard file uploads up to 5 MB
+  // States and functions for standard file uploads (Max 1 MB)
   const [isUploadDocOpen, setIsUploadDocOpen] = useState(false);
   const [newDocName, setNewDocName] = useState('');
   const [newDocCategory, setNewDocCategory] = useState('Konstitusi Organisasi');
+  const [newDocExternalLink, setNewDocExternalLink] = useState('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadBase64, setUploadBase64] = useState<string>('');
 
@@ -110,10 +117,10 @@ export default function LettersTab({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Boundary Size Limit: 5 Megabytes
-    const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
-    if (file.size > MAX_SIZE) {
-      alert(`Ukuran berkas "${file.name}" melebihi batas koordinasi maksimum 5 MB! Harap pilih berkas yang lebih kecil.`);
+    if (file.size > MAX_LETTERS_UPLOAD_BYTES) {
+      alert(
+        `Ukuran berkas "${file.name}" (${(file.size / (1024 * 1024)).toFixed(2)} MB) melebihi batas upload langsung ${MAX_LETTERS_UPLOAD_MB} MB agar database tetap ringan.\n\nSilakan unggah dokumen ke Folder Google Drive Surat Yayasan melalui tombol yang tersedia di formulir, lalu cantumkan tautan/link berkasnya.`
+      );
       e.target.value = ''; // Reset target
       return;
     }
@@ -140,8 +147,8 @@ export default function LettersTab({
       alert('Tentukan Nama Dokumen Resmi!');
       return;
     }
-    if (!uploadBase64) {
-      alert('Pilih berkas dokumen yang akan diunggah!');
+    if (!uploadBase64 && !newDocExternalLink.trim()) {
+      alert('Pilih berkas dokumen yang akan diunggah atau cantumkan tautan Google Drive!');
       return;
     }
 
@@ -149,8 +156,9 @@ export default function LettersTab({
       id: `DOC-${Date.now()}`,
       name: newDocName,
       category: newDocCategory,
-      fileData: uploadBase64,
-      fileSize: uploadFile ? `${(uploadFile.size / (1024 * 1024)).toFixed(2)} MB` : '0 MB'
+      fileData: uploadBase64 || undefined,
+      fileSize: uploadFile ? `${(uploadFile.size / (1024 * 1024)).toFixed(2)} MB` : (newDocExternalLink ? 'GDrive Link' : '0 MB'),
+      externalLink: newDocExternalLink.trim() || undefined
     };
 
     if (onAddDocument) {
@@ -161,6 +169,7 @@ export default function LettersTab({
     setNewDocName('');
     setUploadFile(null);
     setUploadBase64('');
+    setNewDocExternalLink('');
     setIsUploadDocOpen(false);
   };
 
@@ -226,6 +235,7 @@ export default function LettersTab({
   const [inStatus, setInStatus] = useState<'Arsip' | 'Disposisi' | 'Tindak Lanjut'>('Disposisi');
   const [inAttachmentBase64, setInAttachmentBase64] = useState<string>('');
   const [inAttachmentName, setInAttachmentName] = useState<string>('');
+  const [inExternalLink, setInExternalLink] = useState<string>('');
   
   const [editingInwardLetter, setEditingInwardLetter] = useState<LetterInward | null>(null);
   const [readingInwardLetter, setReadingInwardLetter] = useState<LetterInward | null>(null);
@@ -241,6 +251,7 @@ export default function LettersTab({
     setInStatus('Disposisi');
     setInAttachmentBase64('');
     setInAttachmentName('');
+    setInExternalLink('');
     
     setIsFormInOpen(true);
   };
@@ -254,6 +265,7 @@ export default function LettersTab({
     setInStatus(letter.status || 'Disposisi');
     setInAttachmentBase64(letter.attachmentUrl || '');
     setInAttachmentName(letter.attachmentUrl ? 'lampiran_terunggah' : '');
+    setInExternalLink(letter.externalLink || '');
     
     setIsFormInOpen(true);
     setReadingInwardLetter(null);
@@ -424,7 +436,8 @@ export default function LettersTab({
         subject: inSubject,
         receivedDate: inDate,
         status: inStatus,
-        attachmentUrl: inAttachmentBase64 || undefined
+        attachmentUrl: inAttachmentBase64 || undefined,
+        externalLink: inExternalLink.trim() || undefined
       };
       if (onUpdateInwardLetter) {
         onUpdateInwardLetter(updatedIn);
@@ -440,7 +453,8 @@ export default function LettersTab({
         subject: inSubject,
         receivedDate: inDate,
         status: inStatus,
-        attachmentUrl: inAttachmentBase64 || undefined
+        attachmentUrl: inAttachmentBase64 || undefined,
+        externalLink: inExternalLink.trim() || undefined
       };
       onAddInwardLetter(newIn);
       setIsFormInOpen(false);
@@ -455,6 +469,7 @@ export default function LettersTab({
     setInStatus('Disposisi');
     setInAttachmentBase64('');
     setInAttachmentName('');
+    setInExternalLink('');
   };
 
   const handleComposeOutwardLetter = (e: React.FormEvent) => {
@@ -630,30 +645,30 @@ export default function LettersTab({
     <div className="space-y-6">
       
       {/* Sub menu controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-3">
         
         {/* Toggle tabs */}
-        <div className="flex flex-wrap gap-2 p-1 bg-slate-100 rounded-xl">
+        <div className="flex flex-wrap gap-1.5 p-1 bg-slate-100 rounded-lg border border-slate-200">
           <button 
             onClick={() => setSubTab('outward')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer ${
-              subTab === 'outward' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+            className={`px-3.5 py-1.5 rounded text-xs font-semibold cursor-pointer transition-colors ${
+              subTab === 'outward' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900'
             }`}
           >
             Surat Keluar (Outbox)
           </button>
           <button 
             onClick={() => setSubTab('inward')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer ${
-              subTab === 'inward' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+            className={`px-3.5 py-1.5 rounded text-xs font-semibold cursor-pointer transition-colors ${
+              subTab === 'inward' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900'
             }`}
           >
             Registrasi Surat Masuk (Inbox)
           </button>
           <button 
             onClick={() => setSubTab('repository')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer ${
-              subTab === 'repository' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+            className={`px-3.5 py-1.5 rounded text-xs font-semibold cursor-pointer transition-colors ${
+              subTab === 'repository' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900'
             }`}
           >
             Berkas Legal & Dokumen Organisasi
@@ -664,25 +679,25 @@ export default function LettersTab({
         <div className="flex gap-2 text-xs">
           <button 
             onClick={handleExportCSV}
-            className="px-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors"
+            className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
           >
-            <Download className="w-4 h-4 text-emerald-600" /> Export CSV
+            <Download className="w-3.5 h-3.5 text-slate-600" /> Ekspor CSV
           </button>
           {subTab === 'outward' && isEditable && (
             <button 
               onClick={handleStartNewOutwardLetter}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer"
+              className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
             >
-              <FileSignature className="w-4 h-4" /> Buka Composer Surat Keluar
+              <FileSignature className="w-3.5 h-3.5" /> Buka Composer Surat Keluar
             </button>
           )}
 
           {subTab === 'inward' && isEditable && (
             <button 
               onClick={handleStartNewInwardLetter}
-              className="px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-white font-semibold rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer"
+              className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
             >
-              <Plus className="w-4 h-4" /> Registrasi Surat Masuk
+              <Plus className="w-3.5 h-3.5" /> Registrasi Surat Masuk
             </button>
           )}
         </div>
@@ -691,65 +706,65 @@ export default function LettersTab({
 
       {/* VIEW 1: OUTWARD OUTBOX */}
       {subTab === 'outward' && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col justify-between">
-          <div className="p-4 border-b border-slate-105 flex gap-4">
+        <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden flex flex-col justify-between">
+          <div className="p-4 border-b border-slate-200 flex gap-4">
             <div className="relative flex-1 text-xs">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-2 w-3.5 h-3.5 text-slate-400" />
               <input 
                 type="text" 
                 placeholder="Cari register nomor surat keluar, perihal atau penerima..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-1.5 border border-slate-200 rounded-xl focus:ring-1 focus:outline-none"
+                className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded text-xs text-slate-800 bg-white focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
               />
             </div>
           </div>
 
-          <div className="overflow-x-auto text-xs font-sans">
+          <div className="overflow-x-auto text-xs">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/50 text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono border-b border-slate-100">
-                  <th className="p-4">Kode No. Registrasi Surat</th>
-                  <th className="p-4">Klasifikasi Draft</th>
-                  <th className="p-4">Perihal / Judul Surat</th>
-                  <th className="p-4">Pihak Penerima (Ditujukan ke)</th>
-                  <th className="p-4">Tanggal Terbit</th>
-                  <th className="p-4">Status Legitimasi</th>
-                  <th className="p-4 text-center">Aksi Baca</th>
+                <tr className="bg-slate-50 text-xs text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200">
+                  <th className="p-3.5">No. Registrasi Surat</th>
+                  <th className="p-3.5">Klasifikasi</th>
+                  <th className="p-3.5">Perihal / Judul Surat</th>
+                  <th className="p-3.5">Pihak Penerima</th>
+                  <th className="p-3.5">Tanggal Terbit</th>
+                  <th className="p-3.5">Status</th>
+                  <th className="p-3.5 text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredOutward.map((letter) => (
-                  <tr key={letter.id} className="hover:bg-slate-50/10">
-                    <td className="p-4">
-                      <span className="font-bold font-mono tracking-tight text-[11px] text-slate-800 shrink-0 select-all block">{letter.letterNumber}</span>
+                  <tr key={letter.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="p-3.5">
+                      <span className="font-bold font-mono text-xs text-slate-800 shrink-0 select-all block">{letter.letterNumber}</span>
                     </td>
-                    <td className="p-4">
-                      <span className="bg-slate-150 text-slate-700 px-2.5 py-0.5 rounded-lg font-semibold tracking-tight text-[10px]">
+                    <td className="p-3.5">
+                      <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-semibold text-[10px] border border-slate-200">
                         {letter.templateType}
                       </span>
                     </td>
-                    <td className="p-4 font-medium text-slate-800 max-w-sm line-clamp-1 mt-3">
+                    <td className="p-3.5 font-medium text-slate-800 max-w-sm line-clamp-1">
                       {letter.subject}
                     </td>
-                    <td className="p-4 text-slate-600 font-medium">
+                    <td className="p-3.5 text-slate-700 font-medium">
                       {letter.recipient}
                     </td>
-                    <td className="p-4 text-slate-500 font-medium">{letter.date}</td>
-                    <td className="p-4">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        letter.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
-                        letter.status === 'Draft' ? 'bg-slate-100 text-slate-600 border border-slate-200' :
-                        'bg-amber-50 text-amber-700 border border-amber-100'
+                    <td className="p-3.5 text-slate-500">{letter.date}</td>
+                    <td className="p-3.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                        letter.status === 'Approved' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                        letter.status === 'Draft' ? 'bg-slate-100 text-slate-700 border border-slate-300' :
+                        'bg-amber-50 text-amber-800 border border-amber-200'
                       }`}>
                         {letter.status}
                       </span>
                     </td>
-                    <td className="p-4">
+                    <td className="p-3.5">
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-1.5">
                         <button 
                           onClick={() => setReadingLetter(letter)}
-                          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] font-semibold flex items-center gap-1 shadow-sm cursor-pointer"
+                          className="px-2.5 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-medium flex items-center gap-1 shadow-xs cursor-pointer transition-colors"
                         >
                           <Eye className="w-3.5 h-3.5" /> Lihat
                         </button>
@@ -757,7 +772,7 @@ export default function LettersTab({
                           <>
                             <button 
                               onClick={() => handleStartEditOutwardLetter(letter)}
-                              className="px-2.5 py-1 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[10px] font-semibold flex items-center gap-1 shadow-sm cursor-pointer whitespace-nowrap"
+                              className="px-2.5 py-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-xs font-medium flex items-center gap-1 shadow-xs cursor-pointer whitespace-nowrap transition-colors"
                             >
                               <Edit className="w-3.5 h-3.5" /> Edit
                             </button>
@@ -769,13 +784,13 @@ export default function LettersTab({
                                       onDeleteOutwardLetter(letter.id, letter.letterNumber);
                                       setDeleteConfirmId(null);
                                     }}
-                                    className="px-2 py-1 bg-red-650 hover:bg-red-700 text-white rounded font-bold text-[9px] cursor-pointer whitespace-nowrap"
+                                    className="px-2 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded font-bold text-[10px] cursor-pointer whitespace-nowrap"
                                   >
                                     Yakin?
                                   </button>
                                   <button
                                     onClick={() => setDeleteConfirmId(null)}
-                                    className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded font-bold text-[9px] cursor-pointer"
+                                    className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded font-bold text-[10px] cursor-pointer"
                                   >
                                     Batal
                                   </button>
@@ -783,7 +798,7 @@ export default function LettersTab({
                               ) : (
                                 <button 
                                   onClick={() => setDeleteConfirmId(letter.id)}
-                                  className="px-2.5 py-1 text-red-500 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-lg transition-all text-[10px] cursor-pointer flex items-center gap-0.5"
+                                  className="px-2.5 py-1 text-rose-700 hover:bg-rose-50 border border-rose-200 rounded transition-colors text-xs font-medium cursor-pointer flex items-center gap-0.5"
                                 >
                                   <Trash className="w-3.5 h-3.5" /> Hapus
                                 </button>
@@ -803,65 +818,76 @@ export default function LettersTab({
 
       {/* VIEW 2: INWARD MAIL */}
       {subTab === 'inward' && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col justify-between">
-          <div className="p-4 border-b border-slate-50 flex gap-4">
+        <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden flex flex-col justify-between">
+          <div className="p-4 border-b border-slate-200 flex gap-4">
             <div className="relative flex-1 text-xs">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-2 w-3.5 h-3.5 text-slate-400" />
               <input 
                 type="text" 
                 placeholder="Cari register nomor surat masuk, pengirim atau judul..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-1.5 border border-slate-200 rounded-xl focus:outline-none"
+                className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded text-xs text-slate-800 bg-white focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
               />
             </div>
           </div>
 
-          <div className="overflow-x-auto text-xs font-sans">
+          <div className="overflow-x-auto text-xs">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/50 text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono border-b border-slate-100">
-                  <th className="p-4">Nomor Berkas</th>
-                  <th className="p-4">Instansi Pengirim</th>
-                  <th className="p-4">Perihal Korespondensi</th>
-                  <th className="p-4">Tanggal Masuk</th>
-                  <th className="p-4">Status Disposisi</th>
-                  <th className="p-4 text-center">Aksi Korespondensi</th>
+                <tr className="bg-slate-50 text-xs text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200">
+                  <th className="p-3.5">Nomor Berkas</th>
+                  <th className="p-3.5">Instansi Pengirim</th>
+                  <th className="p-3.5">Perihal Korespondensi</th>
+                  <th className="p-3.5">Tanggal Masuk</th>
+                  <th className="p-3.5">Status Disposisi</th>
+                  <th className="p-3.5 text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredInward.map((letter) => (
-                  <tr key={letter.id} className="hover:bg-slate-50/10">
-                    <td className="p-4">
-                      <span className="font-bold font-mono tracking-tight text-[11px] text-slate-800 select-all block">{letter.letterNumber}</span>
+                  <tr key={letter.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="p-3.5">
+                      <span className="font-bold font-mono text-xs text-slate-800 select-all block">{letter.letterNumber}</span>
                     </td>
-                    <td className="p-4 font-bold text-slate-700">{letter.sender}</td>
-                    <td className="p-4 font-medium text-slate-800 max-w-sm line-clamp-1 mt-3">
+                    <td className="p-3.5 font-bold text-slate-800">{letter.sender}</td>
+                    <td className="p-3.5 font-medium text-slate-800 max-w-sm line-clamp-1">
                       {letter.subject}
                     </td>
-                    <td className="p-4 text-slate-500 font-medium">{letter.receivedDate}</td>
-                    <td className="p-4">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                        letter.status === 'Arsip' ? 'bg-slate-50 text-slate-600 border-slate-200' :
-                        letter.status === 'Disposisi' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
-                        'bg-amber-50 text-amber-700 border-amber-100'
+                    <td className="p-3.5 text-slate-500 font-medium">{letter.receivedDate}</td>
+                    <td className="p-3.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                        letter.status === 'Arsip' ? 'bg-slate-50 text-slate-700 border-slate-300' :
+                        letter.status === 'Disposisi' ? 'bg-slate-100 text-slate-800 border-slate-300' :
+                        'bg-amber-50 text-amber-800 border-amber-200'
                       }`}>
                         {letter.status || 'Disposisi'}
                       </span>
                     </td>
-                    <td className="p-4">
+                    <td className="p-3.5">
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-1.5">
+                        {letter.externalLink && (
+                          <a 
+                            href={letter.externalLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-1 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded text-xs font-medium flex items-center gap-1 shadow-xs cursor-pointer whitespace-nowrap transition-colors"
+                            title="Buka Scan Surat di Google Drive"
+                          >
+                            <ExternalLink className="w-3 h-3 text-slate-600" /> GDrive
+                          </a>
+                        )}
                         <button 
                           onClick={() => setReadingInwardLetter(letter)}
-                          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] font-semibold flex items-center gap-1 shadow-sm cursor-pointer whitespace-nowrap"
+                          className="px-2.5 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-medium flex items-center gap-1 shadow-xs cursor-pointer whitespace-nowrap transition-colors"
                         >
-                          <Eye className="w-3.5 h-3.5" /> Lihat detil
+                          <Eye className="w-3.5 h-3.5" /> Detail
                         </button>
                         {isEditable && (
                           <>
                             <button 
                               onClick={() => handleStartEditInwardLetter(letter)}
-                              className="px-2.5 py-1 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[10px] font-semibold flex items-center gap-1 shadow-sm cursor-pointer whitespace-nowrap"
+                              className="px-2.5 py-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-xs font-medium flex items-center gap-1 shadow-xs cursor-pointer whitespace-nowrap transition-colors"
                             >
                               <Edit className="w-3.5 h-3.5" /> Edit
                             </button>
@@ -874,13 +900,13 @@ export default function LettersTab({
                                     }
                                     setDeleteConfirmId(null);
                                   }}
-                                  className="px-2 py-1 bg-red-650 hover:bg-red-700 text-white rounded font-bold text-[9px] cursor-pointer whitespace-nowrap"
+                                  className="px-2 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded font-bold text-[10px] cursor-pointer whitespace-nowrap"
                                 >
                                   Yakin?
                                 </button>
                                 <button
                                   onClick={() => setDeleteConfirmId(null)}
-                                  className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded font-bold text-[9px] cursor-pointer"
+                                  className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded font-bold text-[10px] cursor-pointer"
                                 >
                                   Batal
                                 </button>
@@ -888,7 +914,7 @@ export default function LettersTab({
                             ) : (
                               <button 
                                 onClick={() => setDeleteConfirmId(letter.id)}
-                                className="p-1 bg-red-50 hover:bg-red-100 text-red-650 rounded border border-red-200 text-[10px] font-bold flex items-center cursor-pointer transition-colors"
+                                className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded border border-rose-200 text-xs font-medium flex items-center cursor-pointer transition-colors"
                                 title="Hapus Surat Masuk"
                               >
                                 <Trash className="w-3.5 h-3.5" />
@@ -906,59 +932,57 @@ export default function LettersTab({
         </div>
       )}
 
-      {/* VIEW 3: LEGAL RESOLUTIONS & AD/ART COOP */}
+      {/* VIEW 3: REPOSITORY ARCHIVE (LEGAL DOKUMEN & KEBIJAKAN RESMI) */}
       {subTab === 'repository' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-          <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
+        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h3 className="text-md font-semibold text-slate-800">Dokumen Arsip Hukum & SOP Kelembagaan</h3>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Arsip legalitas, SK Menkumham, sertifikat denda pajak, dokumen AD/ART, dan Memorandum of Understanding (MoU) kemitraan dengan universitas/gereja lokal.
+              <h3 className="text-sm font-bold text-slate-900">Khasanah Dokumen & Kebijakan Kelembagaan (Repository)</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Kumpulan naskah resmi, AD/ART, akta pendirian, sertifikat, serta SOP yang disahkan oleh Pembina/Pengurus Yayasan MMB.
               </p>
             </div>
             {isEditable && (
-              <button
+              <button 
                 onClick={() => setIsUploadDocOpen(true)}
-                className="px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors whitespace-nowrap"
+                className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold flex items-center gap-1.5 shadow-xs cursor-pointer whitespace-nowrap transition-colors"
               >
-                <Upload className="w-4 h-4" /> Unggah Dokumen Baru
+                <Upload className="w-3.5 h-3.5" /> Unggah Berkas Resmi
               </button>
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {documents.filter(doc => !doc.deleted).map((doc) => (
-              <div key={doc.id} className="p-5 border border-slate-100 rounded-2xl hover:shadow-md transition-all flex flex-col justify-between">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+            {documents.map((doc) => (
+              <div key={doc.id} className="border border-slate-200 rounded-lg p-4 bg-white shadow-xs hover:border-[#0c2340] transition-colors flex flex-col justify-between space-y-3">
                 <div>
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="bg-slate-105 border border-slate-200 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded font-mono">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="px-2 py-0.5 bg-slate-100 border border-slate-300 text-slate-700 rounded font-semibold text-[10px] truncate">
                       {doc.category}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono font-medium">{doc.fileSize}</span>
+                    <span className="text-xs text-slate-400 font-medium">{doc.fileSize}</span>
                   </div>
-                  <h4 className="font-bold text-slate-850 text-xs">{doc.name}</h4>
-                  <p className="text-[10px] text-slate-400 mt-1.5">Tanggal Unggah Dokumen: {doc.uploadedDate}</p>
+                  <h4 className="font-bold text-slate-900 text-xs leading-snug">{doc.name}</h4>
+                  <p className="text-xs text-slate-500 mt-1">Disahkan: {formatIndonesianDate(doc.uploadedDate)}</p>
                 </div>
-                
-                <div className="pt-4 border-t border-slate-50 mt-4 flex items-center justify-between gap-2 text-xs">
-                  <div className="flex gap-1.5 items-center">
-                    {isEditable && (
+
+                <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    {isEditable && onDeleteDocument && (
                       deleteConfirmId === doc.id ? (
-                        <div className="flex items-center gap-1 z-10">
+                        <div className="flex items-center gap-1 z-10 shrink-0">
                           <button
                             onClick={() => {
-                              if (onDeleteDocument) {
-                                onDeleteDocument(doc.id, doc.name);
-                              }
+                              onDeleteDocument(doc.id, doc.name);
                               setDeleteConfirmId(null);
                             }}
-                            className="px-2 py-1 bg-red-650 hover:bg-red-700 text-white rounded font-bold text-[9px] cursor-pointer whitespace-nowrap"
+                            className="px-2 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded font-bold text-[10px] cursor-pointer whitespace-nowrap"
                           >
                             Yakin?
                           </button>
                           <button
                             onClick={() => setDeleteConfirmId(null)}
-                            className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded font-bold text-[9px] cursor-pointer"
+                            className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded font-bold text-[10px] cursor-pointer"
                           >
                             Batal
                           </button>
@@ -966,26 +990,37 @@ export default function LettersTab({
                       ) : (
                         <button 
                           onClick={() => setDeleteConfirmId(doc.id)}
-                          className="p-1 bg-red-50 hover:bg-red-100 text-red-650 rounded border border-red-200 text-[10px] font-bold flex items-center cursor-pointer transition-colors"
+                          className="p-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded border border-rose-200 text-xs font-medium flex items-center cursor-pointer transition-colors"
                           title="Hapus Dokumen"
                         >
                           <Trash className="w-3.5 h-3.5" />
                         </button>
                       )
                     )}
-                    <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">&bull; Salinan Resmi</span>
+                    <span className="text-[11px] text-emerald-800 font-medium flex items-center gap-0.5">&bull; Salinan Sah</span>
                   </div>
-                  <div className="flex gap-2 shrink-0">
+                  <div className="flex flex-wrap gap-1.5 shrink-0">
+                    {doc.externalLink && (
+                      <a
+                        href={doc.externalLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1 px-2.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium rounded text-xs flex items-center gap-1 cursor-pointer transition-colors"
+                        title="Buka Dokumen di Google Drive"
+                      >
+                        <ExternalLink className="w-3 h-3 text-slate-600" /> GDrive
+                      </a>
+                    )}
                     <button 
                       onClick={() => setPreviewingDocument(doc)}
-                      className="p-1 px-2.5 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg text-[10px] flex items-center gap-1 cursor-pointer transition-colors"
+                      className="p-1 px-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded text-xs flex items-center gap-1 cursor-pointer transition-colors"
                     >
                       <Eye className="w-3.5 h-3.5" /> Pratinjau
                     </button>
                     <a 
                       href={`/api/documents/download/${doc.id}?token=${getSessionUserToken()}`}
                       download
-                      className="p-1 px-3 bg-slate-800 hover:bg-slate-900 border border-slate-705 text-white font-bold rounded-lg text-[10px] flex items-center gap-1 cursor-pointer transition-colors"
+                      className="p-1 px-3 bg-[#0c2340] hover:bg-[#1b365d] text-white font-medium rounded text-xs flex items-center gap-1 cursor-pointer transition-colors"
                     >
                       <Download className="w-3.5 h-3.5" /> Unduh
                     </a>
@@ -997,31 +1032,31 @@ export default function LettersTab({
         </div>
       )}
 
-      {/* DIALOG: UPLOAD DOKUMEN RESMI (MAKS 5 MB) */}
+      {/* DIALOG: UPLOAD DOKUMEN RESMI (MAKS 1 MB) */}
       {isUploadDocOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 overflow-y-auto backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden scale-95 transition-transform my-8">
-            <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg border border-slate-300 w-full max-w-md overflow-hidden my-8">
+            <div className="bg-[#0c2340] px-5 py-3.5 text-white flex justify-between items-center">
               <div>
                 <dt className="text-sm font-bold">Unggah Berkas Dokumen Resmi</dt>
-                <dd className="text-[11px] text-slate-300">Batas kapasitas koordinasi fail maks. 5 MB</dd>
+                <dd className="text-xs text-slate-300 mt-0.5">Batas upload langsung maks. 1 MB</dd>
               </div>
               <button 
-                type="button"
+                type="button" 
                 onClick={() => setIsUploadDocOpen(false)} 
-                className="text-slate-400 hover:text-white cursor-pointer"
+                className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleUploadSubmit} className="p-6 space-y-4 text-xs font-sans">
+            <form onSubmit={handleUploadSubmit} className="p-5 space-y-4 text-xs">
               <div>
-                <label className="text-slate-500 block mb-1 font-semibold">Kategori Dokumen :</label>
+                <label className="text-slate-700 block mb-1 font-semibold">Kategori Dokumen :</label>
                 <select 
                   value={newDocCategory}
                   onChange={(e) => setNewDocCategory(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800 focus:outline-none"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                 >
                   <option value="Konstitusi Organisasi">Konstitusi Organisasi</option>
                   <option value="SOP Keuangan">SOP Keuangan</option>
@@ -1033,48 +1068,75 @@ export default function LettersTab({
               </div>
 
               <div>
-                <label className="text-slate-500 block mb-1 font-semibold">Nama Dokumen Resmi / Berkas :</label>
+                <label className="text-slate-700 block mb-1 font-semibold">Nama Dokumen Resmi / Berkas :</label>
                 <input 
                   type="text" 
                   value={newDocName}
                   onChange={(e) => setNewDocName(e.target.value)}
                   placeholder="Contoh: AD-ART MMB Terbaru 2026"
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800 focus:outline-none"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   required
                 />
               </div>
 
+              {/* EXTERNAL LINK & GDRIVE HELPER */}
               <div>
-                <label className="text-slate-500 block mb-1 font-semibold">Pilih Berkas Fail (Maks. 5 MB) :</label>
-                <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors relative">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-slate-700 block font-semibold">
+                    Tautan Google Drive Dokumen (Opsional) :
+                  </label>
+                  <a
+                    href={GDRIVE_LETTERS_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-semibold text-[#0c2340] hover:underline flex items-center gap-1"
+                    title="Buka Folder Google Drive Persuratan & Dokumen"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" /> Buka Folder GDrive <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <input 
+                  type="url" 
+                  value={newDocExternalLink}
+                  onChange={(e) => setNewDocExternalLink(e.target.value)}
+                  placeholder="https://drive.google.com/... (Cantumkan jika berkas > 1 MB)"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 font-mono text-xs focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-700 block mb-1 font-semibold">Pilih Berkas Fail Langsung (Maks. 1 MB) :</label>
+                <div className="border-2 border-dashed border-slate-300 rounded p-4 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors relative">
                   <input 
                     type="file" 
                     onChange={handleFileChange}
                     accept=".pdf,.docx,.xlsx,.doc,.xls,.png,.jpg,.jpeg,.zip"
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    required={!uploadBase64}
                   />
-                  <Upload className="w-8 h-8 text-slate-400 mb-2" />
-                  <p className="text-slate-600 font-medium text-center">
-                    {uploadFile ? uploadFile.name : "Klik untuk memilih fail atau drop disini"}
+                  <Upload className="w-6 h-6 text-slate-400 mb-1.5" />
+                  <p className="text-slate-700 font-medium text-center text-xs">
+                    {uploadFile ? uploadFile.name : "Klik untuk memilih fail atau drop disini (≤ 1 MB)"}
                   </p>
-                  <p className="text-slate-400 text-[10px] mt-1 text-center">
-                    {uploadFile ? `${(uploadFile.size / (1024 * 1024)).toFixed(2)} MB` : "Mendukung PDF, Word, Excel, Gambar, ZIP (~5MB)"}
+                  <p className="text-slate-500 text-xs mt-0.5 text-center">
+                    {uploadFile ? `${(uploadFile.size / (1024 * 1024)).toFixed(2)} MB` : "Jika berkas > 1 MB, unggah ke Folder GDrive di atas & tempelkan link-nya"}
                   </p>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
+              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2.5">
                 <button 
                   type="button" 
-                  onClick={() => setIsUploadDocOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl cursor-pointer transition-colors"
+                  onClick={() => {
+                    setIsUploadDocOpen(false);
+                    setNewDocExternalLink('');
+                  }}
+                  className="px-4 py-2 border border-slate-300 rounded text-slate-700 font-medium cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   Batal
                 </button>
                 <button 
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl cursor-pointer transition-colors"
+                  className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded cursor-pointer transition-colors shadow-xs"
                 >
                   Arsipkan Dokumen
                 </button>
@@ -1086,18 +1148,18 @@ export default function LettersTab({
 
       {/* POPUP: DIGITAL DOCUMENT PREVIEW MODAL */}
       {previewingDocument && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 overflow-y-auto backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-150 w-full max-w-4xl overflow-hidden scale-95 transition-transform my-4 flex flex-col h-[85vh]">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-300 w-full max-w-4xl overflow-hidden my-4 flex flex-col h-[85vh]">
             {/* Header */}
-            <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center shrink-0">
+            <div className="bg-[#0c2340] px-5 py-3.5 text-white flex justify-between items-center shrink-0">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-600/30 text-indigo-400 rounded-lg">
-                  <FileText className="w-5 h-5" />
+                <div className="p-2 bg-white/10 rounded">
+                  <FileText className="w-4 h-4" />
                 </div>
                 <div>
                   <dt className="text-sm font-bold truncate max-w-md">{previewingDocument.name}</dt>
-                  <dd className="text-[11px] text-slate-350 flex items-center gap-2">
-                    <span className="bg-slate-800 text-slate-200 px-1.5 py-0.5 rounded font-mono text-[9px] uppercase">{previewingDocument.category}</span>
+                  <dd className="text-xs text-slate-300 flex items-center gap-2 mt-0.5">
+                    <span className="bg-white/10 px-1.5 py-0.2 rounded text-[10px] uppercase font-semibold">{previewingDocument.category}</span>
                     <span>&bull;</span>
                     <span>Diunggah: {previewingDocument.uploadedDate}</span>
                     <span>&bull;</span>
@@ -1108,17 +1170,17 @@ export default function LettersTab({
               <button 
                 type="button"
                 onClick={() => setPreviewingDocument(null)} 
-                className="text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded-lg cursor-pointer transition-colors"
+                className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
                 title="Tutup Pratinjau"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Main Preview Container */}
             <div className="flex-1 bg-slate-100 p-4 flex flex-col md:flex-row gap-4 overflow-hidden">
               {/* Left Side: Browser Preview Frame */}
-              <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-inner overflow-hidden relative flex flex-col h-full">
+              <div className="flex-1 bg-white rounded border border-slate-300 shadow-xs overflow-hidden relative flex flex-col h-full">
                 <iframe 
                   src={`/api/documents/preview/${previewingDocument.id}?token=${getSessionUserToken()}`}
                   className="w-full h-full border-none"
@@ -1127,43 +1189,43 @@ export default function LettersTab({
               </div>
 
               {/* Right Side: Quick Meta & Actions Panel */}
-              <div className="w-full md:w-64 bg-white rounded-xl border border-slate-200 p-4 shrink-0 flex flex-col justify-between space-y-4">
+              <div className="w-full md:w-64 bg-white rounded border border-slate-300 p-4 shrink-0 flex flex-col justify-between space-y-4">
                 <div className="space-y-4">
-                  <h4 className="font-bold text-slate-800 text-xs border-b pb-2 font-sans">Status Arsip Elektronik</h4>
+                  <h4 className="font-bold text-slate-900 text-xs border-b border-slate-200 pb-2">Status Arsip Elektronik</h4>
                   
-                  <div className="space-y-2.5 text-[11px]">
+                  <div className="space-y-2 text-xs">
                     <div>
-                      <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px]">ID Register</span>
-                      <code className="text-slate-700 font-mono bg-slate-50 px-1 py-0.5 rounded block truncate">{previewingDocument.id}</code>
+                      <span className="text-slate-500 block font-semibold text-[10px] uppercase">ID Register</span>
+                      <code className="text-slate-800 font-mono bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 block truncate">{previewingDocument.id}</code>
                     </div>
                     <div>
-                      <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px]">Aksesibilitas</span>
+                      <span className="text-slate-500 block font-semibold text-[10px] uppercase">Aksesibilitas</span>
                       <span className="text-slate-700 font-medium">Internal Yayasan (Terenkripsi)</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px]">Masa Berlaku</span>
-                      <span className="text-slate-750 font-bold text-emerald-600">Aktif & Absah</span>
+                      <span className="text-slate-500 block font-semibold text-[10px] uppercase">Masa Berlaku</span>
+                      <span className="text-emerald-800 font-bold">Aktif & Sah</span>
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 text-[10px] text-slate-500 leading-relaxed space-y-1.5">
-                    <p className="font-bold text-slate-700">Validitas Digital (SI-ARSEP):</p>
-                    <p>Sistem berkas memverifikasi salinan di sebelah kiri sebagai representasi sah arsip fisik.</p>
+                  <div className="bg-slate-50 border border-slate-200 rounded p-3 text-xs text-slate-600 leading-relaxed space-y-1">
+                    <p className="font-bold text-slate-800">Validitas Digital:</p>
+                    <p>Sistem memverifikasi dokumen ini sebagai representasi sah arsip fisik kelembagaan.</p>
                   </div>
                 </div>
 
-                <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="space-y-2 pt-2 border-t border-slate-200">
                   <a 
                     href={`/api/documents/download/${previewingDocument.id}?token=${getSessionUserToken()}`}
                     download
-                    className="w-full py-2 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                    className="w-full py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                   >
-                    <Download className="w-4 h-4" /> Unduh Berkas
+                    <Download className="w-3.5 h-3.5" /> Unduh Berkas
                   </a>
                   <button 
                     onClick={() => setPreviewingDocument(null)}
                     type="button"
-                    className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
+                    className="w-full py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded text-xs cursor-pointer transition-colors"
                   >
                     Tutup
                   </button>
@@ -1176,15 +1238,15 @@ export default function LettersTab({
 
       {/* DIALOG: REGISTRASI & EDIT SURAT MASUK */}
       {isFormInOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-xl overflow-hidden scale-95 transition-transform flex flex-col max-h-[calc(100vh-3rem)]">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-lg border border-slate-300 w-full max-w-xl overflow-hidden flex flex-col max-h-[calc(100vh-3rem)]">
             
-            <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center shrink-0">
+            <div className="bg-[#0c2340] px-5 py-3.5 text-white flex justify-between items-center shrink-0">
               <div>
                 <dt className="text-sm font-bold">
-                  {editingInwardLetter ? `Sistem Edit Surat Masuk (${editingInwardLetter.letterNumber})` : 'Sistem Registrasi Surat Masuk (Inbox)'}
+                  {editingInwardLetter ? `Edit Surat Masuk (${editingInwardLetter.letterNumber})` : 'Registrasi Surat Masuk (Inbox)'}
                 </dt>
-                <dd className="text-[11px] text-slate-350">
+                <dd className="text-xs text-slate-300 mt-0.5">
                   {editingInwardLetter ? 'Perubahan pada berkas surat masuk akan disimpan ke database.' : 'Menerima dan melaporkan surat dinas luar yang masuk ke sekretariat.'}
                 </dd>
               </div>
@@ -1194,69 +1256,69 @@ export default function LettersTab({
                   setIsFormInOpen(false);
                   setEditingInwardLetter(null);
                 }} 
-                className="text-slate-400 hover:text-white cursor-pointer"
+                className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
               >
-                <Plus className="w-5 h-5 rotate-45" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveInwardLetter} className="flex flex-col flex-1 min-h-0 overflow-hidden text-xs font-sans">
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <form onSubmit={handleSaveInwardLetter} className="flex flex-col flex-1 min-h-0 overflow-hidden text-xs">
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-500 block mb-1 font-semibold">Nomor Berkas Surat :</label>
+                  <label className="text-slate-700 block mb-1 font-semibold">Nomor Berkas Surat :</label>
                   <input 
                     type="text" 
                     value={inNum}
                     onChange={(e) => setInNum(e.target.value)}
                     placeholder="Contoh: 120/EXT/DINSOS/VI/2026"
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-slate-500 block mb-1 font-semibold">Instansi Pengirim :</label>
+                  <label className="text-slate-700 block mb-1 font-semibold">Instansi Pengirim :</label>
                   <input 
                     type="text" 
                     value={inSender}
                     onChange={(e) => setInSender(e.target.value)}
                     placeholder="Contoh: Dinas Sosial / Kantor Camat"
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-slate-500 block mb-1 font-semibold">Perihal / Agenda Surat :</label>
+                <label className="text-slate-700 block mb-1 font-semibold">Perihal / Agenda Surat :</label>
                 <input 
                   type="text" 
                   value={inSubject}
                   onChange={(e) => setInSubject(e.target.value)}
                   placeholder="Contoh: Undangan Koordinasi Hibah Kemasyarakatan"
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   required
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-500 block mb-1 font-semibold">Tanggal Berkas Diterima :</label>
+                  <label className="text-slate-700 block mb-1 font-semibold">Tanggal Berkas Diterima :</label>
                   <input 
                     type="date" 
                     value={inDate}
                     onChange={(e) => setInDate(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-slate-500 block mb-1 font-semibold">Status Alur Disposisi :</label>
+                  <label className="text-slate-700 block mb-1 font-semibold">Status Alur Disposisi :</label>
                   <select 
                     value={inStatus}
                     onChange={(e) => setInStatus(e.target.value as any)}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800 focus:outline-none"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   >
                     <option value="Disposisi">Perlu Disposisi Ketua</option>
                     <option value="Tindak Lanjut">Tindak Lanjut Staf</option>
@@ -1265,17 +1327,45 @@ export default function LettersTab({
                 </div>
               </div>
 
+              {/* EXTERNAL LINK & GDRIVE HELPER */}
               <div>
-                <label className="text-slate-500 block mb-1 font-semibold">Unggah File Scan Fisik Surat (Maks 5 MB) :</label>
-                <div className="border border-dashed border-slate-200 rounded-xl p-4 text-center bg-slate-50 relative hover:bg-slate-100/50 transition-colors">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-slate-700 block font-semibold">
+                    Tautan Google Drive / Scan Surat (Opsional) :
+                  </label>
+                  <a
+                    href={GDRIVE_LETTERS_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-semibold text-[#0c2340] hover:underline flex items-center gap-1"
+                    title="Buka Folder Google Drive Persuratan MMB"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" /> Buka Folder GDrive <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <input 
+                  type="url" 
+                  value={inExternalLink}
+                  onChange={(e) => setInExternalLink(e.target.value)}
+                  placeholder="https://drive.google.com/... (Cantumkan tautan jika scan surat > 1 MB)"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 font-mono text-xs focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-700 block mb-1 font-semibold">Unggah File Scan Fisik Surat Langsung (Maks. 1 MB) :</label>
+                <div className="border border-dashed border-slate-300 rounded p-4 text-center bg-slate-50 relative hover:bg-slate-100 transition-colors">
                   <input 
                     type="file" 
                     accept="image/*,application/pdf"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        if (file.size > 5 * 1024 * 1024) {
-                          alert('Ukuran berkas melebihi batas 5 MB!');
+                        if (file.size > MAX_LETTERS_UPLOAD_BYTES) {
+                          alert(
+                            `Ukuran berkas "${file.name}" (${(file.size / (1024 * 1024)).toFixed(2)} MB) melebihi batas upload langsung ${MAX_LETTERS_UPLOAD_MB} MB agar database tetap ringan.\n\nSilakan unggah scan surat ke Folder Google Drive Surat Yayasan melalui tombol di atas, lalu cantumkan tautannya.`
+                          );
+                          e.target.value = '';
                           return;
                         }
                         setInAttachmentName(file.name);
@@ -1289,15 +1379,15 @@ export default function LettersTab({
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
                   <div className="space-y-1">
-                    <Upload className="mx-auto h-8 w-8 text-slate-400" />
-                    <div className="text-slate-600 font-medium">
+                    <Upload className="mx-auto h-6 w-6 text-slate-400" />
+                    <div className="text-slate-700 font-medium text-xs">
                       {inAttachmentName ? (
-                        <span className="text-indigo-650 font-bold truncate block max-w-xs mx-auto">{inAttachmentName}</span>
+                        <span className="text-[#0c2340] font-bold truncate block max-w-xs mx-auto">{inAttachmentName}</span>
                       ) : (
-                        <span>Pilih scan gambar/PDF dokumen atau tarik kesini</span>
+                        <span>Pilih scan gambar/PDF dokumen atau tarik kesini (≤ 1 MB)</span>
                       )}
                     </div>
-                    <p className="text-[10px] text-slate-400">Batas toleransi penampung koordinasi fail maksimal 5 MB</p>
+                    <p className="text-xs text-slate-500">Jika berkas &gt; 1 MB, unggah ke Google Drive & cantumkan tautan di atas</p>
                   </div>
                 </div>
                 {inAttachmentBase64 && (
@@ -1308,9 +1398,9 @@ export default function LettersTab({
                         setInAttachmentBase64('');
                         setInAttachmentName('');
                       }}
-                      className="text-red-500 hover:text-red-700 font-bold text-[10px] flex items-center gap-0.5 cursor-pointer"
+                      className="text-rose-700 hover:underline font-semibold text-xs flex items-center gap-0.5 cursor-pointer"
                     >
-                      <Trash className="w-3 h-3" /> Hapus Lampiran
+                      <Trash className="w-3.5 h-3.5" /> Hapus Lampiran
                     </button>
                   </div>
                 )}
@@ -1318,20 +1408,20 @@ export default function LettersTab({
 
               </div>
 
-              <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2 shrink-0 bg-slate-50/50">
+              <div className="px-5 py-3.5 border-t border-slate-200 flex justify-end gap-2.5 shrink-0 bg-slate-50">
                 <button 
                   type="button" 
                   onClick={() => {
                     setIsFormInOpen(false);
                     setEditingInwardLetter(null);
                   }}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl cursor-pointer transition-colors"
+                  className="px-4 py-2 border border-slate-300 rounded text-slate-700 font-medium cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   Batal
                 </button>
                 <button 
                   type="submit"
-                  className="px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-xl cursor-pointer transition-colors"
+                  className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded cursor-pointer transition-colors shadow-xs"
                 >
                   {editingInwardLetter ? 'Simpan Perubahan' : 'Registrasikan Surat'}
                 </button>
@@ -1343,72 +1433,93 @@ export default function LettersTab({
 
       {/* POPUP: DETAILED INWARD LETTER READER OVERLAY */}
       {readingInwardLetter && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 overflow-y-auto backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-xl overflow-hidden scale-95 transition-transform my-8">
-            <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg border border-slate-300 w-full max-w-xl overflow-hidden my-8">
+            <div className="bg-[#0c2340] px-5 py-3.5 text-white flex justify-between items-center">
               <div>
                 <dt className="text-sm font-bold flex items-center gap-1.5">
-                  <Mail className="w-4 h-4 text-indigo-400" /> Detil Arsip Surat Masuk
+                  <Mail className="w-4 h-4 text-slate-200" /> Detail Arsip Surat Masuk
                 </dt>
-                <dd className="text-[11px] text-slate-350">
+                <dd className="text-xs text-slate-300 mt-0.5">
                   Surat diterima dan diarsipkan di database sekretariat MMB.
                 </dd>
               </div>
               <button 
                 type="button"
                 onClick={() => setReadingInwardLetter(null)} 
-                className="text-slate-400 hover:text-white cursor-pointer"
+                className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
               >
-                <Plus className="w-5 h-5 rotate-45" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-6 space-y-6 text-xs font-sans">
-              <div className="border border-slate-100 rounded-2xl bg-slate-50/50 p-5 space-y-4">
+            <div className="p-5 space-y-4 text-xs">
+              <div className="border border-slate-200 rounded-lg bg-slate-50 p-4 space-y-3">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider font-mono">Nomor Berkas Surat</span>
-                    <strong className="text-slate-800 text-xs font-mono">{readingInwardLetter.letterNumber}</strong>
+                    <span className="text-slate-500 block text-xs uppercase font-semibold">Nomor Berkas Surat</span>
+                    <strong className="text-slate-900 text-xs font-mono">{readingInwardLetter.letterNumber}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider font-mono">Status Pengarsipan</span>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-block border ${
-                      readingInwardLetter.status === 'Arsip' ? 'bg-slate-50 text-slate-600 border-slate-200' :
-                      readingInwardLetter.status === 'Disposisi' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
-                      'bg-amber-50 text-amber-700 border-amber-100'
+                    <span className="text-slate-500 block text-xs uppercase font-semibold">Status Pengarsipan</span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold inline-block border ${
+                      readingInwardLetter.status === 'Arsip' ? 'bg-slate-50 text-slate-700 border-slate-300' :
+                      readingInwardLetter.status === 'Disposisi' ? 'bg-slate-100 text-slate-800 border-slate-300' :
+                      'bg-amber-50 text-amber-800 border-amber-200'
                     }`}>
                       {readingInwardLetter.status || 'Disposisi'}
                     </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-3">
+                <div className="grid grid-cols-2 gap-4 border-t border-slate-200 pt-2.5">
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider font-mono">Instansi Pengirim</span>
-                    <span className="text-slate-800 font-bold text-xs">{readingInwardLetter.sender}</span>
+                    <span className="text-slate-500 block text-xs uppercase font-semibold">Instansi Pengirim</span>
+                    <span className="text-slate-900 font-bold text-xs">{readingInwardLetter.sender}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider font-mono">Tanggal Diterima</span>
-                    <span className="text-slate-600 font-semibold">{formatIndonesianDate(readingInwardLetter.receivedDate)}</span>
+                    <span className="text-slate-500 block text-xs uppercase font-semibold">Tanggal Diterima</span>
+                    <span className="text-slate-700 font-medium">{formatIndonesianDate(readingInwardLetter.receivedDate)}</span>
                   </div>
                 </div>
 
-                <div className="border-t border-slate-100 pt-3">
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider font-mono">Perihal Agenda</span>
-                  <p className="text-slate-800 font-bold text-xs mt-0.5">{readingInwardLetter.subject}</p>
+                <div className="border-t border-slate-200 pt-2.5">
+                  <span className="text-slate-500 block text-xs uppercase font-semibold">Perihal Agenda</span>
+                  <p className="text-slate-900 font-bold text-xs mt-0.5">{readingInwardLetter.subject}</p>
                 </div>
               </div>
 
               {/* ATTACHMENT DETAILS */}
-              <div className="border border-slate-100 rounded-2xl p-5 bg-white space-y-3">
+              <div className="border border-slate-200 rounded-lg p-4 bg-white space-y-3">
                 <span className="text-slate-800 text-xs font-bold block uppercase tracking-wide">Lampiran Dokumen Scan Asli</span>
-                {readingInwardLetter.attachmentUrl ? (
-                  <div className="flex items-center justify-between bg-slate-50 border border-slate-200 p-3 rounded-xl">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <FileCheck2 className="w-8 h-8 text-indigo-600 shrink-0" />
+                
+                {readingInwardLetter.externalLink && (
+                  <div className="flex items-center justify-between bg-slate-50 border border-slate-200 p-3 rounded">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FolderOpen className="w-5 h-5 text-slate-600 shrink-0" />
                       <div className="truncate pr-2">
-                        <p className="font-bold text-slate-800 text-[11px] truncate">Scan_Surat_Masuk_{readingInwardLetter.id}.pdf/img</p>
-                        <p className="text-[10px] text-slate-400">Tersimpan di Cloud Database</p>
+                        <p className="font-bold text-slate-800 text-xs truncate">Tautan Dokumen Google Drive</p>
+                        <p className="text-xs text-slate-600 truncate font-mono">{readingInwardLetter.externalLink}</p>
+                      </div>
+                    </div>
+                    <a
+                      href={readingInwardLetter.externalLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1 shrink-0 shadow-xs"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" /> Buka GDrive
+                    </a>
+                  </div>
+                )}
+
+                {readingInwardLetter.attachmentUrl ? (
+                  <div className="flex items-center justify-between bg-slate-50 border border-slate-200 p-3 rounded">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileCheck2 className="w-5 h-5 text-slate-600 shrink-0" />
+                      <div className="truncate pr-2">
+                        <p className="font-bold text-slate-800 text-xs truncate">Scan_Surat_Masuk_{readingInwardLetter.id}.pdf/img</p>
+                        <p className="text-xs text-slate-500">Tersimpan di Cloud Database</p>
                       </div>
                     </div>
                     
@@ -1417,40 +1528,29 @@ export default function LettersTab({
                         href={`/api/inward_letters/preview/${readingInwardLetter.id}?token=${getSessionUserToken()}`} 
                         target="_blank" 
                         rel="noreferrer"
-                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
+                        className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-xs font-medium cursor-pointer transition-colors"
                       >
                         Pratinjau
                       </a>
                       <a 
                         href={`/api/inward_letters/download/${readingInwardLetter.id}?token=${getSessionUserToken()}`} 
                         download={`Scan_Surat_Masuk_${readingInwardLetter.letterNumber?.replace(/\//g, '_') || 'doc'}.pdf`}
-                        className="px-3 py-1.5 bg-indigo-550 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
+                        className="px-3 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-medium cursor-pointer transition-colors shadow-xs"
                       >
                         Unduh
                       </a>
                     </div>
                   </div>
-                ) : (
-                  <div className="text-center py-5 border border-dashed border-slate-200 rounded-xl bg-slate-50/50 flex flex-col items-center justify-center space-y-2">
-                    <p className="text-[11px] text-slate-500 font-semibold">Tidak ada dokumen fisik yang dilampirkan.</p>
-                    <p className="text-[10px] text-slate-400 max-w-sm leading-relaxed px-4">
-                      Unggah berkas asli saat pengeditan atau klik tombol di bawah untuk memasang berkas simulasi demi pengujian fungsionalitas Pratinjau & Unduh secara instan.
+                ) : !readingInwardLetter.externalLink ? (
+                  <div className="text-center py-4 border border-dashed border-slate-200 rounded bg-slate-50 flex flex-col items-center justify-center space-y-1.5">
+                    <p className="text-xs text-slate-500 font-semibold">Tidak ada dokumen fisik yang dilampirkan.</p>
+                    <p className="text-xs text-slate-400 max-w-sm leading-relaxed px-4">
+                      Unggah berkas asli saat pengeditan atau gunakan tombol di bawah untuk simulasi.
                     </p>
                     <button
                       type="button"
                       onClick={() => {
-                        const demoText = `YAYASAN MURID MUDA BERMISI (MMB)
---------------------------------------------------
-DOKUMEN INTEGRASI SURAT MASUK (SIMULASI PENERIMAAN)
---------------------------------------------------
-Register ID : ${readingInwardLetter.id}
-No. Berkas  : ${readingInwardLetter.letterNumber || '-'}
-Pengirim    : ${readingInwardLetter.sender || '-'}
-Perihal     : ${readingInwardLetter.subject || '-'}
-Diterima Tgl: ${readingInwardLetter.receivedDate || '-'}
-Aliran Dok  : ${readingInwardLetter.status || 'Disposisi'}
-
-Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
+                        const demoText = `YAYASAN MURID MUDA BERMISI (MMB)\n--------------------------------------------------\nDOKUMEN INTEGRASI SURAT MASUK\n--------------------------------------------------\nRegister ID : ${readingInwardLetter.id}\nNo. Berkas  : ${readingInwardLetter.letterNumber || '-'}\nPengirim    : ${readingInwardLetter.sender || '-'}\nPerihal     : ${readingInwardLetter.subject || '-'}\nDiterima Tgl: ${readingInwardLetter.receivedDate || '-'}\nStatus      : ${readingInwardLetter.status || 'Disposisi'}`;
                         const base64Encoded = 'data:text/plain;base64,' + btoa(unescape(encodeURIComponent(demoText)));
                         const updatedLetterObj: LetterInward = {
                           ...readingInwardLetter,
@@ -1460,23 +1560,23 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                           onUpdateInwardLetter(updatedLetterObj);
                         }
                         setReadingInwardLetter(updatedLetterObj);
-                        alert('File scan simulasi fungsional berhasil dimasukkan! Silakan klik Pratinjau atau Unduh sekarang.');
+                        alert('File scan simulasi berhasil dimasukkan!');
                       }}
-                      className="px-3.5 py-1.5 mt-2 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-lg cursor-pointer transition-all"
+                      className="px-3 py-1 mt-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium rounded cursor-pointer transition-colors"
                     >
-                      Pasang File Scan Simulasi (Uji Demo)
+                      Pasang File Scan Simulasi
                     </button>
                   </div>
-                )}
+                ) : null}
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex justify-end">
+              <div className="pt-3 border-t border-slate-200 flex justify-end">
                 <button 
                   type="button" 
                   onClick={() => setReadingInwardLetter(null)}
-                  className="px-5 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 font-bold cursor-pointer transition-colors"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded text-slate-700 font-medium cursor-pointer transition-colors"
                 >
-                  Tutup Rincian
+                  Tutup
                 </button>
               </div>
             </div>
@@ -1486,37 +1586,37 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
 
       {/* COMPOSER MODAL FOR LETTERS OUTWARD (SURAT KELUAR) */}
       {isFormOutOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-2xl overflow-hidden scale-95 transition-transform flex flex-col max-h-[calc(100vh-3rem)]">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-lg border border-slate-300 w-full max-w-2xl overflow-hidden flex flex-col max-h-[calc(100vh-3rem)]">
             
-            <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center shrink-0">
+            <div className="bg-[#0c2340] px-5 py-3.5 text-white flex justify-between items-center shrink-0">
               <div>
                 <dt className="text-sm font-bold">
-                  {editingLetter ? `Sistem Edit Surat Keluar (${editingLetter.letterNumber})` : 'Sistem Penyusunan Surat Keluar (Outbox)'}
+                  {editingLetter ? `Edit Surat Keluar (${editingLetter.letterNumber})` : 'Penyusunan Surat Keluar (Outbox)'}
                 </dt>
-                <dd className="text-[11px] text-slate-300">
+                <dd className="text-xs text-slate-300 mt-0.5">
                   {editingLetter ? 'Perubahan pada isi surat akan disimpan secara dinamis ke database.' : 'Setiap surat keluar akan mereferensikan format nomor registrasi otomatis.'}
                 </dd>
               </div>
               <button 
                 type="button"
                 onClick={() => setIsFormOutOpen(false)} 
-                className="text-slate-400 hover:text-white cursor-pointer"
+                className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
               >
-                <Plus className="w-5 h-5 rotate-45" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleComposeOutwardLetter} className="flex flex-col flex-1 min-h-0 overflow-hidden text-xs font-sans">
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <form onSubmit={handleComposeOutwardLetter} className="flex flex-col flex-1 min-h-0 overflow-hidden text-xs">
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-500 block mb-1">Klasifikasi Surat Template :</label>
+                  <label className="text-slate-700 block mb-1 font-semibold">Klasifikasi Surat Template :</label>
                   <select 
                     value={outType}
                     onChange={(e) => setOutType(e.target.value as any)}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800 focus:outline-none"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   >
                     <option value="SK">Surat Keputusan (SK)</option>
                     <option value="Surat Tugas">Surat Tugas Pengutusan</option>
@@ -1527,79 +1627,79 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                   </select>
                 </div>
                 <div>
-                  <label className="text-slate-500 block mb-1">Ditujukan Kepada (Pihak Penerima) :</label>
+                  <label className="text-slate-700 block mb-1 font-semibold">Ditujukan Kepada (Pihak Penerima) :</label>
                   <textarea 
                     value={outRecipient}
                     onChange={(e) => setOutRecipient(e.target.value)}
                     placeholder="Contoh:&#10;Pdt. Jeffrey Siauw, D.Th.&#10;Lead Pastor Gracelife Community Church"
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-xs min-h-[70px] resize-y"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 text-xs min-h-[60px] resize-y focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-slate-500 block mb-1">Perihal / Subject Surat Keluar :</label>
+                <label className="text-slate-700 block mb-1 font-semibold">Perihal / Subject Surat Keluar :</label>
                 <input 
                   type="text" 
                   value={outSubject}
                   onChange={(e) => setOutSubject(e.target.value)}
                   placeholder="Contoh: Surat Tugas Pengutusan Pendamping Persekutuan"
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-semibold"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 font-semibold focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-slate-500 block mb-1">Konten Inti Paragraf Surat Resmi :</label>
+                <label className="text-slate-700 block mb-1 font-semibold">Konten Inti Paragraf Surat Resmi :</label>
                 <textarea 
                   rows={6}
                   value={outContent}
                   onChange={(e) => setOutContent(e.target.value)}
                   placeholder="Isi draft surat resmi di sini secara lengkap & berbobot...."
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 leading-relaxed font-sans"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 leading-relaxed focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   required
                 />
               </div>
 
-              {/* PENGATURAN TANDA TANGAN & STEMPEL (DYNAMIC SIGNEES) */}
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-4 font-sans">
+              {/* PENGATURAN TANDA TANGAN & STEMPEL */}
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-800 font-bold block text-xs uppercase tracking-wide">Pengaturan Otorisasi & Tanda Tangan PDF</span>
+                  <span className="text-slate-800 font-bold block text-xs uppercase tracking-wide">Pengaturan Otorisasi & Tanda Tangan</span>
                   <label className="flex items-center gap-1.5 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={showStamp}
                       onChange={(e) => setShowStamp(e.target.checked)}
-                      className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-500 w-3.5 h-3.5"
+                      className="rounded border-slate-300 text-[#0c2340] focus:ring-[#0c2340] w-3.5 h-3.5"
                     />
-                    <span className="text-[11px] font-semibold text-slate-700">Bubuhkan Stempel Lembaga</span>
+                    <span className="text-xs font-semibold text-slate-700">Bubuhkan Stempel Lembaga</span>
                   </label>
                 </div>
 
-                {/* STEMPELS CUSTOM LAYOUT (NON-STATIC SETUP) */}
+                {/* STEMPELS CUSTOM LAYOUT */}
                 {showStamp && (
-                  <div className="bg-white p-3.5 rounded-xl border border-slate-100 mt-2 space-y-3.5">
-                    <p className="text-[10px] text-slate-600 font-bold uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block"></span>
-                      Kustomisasi Tata Letak Stempel Resmi (Kamera/Gambar Transparan)
+                  <div className="bg-white p-3.5 rounded border border-slate-200 mt-2 space-y-3">
+                    <p className="text-xs text-slate-700 font-bold uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[#0c2340] inline-block"></span>
+                      Kustomisasi Tata Letak Stempel Resmi
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-[10px]">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                       <div>
-                        <label className="text-slate-600 block mb-1 font-bold">Sasaran Overlap Stempel:</label>
+                        <label className="text-slate-600 block mb-1 font-semibold">Sasaran Overlap Stempel:</label>
                         <select
                           value={stampTarget}
                           onChange={(e) => setStampTarget(e.target.value as any)}
-                          className="w-full border border-slate-250 rounded-lg p-1.5 bg-white text-slate-800 text-[10px] font-sans focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                          className="w-full border border-slate-300 rounded p-1.5 bg-white text-slate-800 text-xs focus:border-[#0c2340] focus:outline-none"
                         >
-                          <option value="left">Tanda Tangan Kiri (Overlay 1/4 Sisi Kiri)</option>
-                          <option value="right">Tanda Tangan Kanan (Overlay 1/4 Sisi Kiri)</option>
+                          <option value="left">Tanda Tangan Kiri (Overlay Sisi Kiri)</option>
+                          <option value="right">Tanda Tangan Kanan (Overlay Sisi Kiri)</option>
                           <option value="center">Murni di Tengah Kertas (Center Alignment)</option>
                         </select>
                       </div>
 
                       <div>
-                        <label className="text-slate-600 block mb-1 font-bold">Diameter Ukuran Stempel (mm):</label>
+                        <label className="text-slate-600 block mb-1 font-semibold">Diameter Ukuran Stempel (mm):</label>
                         <div className="flex items-center gap-2">
                           <input
                             type="range"
@@ -1607,34 +1707,34 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                             max="50"
                             value={stampSize}
                             onChange={(e) => setStampSize(Number(e.target.value))}
-                            className="flex-1 accent-indigo-600 cursor-pointer"
+                            className="flex-1 accent-[#0c2340] cursor-pointer"
                           />
-                          <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-755 min-w-[28px] text-center font-bold text-[10px]">
+                          <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 min-w-[28px] text-center font-bold text-xs">
                             {stampSize}mm
                           </span>
                         </div>
                       </div>
 
                       <div>
-                        <label className="text-slate-600 block mb-1 font-bold flex justify-between">
+                        <label className="text-slate-600 block mb-1 font-semibold flex justify-between">
                           <span>Geser Horisontal (X-Offset):</span>
-                          <span className="font-mono text-[9px] text-slate-500">({stampOffsetX > 0 ? `+${stampOffsetX}` : stampOffsetX} mm)</span>
+                          <span className="font-mono text-xs text-slate-500">({stampOffsetX > 0 ? `+${stampOffsetX}` : stampOffsetX} mm)</span>
                         </label>
                         <div className="flex items-center gap-2">
-                          <span className="text-[9px] text-slate-400">Kiri</span>
+                          <span className="text-xs text-slate-400">Kiri</span>
                           <input
                             type="range"
                             min="-40"
                             max="40"
                             value={stampOffsetX}
                             onChange={(e) => setStampOffsetX(Number(e.target.value))}
-                            className="flex-1 accent-indigo-600 cursor-pointer"
+                            className="flex-1 accent-[#0c2340] cursor-pointer"
                           />
-                          <span className="text-[9px] text-slate-400">Kanan</span>
+                          <span className="text-xs text-slate-400">Kanan</span>
                           <button
                             type="button"
                             onClick={() => setStampOffsetX(0)}
-                            className="text-[9px] font-semibold text-slate-500 hover:text-indigo-600 bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded cursor-pointer border border-slate-200"
+                            className="text-xs font-semibold text-slate-600 hover:text-[#0c2340] bg-slate-100 px-1.5 py-0.5 rounded cursor-pointer border border-slate-200"
                           >
                             Reset
                           </button>
@@ -1642,25 +1742,25 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                       </div>
 
                       <div>
-                        <label className="text-slate-600 block mb-1 font-bold flex justify-between">
+                        <label className="text-slate-600 block mb-1 font-semibold flex justify-between">
                           <span>Geser Vertikal (Y-Offset):</span>
-                          <span className="font-mono text-[9px] text-slate-500">({stampOffsetY > 0 ? `+${stampOffsetY}` : stampOffsetY} mm)</span>
+                          <span className="font-mono text-xs text-slate-500">({stampOffsetY > 0 ? `+${stampOffsetY}` : stampOffsetY} mm)</span>
                         </label>
                         <div className="flex items-center gap-2">
-                          <span className="text-[9px] text-slate-400">Atas</span>
+                          <span className="text-xs text-slate-400">Atas</span>
                           <input
                             type="range"
                             min="-40"
                             max="40"
                             value={stampOffsetY}
                             onChange={(e) => setStampOffsetY(Number(e.target.value))}
-                            className="flex-1 accent-indigo-600 cursor-pointer"
+                            className="flex-1 accent-[#0c2340] cursor-pointer"
                           />
-                          <span className="text-[9px] text-slate-400">Bawah</span>
+                          <span className="text-xs text-slate-400">Bawah</span>
                           <button
                             type="button"
                             onClick={() => setStampOffsetY(0)}
-                            className="text-[9px] font-semibold text-slate-500 hover:text-indigo-600 bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded cursor-pointer border border-slate-200"
+                            className="text-xs font-semibold text-slate-600 hover:text-[#0c2340] bg-slate-100 px-1.5 py-0.5 rounded cursor-pointer border border-slate-200"
                           >
                             Reset
                           </button>
@@ -1670,9 +1770,9 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                   </div>
                 )}
 
-                {/* LOKASI & TANGGAL PENGESAHAN (PLACE AND DATE) */}
-                <div className="bg-white p-3 rounded-xl border border-slate-200">
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                {/* LOKASI & TANGGAL PENGESAHAN */}
+                <div className="bg-white p-3 rounded border border-slate-200">
+                  <label className="text-xs font-bold text-slate-800 block mb-1">
                     Lokasi & Tanggal Surat (Muncul di Atas Tanda Tangan):
                   </label>
                   <input
@@ -1680,22 +1780,22 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                     value={signPlaceDate}
                     onChange={(e) => setSignPlaceDate(e.target.value)}
                     placeholder="Contoh: Cilegon, 12 Juni 2026"
-                    className="w-full border border-slate-250 rounded-lg p-2 text-slate-850 text-xs font-semibold focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full border border-slate-300 rounded p-1.5 text-slate-800 text-xs font-semibold focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     required
                   />
-                  <p className="text-[9px] text-slate-400 mt-1">
-                    * Format ini akan tercetak secara presisi di atas tanda tangan kanan (atau kiri jika tunggal) dan menyelaraskan penamaan surat dinas.
+                  <p className="text-xs text-slate-500 mt-1">
+                    * Format ini akan tercetak secara presisi di atas tanda tangan.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {/* PENANDATANGAN 1 (KIRI) */}
-                  <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
-                    <label className="text-[11px] font-bold text-slate-600 block">Penandatangan Utama 1 (Kiri):</label>
+                  <div className="bg-white p-3 rounded border border-slate-200 space-y-2">
+                    <label className="text-xs font-bold text-slate-700 block">Penandatangan Utama 1 (Kiri):</label>
                     <select
                       value={signLeftType}
                       onChange={(e) => handleLeftSigneeTypeChange(e.target.value)}
-                      className="w-full border border-slate-200 rounded-lg p-1.5 bg-white text-slate-800 text-[11px]"
+                      className="w-full border border-slate-300 rounded p-1.5 bg-white text-slate-800 text-xs"
                     >
                       {structures && structures.map(n => (
                         <option key={n.id} value={n.id}>{n.title} ({n.name})</option>
@@ -1720,7 +1820,7 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                           value={signLeftName}
                           onChange={(e) => setSignLeftName(e.target.value)}
                           placeholder="Nama lengkap penandatangan"
-                          className="w-full border border-slate-200 rounded-lg p-1.5 text-slate-800 text-[10.5px]"
+                          className="w-full border border-slate-300 rounded p-1.5 text-slate-800 text-xs"
                           disabled={signLeftType !== 'Custom'}
                           required
                         />
@@ -1729,7 +1829,7 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                           value={signLeftTitle}
                           onChange={(e) => setSignLeftTitle(e.target.value)}
                           placeholder="Jabatan resmi"
-                          className="w-full border border-slate-200 rounded-lg p-1.5 text-slate-500 text-[10.5px]"
+                          className="w-full border border-slate-300 rounded p-1.5 text-slate-600 text-xs"
                           disabled={signLeftType !== 'Custom'}
                           required
                         />
@@ -1738,12 +1838,12 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                   </div>
 
                   {/* PENANDATANGAN 2 (KANAN) */}
-                  <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
-                    <label className="text-[11px] font-bold text-slate-600 block">Penandatangan Utama 2 (Kanan):</label>
+                  <div className="bg-white p-3 rounded border border-slate-200 space-y-2">
+                    <label className="text-xs font-bold text-slate-700 block">Penandatangan Utama 2 (Kanan):</label>
                     <select
                       value={signRightType}
                       onChange={(e) => handleRightSigneeTypeChange(e.target.value)}
-                      className="w-full border border-slate-200 rounded-lg p-1.5 bg-white text-slate-800 text-[11px]"
+                      className="w-full border border-slate-300 rounded p-1.5 bg-white text-slate-800 text-xs"
                     >
                       {structures && structures.map(n => (
                         <option key={n.id} value={n.id}>{n.title} ({n.name})</option>
@@ -1768,7 +1868,7 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                           value={signRightName}
                           onChange={(e) => setSignRightName(e.target.value)}
                           placeholder="Nama lengkap penandatangan"
-                          className="w-full border border-slate-200 rounded-lg p-1.5 text-slate-800 text-[10.5px]"
+                          className="w-full border border-slate-300 rounded p-1.5 text-slate-800 text-xs"
                           disabled={signRightType !== 'Custom'}
                           required
                         />
@@ -1777,7 +1877,7 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                           value={signRightTitle}
                           onChange={(e) => setSignRightTitle(e.target.value)}
                           placeholder="Jabatan resmi"
-                          className="w-full border border-slate-200 rounded-lg p-1.5 text-slate-500 text-[10.5px]"
+                          className="w-full border border-slate-300 rounded p-1.5 text-slate-600 text-xs"
                           disabled={signRightType !== 'Custom'}
                           required
                         />
@@ -1788,12 +1888,12 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
               </div>
 
               {/* TANDA TANGAN TAMBAHAN CUSTOM */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-3">
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
                 <div className="flex justify-between items-center">
-                  <label className="text-[11px] font-bold text-slate-700 block uppercase tracking-wider">
-                    Tanda Tangan Tambahan (Dipilih dari Struktur Organisasi):
+                  <label className="text-xs font-bold text-slate-800 block uppercase tracking-wider">
+                    Tanda Tangan Tambahan:
                   </label>
-                  <span className="text-[10px] text-slate-400 font-medium font-sans">
+                  <span className="text-xs text-slate-500 font-medium">
                     * Opsional
                   </span>
                 </div>
@@ -1801,16 +1901,16 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                 {/* List of currently added signatures */}
                 {additionalSignatures.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {additionalSignatures.map((sig, idx) => (
-                      <div key={sig.id} className="bg-white border border-slate-200 rounded-lg p-2 flex items-center justify-between text-xs font-semibold text-slate-700 shadow-sm">
+                    {additionalSignatures.map((sig) => (
+                      <div key={sig.id} className="bg-white border border-slate-200 rounded p-2 flex items-center justify-between text-xs font-semibold text-slate-700 shadow-xs">
                         <div className="truncate pr-2">
-                          <p className="text-slate-800 text-[11px] truncate font-sans">{sig.name}</p>
-                          <p className="text-[9px] text-slate-400 truncate font-sans">{sig.title}</p>
+                          <p className="text-slate-900 text-xs truncate">{sig.name}</p>
+                          <p className="text-[11px] text-slate-500 truncate">{sig.title}</p>
                         </div>
                         <button
                           type="button"
                           onClick={() => setAdditionalSignatures(prev => prev.filter(s => s.id !== sig.id))}
-                          className="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded text-[9px] font-bold cursor-pointer transition-colors"
+                          className="bg-rose-50 hover:bg-rose-100 text-rose-700 px-2 py-1 rounded text-[10px] font-bold cursor-pointer transition-colors"
                         >
                           Hapus
                         </button>
@@ -1818,8 +1918,8 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-2.5 border border-dashed border-slate-200 rounded-lg bg-white/50">
-                    <p className="text-[10px] text-slate-400 font-sans">Belum ada tanda tangan tambahan yang ditambahkan.</p>
+                  <div className="text-center py-2.5 border border-dashed border-slate-300 rounded bg-white">
+                    <p className="text-xs text-slate-500">Belum ada tanda tangan tambahan yang ditambahkan.</p>
                   </div>
                 )}
 
@@ -1829,7 +1929,7 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                     <select
                       value={selectedAdditionalNodeId}
                       onChange={(e) => setSelectedAdditionalNodeId(e.target.value)}
-                      className="w-full border border-slate-200 rounded-lg p-1.5 bg-white text-slate-800 text-[11px] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full border border-slate-300 rounded p-1.5 bg-white text-slate-800 text-xs focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     >
                       <option value="">-- Pilih Jabatan / Personel Struktur --</option>
                       {structures && structures
@@ -1839,7 +1939,6 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                           </option>
                         ))
                       }
-                      {/* Standard fallback nodes */}
                       {!structures || structures.length === 0 ? (
                         <>
                           <option value="korwil">Koordinator Wilayah (Ahmad Faisal, S.Th.)</option>
@@ -1855,7 +1954,6 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                         alert('Silakan pilih salah satu jabatan dari struktur organisasi.');
                         return;
                       }
-                      // Find node in structures
                       let resolvedName = '';
                       let resolvedTitle = '';
                       const matchedNode = structures?.find(n => n.id === selectedAdditionalNodeId);
@@ -1872,9 +1970,8 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
 
                       if (!resolvedName) return;
 
-                      // Check duplicate
                       if (additionalSignatures.some(s => s.nodeId === selectedAdditionalNodeId)) {
-                        alert('Jabatan Kristen / Yayasan ini sudah ditambahkan.');
+                        alert('Jabatan ini sudah ditambahkan.');
                         return;
                       }
 
@@ -1887,34 +1984,34 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                       setAdditionalSignatures(prev => [...prev, newSig]);
                       setSelectedAdditionalNodeId('');
                     }}
-                    className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg text-[10.5px] cursor-pointer transition-colors flex items-center justify-center"
+                    className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs cursor-pointer transition-colors flex items-center justify-center shadow-xs"
                   >
                     + Tambahkan Tanda Tangan
                   </button>
                 </div>
               </div>
 
-              <div className="bg-slate-550/5 p-3 rounded-xl border border-slate-200 text-slate-600 italic">
+              <div className="bg-slate-50 p-3 rounded border border-slate-200 text-slate-700 text-xs">
                 {editingLetter ? (
-                  <>Mengubah detail Surat Keluar No: <strong className="text-slate-800">{editingLetter.letterNumber}</strong></>
+                  <>Mengubah detail Surat Keluar No: <strong className="text-slate-900">{editingLetter.letterNumber}</strong></>
                 ) : (
-                  <>Sesuai parameter di atas, nomor serial yang akan diterbitkan: <strong className="text-slate-800">{generateOutwardLetterNumber(outType)}</strong></>
+                  <>Nomor serial yang akan diterbitkan: <strong className="text-slate-900">{generateOutwardLetterNumber(outType)}</strong></>
                 )}
               </div>
 
               </div>
 
-              <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 shrink-0 bg-slate-50/50">
+              <div className="px-5 py-3.5 border-t border-slate-200 flex justify-end gap-2.5 shrink-0 bg-slate-50">
                 <button 
                   type="button" 
                   onClick={() => setIsFormOutOpen(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 font-semibold cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 rounded text-slate-700 font-medium cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   Batal
                 </button>
                 <button 
                   type="submit"
-                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md inline-flex items-center gap-1.5"
+                  className="px-5 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs cursor-pointer shadow-xs inline-flex items-center gap-1.5 transition-colors"
                 >
                   {editingLetter ? (
                     <>
@@ -1922,7 +2019,7 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                     </>
                   ) : (
                     <>
-                      <FileSignature className="w-4 h-4" /> Terbitkan Surat resmi
+                      <FileSignature className="w-4 h-4" /> Terbitkan Surat Resmi
                     </>
                   )}
                 </button>
@@ -1936,27 +2033,6 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
 
       {/* POPUP: DETAILED LETTER READER OVERLAY (A4 size format) */}
       {readingLetter && (() => {
-        // Indonesian date formatter for elegant reading view
-        const formatIndonesianDate = (dateStr: string): string => {
-          if (!dateStr) return '';
-          try {
-            const parts = dateStr.split('-');
-            if (parts.length === 3) {
-              const year = parts[0];
-              const monthIndex = parseInt(parts[1], 10) - 1;
-              const day = parseInt(parts[2], 10);
-              const months = [
-                'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-                'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-              ];
-              return `${day < 10 ? '0' + day : day} ${months[monthIndex]} ${year}`;
-            }
-          } catch (e) {
-            // ignore
-          }
-          return dateStr;
-        };
-
         const leftType = readingLetter.signLeftType || 'Ketua';
         const rightType = readingLetter.signRightType || 'Sekretaris';
         const showStamp = readingLetter.showStamp !== false;
@@ -1998,7 +2074,6 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
           const tTitle = String(title || '').toLowerCase();
           const tName = String(name || '').toLowerCase();
 
-          // 0. Check customSignatures list in profile
           if (profile?.customSignatures && Array.isArray(profile.customSignatures)) {
             const match = profile.customSignatures.find(cs => {
               const csName = String(cs.name || '').toLowerCase();
@@ -2010,7 +2085,6 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
             }
           }
 
-          // 1. Check if name matches known people or structures
           if (tName.includes('triawan') || tName.includes('fernandes')) {
             return profile?.signatureChairmanUrl || '';
           }
@@ -2021,7 +2095,6 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
             return profile?.signatureTreasurerUrl || profile?.signatureUrl || '';
           }
 
-          // 2. Check title or type
           if (tType.includes('ketua') || tTitle.includes('ketua') || tType === 'ketuapembina' || tTitle.includes('pembina')) {
             return profile?.signatureChairmanUrl || '';
           }
@@ -2032,7 +2105,6 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
             return profile?.signatureTreasurerUrl || profile?.signatureUrl || '';
           }
 
-          // 3. Fallbacks to type matches
           if (tType === 'ketua') return profile?.signatureChairmanUrl || '';
           if (tType === 'sekretaris') return profile?.signatureSecretaryUrl || '';
           if (tType === 'bendahara') return profile?.signatureTreasurerUrl || profile?.signatureUrl || '';
@@ -2044,15 +2116,15 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
         const rightSignatureImg = resolveSignatureImg(rightType, rightTitle, rightName);
 
         return (
-          <div className="fixed inset-0 bg-slate-950/75 flex items-center justify-center p-4 z-50 overflow-y-auto backdrop-blur-xs">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[800px] overflow-hidden p-10 md:p-14 font-serif text-slate-900 flex flex-col justify-between my-8 min-h-[750px] relative">
+          <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-white rounded-lg shadow-xl border border-slate-300 w-full max-w-[800px] overflow-hidden p-8 md:p-12 text-slate-900 flex flex-col justify-between my-8 min-h-[750px] relative">
               
-              {/* Kop Surat Header matching professional PDF exact look */}
+              {/* Kop Surat Header */}
               <div className="border-b-[3px] border-double border-slate-900 pb-4 relative flex items-center gap-5 select-none text-left">
                 {profile?.logoUrl ? (
                   <img 
                     src={profile.logoUrl} 
-                    alt="Logo Pembina" 
+                    alt="Logo Yayasan" 
                     referrerPolicy="no-referrer"
                     className="w-[75px] h-[75px] object-contain shrink-0" 
                   />
@@ -2061,39 +2133,39 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                     <div className="w-[62px] h-[62px] border border-red-700 rounded-full flex items-center justify-center relative">
                       <div className="absolute inset-y-0 left-1/2 w-[1px] bg-red-700/60"></div>
                       <div className="absolute inset-x-0 top-1/2 h-[1px] bg-red-700/60"></div>
-                      <span className="font-serif font-black text-[9px] text-red-700 bg-white px-1 z-10 tracking-wider">MMB</span>
+                      <span className="font-bold text-[9px] text-red-700 bg-white px-1 z-10 tracking-wider">MMB</span>
                     </div>
                   </div>
                 )}
                 
                 <div className="flex-1 text-center">
-                  <h2 className="font-serif italic font-extrabold text-[15px] md:text-[21px] tracking-tight text-slate-900 uppercase leading-tight">
+                  <h2 className="font-bold text-base md:text-lg tracking-tight text-slate-900 uppercase leading-tight">
                     {profile?.kopTitle || profile?.name || 'YAYASAN MURID MUDA BERMISI'}
                   </h2>
-                  <p className="font-serif font-black text-[10px] md:text-[11.5px] text-slate-800 tracking-widest mt-0.5 uppercase">
+                  <p className="font-bold text-xs text-slate-700 tracking-wider mt-0.5 uppercase">
                     {profile?.kopMotto || 'Kabar baik. Pemuridan. Misi.'}
                   </p>
-                  <p className="text-[9.5px] text-slate-800 font-medium tracking-tight mt-1 leading-snug">
+                  <p className="text-xs text-slate-600 font-normal tracking-tight mt-1 leading-snug">
                     {profile?.address || 'Link. Pal. Asem, RT.01/RW.07, Panggung Rawi, Kec. Jombang, Kota Cilegon, Banten 42412'}
                   </p>
-                  <p className="text-[9px] text-slate-650 font-normal mt-0.5 tracking-tight">
-                    {profile?.email ? `email: ${profile.email}` : 'email: esmofnusantara@gmail.com'}
+                  <p className="text-[11px] text-slate-500 font-normal mt-0.5 tracking-tight">
+                    {profile?.email ? `Email: ${profile.email}` : 'Email: esmofnusantara@gmail.com'}
                     {profile?.phone ? `   •   Telepon: ${profile.phone}` : '   •   Telepon: +62 812 961 066 11'}
                     {profile?.website ? `   •   Website: ${profile.website}` : ''}
                   </p>
                 </div>
               </div>
 
-              {/* Body Letter content structured properly according to standard Indonesian indents */}
-              <div className="mt-8 space-y-5 text-left font-serif text-[12.5px] md:text-[13.5px] text-slate-950 flex-1 leading-relaxed">
+              {/* Body Letter content */}
+              <div className="mt-6 space-y-4 text-left text-xs md:text-sm text-slate-900 flex-1 leading-relaxed">
                 
                 {/* Publish Date - Right Aligned */}
-                <div className="text-right font-serif text-slate-900 font-medium">
+                <div className="text-right text-slate-900 font-medium">
                   {finalPlaceDate}
                 </div>
 
                 {/* Serial Fields Block */}
-                <div className="space-y-0.5 text-slate-950 leading-relaxed max-w-lg">
+                <div className="space-y-0.5 text-slate-900 leading-relaxed max-w-lg">
                   <p><strong>Nomor</strong>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: <span className="font-mono tracking-tight">{readingLetter.letterNumber}</span></p>
                   <p><strong>Lampiran</strong>&nbsp;&nbsp;&nbsp;: - (Nihil)</p>
                   <p><strong>Sifat</strong>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: Resmi / Terbuka</p>
@@ -2101,29 +2173,29 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                 </div>
 
                 {/* Recipient Details */}
-                <div className="pt-3 font-serif">
+                <div className="pt-2">
                   <p>Kepada Yth.</p>
-                  <p className="font-extrabold whitespace-pre-wrap text-slate-950 mt-0.5 leading-normal">{readingLetter.recipient}</p>
+                  <p className="font-bold whitespace-pre-wrap text-slate-900 mt-0.5 leading-normal">{readingLetter.recipient}</p>
                   <p className="mt-0.5">di Tempat</p>
                 </div>
 
                 {/* Greeting Line */}
-                <div className="pt-2 font-serif font-medium text-slate-900">
+                <div className="pt-1 font-medium text-slate-900">
                   Dengan hormat,
                 </div>
 
-                {/* Structured paragraphs mapping with custom spacing alignments */}
-                <div className="space-y-4 text-justify whitespace-pre-wrap font-serif leading-relaxed text-[13px] md:text-[14px]">
+                {/* Structured paragraphs */}
+                <div className="space-y-3 text-justify whitespace-pre-wrap leading-relaxed text-xs md:text-sm text-slate-800">
                   {readingLetter.content}
                 </div>
               </div>
 
-              {/* Symmetrical Dual Signatures Block Area replicates standard physical signatures */}
-              <div className="mt-12 pt-6 border-t border-slate-100 grid grid-cols-2 gap-10 relative font-serif text-[12.5px] md:text-[13.5px] text-slate-950 select-none pb-6">
+              {/* Symmetrical Dual Signatures Block Area */}
+              <div className="mt-8 pt-4 border-t border-slate-200 grid grid-cols-2 gap-8 relative text-xs md:text-sm text-slate-900 select-none pb-4">
                 
-                {/* Mengetahui at the center top between the two main signatures */}
+                {/* Mengetahui at the center top */}
                 {leftType !== 'None' && leftType !== 'none' && rightType !== 'None' && rightType !== 'none' && (
-                  <div className="absolute top-6 left-1/2 -translate-x-1/2 font-serif font-medium text-center h-[18px]">
+                  <div className="absolute top-4 left-1/2 -translate-x-1/2 font-medium text-center h-[18px]">
                     Mengetahui,
                   </div>
                 )}
@@ -2131,28 +2203,28 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                 {/* Penandatangan Kiri */}
                 {leftType !== 'None' && leftType !== 'none' ? (
                   <div className="text-center flex flex-col items-center relative z-25">
-                    <p className="font-serif leading-tight h-[18px] mb-1 font-medium">
+                    <p className="leading-tight h-[18px] mb-1 font-medium">
                       {rightType !== 'None' && rightType !== 'none' ? '' : finalPlaceDate}
                     </p>
                     
                     {/* Image slot */}
-                    <div className="h-14 flex items-center justify-center my-2 relative w-full">
+                    <div className="h-12 flex items-center justify-center my-1 relative w-full">
                       {leftSignatureImg ? (
                         <img 
                           src={leftSignatureImg} 
                           alt="TTD Utama" 
                           referrerPolicy="no-referrer"
-                          className="max-h-14 object-contain" 
+                          className="max-h-12 object-contain" 
                         />
                       ) : (
-                        <div className="h-10 w-28 relative opacity-70 border border-dashed border-indigo-200 rounded flex items-center justify-center bg-indigo-50/20">
-                          <span className="font-mono text-[9px] uppercase tracking-wider text-indigo-500 font-semibold">Ink Authorized</span>
+                        <div className="h-8 w-24 relative opacity-70 border border-dashed border-slate-300 rounded flex items-center justify-center bg-slate-50">
+                          <span className="font-mono text-[9px] uppercase tracking-wider text-slate-600 font-semibold">Tervalidasi</span>
                         </div>
                       )}
                     </div>
 
-                    <p className="font-serif font-bold underline leading-none mt-2 text-slate-950">{leftName}</p>
-                    <p className="text-[10px] text-slate-500 mt-1">{leftTitle}</p>
+                    <p className="font-bold underline leading-none mt-1 text-slate-900">{leftName}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{leftTitle}</p>
                   </div>
                 ) : (
                   <div className="text-center opacity-0 h-4">-</div>
@@ -2161,34 +2233,34 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                 {/* Penandatangan Kanan */}
                 {rightType !== 'None' && rightType !== 'none' ? (
                   <div className="text-center flex flex-col items-center relative z-25">
-                    <p className="font-serif leading-tight h-[18px] mb-1 font-medium">
+                    <p className="leading-tight h-[18px] mb-1 font-medium">
                       {leftType !== 'None' && leftType !== 'none' ? '' : finalPlaceDate}
                     </p>
 
                     {/* Image slot */}
-                    <div className="h-14 flex items-center justify-center my-2 relative w-full">
+                    <div className="h-12 flex items-center justify-center my-1 relative w-full">
                       {rightSignatureImg ? (
                         <img 
                           src={rightSignatureImg} 
                           alt="TTD Sekretaris" 
                           referrerPolicy="no-referrer"
-                          className="max-h-14 object-contain" 
+                          className="max-h-12 object-contain" 
                         />
                       ) : (
-                        <div className="h-10 w-28 relative opacity-70 border border-dashed border-indigo-200 rounded flex items-center justify-center bg-indigo-50/20">
-                          <span className="font-mono text-[9px] uppercase tracking-wider text-indigo-500 font-semibold">Ink Authorized</span>
+                        <div className="h-8 w-24 relative opacity-70 border border-dashed border-slate-300 rounded flex items-center justify-center bg-slate-50">
+                          <span className="font-mono text-[9px] uppercase tracking-wider text-slate-600 font-semibold">Tervalidasi</span>
                         </div>
                       )}
                     </div>
 
-                    <p className="font-serif font-bold underline leading-none mt-2 text-slate-950">{rightName}</p>
-                    <p className="text-[10px] text-slate-500 mt-1">{rightTitle}</p>
+                    <p className="font-bold underline leading-none mt-1 text-slate-900">{rightName}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{rightTitle}</p>
                   </div>
                 ) : (
                   <div className="text-center opacity-0 h-4">-</div>
                 )}
 
-                {/* OVERLAPPED PHYSICAL ROUND BLUE STAMP WATERMARK */}
+                {/* OVERLAPPED PHYSICAL STAMP */}
                 {showStamp && (
                   (() => {
                     const stampTarget = readingLetter.stampTarget || 'left';
@@ -2215,15 +2287,15 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                             src={profile.stampUrl} 
                             alt="Stempel Resmi" 
                             referrerPolicy="no-referrer"
-                            className="w-full h-full object-contain rotate-[-7deg] opacity-85 hover:opacity-100" 
+                            className="w-full h-full object-contain rotate-[-7deg] opacity-85" 
                           />
                         ) : (
                           <div 
-                            className="w-full h-full border-[2px] border-double border-blue-600 rounded-full flex items-center justify-center rotate-[-12deg] opacity-80"
+                            className="w-full h-full border-[2px] border-double border-blue-800 rounded-full flex items-center justify-center rotate-[-12deg] opacity-80"
                           >
-                            <div className="w-[82%] h-[82%] border border-blue-600 rounded-full flex flex-col items-center justify-center font-sans font-bold text-blue-600 select-none bg-white/50">
+                            <div className="w-[82%] h-[82%] border border-blue-800 rounded-full flex flex-col items-center justify-center font-bold text-blue-800 select-none bg-white/50">
                               <span className="text-[5px] uppercase tracking-wide leading-none">YAYASAN</span>
-                              <span className="text-xs font-black tracking-widest leading-none my-0.5 mt-0.5 text-blue-600">MMB</span>
+                              <span className="text-xs font-bold tracking-widest leading-none my-0.5 text-blue-800">MMB</span>
                               <span className="text-[5px] uppercase tracking-wide leading-none">CILEGON</span>
                             </div>
                           </div>
@@ -2236,8 +2308,8 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
 
               {/* Additional Signaries Block Area */}
               {readingLetter.additionalSignatures && readingLetter.additionalSignatures.length > 0 && (
-                <div className={`mt-6 pt-4 border-t border-slate-100 relative font-serif text-[12.5px] md:text-[13.5px] text-slate-950 select-none pb-6 ${
-                  readingLetter.additionalSignatures.length === 1 ? 'flex justify-center' : 'grid grid-cols-2 gap-10'
+                <div className={`mt-4 pt-3 border-t border-slate-200 relative text-xs md:text-sm text-slate-900 select-none pb-4 ${
+                  readingLetter.additionalSignatures.length === 1 ? 'flex justify-center' : 'grid grid-cols-2 gap-8'
                 }`}>
                   {readingLetter.additionalSignatures.map((sig: any, idx: number) => {
                     const sigImg = resolveSignatureImg('', sig.title || '', sig.name || '');
@@ -2250,48 +2322,48 @@ Status Arsip: ELEKTRONIK (SI-ARSEP) REGISTERED`;
                         }`}
                       >
                         
-                        <div className="h-14 flex items-center justify-center my-2 relative w-full">
+                        <div className="h-12 flex items-center justify-center my-1 relative w-full">
                           {sigImg ? (
                             <img 
                               src={sigImg} 
                               alt={`TTD ${sig.name}`} 
                               referrerPolicy="no-referrer"
-                              className="max-h-14 object-contain" 
+                              className="max-h-12 object-contain" 
                             />
                           ) : (
-                            <div className="h-10 w-28 relative opacity-70 border border-dashed border-indigo-200 rounded flex items-center justify-center bg-indigo-50/20">
-                              <span className="font-mono text-[9px] uppercase tracking-wider text-indigo-500 font-semibold font-sans">Ink Authorized</span>
+                            <div className="h-8 w-24 relative opacity-70 border border-dashed border-slate-300 rounded flex items-center justify-center bg-slate-50">
+                              <span className="font-mono text-[9px] uppercase tracking-wider text-slate-600 font-semibold">Tervalidasi</span>
                             </div>
                           )}
                         </div>
 
-                        <p className="font-serif font-bold underline leading-none mt-2 text-slate-950">{sig.name}</p>
-                        <p className="text-[10px] text-slate-500 mt-1">{sig.title}</p>
+                        <p className="font-bold underline leading-none mt-1 text-slate-900">{sig.name}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{sig.title}</p>
                       </div>
                     );
                   })}
                 </div>
               )}
-              <div className="pt-6 border-t border-slate-100 flex flex-wrap justify-end gap-3.5 no-print">
+              <div className="pt-4 border-t border-slate-200 flex flex-wrap justify-end gap-2.5 no-print">
                 <button 
                   onClick={() => setReadingLetter(null)}
-                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-semibold cursor-pointer text-slate-700 shadow-sm transition-all"
+                  className="px-4 py-2 border border-slate-300 hover:bg-slate-50 rounded text-xs font-medium cursor-pointer text-slate-700 transition-colors"
                 >
-                  Tutup Dokumen
+                  Tutup
                 </button>
                 {isEditable && (
                   <button 
                     onClick={() => handleStartEditOutwardLetter(readingLetter)}
-                    className="px-4 py-2 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-all shadow-sm"
+                    className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-xs font-medium cursor-pointer flex items-center gap-1.5 transition-colors"
                   >
-                    <Edit className="w-4 h-4" /> Edit Surat
+                    <Edit className="w-3.5 h-3.5" /> Edit
                   </button>
                 )}
                 <button 
                   onClick={() => exportLetterToPDF(readingLetter, profile, structures)}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-md hover:shadow-lg transition-all"
+                  className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                 >
-                  <Download className="w-4 h-4" /> Unduh Surat (PDF)
+                  <Download className="w-3.5 h-3.5" /> Unduh PDF
                 </button>
               </div>
 

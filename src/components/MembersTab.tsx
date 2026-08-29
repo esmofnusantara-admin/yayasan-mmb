@@ -412,10 +412,10 @@ export default function MembersTab({
     <div className="space-y-6">
       
       {/* Tab Header Bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Manajemen Anggota MMB</h2>
-          <p className="text-xs text-slate-500">Administrasi database kaderisasi, pembinaan kelompok kecil, & monitoring rohani siswa - alumni.</p>
+          <h2 className="text-xl font-bold text-[#0c2340]">Manajemen Anggota Yayasan</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Database terpusat kaderisasi, pembinaan kelompok kecil, dan monitoring pelayanan anggota.</p>
         </div>
         
         {/* Buttons */}
@@ -423,55 +423,65 @@ export default function MembersTab({
           {subTab === 'directory' && isEditable && (
             <button 
               onClick={openAddForm}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm shadow-indigo-900/10"
+              className="px-3.5 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
             >
-              <UserPlus className="w-4 h-4" /> Tambah Anggota
+              <UserPlus className="w-4 h-4" /> Registrasi Anggota
             </button>
           )}
         </div>
       </div>
 
       {/* Internal Subtabs Selector */}
-      <div className="flex flex-wrap gap-2 p-1.5 bg-slate-100 rounded-xl max-w-2xl">
+      <div className="flex flex-wrap border-b border-slate-200 gap-1 sm:gap-2">
         <button 
           onClick={() => setSubTab('directory')}
-          className={`px-4 py-2 rounded-lg text-xs font-semibold tracking-tight transition-all cursor-pointer ${
-            subTab === 'directory' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+          className={`px-4 py-2.5 text-xs font-semibold tracking-tight transition-colors cursor-pointer border-b-2 ${
+            subTab === 'directory' 
+              ? 'border-[#0c2340] text-[#0c2340] bg-slate-50/50' 
+              : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
-          Directory Database
+          Database Anggota
         </button>
         <button 
           onClick={() => setSubTab('notes')}
-          className={`px-4 py-2 rounded-lg text-xs font-semibold tracking-tight transition-all cursor-pointer ${
-            subTab === 'notes' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+          className={`px-4 py-2.5 text-xs font-semibold tracking-tight transition-colors cursor-pointer border-b-2 ${
+            subTab === 'notes' 
+              ? 'border-[#0c2340] text-[#0c2340] bg-slate-50/50' 
+              : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
           Catatan Pelayanan
         </button>
         <button 
           onClick={() => setSubTab('prayers')}
-          className={`px-4 py-2 rounded-lg text-xs font-semibold tracking-tight transition-all cursor-pointer ${
-            subTab === 'prayers' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+          className={`px-4 py-2.5 text-xs font-semibold tracking-tight transition-colors cursor-pointer border-b-2 ${
+            subTab === 'prayers' 
+              ? 'border-[#0c2340] text-[#0c2340] bg-slate-50/50' 
+              : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
-          Prayer Request
+          Permohonan Doa
         </button>
         <button 
           onClick={() => setSubTab('followup')}
-          className={`px-4 py-2 rounded-lg text-xs font-semibold tracking-tight transition-all cursor-pointer ${
-            subTab === 'followup' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+          className={`px-4 py-2.5 text-xs font-semibold tracking-tight transition-colors cursor-pointer border-b-2 ${
+            subTab === 'followup' 
+              ? 'border-[#0c2340] text-[#0c2340] bg-slate-50/50' 
+              : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
-          Follow Up Log
+          Log Pendampingan
         </button>
         <button 
           onClick={() => setSubTab('import')}
-          className={`px-4 py-2 rounded-lg text-xs font-semibold tracking-tight transition-all cursor-pointer ${
-            subTab === 'import' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+          className={`px-4 py-2.5 text-xs font-semibold tracking-tight transition-colors cursor-pointer border-b-2 ${
+            subTab === 'import' 
+              ? 'border-[#0c2340] text-[#0c2340] bg-slate-50/50' 
+              : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
-          Import Excel / CSV
+          Impor Data CSV
         </button>
       </div>
 
@@ -480,37 +490,37 @@ export default function MembersTab({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Members Table (Left and center) */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col justify-between">
+          <div className="lg:col-span-2 bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden flex flex-col justify-between">
             <div>
               {/* Filter controls */}
-              <div className="p-4 border-b border-slate-50 flex flex-col sm:flex-row gap-3">
+              <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-3 bg-slate-50/50">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                   <input 
                     type="text" 
-                    placeholder="Cari anggota berdasarkan nama, NIK, kota..."
+                    placeholder="Cari berdasarkan nama, ID, kota..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-1.5 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full pl-9 pr-4 py-1.5 border border-slate-300 rounded text-xs bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   />
                 </div>
                 <div className="flex gap-2">
                   <select 
                     value={filterComponent}
                     onChange={(e) => setFilterComponent(e.target.value)}
-                    className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className="border border-slate-300 rounded px-3 py-1.5 text-xs bg-white text-slate-700 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   >
-                    <option value="Semua">Semua Tingkat (Kader)</option>
+                    <option value="Semua">Semua Kategori</option>
                     {(profile?.memberComponents || ["Siswa", "Mahasiswa", "Alumni", "Umum"]).map((comp, idx) => (
                       <option key={idx} value={comp}>{comp}</option>
                     ))}
                   </select>
                   <button
                     onClick={handleExportCSV}
-                    className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-800 transition-colors"
+                    className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 rounded text-xs font-semibold flex items-center gap-1.5 cursor-pointer text-slate-700 transition-colors shadow-xs"
                     title="Export Data Anggota"
                   >
-                    <Download className="w-3.5 h-3.5 text-emerald-600" /> Export CSV
+                    <Download className="w-3.5 h-3.5 text-slate-600" /> Ekspor CSV
                   </button>
                 </div>
               </div>
@@ -519,13 +529,13 @@ export default function MembersTab({
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-slate-50/50 text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono border-b border-slate-100">
-                      <th className="p-4">ID Anggota / Nama</th>
-                      <th className="p-4">Komponen / Wilayah</th>
-                      <th className="p-4">Kelompok Kecil</th>
-                      <th className="p-4">Gereja / Pekerjaan</th>
-                      <th className="p-4">Status</th>
-                      {isEditable && <th className="p-4 text-center">Aksi</th>}
+                    <tr className="bg-slate-50 text-xs text-slate-700 font-bold border-b border-slate-200">
+                      <th className="p-3.5">ID / Nama Anggota</th>
+                      <th className="p-3.5">Komponen / Wilayah</th>
+                      <th className="p-3.5">Kelompok Kecil (KTB)</th>
+                      <th className="p-3.5">Gereja / Profesi</th>
+                      <th className="p-3.5">Status</th>
+                      {isEditable && <th className="p-3.5 text-center">Aksi</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
@@ -533,54 +543,54 @@ export default function MembersTab({
                       <tr 
                         key={member.id} 
                         onClick={() => setSelectedMember(member)}
-                        className={`hover:bg-slate-50/50 transition-colors cursor-pointer ${
-                          selectedMember?.id === member.id ? 'bg-indigo-50/20 text-indigo-900 font-medium' : ''
+                        className={`hover:bg-slate-50/70 transition-colors cursor-pointer ${
+                          selectedMember?.id === member.id ? 'bg-slate-100/70 font-semibold' : ''
                         }`}
                       >
-                        <td className="p-4">
+                        <td className="p-3.5">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 uppercase">
-                              {member.nickName.slice(0, 2)}
+                            <div className="w-8 h-8 rounded bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-700 text-xs shrink-0">
+                              {member.nickName.slice(0, 2).toUpperCase()}
                             </div>
-                            <div>
-                              <div className="font-semibold text-slate-800 flex items-center gap-1">
+                            <div className="min-w-0">
+                              <div className="font-semibold text-slate-900 truncate">
                                 {member.fullName}
                               </div>
-                              <span className="text-[10px] font-mono text-slate-400 font-bold tracking-widest">{member.id}</span>
+                              <span className="text-xs text-slate-500 font-mono">{member.id}</span>
                             </div>
                           </div>
                         </td>
-                        <td className="p-4">
-                          <div className="font-medium text-slate-700">{member.component}</div>
-                          <span className="text-[10px] text-slate-400">{member.region}</span>
+                        <td className="p-3.5">
+                          <div className="font-medium text-slate-800">{member.component}</div>
+                          <span className="text-xs text-slate-500">{member.region}</span>
                         </td>
-                        <td className="p-4">
-                          <div className="font-medium text-slate-700">
+                        <td className="p-3.5">
+                          <div className="font-medium text-slate-800">
                             {smallGroups.find(g => g.id === member.smallGroupId)?.name || 'Belum Tergabung'}
                           </div>
-                          <span className="text-[10px] text-slate-400">Mentor: {member.mentor}</span>
+                          <span className="text-xs text-slate-500">Mentor: {member.mentor || '-'}</span>
                         </td>
-                        <td className="p-4">
-                          <div className="text-slate-600 max-w-xs truncate">{member.originalChurch}</div>
-                          <span className="text-[10px] text-slate-400">{member.occupation}</span>
+                        <td className="p-3.5">
+                          <div className="text-slate-800 max-w-xs truncate">{member.originalChurch || '-'}</div>
+                          <span className="text-xs text-slate-500">{member.occupation || '-'}</span>
                         </td>
-                        <td className="p-4">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                            member.statusKeaktifan === 'Aktif' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                            member.statusKeaktifan === 'Pasif' ? 'bg-slate-100 text-slate-600 border border-slate-200' :
-                            'bg-amber-50 text-amber-600 border border-amber-100'
+                        <td className="p-3.5">
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
+                            member.statusKeaktifan === 'Aktif' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                            member.statusKeaktifan === 'Pasif' ? 'bg-slate-100 text-slate-700 border border-slate-200' :
+                            'bg-amber-50 text-amber-800 border border-amber-200'
                           }`}>
                             {member.statusKeaktifan}
                           </span>
                         </td>
                         {isEditable && (
-                          <td className="p-4 text-center cursor-auto">
-                            <div className="flex justify-center gap-2" onClick={(e) => e.stopPropagation()}>
+                          <td className="p-3.5 text-center cursor-auto">
+                            <div className="flex justify-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                               <button 
                                 onClick={() => openEditForm(member)}
-                                className="p-1 px-2.5 bg-slate-50 hover:bg-slate-100 rounded border border-slate-200 transition-all text-slate-600 hover:text-slate-800 font-semibold text-[10px] flex items-center gap-0.5 cursor-pointer"
+                                className="p-1 px-2 bg-white hover:bg-slate-50 rounded border border-slate-300 transition-colors text-slate-700 font-medium text-xs flex items-center gap-1 cursor-pointer"
                               >
-                                <Edit className="w-3 h-3" /> Edit
+                                <Edit className="w-3 h-3 text-slate-600" /> Edit
                               </button>
                               <button 
                                 onClick={() => {
@@ -588,7 +598,7 @@ export default function MembersTab({
                                     onDeleteMember(member.id);
                                   }
                                 }}
-                                className="p-1 text-red-500 hover:bg-red-50 border border-transparent hover:border-red-100 rounded transition-all text-[10px] cursor-pointer"
+                                className="p-1 px-2 text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-200 rounded transition-colors text-xs cursor-pointer"
                               >
                                 <Trash className="w-3 h-3" />
                               </button>
@@ -602,92 +612,92 @@ export default function MembersTab({
               </div>
             </div>
 
-            <div className="p-4 border-t border-slate-50 bg-slate-50/50 flex justify-between items-center text-xs text-slate-500">
+            <div className="p-3.5 border-t border-slate-200 bg-slate-50 flex justify-between items-center text-xs text-slate-600">
               <span>Menampilkan {filteredMembers.length} dari {members.length} Anggota</span>
-              <span className="font-mono text-[10px]">Database Synced</span>
+              <span className="text-xs text-slate-500">Database Terenkripsi</span>
             </div>
           </div>
 
           {/* Member Detail Sidebar Drawer (Right panel) */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
             {selectedMember ? (
-              <div className="space-y-6">
+              <div className="space-y-5">
                 
                 {/* Header info card */}
-                <div className="text-center pb-5 border-b border-slate-50">
-                  <div className="w-16 h-16 bg-gradient-to-tr from-indigo-500 to-indigo-600 text-white font-bold text-xl uppercase rounded-2xl mx-auto flex items-center justify-center shadow-md">
+                <div className="text-center pb-4 border-b border-slate-200">
+                  <div className="w-14 h-14 bg-[#0c2340] text-white font-bold text-lg uppercase rounded mx-auto flex items-center justify-center shadow-xs">
                     {selectedMember.nickName.slice(0, 2)}
                   </div>
-                  <h3 className="text-base font-bold text-slate-800 mt-3">{selectedMember.fullName}</h3>
-                  <span className="text-xs font-mono text-slate-400 font-bold">{selectedMember.id}</span>
-                  <div className="mt-2.5 flex justify-center gap-2">
-                    <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-bold">
+                  <h3 className="text-sm font-bold text-slate-900 mt-2.5">{selectedMember.fullName}</h3>
+                  <span className="text-xs font-mono text-slate-500">{selectedMember.id}</span>
+                  <div className="mt-2 flex justify-center gap-2">
+                    <span className="bg-slate-100 text-slate-800 border border-slate-200 px-2 py-0.5 rounded text-xs font-semibold">
                       {selectedMember.component}
                     </span>
-                    <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-medium">
+                    <span className="bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded text-xs font-medium">
                       {selectedMember.statusKeaktifan}
                     </span>
                   </div>
                 </div>
 
                 {/* Sub-details lists */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">Biodata Pribadi</h4>
+                <div className="space-y-4 text-xs">
+                  <h4 className="text-xs font-bold text-[#0c2340] uppercase tracking-wider">Biodata Pribadi</h4>
                   
-                  <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <span className="text-slate-400 block text-[10px]">Kontak :</span>
-                      <span className="text-slate-800 font-medium">{selectedMember.phone}</span>
+                      <span className="text-slate-500 block text-[11px]">Kontak / HP:</span>
+                      <span className="text-slate-900 font-medium">{selectedMember.phone || '-'}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[10px]">Email :</span>
-                      <span className="text-slate-800 font-medium truncate block">{selectedMember.email}</span>
+                      <span className="text-slate-500 block text-[11px]">Email:</span>
+                      <span className="text-slate-900 font-medium truncate block">{selectedMember.email || '-'}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[10px]">Tempat/Tgl Lahir :</span>
-                      <span className="text-slate-800 font-medium">{selectedMember.birthPlace}, {selectedMember.birthDate}</span>
+                      <span className="text-slate-500 block text-[11px]">Tempat/Tgl Lahir:</span>
+                      <span className="text-slate-900 font-medium">{selectedMember.birthPlace || '-'}, {selectedMember.birthDate || '-'}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[10px]">Tempat Belajar :</span>
-                      <span className="text-slate-800 font-medium line-clamp-1">{selectedMember.education}</span>
+                      <span className="text-slate-500 block text-[11px]">Pendidikan:</span>
+                      <span className="text-slate-900 font-medium line-clamp-1">{selectedMember.education || '-'}</span>
                     </div>
                     <div className="col-span-2">
-                      <span className="text-slate-400 block text-[10px]">Alamat & Instagram :</span>
-                      <span className="text-slate-800 font-medium text-[11px] block">{selectedMember.address}, {selectedMember.city} ({selectedMember.instagram})</span>
+                      <span className="text-slate-500 block text-[11px]">Alamat & Media Sosial:</span>
+                      <span className="text-slate-900 font-medium block">{selectedMember.address || '-'}, {selectedMember.city || '-'} ({selectedMember.instagram || '-'})</span>
                     </div>
                   </div>
 
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono pt-3 border-t border-slate-50">Struktur Pelayanan</h4>
+                  <h4 className="text-xs font-bold text-[#0c2340] uppercase tracking-wider pt-3 border-t border-slate-200">Struktur Pelayanan</h4>
                   
-                  <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <span className="text-slate-400 block text-[10px]">Wilayah Pelayanan :</span>
-                      <span className="text-slate-800 font-semibold">{selectedMember.region}</span>
+                      <span className="text-slate-500 block text-[11px]">Wilayah Pelayanan:</span>
+                      <span className="text-slate-900 font-semibold">{selectedMember.region}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[10px]">Kelompok Kecil :</span>
-                      <span className="text-indigo-600 font-semibold">
+                      <span className="text-slate-500 block text-[11px]">Kelompok Kecil:</span>
+                      <span className="text-[#0c2340] font-semibold">
                         {smallGroups.find(g => g.id === selectedMember.smallGroupId)?.name || 'Belum Tergabung'}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[10px]">Staff Pembimbing :</span>
-                      <span className="text-slate-800 font-medium">{selectedMember.staffAdvisor}</span>
+                      <span className="text-slate-500 block text-[11px]">Staff Pembimbing:</span>
+                      <span className="text-slate-900 font-medium">{selectedMember.staffAdvisor || '-'}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[10px]">Mentor :</span>
-                      <span className="text-slate-800 font-medium">{selectedMember.mentor}</span>
+                      <span className="text-slate-500 block text-[11px]">Mentor:</span>
+                      <span className="text-slate-900 font-medium">{selectedMember.mentor || '-'}</span>
                     </div>
                   </div>
 
                   {/* Add Service Note Trigger */}
-                  <div className="pt-4 flex gap-2">
+                  <div className="pt-3 flex gap-2">
                     <button 
                       onClick={() => {
                         setNoteMemberId(selectedMember.id);
                         setSubTab('notes');
                       }}
-                      className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-semibold text-slate-700 flex items-center justify-center gap-1 transition-all cursor-pointer"
+                      className="flex-1 py-2 bg-white hover:bg-slate-50 border border-slate-300 rounded text-xs font-medium text-slate-700 flex items-center justify-center gap-1 transition-colors cursor-pointer"
                     >
                       <StickyNote className="w-3.5 h-3.5 text-slate-500" /> Catat Layanan
                     </button>
@@ -696,9 +706,9 @@ export default function MembersTab({
                         setPrayerMemberId(selectedMember.id);
                         setSubTab('prayers');
                       }}
-                      className="flex-1 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer"
+                      className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded text-xs font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer"
                     >
-                      <Heart className="w-3.5 h-3.5" /> Prayer Request
+                      <Heart className="w-3.5 h-3.5 text-slate-600" /> Permohonan Doa
                     </button>
                   </div>
 
@@ -707,9 +717,9 @@ export default function MembersTab({
               </div>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 py-16">
-                <Compass className="w-10 h-10 text-slate-300 animate-bounce mb-3" />
-                <h4 className="text-sm font-semibold text-slate-600">Pilih Anggota</h4>
-                <p className="text-xs px-4 mt-1 leading-relaxed">Klik salah satu baris baris di daftar sebelah kiri untuk memunculkan riwayat, detail pelayanan, biodata, dan aksi cepat.</p>
+                <Compass className="w-10 h-10 text-slate-300 mb-3" />
+                <h4 className="text-sm font-semibold text-slate-700">Pilih Data Anggota</h4>
+                <p className="text-xs px-4 mt-1 text-slate-500 leading-relaxed">Klik salah satu baris di tabel untuk melihat profil lengkap, riwayat pelayanan, dan tindakan cepat.</p>
               </div>
             )}
           </div>
@@ -722,34 +732,37 @@ export default function MembersTab({
         <div className={isEditable ? "grid grid-cols-1 lg:grid-cols-3 gap-6" : "grid grid-cols-1 gap-6"}>
           
           {/* Timeline of notes */}
-          <div className={isEditable ? "lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4" : "w-full bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4"}>
-            <h3 className="text-md font-semibold text-slate-800">Timeline Catatan Pelayanan & Counseling</h3>
+          <div className={isEditable ? "lg:col-span-2 bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4" : "w-full bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4"}>
+            <div className="pb-3 border-b border-slate-200">
+              <h3 className="text-sm font-bold text-slate-800">Catatan Pelayanan & Konseling</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Riwayat perkembangan rohani, pendampingan, dan bimbingan anggota</p>
+            </div>
             
-            <div className="relative border-l border-slate-200 ml-4 pl-6 space-y-6 max-h-160 overflow-y-auto pt-2">
+            <div className="relative border-l border-slate-200 ml-4 pl-6 space-y-5 max-h-160 overflow-y-auto pt-2">
               {notes.map((note) => {
                 const memberObj = members.find(m => m.id === note.memberId);
                 return (
-                  <div key={note.id} className="relative group">
+                  <div key={note.id} className="relative">
                     {/* Circle marker on timeline */}
-                    <span className="absolute -left-10 top-0.5 bg-indigo-50 border border-indigo-200 text-indigo-700 w-8 h-8 rounded-full flex items-center justify-center">
+                    <span className="absolute -left-10 top-0.5 bg-slate-100 border border-slate-300 text-slate-700 w-8 h-8 rounded-full flex items-center justify-center">
                       <StickyNote className="w-4 h-4" />
                     </span>
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-indigo-600 font-mono font-bold tracking-wider uppercase bg-indigo-50/50 px-2 py-0.5 rounded border border-indigo-100/50">
+                        <span className="text-[11px] text-slate-700 font-semibold bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                           {note.category}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-mono font-medium">{note.date}</span>
+                        <span className="text-xs text-slate-500 font-medium">{note.date}</span>
                       </div>
-                      <h4 className="text-xs font-bold text-slate-800">
+                      <h4 className="text-xs font-bold text-slate-900">
                         {memberObj ? `${memberObj.fullName} (${memberObj.id})` : 'Kader Organisasi'}
                       </h4>
-                      <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
+                      <p className="text-xs text-slate-700 leading-relaxed bg-slate-50 p-3 rounded border border-slate-200">
                         "{note.notes}"
                       </p>
-                      <div className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
-                        <span>Ditulis oleh:</span>
-                        <span className="text-slate-600 font-semibold">{note.author}</span>
+                      <div className="text-[11px] text-slate-500 flex items-center gap-1">
+                        <span>Pencatat:</span>
+                        <span className="text-slate-800 font-medium">{note.author}</span>
                       </div>
                     </div>
                   </div>
@@ -760,20 +773,20 @@ export default function MembersTab({
 
           {/* Form to add note */}
           {isEditable && (
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-1.5 border-b border-slate-50 pb-2">
-              <Plus className="w-4 h-4 text-indigo-500" /> Catat Histori Konseling Baru
+          <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
+            <h3 className="text-sm font-bold text-slate-800 mb-3.5 flex items-center gap-1.5 border-b border-slate-200 pb-2.5">
+              <Plus className="w-4 h-4 text-slate-600" /> Catat Riwayat Layanan Baru
             </h3>
-            <form onSubmit={handleAddNotesForm} className="space-y-4 text-xs">
+            <form onSubmit={handleAddNotesForm} className="space-y-3.5 text-xs">
               <div>
-                <label className="text-slate-500 block mb-1">Pilih Anggota pelayanan :</label>
+                <label className="text-slate-700 font-semibold block mb-1">Anggota Pelayanan:</label>
                 <select 
                   value={noteMemberId} 
                   onChange={(e) => setNoteMemberId(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   required
                 >
-                  <option value="">-- PILIH ANGGOTA --</option>
+                  <option value="">-- Pilih Anggota --</option>
                   {members.map(m => (
                     <option key={m.id} value={m.id}>{m.fullName} ({m.id})</option>
                   ))}
@@ -781,35 +794,35 @@ export default function MembersTab({
               </div>
 
               <div>
-                <label className="text-slate-500 block mb-1">Kategori Pelayanan :</label>
+                <label className="text-slate-700 font-semibold block mb-1">Kategori Pelayanan:</label>
                 <select 
                   value={noteCategory} 
                   onChange={(e) => setNoteCategory(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                 >
                   <option value="Konseling Akademik">Konseling Akademik</option>
                   <option value="Follow Up Retret">Follow Up Retret</option>
                   <option value="Bimbingan Karir">Bimbingan Karir</option>
                   <option value="Konseling Pribadi">Konseling Pribadi</option>
-                  <option value="Pengutusan Kepemimpinan">Mulai / PKK / Pemimpin</option>
+                  <option value="Pengutusan Kepemimpinan">Pengutusan Kepemimpinan</option>
                 </select>
               </div>
 
               <div>
-                <label className="text-slate-500 block mb-1">Detail Catatan / Perkembangan :</label>
+                <label className="text-slate-700 font-semibold block mb-1">Detail Catatan / Perkembangan:</label>
                 <textarea 
                   rows={4}
-                  placeholder="Ceritakan ringkasan bimbingan, kondisi pelayanan, perkembangan rohani atau tantangan akademis yang dialami keder..."
+                  placeholder="Tuliskan ringkasan bimbingan, kondisi pelayanan, atau tantangan yang dihadapi anggota..."
                   value={noteContent}
                   onChange={(e) => setNoteContent(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans leading-relaxed"
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none leading-relaxed"
                   required
                 />
               </div>
 
               <button 
                 type="submit"
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer"
+                className="w-full py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
               >
                 Simpan Catatan Pelayanan
               </button>
@@ -825,42 +838,45 @@ export default function MembersTab({
         <div className={isEditable ? "grid grid-cols-1 lg:grid-cols-3 gap-6" : "grid grid-cols-1 gap-6"}>
           
           {/* Prayer directory list */}
-          <div className={isEditable ? "lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4" : "w-full bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4"}>
-            <h3 className="text-md font-semibold text-slate-800">Pokok Permohonan Doa (Prayer Request)</h3>
+          <div className={isEditable ? "lg:col-span-2 bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4" : "w-full bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4"}>
+            <div className="pb-3 border-b border-slate-200">
+              <h3 className="text-sm font-bold text-slate-800">Pokok Permohonan Doa</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Daftar permohonan doa bersama kelompok kecil dan staf pelayanan</p>
+            </div>
             
             <div className="divide-y divide-slate-100 max-h-160 overflow-y-auto">
               {prayerRequests.map((p) => (
-                <div key={p.id} className="py-4 hover:bg-slate-50/50 px-2 rounded-xl transition-all">
+                <div key={p.id} className="py-3.5 hover:bg-slate-50/70 px-2 rounded transition-colors">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="text-xs font-bold text-slate-800 font-mono tracking-tight uppercase text-indigo-700">{p.title}</h4>
-                      <p className="text-[10px] text-slate-400 mt-0.5">Diajukan oleh: <span className="text-slate-600 font-semibold">{p.memberName}</span> (Tgl: {p.date})</p>
+                      <h4 className="text-xs font-bold text-slate-900">{p.title}</h4>
+                      <p className="text-xs text-slate-500 mt-0.5">Pemohon: <span className="text-slate-800 font-semibold">{p.memberName}</span> &bull; {p.date}</p>
                     </div>
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                      p.status === 'Terjawab' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
-                      p.status === 'Didoakan' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
-                      'bg-slate-100 text-slate-500'
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      p.status === 'Terjawab' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                      p.status === 'Didoakan' ? 'bg-blue-50 text-blue-800 border border-blue-200' :
+                      'bg-slate-100 text-slate-600 border border-slate-200'
                     }`}>
                       {p.status}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-600 italic leading-relaxed py-2 pl-3 border-l-2 border-slate-200 mt-2">
+                  <p className="text-xs text-slate-700 italic leading-relaxed py-2 pl-3 border-l-2 border-slate-300 mt-2 bg-slate-50/50 rounded-r">
                     "{p.request}"
                   </p>
                   
                   {/* Action states toggle */}
                   {isEditable && (
-                    <div className="flex gap-2.5 mt-2 justify-end">
-                      <span className="text-[9px] text-slate-400 self-center">Ubah Status Doa:</span>
+                    <div className="flex gap-2 mt-2.5 justify-end">
+                      <span className="text-xs text-slate-500 self-center">Status Doa:</span>
                       <button 
                         onClick={() => onUpdatePrayerStatus(p.id, 'Didoakan')}
-                        className="p-1 px-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-transparent rounded-lg text-[9px] font-semibold cursor-pointer"
+                        className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded text-xs font-medium cursor-pointer transition-colors"
                       >
-                        Mulai Doakan
+                        Sedang Didoakan
                       </button>
                       <button 
                         onClick={() => onUpdatePrayerStatus(p.id, 'Terjawab')}
-                        className="p-1 px-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-transparent rounded-lg text-[9px] font-semibold cursor-pointer"
+                        className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded text-xs font-medium cursor-pointer transition-colors"
                       >
                         Puji Tuhan, Terjawab!
                       </button>
@@ -872,19 +888,21 @@ export default function MembersTab({
           </div>
 
           {/* Form to add prayer */}
-          {/* Form to submit a prayer */}
           {isEditable && (
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-            <form onSubmit={handleAddPrayerForm} className="space-y-4 text-xs">
+          <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
+            <h3 className="text-sm font-bold text-slate-800 mb-3.5 flex items-center gap-1.5 border-b border-slate-200 pb-2.5">
+              <Plus className="w-4 h-4 text-slate-600" /> Ajukan Pokok Doa Baru
+            </h3>
+            <form onSubmit={handleAddPrayerForm} className="space-y-3.5 text-xs">
               <div>
-                <label className="text-slate-500 block mb-1">Pemohon (Anggota):</label>
+                <label className="text-slate-700 font-semibold block mb-1">Nama Anggota Pemohon:</label>
                 <select 
                   value={prayerMemberId} 
                   onChange={(e) => setPrayerMemberId(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   required
                 >
-                  <option value="">-- PILIH PEMOHON --</option>
+                  <option value="">-- Pilih Pemohon --</option>
                   {members.map(m => (
                     <option key={m.id} value={m.id}>{m.fullName} ({m.id})</option>
                   ))}
@@ -892,34 +910,34 @@ export default function MembersTab({
               </div>
 
               <div>
-                <label className="text-slate-500 block mb-1">Judul / Bidang Doa:</label>
+                <label className="text-slate-700 font-semibold block mb-1">Judul / Topik Doa:</label>
                 <input 
                   type="text"
-                  placeholder="Contoh: Skripsi Akhir, Kesehatan Keluarga..."
+                  placeholder="Contoh: Ujian Skripsi, Pemulihan Kesehatan..."
                   value={prayerTitle}
                   onChange={(e) => setPrayerTitle(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-slate-500 block mb-1">Detail Permohonan Doa:</label>
+                <label className="text-slate-700 font-semibold block mb-1">Detail Pokok Doa:</label>
                 <textarea 
                   rows={4}
-                  placeholder="Berikan deskripsi detail tentang hal-hal rohani, jasmani, atau target yang mau dibawakan bersama di persekutuan kelompok kecil..."
+                  placeholder="Tuliskan pokok permohonan doa secara jelas..."
                   value={prayerContent}
                   onChange={(e) => setPrayerContent(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 leading-relaxed"
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none leading-relaxed"
                   required
                 />
               </div>
 
               <button 
                 type="submit"
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer"
+                className="w-full py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
               >
-                Kirim Pembawa Doa
+                Kirimkan Pokok Doa
               </button>
             </form>
           </div>
@@ -933,23 +951,26 @@ export default function MembersTab({
         <div className={isEditable ? "grid grid-cols-1 lg:grid-cols-3 gap-6" : "grid grid-cols-1 gap-6"}>
           
           {/* List of past follow ups */}
-          <div className={isEditable ? "lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4" : "w-full bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4"}>
-            <h3 className="text-md font-semibold text-slate-800">History Follow Up</h3>
+          <div className={isEditable ? "lg:col-span-2 bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4" : "w-full bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4"}>
+            <div className="pb-3 border-b border-slate-200">
+              <h3 className="text-sm font-bold text-slate-800">Riwayat Pendampingan (Follow-Up)</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Catatan interaksi personal dan tindak lanjut mentoring</p>
+            </div>
             
             <div className="divide-y divide-slate-100 max-h-160 overflow-y-auto">
               {followUps.map((fu) => (
-                <div key={fu.id} className="py-4 hover:bg-slate-50/50 px-2 rounded-xl transition-all">
+                <div key={fu.id} className="py-3.5 hover:bg-slate-50/70 px-2 rounded transition-colors">
                   <div className="flex justify-between items-start">
                     <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-xs text-slate-800">{fu.memberName}</span>
-                        <span className="text-[10px] bg-slate-100 text-slate-600 py-0.5 px-2 rounded-full border border-slate-200/50 font-semibold">{fu.type}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs text-slate-900">{fu.memberName}</span>
+                        <span className="text-[10px] bg-slate-100 text-slate-700 py-0.5 px-2 rounded border border-slate-200 font-semibold">{fu.type}</span>
                       </div>
-                      <span className="text-[10px] text-slate-400 mt-0.5">Tanggal Follow Up: {fu.date}</span>
+                      <span className="text-xs text-slate-500 mt-0.5 block">Tanggal Pendampingan: {fu.date}</span>
                     </div>
-                    <span className="text-[10px] text-indigo-600 font-medium bg-indigo-50 px-2 py-0.5 rounded">Oleh: {fu.staffName}</span>
+                    <span className="text-xs text-slate-600 font-medium bg-slate-100 px-2 py-0.5 rounded border border-slate-200">Pendamping: {fu.staffName}</span>
                   </div>
-                  <p className="text-xs text-slate-600 mt-2.5 leading-relaxed bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
+                  <p className="text-xs text-slate-700 mt-2 leading-relaxed bg-slate-50 p-2.5 rounded border border-slate-200">
                     "{fu.notes}"
                   </p>
                 </div>
@@ -959,20 +980,20 @@ export default function MembersTab({
 
           {/* Form to submit a follow up report */}
           {isEditable && (
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-1.5 border-b border-slate-50 pb-2">
-              <Plus className="w-4 h-4 text-indigo-500" /> Catat Laporan Follow Up
+          <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
+            <h3 className="text-sm font-bold text-slate-800 mb-3.5 flex items-center gap-1.5 border-b border-slate-200 pb-2.5">
+              <Plus className="w-4 h-4 text-slate-600" /> Catat Laporan Pendampingan
             </h3>
-            <form onSubmit={handleAddFollowUpForm} className="space-y-4 text-xs">
+            <form onSubmit={handleAddFollowUpForm} className="space-y-3.5 text-xs">
               <div>
-                <label className="text-slate-500 block mb-1">Kader yang di-Follow Up:</label>
+                <label className="text-slate-700 font-semibold block mb-1">Anggota yang Didampingi:</label>
                 <select 
                   value={followUpMemberId} 
                   onChange={(e) => setFollowUpMemberId(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   required
                 >
-                  <option value="">-- PILIH KADER --</option>
+                  <option value="">-- Pilih Anggota --</option>
                   {members.map(m => (
                     <option key={m.id} value={m.id}>{m.fullName} ({m.id})</option>
                   ))}
@@ -980,35 +1001,35 @@ export default function MembersTab({
               </div>
 
               <div>
-                <label className="text-slate-500 block mb-1">Metode Follow Up:</label>
+                <label className="text-slate-700 font-semibold block mb-1">Metode Interaksi:</label>
                 <select 
                   value={followUpType} 
                   onChange={(e) => setFollowUpType(e.target.value as any)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                 >
                   <option value="Telepon">Telepon / WhatsApp Call</option>
-                  <option value="Kunjungan">Kunjungan Rumah / Kos</option>
-                  <option value="Konseling">Konseling Dua Arah</option>
-                  <option value="Mentoring">Mentoring Modul Pelayanan</option>
+                  <option value="Kunjungan">Kunjungan Langsung</option>
+                  <option value="Konseling">Konseling Tatap Muka</option>
+                  <option value="Mentoring">Mentoring Modul</option>
                   <option value="Pemuridan">Pemuridan Intensif</option>
                 </select>
               </div>
 
               <div>
-                <label className="text-slate-500 block mb-1">Laporan Hasil Pertemuan / Pembicaraan:</label>
+                <label className="text-slate-700 font-semibold block mb-1">Hasil Pertemuan / Tindak Lanjut:</label>
                 <textarea 
                   rows={4}
-                  placeholder="Tuliskan perkembangan, pergumulan rohani, saran yang diberikan kepada anggota, dan rencana tindak lanjut (Next plan mentoring)..."
+                  placeholder="Tuliskan poin pembicaraan, kebutuhan anggota, dan rencana langkah selanjutnya..."
                   value={followUpNotes}
                   onChange={(e) => setFollowUpNotes(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 leading-relaxed"
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none leading-relaxed"
                   required
                 />
               </div>
 
               <button 
                 type="submit"
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer"
+                className="w-full py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
               >
                 Simpan Pendampingan
               </button>
@@ -1021,42 +1042,42 @@ export default function MembersTab({
 
       {/* SUBTAB 5: MOCK CSV/EXCEL BULK IMPORTER */}
       {subTab === 'import' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-          <div>
-            <h3 className="text-md font-semibold text-slate-800">Enterprise Bulk Excel / CSV Data Importer</h3>
-            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Modul ini menyimulasikan sistem parse file excel. Anda bisa menyalin-tempel data multi-kolom di bawah dengan pembatas karakter pipa (<code className="bg-slate-100 p-0.5 rounded font-bold">|</code>) untuk langsung mengimpor baris baru ke dalam record memori lokal aplikasi.
+        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4">
+          <div className="pb-3 border-b border-slate-200">
+            <h3 className="text-sm font-bold text-slate-800">Impor Massal Data Anggota (CSV / Spreadsheet)</h3>
+            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+              Gunakan pemisah pipa (<code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">|</code>) untuk menyalin-tempel data multi-kolom langsung ke dalam sistem.
             </p>
           </div>
 
           <div className="space-y-3">
-            <span className="text-xs font-mono font-bold text-indigo-600 uppercase block">FORMAT KOLOM TRANSFER DATA:</span>
-            <div className="bg-slate-900 text-slate-300 font-mono text-[10px] p-3 rounded-xl border border-slate-800 overflow-x-auto whitespace-nowrap leading-relaxed">
+            <span className="text-xs font-bold text-slate-700 uppercase block">Urutan Kolom:</span>
+            <div className="bg-slate-900 text-slate-200 font-mono text-[11px] p-3 rounded border border-slate-800 overflow-x-auto whitespace-nowrap leading-relaxed">
               Nama_Lengkap | Jenis_Kelamin | Tempat_Lahir | Tanggal_Lahir | No_HP | Email | Alamat | Kota | Provinsi | Instagram | Gereja_Asal | Pendidikan | Pekerjaan | Komponen_MMB (Siswa/Mahasiswa/Alumni) | Wilayah
             </div>
             
             <div>
-              <label className="text-xs font-bold text-slate-600 block mb-1">Teks Mentah Salinan Spreadsheet:</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Data Teks Spreadsheet:</label>
               <textarea 
                 rows={6}
                 value={importText}
                 onChange={(e) => setImportText(e.target.value)}
-                className="w-full font-mono text-[11px] p-3 border border-slate-200 rounded-xl leading-relaxed focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                className="w-full font-mono text-xs p-3 border border-slate-300 rounded leading-relaxed focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
               />
             </div>
 
             {importStatus && (
-              <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-semibold flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-600" />
-                {importStatus}
+              <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-xs font-semibold flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{importStatus}</span>
               </div>
             )}
 
             <button 
               onClick={handleBulkImport}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+              className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
             >
-              <Upload className="w-4 h-4" /> Import Massal ke Memori
+              <Upload className="w-4 h-4" /> Proses Impor Data
             </button>
           </div>
         </div>
@@ -1064,190 +1085,190 @@ export default function MembersTab({
 
       {/* MODAL: ADD / EDIT DIALOG FORM */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 overflow-y-auto backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-3xl overflow-hidden my-8 scale-95 transition-transform">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg border border-slate-300 w-full max-w-3xl overflow-hidden my-8">
             
             {/* Modal Header */}
-            <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
+            <div className="bg-[#0c2340] px-5 py-3.5 text-white flex justify-between items-center">
               <div>
-                <dt className="text-sm font-bold">{editingMember ? 'Edit Data Profil Anggota' : 'Registrasi Anggota Baru'}</dt>
-                <dd className="text-[11px] text-slate-300 mt-0.5">Lengkapi formulir biodata dan penugasan wilayah MMB.</dd>
+                <dt className="text-sm font-bold">{editingMember ? 'Ubah Data Profil Anggota' : 'Registrasi Anggota Baru'}</dt>
+                <dd className="text-xs text-slate-300 mt-0.5">Lengkapi data identitas dan penugasan pelayanan Yayasan MMB.</dd>
               </div>
               <button 
                 onClick={() => setIsFormOpen(false)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Modal Form body */}
-            <form onSubmit={handleSaveMember} className="p-6 space-y-6 max-h-120 overflow-y-auto text-xs">
+            <form onSubmit={handleSaveMember} className="p-5 space-y-5 max-h-[75vh] overflow-y-auto text-xs">
               
-              <div className="space-y-4">
-                <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-1 uppercase tracking-tight text-[11px]">Bagian A: Identitas Anggota</h3>
+              <div className="space-y-3.5">
+                <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-1 uppercase tracking-tight text-xs">Bagian A: Identitas Anggota</h3>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   <div className="sm:col-span-2">
-                    <label className="text-slate-500 block mb-1">Nama Lengkap :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Nama Lengkap :</label>
                     <input 
                       type="text" 
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder="Contoh: Yusuf Raja Tamba"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                       required
                     />
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Nama Panggilan :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Nama Panggilan :</label>
                     <input 
                       type="text" 
                       value={nickName}
                       onChange={(e) => setNickName(e.target.value)}
                       placeholder="Yusuf"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="text-slate-500 block mb-1">Jenis Kelamin :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Jenis Kelamin :</label>
                     <select 
                       value={gender}
                       onChange={(e) => setGender(e.target.value as any)}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     >
                       <option value="Laki-laki">Laki-laki</option>
                       <option value="Perempuan">Perempuan</option>
                     </select>
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Tempat Lahir :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Tempat Lahir :</label>
                     <input 
                       type="text" 
                       value={birthPlace}
                       onChange={(e) => setBirthPlace(e.target.value)}
                       placeholder="Medan"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Tanggal Lahir :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Tanggal Lahir :</label>
                     <input 
                       type="date" 
                       value={birthDate}
                       onChange={(e) => setBirthDate(e.target.value)}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
 
                   <div>
-                    <label className="text-slate-500 block mb-1">No. HP (WhatsApp) :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">No. HP (WhatsApp) :</label>
                     <input 
                       type="text" 
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="0812xxxxxx"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">E-mail Aktif :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">E-mail Aktif :</label>
                     <input 
                       type="email" 
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="yusuf@gmail.com"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Instagram Account :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Akun Instagram :</label>
                     <input 
                       type="text" 
                       value={instagram}
                       onChange={(e) => setInstagram(e.target.value)}
                       placeholder="@username"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
 
                   <div className="sm:col-span-3">
-                    <label className="text-slate-500 block mb-1">Alamat Domisili Tetap (Kota / Kosan) :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Alamat Domisili Tetap :</label>
                     <input 
                       type="text" 
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
                       placeholder="Jl. Perintis Kemerdekaan No. 10"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
 
                   <div>
-                    <label className="text-slate-500 block mb-1">Kota :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Kota :</label>
                     <input 
                       type="text" 
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
                       placeholder="Sleman"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Provinsi :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Provinsi :</label>
                     <input 
                       type="text" 
                       value={province}
                       onChange={(e) => setProvince(e.target.value)}
                       placeholder="DIY"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Gereja Asal / Denominasi :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Gereja Asal / Denominasi :</label>
                     <input 
                       type="text" 
                       value={originalChurch}
                       onChange={(e) => setOriginalChurch(e.target.value)}
                       placeholder="HKBP / GKI / GBI..."
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="text-slate-500 block mb-1">Pendidikan (Sekolah / Kampus - Kepeminat) :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Pendidikan (Sekolah / Kampus) :</label>
                     <input 
                       type="text" 
                       value={education}
                       onChange={(e) => setEducation(e.target.value)}
                       placeholder="S1 Teknik Informatika - UGM"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Pekerjaan saat ini :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Pekerjaan :</label>
                     <input 
                       type="text" 
                       value={occupation}
                       onChange={(e) => setOccupation(e.target.value)}
                       placeholder="Mahasiswa"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-4 pt-4 border-t border-slate-50">
-                <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-1 uppercase tracking-tight text-[11px]">Bagian B: Delegasi Pelayanan Yayasan</h3>
+              <div className="space-y-3.5 pt-3.5 border-t border-slate-200">
+                <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-1 uppercase tracking-tight text-xs">Bagian B: Penugasan Pelayanan Yayasan</h3>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   <div>
-                    <label className="text-slate-500 block mb-1">Komponen Kategori MMB :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Komponen Kategori :</label>
                     <select 
                       value={component}
                       onChange={(e) => setComponent(e.target.value as any)}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     >
                       {(profile?.memberComponents || ["Siswa", "Mahasiswa", "Alumni", "Umum"]).map((comp, idx) => (
                         <option key={idx} value={comp}>{comp}</option>
@@ -1255,11 +1276,11 @@ export default function MembersTab({
                     </select>
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Wilayah Pelayanan :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Wilayah Pelayanan :</label>
                     <select 
                       value={region}
                       onChange={(e) => setRegion(e.target.value)}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     >
                       {(profile?.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]).map((r, idx) => (
                         <option key={idx} value={r}>{r}</option>
@@ -1267,13 +1288,13 @@ export default function MembersTab({
                     </select>
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Delegasi Kelompok Kecil (CG) :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Kelompok Kecil (KTB) :</label>
                     <select 
                       value={smallGroupId}
                       onChange={(e) => setSmallGroupId(e.target.value)}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     >
-                      <option value="">-- LUANGKAN (Belum Tergabung) --</option>
+                      <option value="">-- Belum Tergabung --</option>
                       {smallGroups.map(g => (
                         <option key={g.id} value={g.id}>{g.name}</option>
                       ))}
@@ -1281,31 +1302,31 @@ export default function MembersTab({
                   </div>
 
                   <div>
-                    <label className="text-slate-500 block mb-1">Staff Pendamping (Advisor) :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Staff Pendamping :</label>
                     <input 
                       type="text" 
                       value={staffAdvisor}
                       onChange={(e) => setStaffAdvisor(e.target.value)}
                       placeholder="Ahmad Faisal"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Mentor Pemuridan :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Mentor Pemuridan :</label>
                     <input 
                       type="text" 
                       value={mentor}
                       onChange={(e) => setMentor(e.target.value)}
                       placeholder="Christian Sitorus"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="text-slate-500 block mb-1">Status Keaktifan rohani :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Status Keaktifan :</label>
                     <select 
                       value={statusKeaktifan}
                       onChange={(e) => setStatusKeaktifan(e.target.value as any)}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
+                      className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     >
                       {(profile?.memberKeaktifanStatuses || ["Aktif", "Pasif", "Cuti", "Pindah"]).map((stat, idx) => (
                         <option key={idx} value={stat}>{stat}</option>
@@ -1316,19 +1337,19 @@ export default function MembersTab({
               </div>
 
               {/* Action operations buttons */}
-              <div className="pt-6 border-t border-slate-50 flex justify-end gap-3.5">
+              <div className="pt-4 border-t border-slate-200 flex justify-end gap-2.5">
                 <button 
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-700 font-semibold cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 hover:bg-slate-50 rounded text-slate-700 font-medium cursor-pointer transition-colors text-xs"
                 >
                   Batal
                 </button>
                 <button 
                   type="submit"
-                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md shadow-indigo-950/20"
+                  className="px-5 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors"
                 >
-                  <Save className="w-4 h-4 inline mr-1" /> Simpan Data Anggota
+                  <Save className="w-3.5 h-3.5 inline mr-1" /> Simpan Data Anggota
                 </button>
               </div>
 

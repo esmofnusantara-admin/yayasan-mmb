@@ -54,6 +54,7 @@ export const INITIAL_PROFILE: InstitutionalProfile = {
     { name: "Transfer BNI", detail: "BNI 0928-x" },
     { name: "Dana Cash (Fisik)", detail: "Tunai / Cash Fisik" }
   ],
+  cutoffDay: 7,
   stampUrl: '',
   signatureChairmanUrl: '',
   signatureSecretaryUrl: '',

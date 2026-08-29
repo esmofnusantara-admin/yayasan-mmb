@@ -211,19 +211,23 @@ export default function App() {
       return true;
     }
 
-    // Explicitly deny restricted administrative areas for Staff role
-    if (currentUser.role === 'Staff' && (feature === 'finance' || feature === 'reports' || feature === 'staff' || feature === 'payroll' || feature === 'approvals' || feature === 'system')) {
+    // Explicitly deny restricted administrative areas for Staff and Volunteer roles
+    if ((currentUser.role === 'Staff' || currentUser.role === 'Volunteer') && (feature === 'finance' || feature === 'reports' || feature === 'staff' || feature === 'payroll' || feature === 'approvals' || feature === 'system')) {
       return false;
     }
 
     const defaultFeaturesMap: Record<string, string[]> = {
-      'Super Admin': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports', 'kegiatan'],
-      'Ketua Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports', 'kegiatan'],
-      'Bendahara': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'staff_profile', 'reports', 'kegiatan'],
-      'Sekretaris': ['dashboard', 'members', 'small_groups', 'letters', 'system', 'staff_profile', 'reports', 'kegiatan'],
-      'Staff': ['dashboard', 'members', 'small_groups', 'partners', 'staff_profile', 'kegiatan']
+      'Super Admin': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports', 'kegiatan', 'staff_tasks'],
+      'Pembina Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports', 'kegiatan', 'staff_tasks'],
+      'Pengawas Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'letters', 'system', 'staff_profile', 'reports', 'kegiatan', 'staff_tasks'],
+      'Ketua Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports', 'kegiatan', 'staff_tasks'],
+      'Bendahara': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'staff_profile', 'reports', 'kegiatan', 'staff_tasks'],
+      'Sekretaris': ['dashboard', 'members', 'small_groups', 'staff', 'letters', 'system', 'staff_profile', 'reports', 'kegiatan', 'staff_tasks'],
+      'Koordinator Wilayah': ['dashboard', 'members', 'small_groups', 'partners', 'kegiatan', 'staff_profile', 'staff_tasks'],
+      'Staff': ['dashboard', 'members', 'small_groups', 'partners', 'staff_profile', 'kegiatan', 'staff_tasks'],
+      'Volunteer': ['dashboard', 'members', 'small_groups', 'kegiatan', 'staff_profile', 'staff_tasks']
     };
-    const roleFeatures = defaultFeaturesMap[currentUser.role] || ['dashboard'];
+    const roleFeatures = defaultFeaturesMap[currentUser.role] || ['dashboard', 'members', 'small_groups', 'kegiatan'];
     if (currentUser.features && currentUser.features.length > 0) {
       return currentUser.features.includes(feature) || roleFeatures.includes(feature);
     }
@@ -299,6 +303,27 @@ export default function App() {
   const [staffMeetings, setStaffMeetings] = useState<StaffMeeting[]>([]);
   const [structures, setStructures] = useState<any[]>([]);
   const [isSystemSeeded, setIsSystemSeeded] = useState<boolean | null>(null);
+
+  // Dynamic document title and favicon sync based on organization profile
+  useEffect(() => {
+    if (profile.name || profile.systemTitle) {
+      document.title = profile.name || profile.systemTitle;
+    }
+    
+    let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.getElementsByTagName('head')[0].appendChild(link);
+    }
+    if (profile.logoUrl && profile.logoUrl.trim() !== '') {
+      link.href = profile.logoUrl;
+      link.type = profile.logoUrl.startsWith('data:image/svg') ? 'image/svg+xml' : 'image/png';
+    } else {
+      link.href = '/favicon.svg';
+      link.type = 'image/svg+xml';
+    }
+  }, [profile.logoUrl, profile.name, profile.systemTitle]);
 
   // Restful Loader Helper with Auto-Seeding
   const safeFetchJson = async (url: string, retries = 7, delayMs = 2000): Promise<any> => {
@@ -384,40 +409,35 @@ export default function App() {
   };
 
   const recalculateBalances = async (targetTransactions?: Transaction[]) => {
-    // Authority alignment check to prevent unauthorized 403 update attempts
     const role = currentUser?.role || 'Staff';
     if (role !== 'Super Admin' && role !== 'Ketua Yayasan' && role !== 'Bendahara') {
       return { totalIncome: 0, totalExpense: 0, correctBalance: 0 };
     }
 
+    let correctBalance = 0;
+    try {
+      const balRes = await fetch('/api/finance/balance');
+      if (balRes.ok) {
+        const balData = await balRes.json();
+        correctBalance = typeof balData.balance === 'number' ? balData.balance : 0;
+      }
+    } catch (err) {
+      console.warn('Could not fetch server balance:', err);
+    }
+
     const txsToUse = targetTransactions || transactions;
-    const approvedTx = txsToUse.filter(t => t.status === undefined || t.status === 'Approved');
+    const approvedTx = txsToUse.filter(t => !t.deleted && (t.status === undefined || t.status === 'Approved'));
     
     const totalIncome = approvedTx
       .filter(t => t.type?.toLowerCase() === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
     const totalExpense = approvedTx
       .filter(t => t.type?.toLowerCase() === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
-    const correctBalance = totalIncome - totalExpense;
-
-    console.log(`[recalculateBalances] Recalculating: Income=Rp ${totalIncome.toLocaleString('id-ID')}, Expense=Rp ${totalExpense.toLocaleString('id-ID')}, Balance=Rp ${correctBalance.toLocaleString('id-ID')}`);
-
-    try {
-      await fetch('/api/data/kas/main', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: 'main',
-          balance: correctBalance,
-          lastUpdated: new Date().toISOString(),
-          updatedBy: 'System Validator (recalculateBalances)'
-        })
-      });
-    } catch (err) {
-      console.error('Failed to sync kas main snapshot:', err);
+    if (correctBalance === 0 && (totalIncome > 0 || totalExpense > 0)) {
+      correctBalance = totalIncome - totalExpense;
     }
 
     return { totalIncome, totalExpense, correctBalance };
@@ -1478,6 +1498,23 @@ export default function App() {
         JSON.stringify(d)
       );
 
+      // Auto-update partner CRM stage if they made a donation while still in Prospect/Approaching
+      const targetPartner = partners.find(p => p.id === d.partnerId);
+      if (targetPartner && (targetPartner.status === 'Prospek' || targetPartner.status === 'Kontak Awal' || targetPartner.status === 'Presentasi')) {
+        const nextStatus = (targetPartner.frequency === 'Bulanan' && Number(targetPartner.commitmentAmount) > 0) ? 'Aktif' : 'Donasi Pertama';
+        const updatedPartner = {
+          ...targetPartner,
+          status: nextStatus,
+          updatedAt: new Date().toISOString()
+        };
+        await fetch(`/api/data/partners/${targetPartner.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedPartner)
+        });
+        await loadCollection('partners', INITIAL_PARTNERS, setPartners);
+      }
+
       await loadCollection('donations', INITIAL_DONATIONS, setDonations);
       const updatedTxs = await loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions);
       await recalculateBalances(updatedTxs);
@@ -1932,7 +1969,7 @@ if (!res.ok) {
     }
   };
 
-  const handleAddDocument = async (docObj: { id: string; name: string; category: string; fileData: string; fileSize: string }) => {
+  const handleAddDocument = async (docObj: { id: string; name: string; category: string; fileData?: string; fileSize: string; externalLink?: string }) => {
     try {
       const res = await fetch('/api/documents/upload', {
         method: 'POST',
@@ -2328,10 +2365,10 @@ if (!res.ok) {
   return (
     <div className="h-screen bg-[#F8FAFC] flex flex-col font-sans text-slate-900 antialiased selection:bg-blue-600 selection:text-white overflow-hidden">
       
-      {/* Upper Navigation Control header bar (Global) - Geometric Balance Theme Accent */}
-      <header className="sticky top-0 z-40 bg-white text-slate-800 px-6 py-3 border-b border-slate-200 shadow-sm flex justify-between items-center shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="p-0.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-center overflow-hidden bg-white w-9 h-9 shrink-0">
+      {/* Upper Navigation Control header bar (Global) - Institutional Executive Style */}
+      <header className="sticky top-0 z-40 bg-white text-slate-800 px-6 py-2.5 border-b border-slate-200 shadow-xs flex justify-between items-center shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="p-1 rounded border border-slate-200 flex items-center justify-center overflow-hidden bg-white w-9 h-9 shrink-0">
             {profile.logoUrl ? (
               <img src={profile.logoUrl} alt="Logo Yayasan" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             ) : (
@@ -2341,58 +2378,57 @@ if (!res.ok) {
             )}
           </div>
           <div>
-            <h1 id="header-system-title" className="font-extrabold text-sm tracking-tight text-slate-900 leading-none">{profile.systemTitle || 'MMB FMS'}</h1>
-            <span id="header-dashboard-title" className="text-[9px] text-[#64748B] font-bold uppercase tracking-widest block font-mono mt-1">{profile.dashboardTitle || 'Institutional Executive ERP'}</span>
+            <h1 id="header-system-title" className="font-bold text-sm text-[#0c2340] leading-none">{profile.systemTitle || 'Yayasan MMB'}</h1>
+            <span id="header-dashboard-title" className="text-[11px] text-slate-500 font-medium tracking-wide block mt-0.5">{profile.dashboardTitle || 'Executive Management & Financial System'}</span>
           </div>
         </div>
 
         {/* Authenticated Session Dashboard Controls */}
-        <div className="flex items-center gap-4">
-          {/* Change own password button - always visible */}
-          <button
-            onClick={() => {
-              setSelfPassCurrent('');
-              setSelfPassNew('');
-              setSelfPassConfirm('');
-              setSelfPassError(null);
-              setSelfPassSuccess(null);
-              setShowSelfPassModal(true);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold transition-all cursor-pointer shadow-sm shadow-indigo-200"
-            title="Ganti Password Saya"
-          >
-            <KeyRound className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Ganti Password</span>
-          </button>
-
+        <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-3 text-xs">
-            <div className="text-right mr-2">
-              <div className="font-semibold text-xs text-slate-800">{currentUser.name}</div>
-              <div className="text-[10px] text-slate-400">Operator: {currentUser.email}</div>
+            <div className="text-right mr-1">
+              <div className="font-semibold text-slate-800">{currentUser.name}</div>
+              <div className="text-[11px] text-slate-500">{currentUser.email}</div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-1.5 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-              <span className="text-[#2563EB] font-bold font-mono text-[9px] uppercase tracking-wider">{currentUser.role}</span>
+            <div className="bg-slate-100 border border-slate-200 rounded px-2.5 py-1 text-slate-700 font-semibold text-xs">
+              {currentUser.role}
             </div>
+
+            {/* Change own password button */}
+            <button
+              onClick={() => {
+                setSelfPassCurrent('');
+                setSelfPassNew('');
+                setSelfPassConfirm('');
+                setSelfPassError(null);
+                setSelfPassSuccess(null);
+                setShowSelfPassModal(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium transition-colors cursor-pointer"
+              title="Ganti Kata Sandi Saya"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-slate-500" />
+              <span>Ganti Sandi</span>
+            </button>
 
             <button 
               onClick={() => {
                 localStorage.removeItem('esm_session_user');
                 setCurrentUser(null);
               }}
-              className="px-3 py-1.5 border border-red-200 hover:bg-red-50 text-red-600 text-[11px] font-bold rounded-xl flex items-center gap-1.5 cursor-pointer transition-all"
+              className="px-3 py-1.5 border border-rose-200 hover:bg-rose-50 text-rose-700 text-xs font-medium rounded flex items-center gap-1.5 cursor-pointer transition-colors"
             >
-              Keluar Sesi
+              Keluar
             </button>
             
             {pendingApprovalsCount > 0 && (
               <div 
                 onClick={() => setActiveTab('approvals')}
-                className="bg-orange-50 text-orange-700 font-bold px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 animate-pulse cursor-pointer border border-orange-200 text-[11px]"
+                className="bg-amber-50 text-amber-800 font-semibold px-2.5 py-1 rounded flex items-center gap-1.5 cursor-pointer border border-amber-200 text-xs hover:bg-amber-100 transition-colors"
               >
-                <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
-                <span>{pendingApprovalsCount} Pending Persetujuan</span>
+                <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
+                <span>{pendingApprovalsCount} Persetujuan</span>
               </div>
             )}
           </div>
@@ -2400,36 +2436,28 @@ if (!res.ok) {
           {/* Mobile menu trigger */}
           <button 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="sm:hidden p-2 text-slate-500 hover:text-slate-850 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors border border-slate-200"
+            className="sm:hidden p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded cursor-pointer transition-colors border border-slate-200"
           >
-            {isMobileMenuOpen ? <X className="w-5.5 h-5.5" /> : <Menu className="w-5.5 h-5.5" />}
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </header>
 
       {/* Main Grid: Left Navigation Rail & Right Center Layout panel content */}
-      <div className="flex-1 flex flex-col sm:flex-row relative h-[calc(100vh-61px)] overflow-hidden">
+      <div className="flex-1 flex flex-col sm:flex-row relative h-[calc(100vh-53px)] overflow-hidden">
         
-        {/* SIDE BAR NAVIGATION RAIL (Left column - Cozy, Elegant, Bright Light Theme) */}
-        <nav className={`sm:w-60 bg-white border-r border-slate-200 p-4 shrink-0 flex flex-col justify-between absolute sm:relative inset-y-0 left-0 z-30 transition-all duration-300 transform sm:translate-x-0 overflow-y-auto ${
-          isMobileMenuOpen ? 'translate-x-0 w-60 shadow-2xl' : '-translate-x-full sm:translate-x-0'
+        {/* SIDE BAR NAVIGATION RAIL (Left column - Institutional Light Theme) */}
+        <nav className={`sm:w-56 bg-white border-r border-slate-200 p-3 shrink-0 flex flex-col justify-between absolute sm:relative inset-y-0 left-0 z-30 transition-all duration-200 transform sm:translate-x-0 overflow-y-auto ${
+          isMobileMenuOpen ? 'translate-x-0 w-56 shadow-lg' : '-translate-x-full sm:translate-x-0'
         }`}>
           
-          <div className="space-y-5">
+          <div className="space-y-4">
             
-            {/* Operator Active Badge Grid */}
-            <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col gap-2 shadow-xs/50">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-blue-600 text-white font-extrabold rounded-lg text-xs flex items-center justify-center font-mono shadow-sm shrink-0">
-                  {currentRole.slice(0, 2).toUpperCase()}
-                </div>
-                <div className="text-xs truncate">
-                  <span className="text-slate-400 block font-bold text-[8px] uppercase tracking-widest font-mono">KONSEL OPERATOR</span>
-                  <strong className="text-slate-700 text-xs block truncate font-sans">{currentUser.name}</strong>
-                </div>
-              </div>
-              <div className="border-t border-slate-200/50 pt-1.5 flex items-center justify-between text-[11px]">
-                <span className="text-slate-500 font-mono font-semibold">{currentUser.role}</span>
+            {/* Operator Active Info Box for Mobile View */}
+            <div className="p-2.5 bg-slate-50 border border-slate-200 rounded sm:hidden text-xs space-y-1.5">
+              <div className="font-semibold text-slate-800 truncate">{currentUser.name}</div>
+              <div className="text-slate-500 text-[11px]">{currentUser.role}</div>
+              <div className="flex gap-2 pt-1 border-t border-slate-200">
                 <button
                   onClick={() => {
                     setSelfPassCurrent('');
@@ -2440,37 +2468,32 @@ if (!res.ok) {
                     setShowSelfPassModal(true);
                     setIsMobileMenuOpen(false);
                   }}
-                  className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer"
-                  title="Ganti Password Saya"
+                  className="text-xs text-[#0c2340] hover:underline font-medium"
                 >
-                  <KeyRound className="w-3 h-3" /> Ganti Password
+                  Ganti Sandi
+                </button>
+                <span className="text-slate-300">&bull;</span>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('esm_session_user');
+                    setCurrentUser(null);
+                  }}
+                  className="text-xs text-rose-700 hover:underline font-medium"
+                >
+                  Keluar
                 </button>
               </div>
             </div>
 
-            {/* Micro Mobile Auth Logout */}
-            <div className="block sm:hidden text-xs space-y-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-              <span className="text-[10px] text-slate-500 font-medium">Sesi Aktif: {currentUser.role}</span>
-              <button 
-                onClick={() => {
-                  localStorage.removeItem('esm_session_user');
-                  setCurrentUser(null);
-                }}
-                className="w-full py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100/50 rounded-xl text-[11px] font-bold transition-all cursor-pointer"
-              >
-                Keluar Sesi
-              </button>
-            </div>
-
             {/* Menu Sections layout List */}
-            <div className="space-y-1">
-              <span className="text-[9px] uppercase font-bold tracking-wider text-slate-400 block mb-2 px-3">Menu Utama</span>
+            <div className="space-y-0.5">
+              <span className="text-[11px] uppercase font-bold tracking-wider text-slate-400 block mb-1.5 px-2.5">Menu Utama</span>
               
               {hasFeatureAccess('dashboard') && (
                 <button 
                   onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
-                    activeTab === 'dashboard' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
+                  className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                    activeTab === 'dashboard' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
                 >
                   <Building2 className="w-4 h-4 shrink-0" /> Dashboard
@@ -2480,8 +2503,8 @@ if (!res.ok) {
               {hasFeatureAccess('members') && (
                 <button 
                   onClick={() => { setActiveTab('members'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
-                    activeTab === 'members' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
+                  className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                    activeTab === 'members' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
                 >
                   <Users className="w-4 h-4 shrink-0" /> Anggota Pelayanan
@@ -2491,8 +2514,8 @@ if (!res.ok) {
               {hasFeatureAccess('small_groups') && (
                 <button 
                   onClick={() => { setActiveTab('small_groups'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
-                    activeTab === 'small_groups' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
+                  className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                    activeTab === 'small_groups' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
                 >
                   <BookOpen className="w-4 h-4 shrink-0" /> Kelompok Kecil
@@ -2502,8 +2525,8 @@ if (!res.ok) {
               {hasFeatureAccess('finance') && (
                 <button 
                   onClick={() => { setActiveTab('finance'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
-                    activeTab === 'finance' ? 'bg-[#2563EB] text-white shadow-md' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
+                  className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                    activeTab === 'finance' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
                 >
                   <Wallet className="w-4 h-4 shrink-0" /> Keuangan & Kas
@@ -2513,8 +2536,8 @@ if (!res.ok) {
               {hasFeatureAccess('kegiatan') && (
                 <button 
                   onClick={() => { setActiveTab('kegiatan'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
-                    activeTab === 'kegiatan' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
+                  className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                    activeTab === 'kegiatan' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
                 >
                   <Calendar className="w-4 h-4 shrink-0" /> Kegiatan & Acara
@@ -2522,14 +2545,14 @@ if (!res.ok) {
               )}
 
               {(hasFeatureAccess('partners') || hasFeatureAccess('staff') || hasFeatureAccess('payroll') || hasFeatureAccess('letters') || hasFeatureAccess('approvals') || hasFeatureAccess('reports') || hasFeatureAccess('staff_tasks')) && (
-                <span className="text-[9px] uppercase font-bold tracking-wider text-slate-400 block pt-4 pb-2 px-3">Administrasi</span>
+                <span className="text-[11px] uppercase font-bold tracking-wider text-slate-400 block pt-3.5 pb-1 px-2.5">Administrasi</span>
               )}
 
               {hasFeatureAccess('partners') && (
                 <button 
                   onClick={() => { setActiveTab('partners'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
-                    activeTab === 'partners' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
+                  className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                    activeTab === 'partners' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
                 >
                   <HeartHandshake className="w-4 h-4 shrink-0" /> Mitra & Fundraising
@@ -2539,8 +2562,8 @@ if (!res.ok) {
               {hasFeatureAccess('staff') && (
                 <button 
                   onClick={() => { setActiveTab('staff'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
-                    activeTab === 'staff' ? 'bg-[#2563EB] text-white shadow-md' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
+                  className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                    activeTab === 'staff' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
                 >
                   <UserSquare2 className="w-4 h-4 shrink-0" /> Database Staf
@@ -2550,30 +2573,30 @@ if (!res.ok) {
               {hasFeatureAccess('staff_tasks') && (
                 <button 
                   onClick={() => { setActiveTab('staff_tasks'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
-                    activeTab === 'staff_tasks' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
+                  className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                    activeTab === 'staff_tasks' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
                 >
-                  <ClipboardList className="w-4 h-4 shrink-0" /> Program & Rapat Staf
+                  <ClipboardList className="w-4 h-4 shrink-0" /> Program & Rapat
                 </button>
               )}
 
               {hasFeatureAccess('payroll') && (
                 <button 
                   onClick={() => { setActiveTab('payroll'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
-                    activeTab === 'payroll' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
+                  className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                    activeTab === 'payroll' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
                 >
-                  <Coins className="w-4 h-4 shrink-0 text-amber-500" /> Payroll & Slip Gaji
+                  <Coins className="w-4 h-4 shrink-0" /> Payroll & Slip Gaji
                 </button>
               )}
 
               {hasFeatureAccess('letters') && (
                 <button 
                   onClick={() => { setActiveTab('letters'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
-                    activeTab === 'letters' ? 'bg-[#2563EB] text-white shadow-md' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
+                  className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                    activeTab === 'letters' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
                 >
                   <FileText className="w-4 h-4 shrink-0" /> Surat & Dokumen
@@ -2583,8 +2606,8 @@ if (!res.ok) {
               {hasFeatureAccess('reports') && (
                 <button 
                   onClick={() => { setActiveTab('reports'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
-                    activeTab === 'reports' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
+                  className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                    activeTab === 'reports' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
                 >
                   <FilePieChart className="w-4 h-4 shrink-0" /> Pusat Laporan
@@ -2594,17 +2617,17 @@ if (!res.ok) {
               {hasFeatureAccess('approvals') && (
                 <button 
                   onClick={() => { setActiveTab('approvals'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center justify-between transition-all cursor-pointer text-left ${
-                    activeTab === 'approvals' ? 'bg-[#2563EB] text-white shadow-md' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
+                  className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center justify-between transition-colors cursor-pointer text-left ${
+                    activeTab === 'approvals' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
                 >
-                  <span className="flex items-center gap-3">
-                    <ClipboardCheck className="w-4 h-4 shrink-0" /> Approval Center
+                  <span className="flex items-center gap-2.5">
+                    <ClipboardCheck className="w-4 h-4 shrink-0" /> Persetujuan
                   </span>
                   
                   {pendingApprovalsCount > 0 && (
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                      activeTab === 'approvals' ? 'bg-white text-blue-700' : 'bg-blue-100 text-blue-700 font-mono font-bold'
+                    <span className={`text-[11px] font-bold px-1.5 py-0.2 rounded ${
+                      activeTab === 'approvals' ? 'bg-white text-[#0c2340]' : 'bg-amber-100 text-amber-800'
                     }`}>
                       {pendingApprovalsCount}
                     </span>
@@ -2615,28 +2638,27 @@ if (!res.ok) {
               {currentUser?.role !== 'Super Admin' && hasFeatureAccess('staff_profile') && (
                 <button 
                   onClick={() => { setActiveTab('staff_profile'); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center justify-between transition-all cursor-pointer text-left ${
-                    activeTab === 'staff_profile' ? 'bg-[#2563EB] text-white shadow-md' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
+                  className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center justify-between transition-colors cursor-pointer text-left ${
+                    activeTab === 'staff_profile' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
                 >
-                  <span className="flex items-center gap-3">
-                    <User className="w-4 h-4 shrink-0 text-emerald-600" /> Profil & Gaji Saya
+                  <span className="flex items-center gap-2.5">
+                    <User className="w-4 h-4 shrink-0" /> Profil & Gaji Saya
                   </span>
-                  <span className="text-[9px] font-mono bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider scale-90">Staf</span>
                 </button>
               )}
 
               {hasFeatureAccess('system') && (
                 <>
-                  <span className="text-[9px] uppercase font-bold tracking-wider text-slate-400 block pt-4 pb-2 px-3">Organisasi</span>
+                  <span className="text-[11px] uppercase font-bold tracking-wider text-slate-400 block pt-3.5 pb-1 px-2.5">Pengaturan</span>
 
                   <button 
                     onClick={() => { setActiveTab('system'); setIsMobileMenuOpen(false); }}
-                    className={`w-full text-[13px] font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer text-left ${
-                      activeTab === 'system' ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/15' : 'text-slate-600 hover:bg-slate-100/70 hover:text-[#2563EB]'
+                    className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                      activeTab === 'system' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                     }`}
                   >
-                    <Server className="w-4 h-4 shrink-0" /> Profil & Audit Log
+                    <Server className="w-4 h-4 shrink-0" /> Profil & Sistem
                   </button>
                 </>
               )}
@@ -2645,15 +2667,15 @@ if (!res.ok) {
           </div>
 
           {/* Footer of Sidebar */}
-          <div className="pt-4 border-t border-slate-200 text-[10px] text-slate-400 leading-relaxed font-sans shrink-0">
-            <span className="font-bold text-slate-600">{profile.name || 'Yayasan Murid Muda Bermisi (MMB)'}</span>
-            <p className="mt-1">Tata Kerja Terpadu &bull; v1.3</p>
+          <div className="pt-3 border-t border-slate-200 text-xs text-slate-500 leading-relaxed font-sans shrink-0">
+            <span className="font-semibold text-slate-700 block truncate">{profile.name || 'Yayasan MMB'}</span>
+            <p className="text-[11px] text-slate-400 mt-0.5">Sistem Tata Kerja Terpadu</p>
           </div>
 
         </nav>
 
         {/* WORKSPACE CENTRAL AREA PANEL (Right side view container) */}
-        <main className="flex-1 p-6 sm:p-8 max-w-full h-full overflow-y-auto block">
+        <main className="flex-1 p-5 sm:p-6 max-w-full h-full overflow-y-auto block bg-[#f8fafc]">
           
           {/* Main conditional module tabs switching renderer */}
           <div className="max-w-7xl mx-auto space-y-6">
@@ -2795,6 +2817,7 @@ if (!res.ok) {
                 profile={profile}
                 structures={structures}
                 onLogAudit={logAudit}
+                onUpdateProfile={handleUpdateProfile}
               />
             )}
 
@@ -2880,51 +2903,51 @@ if (!res.ok) {
 
       {/* MODAL: Ganti Password Sendiri (All Users) */}
       {showSelfPassModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(6px)' }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md border border-slate-300 overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-4 flex items-center justify-between">
+            <div className="bg-[#0c2340] px-5 py-3.5 flex items-center justify-between text-white">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
-                  <KeyRound className="w-5 h-5 text-white" />
+                <div className="w-8 h-8 bg-white/10 rounded flex items-center justify-center">
+                  <KeyRound className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-extrabold text-white leading-tight">Ganti Password Saya</h2>
-                  <p className="text-[10px] text-indigo-200 mt-0.5">{currentUser?.name} &bull; {currentUser?.email}</p>
+                  <h2 className="text-sm font-bold text-white leading-tight">Ganti Kata Sandi</h2>
+                  <p className="text-xs text-slate-300 mt-0.5">{currentUser?.name} &bull; {currentUser?.email}</p>
                 </div>
               </div>
               <button
                 onClick={() => { setShowSelfPassModal(false); setSelfPassError(null); setSelfPassSuccess(null); }}
-                className="w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors cursor-pointer"
+                className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Body */}
-            <form onSubmit={handleChangeSelfPassword} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleChangeSelfPassword} className="p-5 space-y-4 text-xs">
               {selfPassError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-[11px] flex items-center gap-2">
-                  <X className="w-3.5 h-3.5 shrink-0" />
-                  {selfPassError}
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded text-rose-800 text-xs flex items-center gap-2">
+                  <X className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>{selfPassError}</span>
                 </div>
               )}
               {selfPassSuccess && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-[11px] flex items-center gap-2">
-                  <Lock className="w-3.5 h-3.5 shrink-0" />
-                  {selfPassSuccess}
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded text-emerald-800 text-xs flex items-center gap-2">
+                  <Lock className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>{selfPassSuccess}</span>
                 </div>
               )}
 
               <div>
-                <label className="block font-semibold text-slate-600 mb-1">Password Saat Ini :</label>
+                <label className="block font-semibold text-slate-700 mb-1">Kata Sandi Saat Ini :</label>
                 <div className="relative">
                   <input
                     type={showSelfPassCurrent ? 'text' : 'password'}
                     value={selfPassCurrent}
                     onChange={e => setSelfPassCurrent(e.target.value)}
-                    placeholder="Masukkan password aktif Anda..."
-                    className="w-full border border-slate-200 rounded-xl pl-3 pr-10 py-2.5 text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
+                    placeholder="Masukkan kata sandi aktif..."
+                    className="w-full border border-slate-300 rounded pl-3 pr-10 py-2 text-sm text-slate-800 focus:outline-none focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340]"
                     required
                   />
                   <button
@@ -2938,14 +2961,14 @@ if (!res.ok) {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-600 mb-1">Password Baru :</label>
+                <label className="block font-semibold text-slate-700 mb-1">Kata Sandi Baru :</label>
                 <div className="relative">
                   <input
                     type={showSelfPassNew ? 'text' : 'password'}
                     value={selfPassNew}
                     onChange={e => setSelfPassNew(e.target.value)}
                     placeholder="Minimal 6 karakter..."
-                    className="w-full border border-slate-200 rounded-xl pl-3 pr-10 py-2.5 text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
+                    className="w-full border border-slate-300 rounded pl-3 pr-10 py-2 text-sm text-slate-800 focus:outline-none focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340]"
                     required
                   />
                   <button
@@ -2959,14 +2982,14 @@ if (!res.ok) {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-600 mb-1">Konfirmasi Password Baru :</label>
+                <label className="block font-semibold text-slate-700 mb-1">Konfirmasi Kata Sandi Baru :</label>
                 <div className="relative">
                   <input
                     type={showSelfPassConfirm ? 'text' : 'password'}
                     value={selfPassConfirm}
                     onChange={e => setSelfPassConfirm(e.target.value)}
-                    placeholder="Ulangi password baru..."
-                    className="w-full border border-slate-200 rounded-xl pl-3 pr-10 py-2.5 text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
+                    placeholder="Ulangi kata sandi baru..."
+                    className="w-full border border-slate-300 rounded pl-3 pr-10 py-2 text-sm text-slate-800 focus:outline-none focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340]"
                     required
                   />
                   <button
@@ -2979,27 +3002,27 @@ if (!res.ok) {
                 </div>
               </div>
 
-              <p className="text-[10px] text-slate-400 leading-relaxed">
-                ⚠️ Setelah password berhasil diperbarui, Anda akan otomatis keluar dan diminta login ulang.
+              <p className="text-xs text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded border border-slate-200">
+                Pemberitahuan: Setelah kata sandi berhasil diperbarui, Anda akan otomatis dialihkan ke halaman login untuk masuk ulang.
               </p>
 
-              <div className="flex gap-3 pt-1">
+              <div className="flex gap-2.5 pt-2">
                 <button
                   type="button"
                   onClick={() => { setShowSelfPassModal(false); setSelfPassError(null); setSelfPassSuccess(null); }}
-                  className="flex-1 py-2.5 border border-slate-200 text-slate-600 font-semibold rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
+                  className="flex-1 py-2 border border-slate-300 text-slate-700 font-medium rounded hover:bg-slate-50 transition-colors cursor-pointer text-sm"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSavingSelfPass}
-                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors cursor-pointer shadow-sm shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded transition-colors cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
                 >
                   {isSavingSelfPass ? (
                     <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block"></span> Menyimpan...</>
                   ) : (
-                    <><KeyRound className="w-3.5 h-3.5" /> Perbarui Password</>
+                    <><KeyRound className="w-3.5 h-3.5" /> Simpan Perubahan</>
                   )}
                 </button>
               </div>

@@ -22,10 +22,15 @@ import {
   AlertTriangle,
   History,
   ArrowUpDown,
-  RefreshCw
+  RefreshCw,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Filter
 } from 'lucide-react';
 import { Transaction, FinancialCategory, InstitutionalProfile } from '../types';
 import { exportToCSV, exportLedgerToPDF } from '../utils/export';
+import { getCutoffDay, getCutoffPeriodRange, isDateInCutoffPeriod, getCurrentActiveCycle, INDO_MONTHS } from '../utils/cutoff';
 
 interface FinanceTabProps {
   transactions: Transaction[];
@@ -98,6 +103,40 @@ export default function FinanceTab({
     }
   }, [activeSubView, transactions]);
   
+  // Financial Cut-Off Cycle states
+  const cutoffDay = getCutoffDay(profile);
+  const [filterCycleMode, setFilterCycleMode] = useState<'cycle' | 'all'>('cycle');
+  const [cycleMonth, setCycleMonth] = useState<number>(() => getCurrentActiveCycle(getCutoffDay(profile)).month);
+  const [cycleYear, setCycleYear] = useState<number>(() => getCurrentActiveCycle(getCutoffDay(profile)).year);
+
+  const currentFinanceCycle = React.useMemo(() => {
+    return getCutoffPeriodRange(cycleYear, cycleMonth, cutoffDay);
+  }, [cycleYear, cycleMonth, cutoffDay]);
+
+  const handlePrevCycle = () => {
+    if (cycleMonth === 0) {
+      setCycleMonth(11);
+      setCycleYear(prev => prev - 1);
+    } else {
+      setCycleMonth(prev => prev - 1);
+    }
+  };
+
+  const handleNextCycle = () => {
+    if (cycleMonth === 11) {
+      setCycleMonth(0);
+      setCycleYear(prev => prev + 1);
+    } else {
+      setCycleMonth(prev => prev + 1);
+    }
+  };
+
+  const handleCurrentCycle = () => {
+    const active = getCurrentActiveCycle(cutoffDay);
+    setCycleMonth(active.month);
+    setCycleYear(active.year);
+  };
+
   // States for search and filter
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('Semua');
@@ -197,7 +236,7 @@ export default function FinanceTab({
       onUpdateTransaction(updated);
     } else {
       const newTx: Transaction = {
-        id: `TX-2026-${String(transactions.length + 1).padStart(5, '0')}`,
+        id: `TX-${Date.now()}`,
         date: txDate,
         category: txCategory,
         description: txDescription,
@@ -222,7 +261,7 @@ export default function FinanceTab({
       let rejected = 0;
       let runningBalance = finalKasBalance;
 
-      lines.forEach(line => {
+      lines.forEach((line, index) => {
         const parts = line.split('|');
         if (parts.length >= 4) {
           const cat = parts[1]?.trim() || 'Dukungan Mitra Bulanan';
@@ -242,7 +281,7 @@ export default function FinanceTab({
           }
 
           const newTx: Transaction = {
-            id: `TX-2026-${String(transactions.length + 1 + loaded).padStart(5, '0')}`,
+            id: `TX-${Date.now()}-${index}`,
             date: parts[0]?.trim() || new Date().toISOString().split('T')[0],
             category: cat,
             description: parts[2]?.trim(),
@@ -269,17 +308,35 @@ export default function FinanceTab({
   // Filter calculations
   const approvedTx = transactions.filter(t => t.status === undefined || t.status === 'Approved');
   
+  // Total All-Time
   const totalIncome = approvedTx
     .filter(t => t.type?.toLowerCase() === 'income')
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
   const totalExpense = approvedTx
     .filter(t => t.type?.toLowerCase() === 'expense')
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
   const finalKasBalance = totalIncome - totalExpense;
 
+  // Cycle Specific (Cut-off period based)
+  const cycleApprovedTx = approvedTx.filter(t => isDateInCutoffPeriod(t.date, cycleYear, cycleMonth, cutoffDay));
+  const cycleIncome = cycleApprovedTx
+    .filter(t => t.type?.toLowerCase() === 'income')
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const cycleExpense = cycleApprovedTx
+    .filter(t => t.type?.toLowerCase() === 'expense')
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const cycleNetBalance = cycleIncome - cycleExpense;
+
+  const activeIncome = filterCycleMode === 'cycle' ? cycleIncome : totalIncome;
+  const activeExpense = filterCycleMode === 'cycle' ? cycleExpense : totalExpense;
+  const activeNetBalance = filterCycleMode === 'cycle' ? cycleNetBalance : finalKasBalance;
+
   const filteredTransactions = transactions.filter(tx => {
+    if (filterCycleMode === 'cycle' && !isDateInCutoffPeriod(tx.date, cycleYear, cycleMonth, cutoffDay)) {
+      return false;
+    }
     const matchesSearch = tx.description.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           tx.category.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           tx.sourceOrRecipient.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -314,7 +371,10 @@ export default function FinanceTab({
         'approvedBy',
         'status'
       ];
-      exportToCSV(filteredTransactions, headers, keys, `data_keuangan_kas_${new Date().toISOString().substring(0, 10)}.csv`);
+      const filename = filterCycleMode === 'cycle'
+        ? `data_keuangan_siklus_${currentFinanceCycle.targetMonthName}_${currentFinanceCycle.targetYear}.csv`
+        : `data_keuangan_kas_${new Date().toISOString().substring(0, 10)}.csv`;
+      exportToCSV(filteredTransactions, headers, keys, filename);
     } else {
       exportLedgerToPDF(filteredTransactions, profile, structures);
     }
@@ -323,87 +383,229 @@ export default function FinanceTab({
   return (
     <div className="space-y-6">
       
-      {/* Finance Analytics Board */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        
-        {/* Card: Total Saldo Kas */}
-        <div className="bg-gradient-to-br from-indigo-900 to-slate-900 p-5 rounded-2xl text-white shadow-md border border-slate-700/50 flex flex-col justify-between">
+      {/* FINANCIAL CUT-OFF CYCLE SELECTOR & CONTROLLER */}
+      <div className="bg-[#0c2340] p-4 rounded-lg text-white shadow-xs border border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-white/10 text-white rounded border border-white/20">
+            <Calendar className="w-5 h-5 text-white" />
+          </div>
           <div>
-            <span className="text-[10px] uppercase font-mono tracking-wider text-slate-300">Total Saldo Kas Yayasan (Verified)</span>
-            <h2 className="text-2xl font-bold font-mono tracking-tight mt-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase tracking-widest text-slate-300 font-semibold">
+                Siklus Finansial & Cut-Off
+              </span>
+              <span className="text-[10px] bg-white/15 text-white border border-white/20 px-2 py-0.5 rounded font-semibold">
+                Cut-off Tgl {cutoffDay}
+              </span>
+            </div>
+            <h3 className="font-bold text-sm text-white tracking-tight mt-0.5">
+              {filterCycleMode === 'cycle' ? currentFinanceCycle.formattedRange : 'Semua Riwayat Transaksi (All-Time)'}
+            </h3>
+            {filterCycleMode === 'cycle' && (
+              <span className="text-xs text-slate-300 block mt-0.5">
+                Target Periode: <strong>{currentFinanceCycle.targetMonthName} {currentFinanceCycle.targetYear}</strong> &bull; Target Gaji: <strong>{currentFinanceCycle.targetPayDateStr}</strong>
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          {/* Mode switch */}
+          <div className="flex bg-black/20 p-1 rounded border border-white/10">
+            <button
+              onClick={() => setFilterCycleMode('cycle')}
+              className={`px-3 py-1 text-xs font-semibold rounded transition-colors cursor-pointer ${
+                filterCycleMode === 'cycle'
+                  ? 'bg-white text-[#0c2340] shadow-xs'
+                  : 'text-slate-200 hover:text-white'
+              }`}
+            >
+              Per Siklus (8–7)
+            </button>
+            <button
+              onClick={() => setFilterCycleMode('all')}
+              className={`px-3 py-1 text-xs font-semibold rounded transition-colors cursor-pointer ${
+                filterCycleMode === 'all'
+                  ? 'bg-white text-[#0c2340] shadow-xs'
+                  : 'text-slate-200 hover:text-white'
+              }`}
+            >
+              Semua Waktu
+            </button>
+          </div>
+
+          {filterCycleMode === 'cycle' && (
+            <div className="flex items-center gap-1.5 bg-black/20 p-1 rounded border border-white/10">
+              <button
+                onClick={handlePrevCycle}
+                className="p-1 hover:bg-white/10 text-slate-200 hover:text-white rounded transition-colors cursor-pointer"
+                title="Siklus Bulan Sebelumnya"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              <select
+                value={cycleMonth}
+                onChange={(e) => setCycleMonth(Number(e.target.value))}
+                className="bg-[#0c2340] text-white text-xs font-semibold px-2 py-1 rounded border border-slate-600 outline-none cursor-pointer"
+              >
+                {INDO_MONTHS.map((m, idx) => {
+                  const range = getCutoffPeriodRange(cycleYear, idx, cutoffDay);
+                  return (
+                    <option key={idx} value={idx}>
+                      Target {m} ({range.startDay} {range.prevMonthName.slice(0, 3)} – {range.endDay} {m.slice(0, 3)})
+                    </option>
+                  );
+                })}
+              </select>
+
+              <select
+                value={cycleYear}
+                onChange={(e) => setCycleYear(Number(e.target.value))}
+                className="bg-[#0c2340] text-white text-xs font-semibold px-2 py-1 rounded border border-slate-600 outline-none cursor-pointer"
+              >
+                {[2024, 2025, 2026, 2027, 2028].map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+
+              <button
+                onClick={handleNextCycle}
+                className="p-1 hover:bg-white/10 text-slate-200 hover:text-white rounded transition-colors cursor-pointer"
+                title="Siklus Bulan Berikutnya"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={handleCurrentCycle}
+                className="px-2 py-1 bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold rounded transition-colors cursor-pointer"
+                title="Kembali ke Siklus Saat Ini"
+              >
+                Saat Ini
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Finance Analytics Board - Clean Institutional Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        
+        {/* Card: Total Saldo Kas Keseluruhan */}
+        <div className="bg-[#0c2340] p-5 rounded-lg text-white shadow-xs border border-slate-700 flex flex-col justify-between">
+          <div>
+            <span className="text-xs uppercase font-semibold tracking-wider text-slate-300">Total Saldo Kas Yayasan</span>
+            <h2 className="text-2xl font-bold tracking-tight mt-1 text-white">
               Rp {finalKasBalance.toLocaleString('id-ID')}
             </h2>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-700/40 text-xs text-slate-300 flex justify-between items-center">
-            <span>Staf Relasi: Mandiri Utama</span>
-            <span className="flex items-center gap-0.5 text-emerald-400 font-bold">
-              ● Buku Jurnal Kas Aktif
+          <div className="mt-4 pt-2.5 border-t border-slate-700 text-xs text-slate-300 flex justify-between items-center">
+            <span>Kas Utama Mandiri</span>
+            <span className="text-emerald-400 font-semibold text-xs">
+              ● Saldo Terverifikasi
             </span>
           </div>
         </div>
 
-        {/* Card: Pemasukan Terkumpul */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute right-0 top-0 translate-x-1 translate-y-1 w-24 h-24 bg-emerald-50 rounded-full -scale-110 opacity-30 pointer-events-none"></div>
+        {/* Card: Pemasukan Siklus / Total */}
+        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between">
           <div>
-            <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400">Total Income (Pemasukan)</span>
-            <h2 className="text-xl font-bold font-mono text-emerald-600 tracking-tight mt-1">
-              Rp {totalIncome.toLocaleString('id-ID')}
+            <span className="text-xs uppercase font-semibold tracking-wider text-slate-500">
+              {filterCycleMode === 'cycle' ? `Pemasukan Siklus ${currentFinanceCycle.targetMonthName}` : 'Total Pemasukan'}
+            </span>
+            <h2 className="text-xl font-bold text-emerald-700 tracking-tight mt-1">
+              Rp {activeIncome.toLocaleString('id-ID')}
             </h2>
           </div>
-          <p className="text-xs text-slate-400 mt-4">Bersumber dari Komitmen bulanan, donasi insidental & sponsor.</p>
+          <p className="text-xs text-slate-500 mt-4 pt-2.5 border-t border-slate-100">
+            {filterCycleMode === 'cycle' ? `Rentang: ${currentFinanceCycle.formattedRange}` : 'Seluruh donasi & penerimaan kas.'}
+          </p>
         </div>
 
-        {/* Card: Pengeluaran Kantor */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute right-0 top-0 translate-x-1 translate-y-1 w-24 h-24 bg-rose-50 rounded-full -scale-110 opacity-30 pointer-events-none"></div>
+        {/* Card: Pengeluaran Siklus / Total */}
+        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between">
           <div>
-            <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400">Total Expense (Pengeluaran)</span>
-            <h2 className="text-xl font-bold font-mono text-slate-800 tracking-tight mt-1">
-              Rp {totalExpense.toLocaleString('id-ID')}
+            <span className="text-xs uppercase font-semibold tracking-wider text-slate-500">
+              {filterCycleMode === 'cycle' ? `Pengeluaran Siklus ${currentFinanceCycle.targetMonthName}` : 'Total Pengeluaran'}
+            </span>
+            <h2 className="text-xl font-bold text-rose-700 tracking-tight mt-1">
+              Rp {activeExpense.toLocaleString('id-ID')}
             </h2>
           </div>
-          <p className="text-xs text-slate-400 mt-4">Dialokasikan untuk payroll gaji, operasional sewa, & retret siswa.</p>
+          <p className="text-xs text-slate-500 mt-4 pt-2.5 border-t border-slate-100">
+            {filterCycleMode === 'cycle' ? `Beban operasional & payroll ${currentFinanceCycle.targetMonthName}` : 'Beban payroll & operasional.'}
+          </p>
+        </div>
+
+        {/* Card: Net Cashflow Siklus */}
+        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between">
+          <div>
+            <span className="text-xs uppercase font-semibold tracking-wider text-slate-500">
+              {filterCycleMode === 'cycle' ? `Surplus / Defisit Siklus` : 'Surplus / Defisit Kas'}
+            </span>
+            <h2 className={`text-xl font-bold tracking-tight mt-1 ${
+              activeNetBalance >= 0 ? 'text-emerald-700' : 'text-rose-700'
+            }`}>
+              {activeNetBalance >= 0 ? '+' : ''}Rp {activeNetBalance.toLocaleString('id-ID')}
+            </h2>
+          </div>
+          <div className="mt-4 pt-2.5 border-t border-slate-100 text-xs text-slate-600 flex items-center justify-between">
+            <span>Status Keuangan:</span>
+            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+              activeNetBalance >= 0 ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
+            }`}>
+              {activeNetBalance >= 0 ? 'Surplus' : 'Defisit'}
+            </span>
+          </div>
         </div>
 
       </div>
 
       {/* Mode Control & Buttons */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-3">
         
         {/* Menu selections */}
-        <div className="flex flex-wrap gap-2 p-1 bg-slate-100 rounded-xl">
+        <div className="flex flex-wrap gap-1 sm:gap-2">
           <button 
             onClick={() => setActiveSubView('ledger')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer ${
-              activeSubView === 'ledger' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+            className={`px-4 py-2 text-xs font-semibold cursor-pointer border-b-2 transition-colors ${
+              activeSubView === 'ledger' 
+                ? 'border-[#0c2340] text-[#0c2340] bg-slate-50/50' 
+                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
             Buku Jurnal Kas
           </button>
           <button 
             onClick={() => setActiveSubView('import')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer ${
-              activeSubView === 'import' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+            className={`px-4 py-2 text-xs font-semibold cursor-pointer border-b-2 transition-colors ${
+              activeSubView === 'import' 
+                ? 'border-[#0c2340] text-[#0c2340] bg-slate-50/50' 
+                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
-            Unggah Jurnal Excel
+            Unggah Jurnal CSV
           </button>
           <button 
             onClick={() => setActiveSubView('categories')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer ${
-              activeSubView === 'categories' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+            className={`px-4 py-2 text-xs font-semibold cursor-pointer border-b-2 transition-colors ${
+              activeSubView === 'categories' 
+                ? 'border-[#0c2340] text-[#0c2340] bg-slate-50/50' 
+                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
-            Kategori & Budgeting
+            Kategori & Anggaran
           </button>
           <button 
             onClick={() => setActiveSubView('kas_history')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1.5 ${
-              activeSubView === 'kas_history' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+            className={`px-4 py-2 text-xs font-semibold cursor-pointer flex items-center gap-1.5 border-b-2 transition-colors ${
+              activeSubView === 'kas_history' 
+                ? 'border-[#0c2340] text-[#0c2340] bg-slate-50/50' 
+                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
-            <History className="w-3.5 h-3.5" /> Log Aliran Saldo (Table Kas)
+            <History className="w-3.5 h-3.5" /> Log Mutasi Kas
           </button>
         </div>
 
@@ -413,24 +615,24 @@ export default function FinanceTab({
             <>
               <button 
                 onClick={() => triggerSimulationExport('Excel')}
-                className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-800 transition-colors"
+                className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 rounded text-xs font-medium flex items-center gap-1.5 cursor-pointer text-slate-700 transition-colors shadow-xs"
                 title="Export Excel"
               >
-                <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Export
+                <FileSpreadsheet className="w-4 h-4 text-emerald-700" /> Ekspor CSV
               </button>
               <button 
                 onClick={() => triggerSimulationExport('PDF')}
-                className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-800 transition-colors"
+                className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 rounded text-xs font-medium flex items-center gap-1.5 cursor-pointer text-slate-700 transition-colors shadow-xs"
                 title="Unduh PDF Resmi"
               >
-                <Download className="w-4 h-4 text-indigo-600" /> Unduh PDF
+                <Download className="w-4 h-4 text-[#0c2340]" /> Unduh PDF
               </button>
               {isEditable && (
                 <button 
                   onClick={openAddForm}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1 shadow-sm cursor-pointer"
+                  className="px-3.5 py-1.5 bg-[#881337] hover:bg-[#9f1239] text-white rounded text-xs font-semibold flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
                 >
-                  <Plus className="w-4 h-4" /> Entri Kas
+                  <Plus className="w-4 h-4" /> Entri Kas Baru
                 </button>
               )}
             </>
@@ -441,18 +643,18 @@ export default function FinanceTab({
 
       {/* VIEW 1: GENERAL LEDGER TABLE */}
       {activeSubView === 'ledger' && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col justify-between">
+        <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden flex flex-col justify-between">
           
           {/* Filtering bar in ledger */}
-          <div className="p-4 border-b border-slate-50 flex flex-col sm:flex-row gap-4">
+          <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="Cari deskripsi transaksi, sumber pendana atau kategori..."
+                placeholder="Cari deskripsi transaksi, nomor referensi, atau pihak relasi..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-1.5 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded text-xs text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
               />
             </div>
             
@@ -460,7 +662,7 @@ export default function FinanceTab({
               <select 
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="border border-slate-200 rounded-xl px-3 py-1.5 bg-white text-slate-700 focus:outline-none"
+                className="border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
               >
                 <option value="Semua">Semua Aliran Kas</option>
                 <option value="Income">Pemasukan (+IN)</option>
@@ -470,7 +672,7 @@ export default function FinanceTab({
               <select 
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
-                className="border border-slate-200 rounded-xl px-3 py-1.5 bg-white text-slate-700 focus:outline-none"
+                className="border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
               >
                 <option value="Semua">Semua Kategori</option>
                 {categories.map(cat => (
@@ -480,62 +682,74 @@ export default function FinanceTab({
             </div>
           </div>
 
+          {filterCycleMode === 'cycle' && (
+            <div className="bg-slate-50 px-4 py-2 border-b border-slate-200 flex items-center justify-between text-xs text-slate-700">
+              <span className="flex items-center gap-1.5">
+                <span className="font-semibold">Menampilkan Transaksi Siklus:</span>
+                <span className="font-semibold text-[#0c2340]">{currentFinanceCycle.formattedRange}</span>
+              </span>
+              <span className="font-medium text-slate-500">
+                {filteredTransactions.length} Transaksi Terdata
+              </span>
+            </div>
+          )}
+
           {/* Jurnal Ledger table rendering */}
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/50 text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono border-b border-slate-100">
-                  <th className="p-4">Kode Ref / Tanggal</th>
-                  <th className="p-4">Kategori Akun</th>
-                  <th className="p-4">Deskripsi Mutasi</th>
-                  <th className="p-4">Sumber / Pihak Relasi</th>
-                  <th className="p-4 text-right">Nominal Transaksi</th>
-                  <th className="p-4">Status Approval</th>
-                  {isEditable && <th className="p-4 text-center">Aksi</th>}
+                <tr className="bg-slate-50 text-xs text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200">
+                  <th className="p-3.5">Kode Ref / Tanggal</th>
+                  <th className="p-3.5">Kategori Akun</th>
+                  <th className="p-3.5">Deskripsi Mutasi</th>
+                  <th className="p-3.5">Sumber / Pihak Relasi</th>
+                  <th className="p-3.5 text-right">Nominal</th>
+                  <th className="p-3.5">Status</th>
+                  {isEditable && <th className="p-3.5 text-center">Aksi</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
                 {filteredTransactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-slate-50/10 transition-colors">
-                    <td className="p-4">
-                      <div className="font-bold text-slate-800 font-mono tracking-tight text-[11px]">{tx.id}</div>
-                      <span className="text-[10px] text-slate-400 font-mono">{tx.date}</span>
+                  <tr key={tx.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="p-3.5">
+                      <div className="font-bold text-slate-900">{tx.id}</div>
+                      <span className="text-[11px] text-slate-500">{tx.date}</span>
                     </td>
-                    <td className="p-4">
-                      <span className="text-slate-600 font-semibold">{tx.category}</span>
+                    <td className="p-3.5">
+                      <span className="text-slate-800 font-semibold">{tx.category}</span>
                       {tx.type?.toLowerCase() === 'income' && tx.allocationObjective && (
-                        <div className="text-[10px] text-indigo-600 font-bold mt-0.5">Peruntukan: {tx.allocationObjective}</div>
+                        <div className="text-[11px] text-slate-500 font-medium mt-0.5">Peruntukan: {tx.allocationObjective}</div>
                       )}
                     </td>
-                    <td className="p-4 font-medium text-slate-800 max-w-sm leading-relaxed">
+                    <td className="p-3.5 text-slate-800 max-w-sm leading-relaxed">
                       {tx.description}
                     </td>
-                    <td className="p-4 font-medium text-slate-600">
+                    <td className="p-3.5 text-slate-700">
                       {tx.sourceOrRecipient}
                     </td>
-                    <td className="p-4 text-right">
-                      <span className={`font-mono text-sm font-bold ${
-                        tx.type?.toLowerCase() === 'income' ? 'text-emerald-600' : 'text-slate-800'
+                    <td className="p-3.5 text-right">
+                      <span className={`font-semibold ${
+                        tx.type?.toLowerCase() === 'income' ? 'text-emerald-700' : 'text-slate-900'
                       }`}>
                         {tx.type?.toLowerCase() === 'income' ? '+' : '-'}Rp {tx.amount.toLocaleString('id-ID')}
                       </span>
                     </td>
-                    <td className="p-4">
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                        (tx.status || 'Approved') === 'Approved' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 
-                        (tx.status || 'Approved') === 'Pending Approval' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                        'bg-rose-50 text-rose-600 border border-rose-100'
+                    <td className="p-3.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        (tx.status || 'Approved') === 'Approved' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 
+                        (tx.status || 'Approved') === 'Pending Approval' ? 'bg-amber-50 text-amber-800 border border-amber-200' :
+                        'bg-rose-50 text-rose-800 border border-rose-200'
                       }`}>
                         {tx.status || 'Approved'}
                       </span>
                     </td>
                     {(canEdit || canDelete) && (
-                      <td className="p-4 text-center">
-                        <div className="flex justify-center gap-2">
+                      <td className="p-3.5 text-center">
+                        <div className="flex justify-center gap-1.5">
                           {canEdit && (
                             <button 
                               onClick={() => openEditForm(tx)}
-                              className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-[10px] rounded-lg font-bold text-indigo-755 cursor-pointer shadow-xs transition-colors"
+                              className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded font-medium cursor-pointer transition-colors"
                             >
                               Edit
                             </button>
@@ -547,7 +761,7 @@ export default function FinanceTab({
                                   onDeleteTransaction(tx.id);
                                 }
                               }}
-                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-155 border border-rose-200 text-[10px] rounded-lg font-bold text-rose-755 cursor-pointer shadow-xs transition-colors"
+                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-800 text-xs rounded font-medium cursor-pointer transition-colors"
                             >
                               Hapus
                             </button>
@@ -557,13 +771,37 @@ export default function FinanceTab({
                     )}
                   </tr>
                 ))}
+                {filteredTransactions.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-slate-500">
+                      <p className="text-xs">Tidak ada transaksi yang tercatat dalam rentang <strong>{filterCycleMode === 'cycle' ? currentFinanceCycle.formattedRange : 'filter yang dipilih'}</strong>.</p>
+                      {filterCycleMode === 'cycle' && (
+                        <div className="flex justify-center gap-2 mt-3">
+                          <button
+                            onClick={handleCurrentCycle}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs rounded transition-colors cursor-pointer border border-slate-300"
+                          >
+                            Pindah ke Siklus Berjalan
+                          </button>
+                          <button
+                            onClick={() => setFilterCycleMode('all')}
+                            className="px-3 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold text-xs rounded transition-colors cursor-pointer"
+                          >
+                            Lihat Semua Transaksi
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
 
-          <div className="p-4 border-t border-slate-50 bg-slate-50/50 flex justify-between text-xs text-slate-505">
-            <span>Filter Menampilkan {filteredTransactions.length} baris riwayat kas</span>
-            <span className="font-mono text-[10px]">Jurnal Terverifikasi &bull; Sistem Internal</span>
+          {/* Footer count indicator */}
+          <div className="p-3.5 border-t border-slate-200 bg-slate-50 flex justify-between items-center text-xs text-slate-500">
+            <span>Menampilkan {filteredTransactions.length} baris riwayat kas</span>
+            <span>Jurnal Terverifikasi &bull; Yayasan MMB</span>
           </div>
 
         </div>
@@ -571,40 +809,40 @@ export default function FinanceTab({
 
       {/* VIEW 2: MASS PARSING EXCEL IMPORT */}
       {activeSubView === 'import' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-          <div>
-            <h3 className="text-md font-semibold text-slate-800">Unggah Masal Jurnal Transaksi</h3>
-            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Modul penyesuaian kas bulanan dari slip mutasi bank atau laporan audit fisik. Salin-tempel multi baris dengan pemisah karakter pipa (<code className="bg-slate-100 p-0.5 rounded font-bold font-mono">|</code>) untuk langsung menyatukannya dengan catatan kas utama di memori aplikasi.
+        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4">
+          <div className="pb-3 border-b border-slate-200">
+            <h3 className="text-sm font-bold text-slate-800">Unggah Masal Jurnal Transaksi</h3>
+            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+              Penyesuaian kas bulanan dari slip mutasi bank atau laporan audit fisik. Salin-tempel multi baris dengan pemisah karakter pipa (<code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">|</code>) untuk langsung menyatukannya dengan catatan kas utama.
             </p>
           </div>
 
-          <div className="space-y-3 font-sans">
-            <span className="text-xs font-mono font-bold text-indigo-600 block">FORMAT PASTE KOLOM KAS JURNAL:</span>
-            <div className="bg-slate-900 text-slate-300 font-mono text-[10px] p-3 rounded-xl border border-slate-800 overflow-x-auto whitespace-nowrap">
+          <div className="space-y-3">
+            <span className="text-xs font-bold text-slate-700 uppercase block">Format Urutan Kolom:</span>
+            <div className="bg-slate-900 text-slate-200 font-mono text-[11px] p-3 rounded border border-slate-800 overflow-x-auto whitespace-nowrap leading-relaxed">
               Tanggal (YYYY-MM-DD) | Kategori_Akun | Deskripsi_Mutasi | Nominal_Rupiah | Tipe_Aliran_Kas (Income/Expense) | Rekening_Sumber
             </div>
             
             <div>
-              <label className="text-xs text-slate-600 block mb-1">Jurnal Arus Kas:</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Data Salinan Jurnal Kas:</label>
               <textarea 
                 rows={5}
                 value={pastedLedgerText}
                 onChange={(e) => setPastedLedgerText(e.target.value)}
-                className="w-full font-mono text-[11px] p-3 border border-slate-200 rounded-xl leading-relaxed focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full font-mono text-xs p-3 border border-slate-300 rounded leading-relaxed focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
               />
             </div>
 
             {importStatus && (
-              <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-semibold flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-600" />
-                {importStatus}
+              <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-xs font-semibold flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{importStatus}</span>
               </div>
             )}
 
             <button 
               onClick={handleBulkLedgerImport}
-              className="px-5 py-2 text-white bg-indigo-600 hover:bg-indigo-700 font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+              className="px-4 py-2 text-white bg-[#0c2340] hover:bg-[#1b365d] font-semibold rounded text-xs flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
             >
               <Upload className="w-4 h-4" /> Impor Data ke Catatan Kas
             </button>
@@ -614,49 +852,49 @@ export default function FinanceTab({
 
       {/* VIEW 3: CATEGORIES & CONTROLS BUDGET LIMITS */}
       {activeSubView === 'categories' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-          <div>
-            <h3 className="text-md font-semibold text-slate-800">Pengaturan Kategori & Batas Anggaran Kelembagaan (Budgeting Limit)</h3>
-            <p className="text-xs text-slate-500 mt-1">Garis kontrol alokasi kas bulanan per pos pengeluaran dalam setahun.</p>
+        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4">
+          <div className="pb-3 border-b border-slate-200">
+            <h3 className="text-sm font-bold text-slate-800">Kategori & Batas Anggaran (Budgeting Limit)</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Kontrol alokasi kas bulanan per pos pengeluaran dan pemasukan tahunan.</p>
           </div>
 
           {/* Form to Add New Category */}
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6 space-y-4">
-            <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">➕ Tambah Kategori Akun Baru / Atur Batas Budgeting</h4>
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3.5">
+            <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5 uppercase">Tambah Kategori / Atur Batas Budgeting</h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="text-slate-500 block mb-1 text-[10px] font-bold">Nama Kategori Buku Kas :</label>
+                <label className="text-slate-700 block mb-1 text-xs font-semibold">Nama Kategori Buku Kas :</label>
                 <input 
                   type="text" 
                   value={newCatName} 
                   onChange={(e) => setNewCatName(e.target.value)}
                   placeholder="Contoh: ATK & Cetak, Sewa Kantor"
-                  className="w-full border border-slate-200 rounded-xl px-3 py-1.5 bg-white text-xs text-slate-800"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-xs text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                 />
               </div>
               <div>
-                <label className="text-slate-500 block mb-1 text-[10px] font-bold">Jenis Akun Mutasi :</label>
+                <label className="text-slate-700 block mb-1 text-xs font-semibold">Jenis Akun Mutasi :</label>
                 <select 
                   value={newCatType} 
                   onChange={(e) => setNewCatType(e.target.value as any)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-1.5 bg-white text-xs text-slate-800"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-xs text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                 >
                   <option value="Expense">Pengeluaran (-EXP)</option>
                   <option value="Income">Pemasukan (+IN)</option>
                 </select>
               </div>
               <div>
-                <label className="text-slate-500 block mb-1 text-[10px] font-bold">Batas Limit Anggaran Bulanan (IDR - Opsional) :</label>
+                <label className="text-slate-700 block mb-1 text-xs font-semibold">Batas Anggaran Bulanan (IDR - Opsional) :</label>
                 <input 
                   type="number" 
                   value={newCatLimit || ''} 
                   onChange={(e) => setNewCatLimit(e.target.value ? Number(e.target.value) : '')}
                   placeholder="Contoh: 5000000"
-                  className="w-full border border-slate-200 rounded-xl px-3 py-1.5 bg-white text-xs text-slate-800 font-mono"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-xs text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                 />
               </div>
             </div>
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end pt-1">
               <button 
                 type="button"
                 onClick={() => {
@@ -678,14 +916,14 @@ export default function FinanceTab({
                     alert('Backend sinkronisasi belum tersedia untuk kategori baru.');
                   }
                 }}
-                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-750 text-white font-bold rounded-xl text-[11px] shadow-sm cursor-pointer"
+                className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs shadow-xs transition-colors cursor-pointer"
               >
-                Simpan & Daftarkan Kategori
+                Simpan Kategori
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
             {categories.map((cat) => {
               const txsForCat = transactions.filter(t => t.category === cat.name && (t.status === undefined || t.status === 'Approved'));
               const usedAmount = txsForCat.reduce((sum, t) => sum + t.amount, 0);
@@ -693,33 +931,33 @@ export default function FinanceTab({
               const isOver = cat.budgetLimit && usedAmount > cat.budgetLimit;
 
               return (
-                <div key={cat.id} className="p-4 border border-slate-100 bg-white rounded-2xl hover:shadow-md transition-all flex flex-col justify-between">
+                <div key={cat.id} className="p-4 border border-slate-200 bg-white rounded-lg shadow-xs hover:border-slate-300 transition-colors flex flex-col justify-between">
                   <div>
                     <div className="flex justify-between items-start mb-2">
-                      <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded ${
-                        cat.type === 'Income' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                        cat.type === 'Income' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-700 border-slate-200'
                       }`}>
                         {cat.type === 'Income' ? 'Pemasukan' : 'Pengeluaran'}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-mono">ID: {cat.id}</span>
+                      <span className="text-[11px] text-slate-400">ID: {cat.id}</span>
                     </div>
-                    <h4 className="font-bold text-slate-800 text-xs mb-3">{cat.name}</h4>
+                    <h4 className="font-bold text-slate-900 text-xs mb-3">{cat.name}</h4>
                     
-                    <div className="text-xs text-slate-600 space-y-1">
+                    <div className="text-xs text-slate-600 space-y-1.5">
                       <div className="flex justify-between">
                         <span>Realisasi Kas:</span>
-                        <strong className="text-slate-800 font-mono">Rp {usedAmount.toLocaleString('id-ID')}</strong>
+                        <strong className="text-slate-900 font-bold">Rp {usedAmount.toLocaleString('id-ID')}</strong>
                       </div>
                       
                       {editingCatId === cat.id ? (
-                        <div className="space-y-1.5 pt-2 border-t mt-2">
-                          <label className="text-[10px] text-slate-400 font-bold block">Edit Limit Anggaran (IDR):</label>
+                        <div className="space-y-1.5 pt-2 border-t border-slate-200 mt-2">
+                          <label className="text-[11px] text-slate-700 font-semibold block">Edit Limit Anggaran (IDR):</label>
                           <div className="flex gap-1.5">
                             <input 
                               type="number"
                               value={editLimitVal}
                               onChange={(e) => setEditLimitVal(e.target.value ? Number(e.target.value) : '')}
-                              className="w-full border border-slate-200 rounded px-2 py-1 text-xs font-mono"
+                              className="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                               placeholder="Limit..."
                             />
                             <button 
@@ -735,13 +973,13 @@ export default function FinanceTab({
                                 setEditingCatId(null);
                                 setEditLimitVal('');
                               }}
-                              className="px-2 py-1 bg-indigo-650 hover:bg-slate-800 text-white rounded font-bold text-[10px]"
+                              className="px-2.5 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded font-bold text-xs cursor-pointer transition-colors"
                             >
                               OK
                             </button>
                             <button 
                               onClick={() => setEditingCatId(null)}
-                              className="px-2 py-1 border rounded text-[10px]"
+                              className="px-2 py-1 border border-slate-300 hover:bg-slate-50 rounded text-xs text-slate-700 cursor-pointer"
                             >
                               Batal
                             </button>
@@ -750,21 +988,21 @@ export default function FinanceTab({
                       ) : (
                         <>
                           <div className="flex justify-between items-center pt-1">
-                            <span>Batas Limit Anggaran:</span>
-                            <span className="font-semibold text-slate-600 font-mono">
+                            <span>Batas Anggaran:</span>
+                            <span className="font-semibold text-slate-800">
                               {cat.budgetLimit ? `Rp ${cat.budgetLimit.toLocaleString('id-ID')}` : 'Belum Ditentukan'}
                             </span>
                           </div>
                           
                           {cat.budgetLimit ? (
                             <>
-                              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-3">
+                              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-3 border border-slate-200">
                                 <div 
                                   style={{ width: `${percentage}%` }} 
-                                  className={`h-full ${isOver ? 'bg-rose-500' : 'bg-indigo-600'} transition-all`}
+                                  className={`h-full ${isOver ? 'bg-rose-600' : 'bg-[#0c2340]'} transition-all`}
                                 />
                               </div>
-                              <p className="text-[9px] text-slate-400 font-bold mt-1 text-right">Pemakaian: {percentage.toFixed(0)}%</p>
+                              <p className="text-[11px] text-slate-500 font-semibold mt-1 text-right">Pemakaian: {percentage.toFixed(0)}%</p>
                             </>
                           ) : null}
                         </>
@@ -773,32 +1011,32 @@ export default function FinanceTab({
                   </div>
 
                   {isOver && (
-                    <div className="mt-3 p-2 bg-rose-50 border border-rose-100 rounded-lg text-[10px] text-rose-700 font-medium flex items-center gap-1">
-                      <AlertTriangle className="w-3.5 h-3.5" /> Pos Anggaran ini Melebihi Batas Tahun Ini!
+                    <div className="mt-3 p-2 bg-rose-50 border border-rose-200 rounded text-xs text-rose-800 font-medium flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> Pos Anggaran ini Melebihi Batas Tahun Ini!
                     </div>
                   )}
 
                   {/* Edit / Delete actions at the card bottom */}
                   {editingCatId !== cat.id && (
-                    <div className="mt-4 pt-3 border-t border-slate-50 flex justify-end gap-1.5">
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end gap-2">
                       <button 
                         onClick={() => {
                           setEditingCatId(cat.id);
                           setEditLimitVal(cat.budgetLimit || '');
                         }}
-                        className="px-2 py-1 hover:bg-slate-100 text-slate-500 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                        className="px-2 py-1 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors"
                         title="Edit limit anggaran"
                       >
-                        <Edit className="w-3.5 h-3.5" /> Edit Limit
+                        <Edit className="w-3 h-3" /> Edit Limit
                       </button>
                       <button 
                         onClick={() => {
                           setDeleteConfirmCategory(cat);
                         }}
-                        className="px-2 py-1 hover:bg-red-50 text-red-500 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                        className="px-2 py-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-800 rounded text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors"
                         title="Hapus kategori ini"
                       >
-                        <Trash className="w-3.5 h-3.5" /> Hapus
+                        <Trash className="w-3 h-3" /> Hapus
                       </button>
                     </div>
                   )}
@@ -811,17 +1049,17 @@ export default function FinanceTab({
 
       {/* VIEW 4: REAL-TIME CHRONOLOGICAL CASH JOURNAL LOGS (Table Kas) */}
       {activeSubView === 'kas_history' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-5">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-3 border-b border-slate-200">
             <div>
-              <h3 className="text-md font-semibold text-slate-800">Buku Register Aliran Saldo & Jurnal Transaksi (Table Kas Trace Log)</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Catatan mutasi saldo kas riil secara terus-menerus (append-only ledger) untuk akuntabilitas tinggi dan kepatuhan audit.
+              <h3 className="text-sm font-bold text-slate-800">Buku Register Mutasi Kas (Trace Log)</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Catatan mutasi saldo kas riil secara terus-menerus (append-only ledger) untuk akuntabilitas dan audit internal.
               </p>
             </div>
             <button 
               onClick={fetchKasHistory}
-              className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer text-slate-600 transition-colors"
+              className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 rounded text-xs font-medium flex items-center gap-1.5 cursor-pointer text-slate-700 transition-colors shadow-xs"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isHistoryLoading ? 'animate-spin' : ''}`} /> Refresh Log
             </button>
@@ -829,24 +1067,24 @@ export default function FinanceTab({
 
           {/* Log metrics summary cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Total Snapshot Entri Log</span>
-              <p className="text-lg font-bold text-slate-705 font-mono mt-0.5">{kasHistory.length} Baris Jurnal</p>
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <span className="text-[11px] uppercase font-bold text-slate-500">Total Snapshot Entri Log</span>
+              <p className="text-base font-bold text-slate-900 mt-0.5">{kasHistory.length} Baris Jurnal</p>
             </div>
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Saldo Akhir di Buku Kas</span>
-              <p className="text-lg font-bold text-indigo-700 font-mono mt-0.5">Rp {finalKasBalance.toLocaleString('id-ID')}</p>
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <span className="text-[11px] uppercase font-bold text-slate-500">Saldo Akhir di Buku Kas</span>
+              <p className="text-base font-bold text-[#0c2340] mt-0.5">Rp {finalKasBalance.toLocaleString('id-ID')}</p>
             </div>
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Kepatuhan Integritas</span>
-              <p className="text-xs font-bold text-emerald-600 mt-1 font-mono">✓ Lolos Audit Otomatis (100% Cocok)</p>
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <span className="text-[11px] uppercase font-bold text-slate-500">Kepatuhan Integritas</span>
+              <p className="text-xs font-bold text-emerald-700 mt-1">✓ Lolos Audit Otomatis (100% Cocok)</p>
             </div>
           </div>
 
           {/* Search and Filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50/50 rounded-2xl border border-slate-100/50">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50 rounded-lg border border-slate-200">
             <div>
-              <label className="text-[10px] font-bold text-slate-400 block mb-1">Cari Keterangan / Ref / Operator:</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Cari Keterangan / Ref / Operator:</label>
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-400" />
                 <input 
@@ -854,16 +1092,16 @@ export default function FinanceTab({
                   value={historySearchQuery}
                   onChange={(e) => setHistorySearchQuery(e.target.value)}
                   placeholder="Ketik keterangan..."
-                  className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-800 focus:outline-hidden"
+                  className="w-full bg-white border border-slate-300 rounded pl-9 pr-3 py-1.5 text-xs text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                 />
               </div>
             </div>
             <div>
-              <label className="text-[10px] font-bold text-slate-400 block mb-1">Filter Tipe Kas:</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Filter Tipe Kas:</label>
               <select 
                 value={historyFilterType}
                 onChange={(e) => setHistoryFilterType(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800"
+                className="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
               >
                 <option value="Semua">Semua Tipe (Income & Expense)</option>
                 <option value="income">Hanya Pemasukan (+)</option>
@@ -871,11 +1109,11 @@ export default function FinanceTab({
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-bold text-slate-400 block mb-1">Filter Sumber:</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Filter Sumber:</label>
               <select 
                 value={historyFilterSource}
                 onChange={(e) => setHistoryFilterSource(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800"
+                className="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
               >
                 <option value="Semua">Semua Sumber (Manual, Donasi, Gaji)</option>
                 <option value="manual">Manual / Bendahara</option>
@@ -886,23 +1124,23 @@ export default function FinanceTab({
           </div>
 
           {/* Log Table Container */}
-          <div className="border border-slate-100 rounded-2xl overflow-hidden shadow-xs bg-white">
+          <div className="border border-slate-200 rounded-lg overflow-hidden shadow-xs bg-white">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/70 text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono border-b border-slate-100">
-                  <th className="p-4">Tanggal Log & ID Jurnal</th>
-                  <th className="p-4">Aksi</th>
-                  <th className="p-4">Kategori & Pihak Kedua</th>
-                  <th className="p-4 text-right font-mono">Nominal</th>
-                  <th className="p-4 text-center font-mono">Aliran Saldo</th>
-                  <th className="p-4">Operator & Saluran</th>
+                <tr className="bg-slate-50 text-xs text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200">
+                  <th className="p-3.5">Tanggal Log & ID Jurnal</th>
+                  <th className="p-3.5">Aksi</th>
+                  <th className="p-3.5">Kategori & Keterangan</th>
+                  <th className="p-3.5 text-right">Nominal</th>
+                  <th className="p-3.5 text-center">Aliran Saldo</th>
+                  <th className="p-3.5">Operator & Saluran</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
                 {isHistoryLoading ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-slate-400">
-                      <div className="animate-spin inline-block w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full mb-2"></div>
+                    <td colSpan={6} className="p-8 text-center text-slate-500">
+                      <div className="animate-spin inline-block w-5 h-5 border-2 border-[#0c2340] border-t-transparent rounded-full mb-2"></div>
                       <p>Memuat jurnal detail aliran saldo...</p>
                     </td>
                   </tr>
@@ -921,11 +1159,11 @@ export default function FinanceTab({
                   return matchesSearch && matchesType && matchesSource;
                 }).length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-slate-400">
+                    <td colSpan={6} className="p-8 text-center text-slate-500">
                       <History className="w-8 h-8 mx-auto text-slate-300 mb-2" />
-                      <p className="font-semibold">Belum Ada Catatan Mutasi / Filter Tidak Cocok</p>
-                      <p className="text-[11px] text-slate-400 mt-1">
-                        Coba tambahkan atau hapus transaksi keuangan kas, maka perubahannya akan otomatis terekam secara atomic di sini.
+                      <p className="font-semibold text-slate-700">Belum Ada Catatan Mutasi / Filter Tidak Cocok</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Coba tambahkan atau hapus transaksi keuangan kas, maka perubahannya akan otomatis terekam di sini.
                       </p>
                     </td>
                   </tr>
@@ -951,42 +1189,42 @@ export default function FinanceTab({
                     : '-';
                   
                   return (
-                    <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="p-4">
-                        <div className="font-bold text-slate-700 font-mono text-[10px] tracking-tight">{log.id}</div>
-                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">{formattedDate} {formattedTime}</div>
+                    <tr key={log.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="p-3.5">
+                        <div className="font-bold text-slate-900 text-xs">{log.id}</div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">{formattedDate} {formattedTime}</div>
                         {log.transaction_id && (
-                          <div className="text-[9px] text-indigo-500 font-bold font-mono mt-0.5">Ref ID: {log.transaction_id}</div>
+                          <div className="text-[11px] text-[#0c2340] font-semibold mt-0.5">Ref ID: {log.transaction_id}</div>
                         )}
                       </td>
-                      <td className="p-4">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded tracking-wider uppercase ${
-                          log.action === 'DELETE' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
-                          log.action === 'EDIT' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                          'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                      <td className="p-3.5">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded tracking-wider uppercase border ${
+                          log.action === 'DELETE' ? 'bg-rose-50 text-rose-800 border-rose-200' :
+                          log.action === 'EDIT' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                          'bg-slate-100 text-slate-700 border-slate-200'
                         }`}>
                           {log.action || 'CREATE'}
                         </span>
                       </td>
-                      <td className="p-4 font-medium">
-                        <span className="font-bold text-slate-800 block text-[11px] mb-0.5">{log.category}</span>
-                        <span className="text-slate-500 line-clamp-2 max-w-xs block leading-relaxed">{log.description || '(Tidak ada keterangan)'}</span>
+                      <td className="p-3.5 font-medium">
+                        <span className="font-bold text-slate-900 block text-xs mb-0.5">{log.category}</span>
+                        <span className="text-slate-600 line-clamp-2 max-w-xs block leading-relaxed">{log.description || '(Tidak ada keterangan)'}</span>
                       </td>
-                      <td className="p-4 text-right font-bold font-mono text-[11px]">
-                        <span className={(log.type || '').toLowerCase() === 'income' ? 'text-emerald-600' : 'text-rose-600'}>
+                      <td className="p-3.5 text-right font-bold text-xs">
+                        <span className={(log.type || '').toLowerCase() === 'income' ? 'text-emerald-700' : 'text-rose-700'}>
                           {(log.type || '').toLowerCase() === 'income' ? '+' : '-'} Rp {Number(log.amount || 0).toLocaleString('id-ID')}
                         </span>
                       </td>
-                      <td className="p-4 text-center font-mono text-[10px]">
-                        <div className="text-slate-400">Sebelum: Rp {Number(log.balanceBefore || 0).toLocaleString('id-ID')}</div>
-                        <div className="text-indigo-600 font-semibold mt-0.5">Sesudah: Rp {Number(log.balanceAfter || 0).toLocaleString('id-ID')}</div>
+                      <td className="p-3.5 text-center text-xs">
+                        <div className="text-slate-500">Sebelum: Rp {Number(log.balanceBefore || 0).toLocaleString('id-ID')}</div>
+                        <div className="text-[#0c2340] font-semibold mt-0.5">Sesudah: Rp {Number(log.balanceAfter || 0).toLocaleString('id-ID')}</div>
                       </td>
-                      <td className="p-4">
-                        <div className="font-semibold text-slate-700">{log.updatedBy}</div>
-                        <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded mt-1 inline-block uppercase ${
-                          log.source === 'donation' ? 'bg-teal-50 text-teal-600' :
-                          log.source === 'payroll' ? 'bg-blue-50 text-blue-600' :
-                          'bg-slate-100 text-slate-600'
+                      <td className="p-3.5">
+                        <div className="font-semibold text-slate-800">{log.updatedBy}</div>
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded mt-1 inline-block uppercase border ${
+                          log.source === 'donation' ? 'bg-blue-50 text-blue-800 border-blue-200' :
+                          log.source === 'payroll' ? 'bg-purple-50 text-purple-800 border-purple-200' :
+                          'bg-slate-100 text-slate-700 border-slate-200'
                         }`}>
                           {log.source || 'manual'}
                         </span>
@@ -1002,37 +1240,37 @@ export default function FinanceTab({
 
       {/* MODAL: EXCEL JURNAL ENTRY */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 overflow-y-auto backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden my-8 scale-95 transition-transform">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg border border-slate-300 w-full max-w-md overflow-hidden my-8">
             
-            <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
+            <div className="bg-[#0c2340] px-5 py-3.5 text-white flex justify-between items-center">
               <div>
-                <dt className="text-sm font-bold">{editingTx ? 'Ubah Catatan Transaksi Kas' : 'Input Transaksi Jurnal Baru'}</dt>
-                <dd className="text-[11px] text-slate-300">Setiap nominal pengeluaran di bawah wewenang persetujuan Bendahara.</dd>
+                <dt className="text-sm font-bold">{editingTx ? 'Ubah Catatan Transaksi Kas' : 'Entri Transaksi Jurnal Baru'}</dt>
+                <dd className="text-xs text-slate-300 mt-0.5">Setiap nominal pengeluaran di bawah wewenang persetujuan Bendahara.</dd>
               </div>
               <button 
                 onClick={() => setIsFormOpen(false)}
-                className="p-1 text-slate-450 hover:text-white rounded-lg cursor-pointer"
+                className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveTransaction} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleSaveTransaction} className="p-5 space-y-4 text-xs">
               
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-500 block mb-1">Tanggal Transaksi :</label>
+                  <label className="text-slate-700 font-semibold block mb-1">Tanggal Transaksi :</label>
                   <input 
                     type="date" 
                     value={txDate}
                     onChange={(e) => setTxDate(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                    className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-slate-500 block mb-1">Aliran Jurnal Kas :</label>
+                  <label className="text-slate-700 font-semibold block mb-1">Aliran Jurnal Kas :</label>
                   <select 
                     value={txType}
                     onChange={(e) => {
@@ -1041,7 +1279,7 @@ export default function FinanceTab({
                       const matchingCat = categories.find(c => c.type === e.target.value);
                       if (matchingCat) setTxCategory(matchingCat.name);
                     }}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
+                    className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   >
                     <option value="Income">Pemasukan (+IN)</option>
                     <option value="Expense">Pengeluaran (-EXP)</option>
@@ -1050,11 +1288,11 @@ export default function FinanceTab({
               </div>
 
               <div>
-                <label className="text-slate-500 block mb-1">Kategori Akun Makro :</label>
+                <label className="text-slate-700 font-semibold block mb-1">Kategori Akun :</label>
                 <select 
                   value={txCategory}
                   onChange={(e) => setTxCategory(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800 font-sans"
+                  className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                 >
                   {categories
                     .filter(c => c.type === txType)
@@ -1066,11 +1304,11 @@ export default function FinanceTab({
 
               {txType === 'Income' && (
                 <div>
-                  <label className="text-slate-500 block mb-1">Peruntukan / Tujuan Pemasukan :</label>
+                  <label className="text-slate-700 font-semibold block mb-1">Peruntukan / Alokasi :</label>
                   <select 
                     value={txAllocation}
                     onChange={(e) => setTxAllocation(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800"
+                    className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   >
                     {(profile?.incomeAllocations || ["Gaji / Operasional", "Peralatan", "Kegiatan Khusus", "Lainnya"]).map((alloc, idx) => (
                       <option key={idx} value={alloc}>{alloc}</option>
@@ -1080,54 +1318,54 @@ export default function FinanceTab({
               )}
 
               <div>
-                <label className="text-slate-500 block mb-1">Deskripsi / Perihal Transaksi :</label>
+                <label className="text-slate-700 font-semibold block mb-1">Deskripsi / Perihal Transaksi :</label>
                 <textarea 
                   rows={3}
                   value={txDescription}
                   onChange={(e) => setTxDescription(e.target.value)}
                   placeholder="Contoh: Pembayaran Gaji Karyawan Bln Juni...."
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 leading-relaxed"
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 leading-relaxed focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-500 block mb-1">Nominal Transaksi (IDR) :</label>
+                  <label className="text-slate-700 font-semibold block mb-1">Nominal Transaksi (IDR) :</label>
                   <input 
                     type="number" 
                     value={txAmount}
                     onChange={(e) => setTxAmount(Number(e.target.value))}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono font-bold"
+                    className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 font-semibold focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-slate-500 block mb-1">{txType === 'Income' ? 'Pemberi Dukungan :' : 'Penerima Dana :'}</label>
+                  <label className="text-slate-700 font-semibold block mb-1">{txType === 'Income' ? 'Pemberi Dukungan :' : 'Penerima Dana :'}</label>
                   <input 
                     type="text" 
                     value={txSource}
                     onChange={(e) => setTxSource(e.target.value)}
                     placeholder="Contoh: Bapak Hendra / Toko ATK Surya"
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+                    className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     required
                   />
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-50 flex justify-end gap-3">
+              <div className="pt-4 border-t border-slate-200 flex justify-end gap-2.5">
                 <button 
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-750 font-semibold cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 hover:bg-slate-50 rounded text-slate-700 font-medium cursor-pointer transition-colors text-xs"
                 >
                   Batal
                 </button>
                 <button 
                   type="submit"
-                  className="px-6 py-2 bg-indigo-650 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+                  className="px-5 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors"
                 >
-                  <Save className="w-4 h-4 inline mr-1" /> Simpan Jurnal
+                  <Save className="w-3.5 h-3.5 inline mr-1" /> Simpan Jurnal
                 </button>
               </div>
 
@@ -1139,17 +1377,17 @@ export default function FinanceTab({
 
       {/* CONFIRM MODAL: HAPUS KATEGORI ANGGARAN */}
       {deleteConfirmCategory && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden p-6 space-y-4">
-            <h3 className="text-lg font-bold text-slate-900">Konfirmasi Hapus Kategori</h3>
-            <p className="text-slate-500 text-xs leading-relaxed">
-              Apakah Anda yakin ingin menghapus kategori kustom <strong className="text-slate-800">"{deleteConfirmCategory.name}"</strong>? Transaksi yang sudah terdaftar dengan kategori ini akan tetap dipertahankan dengan kategori aslinya.
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-lg border border-slate-300 w-full max-w-md overflow-hidden p-5 space-y-4">
+            <h3 className="text-sm font-bold text-slate-900">Konfirmasi Hapus Kategori</h3>
+            <p className="text-slate-600 text-xs leading-relaxed">
+              Apakah Anda yakin ingin menghapus kategori <strong className="text-slate-900">"{deleteConfirmCategory.name}"</strong>? Transaksi yang sudah terdaftar dengan kategori ini akan tetap dipertahankan dengan kategori aslinya.
             </p>
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-200">
               <button
                 type="button"
                 onClick={() => setDeleteConfirmCategory(null)}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs cursor-pointer"
+                className="px-4 py-2 border border-slate-300 hover:bg-slate-50 rounded text-slate-700 font-medium text-xs cursor-pointer transition-colors"
               >
                 Batal
               </button>
@@ -1161,7 +1399,7 @@ export default function FinanceTab({
                   }
                   setDeleteConfirmCategory(null);
                 }}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+                className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors"
               >
                 Ya, Hapus Kategori
               </button>

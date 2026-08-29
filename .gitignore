@@ -10,3 +10,4 @@ coverage/
 # Firebase credentials — JANGAN di-commit ke repo!
 firebase-applet-config.json
 data/yayasan.db*
+scratch/

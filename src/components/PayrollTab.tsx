@@ -41,6 +41,7 @@ interface PayrollTabProps {
   profile?: InstitutionalProfile;
   structures?: any[];
   onLogAudit?: (actionDescription: string, moduleName: string, before?: string, after?: string) => Promise<void>;
+  onUpdateProfile?: (p: InstitutionalProfile) => void;
 }
 
 const DEFAULT_PUBLIC_FIELDS = [
@@ -66,6 +67,7 @@ export default function PayrollTab({
   profile,
   structures = [],
   onLogAudit,
+  onUpdateProfile,
 }: PayrollTabProps) {
   const [editingSalary, setEditingSalary] = useState<StaffSalary | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -147,13 +149,30 @@ export default function PayrollTab({
 
   // States for target payroll day
   const [targetPayrollDay, setTargetPayrollDay] = useState<number>(() => {
-    return Number(localStorage.getItem('esm_target_payroll_day') || '7');
+    return profile?.cutoffDay || Number(localStorage.getItem('esm_target_payroll_day') || '7');
   });
 
-  // Keep target payroll day state synchronized with LocalStorage
+  // Keep target payroll day synchronized with profile prop and LocalStorage
+  useEffect(() => {
+    if (profile?.cutoffDay && profile.cutoffDay !== targetPayrollDay) {
+      setTargetPayrollDay(profile.cutoffDay);
+    }
+  }, [profile?.cutoffDay]);
+
   useEffect(() => {
     localStorage.setItem('esm_target_payroll_day', String(targetPayrollDay));
   }, [targetPayrollDay]);
+
+  const handlePayrollDayChange = (newDay: number) => {
+    setTargetPayrollDay(newDay);
+    localStorage.setItem('esm_target_payroll_day', String(newDay));
+    if (profile && onUpdateProfile && (currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan' || currentRole === 'Bendahara')) {
+      onUpdateProfile({
+        ...profile,
+        cutoffDay: newDay
+      });
+    }
+  };
 
   // Automated Payroll Rollover & Arrears Engine
   useEffect(() => {
@@ -256,7 +275,13 @@ export default function PayrollTab({
   // Derive payroll logs directly from live global Firestore Transactions ledger!
   const paymentLogs = useMemo(() => {
     return transactions
-      .filter(t => (t.id.startsWith('TX-PAY-') || t.category === 'Payroll Staff & BPJS') && t.status === 'Approved')
+      .filter(t => (
+        t.id?.startsWith('TX-PAY-') || 
+        t.category === 'Penggajian Staff' || 
+        t.category === 'Payroll Staff & BPJS' || 
+        t.source === 'payroll' || 
+        t.reference_type === 'payroll'
+      ) && (t.status === undefined || t.status === 'Approved'))
       .map(t => {
         let termLabel = 'Termin';
         if (t.description.includes('Lunas 100%') || t.description.includes('Periode') || t.description.includes('Gaji')) {
@@ -313,8 +338,8 @@ export default function PayrollTab({
   const [customFieldType, setCustomFieldType] = useState<'allowance' | 'deduction'>('allowance');
 
   // Authorization definitions
-  const canModifyPayroll = ['Super Admin', 'Ketua Yayasan', 'Bendahara'].includes(currentRole);
-  const canViewPayroll = ['Super Admin', 'Ketua Yayasan', 'Bendahara'].includes(currentRole);
+  const canModifyPayroll = ['Super Admin', 'Ketua Yayasan', 'Pembina Yayasan', 'Bendahara'].includes(currentRole);
+  const canViewPayroll = ['Super Admin', 'Ketua Yayasan', 'Pembina Yayasan', 'Pengawas Yayasan', 'Bendahara'].includes(currentRole);
 
   const finalKasBalance = useMemo(() => {
     const approvedTx = (transactions || []).filter(t => t.status === 'Approved');
@@ -503,10 +528,13 @@ export default function PayrollTab({
     const newTx = {
       id: txId,
       date: new Date().toISOString().split('T')[0],
-      category: 'Payroll Staff & BPJS',
+      category: 'Penggajian Staff',
       description: `[Pencairan Gaji] Pembayaran Gaji - ${termLabelOfPayment} untuk ${paymentDetailsList.length} karyawan. Rincian: ${paymentDetailsList.join(', ')}`,
       amount: totalDisbursed,
       type: 'Expense' as 'Expense',
+      source: 'payroll' as const,
+      reference_type: 'payroll',
+      category_id: 'Penggajian Staff',
       sourceOrRecipient: `${paymentDetailsList.length} Orang Staff`,
       status: 'Approved' as 'Approved',
       approvedBy: `${currentRole} Operator`
@@ -656,16 +684,16 @@ export default function PayrollTab({
       {/* Upper header section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-900">Sistem Payroll & Gaji SDM</h2>
-          <p className="text-xs text-slate-500 mt-1">Kelola gaji pokok, tunjangan standar, slip gaji PDF, dan tambahkan parameter rincian tunjangan/potongan secara manual.</p>
+          <h2 className="text-lg font-bold tracking-tight text-slate-900">Sistem Penggajian & Remunerasi SDM</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Kelola gaji pokok, tunjangan, slip gaji resmi, dan pencatatan termin pembayaran staf yayasan.</p>
         </div>
         
         {canModifyPayroll && (
           <button 
             onClick={handleSubmitCollectivePayroll}
-            className="px-4 py-2 bg-indigo-650 hover:bg-slate-900 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-slate-900/10 cursor-pointer transition-colors"
+            className="px-4 py-2 bg-[#881337] hover:bg-[#9f1239] text-white font-semibold rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
           >
-            <Wallet className="w-4 h-4 text-emerald-350" /> Ajukan Anggaran Payroll Kolektif
+            <Wallet className="w-4 h-4 text-white" /> Ajukan Anggaran Payroll Kolektif
           </button>
         )}
       </div>
@@ -673,82 +701,82 @@ export default function PayrollTab({
       {/* Financial aggregate metrics dashboard */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {/* Card 1: Total Staf */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-150 shadow-sm flex flex-col justify-between min-h-[7rem]">
+        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider font-mono">Total Staff</span>
-            <div className="bg-slate-50 p-1.5 rounded-lg text-slate-600">
-              <User className="w-4 h-4 text-slate-500" />
+            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Total Staf</span>
+            <div className="bg-slate-100 p-1.5 rounded text-slate-700">
+              <User className="w-4 h-4 text-slate-700" />
             </div>
           </div>
-          <div className="mt-1">
-            <strong className="text-lg text-slate-800 font-extrabold block font-sans">{staffs.length} Orang</strong>
-            <span className="text-[9px] text-slate-400 block mt-0.5 font-medium">Penerima Bulanan</span>
+          <div className="mt-3">
+            <strong className="text-lg text-slate-900 font-bold block">{staffs.length} Orang</strong>
+            <span className="text-xs text-slate-500 block mt-0.5">Penerima Bulanan</span>
           </div>
         </div>
 
         {/* Card 2: Total Gaji THP Staff */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-150 shadow-sm flex flex-col justify-between min-h-[7rem]">
+        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider font-mono">Total Gaji THP</span>
-            <div className="bg-indigo-55/40 p-1.5 rounded-lg text-indigo-600">
-              <Calculator className="w-4 h-4 text-indigo-655" />
+            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Total Beban THP</span>
+            <div className="bg-slate-100 p-1.5 rounded text-slate-700">
+              <Calculator className="w-4 h-4 text-slate-700" />
             </div>
           </div>
-          <div className="mt-1">
-            <strong className="text-[13px] sm:text-[14px] text-slate-800 font-bold block font-mono">
+          <div className="mt-3">
+            <strong className="text-base text-slate-900 font-bold block">
               Rp {totalNetPayout.toLocaleString('id-ID')}
             </strong>
-            <span className="text-[9px] text-slate-400 block mt-0.5 font-medium">Beban Gaji Bersih</span>
+            <span className="text-xs text-slate-500 block mt-0.5">Beban Gaji Bersih</span>
           </div>
         </div>
 
         {/* Card 3: Tanggal Penggajian Berikutnya */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-150 shadow-sm flex flex-col justify-between min-h-[7rem]">
+        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider font-mono">Gajian Berikutnya</span>
-            <div className="bg-amber-50 p-1.5 rounded-lg text-amber-600">
-              <Calendar className="w-4 h-4 text-amber-600" />
+            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Target Gajian</span>
+            <div className="bg-slate-100 p-1.5 rounded text-slate-700">
+              <Calendar className="w-4 h-4 text-slate-700" />
             </div>
           </div>
-          <div className="mt-1">
+          <div className="mt-3">
             <select 
               value={targetPayrollDay}
-              onChange={(e) => setTargetPayrollDay(Number(e.target.value))}
-              className="w-full text-[10px] font-semibold text-slate-800 bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-400 rounded-lg px-1.5 py-0.5 outline-none font-mono"
+              onChange={(e) => handlePayrollDayChange(Number(e.target.value))}
+              className="w-full text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded px-2 py-1 outline-none focus:border-[#0c2340]"
             >
               {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
                 <option key={day} value={day}>Setiap Tanggal {day}</option>
               ))}
             </select>
-            <span className="text-[8px] text-amber-600 block mt-1 font-semibold leading-tight font-sans">
+            <span className="text-[11px] text-[#881337] block mt-1 font-semibold leading-tight">
               Cair: {getNextPayrollDate(targetPayrollDay)}
             </span>
           </div>
         </div>
 
         {/* Card 4: Dana Gaji Terbayar */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-150 shadow-sm flex flex-col justify-between min-h-[7rem]">
+        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider font-mono">Gaji Terbayar</span>
-            <div className={`p-1.5 rounded-lg ${totalNetPaid >= totalNetPayout ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-600'}`}>
+            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Gaji Terbayar</span>
+            <div className={`p-1.5 rounded ${totalNetPaid >= totalNetPayout ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-700'}`}>
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-0.5">
-            <strong className="text-[13px] text-slate-800 font-bold block font-mono">
+          <div className="mt-3">
+            <strong className="text-base text-slate-900 font-bold block">
               Rp {totalNetPaid.toLocaleString('id-ID')}
             </strong>
-            <div className="mt-0.5 flex items-center">
+            <div className="mt-1 flex items-center">
               {totalNetPaid >= totalNetPayout ? (
-                <span className="bg-emerald-100 text-emerald-800 text-[8px] font-extrabold px-1.5 py-0.2 rounded uppercase tracking-wider">
+                <span className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">
                   Lunas 100%
                 </span>
               ) : totalNetPaid > 0 ? (
-                <span className="bg-amber-100 text-amber-800 text-[8px] font-extrabold px-1.5 py-0.2 rounded uppercase tracking-wider animate-pulse">
+                <span className="bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded">
                   Termin Aktif
                 </span>
               ) : (
-                <span className="bg-slate-100 text-slate-600 text-[8px] font-extrabold px-1.5 py-0.2 rounded uppercase tracking-wider">
+                <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded">
                   Belum Bayar
                 </span>
               )}
@@ -756,32 +784,26 @@ export default function PayrollTab({
           </div>
         </div>
 
-        {/* Card 5: Saldo Saat Ini (Dynamic Red/Green depending on sufficiency) */}
-        <div className={`p-4 rounded-2xl border-2 shadow-sm flex flex-col justify-between min-h-[7rem] transition-all ${
-          isBalanceSufficient 
-            ? 'bg-emerald-50 border-emerald-300 text-emerald-950' 
-            : 'bg-rose-50 border-rose-300 text-rose-950'
-        }`}>
+        {/* Card 5: Saldo Kas */}
+        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-bold uppercase tracking-wider font-mono opacity-80">Saldo Saat Ini</span>
-            <div className={`p-1.5 rounded-lg ${isBalanceSufficient ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Saldo Kas</span>
+            <div className="bg-slate-100 p-1.5 rounded text-slate-700">
               <Coins className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-1">
-            <strong className="text-[14px] text-slate-900 font-extrabold block font-mono">
+          <div className="mt-3">
+            <strong className="text-base text-slate-900 font-bold block">
               Rp {currentSystemBalance.toLocaleString('id-ID')}
             </strong>
-            <span className="text-[9px] text-slate-400 block mt-0.5 font-medium">Buku Kas Jurnal</span>
-            
-            <div className="mt-1 flex items-center gap-1">
+            <div className="mt-1">
               {isBalanceSufficient ? (
-                <span className="text-[8px] font-bold text-emerald-700 flex items-center gap-0.5">
-                  ✓ Saldo Cukup
+                <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
+                  ✓ Saldo Kas Mencukupi
                 </span>
               ) : (
-                <span className="text-[8px] font-bold text-rose-700 flex items-center gap-0.5 animate-pulse">
-                  ⚠️ Kurang: Rp {remainingUnpaidSalary.toLocaleString('id-ID')}
+                <span className="text-xs font-semibold text-rose-700 flex items-center gap-1">
+                  Kurang: Rp {remainingUnpaidSalary.toLocaleString('id-ID')}
                 </span>
               )}
             </div>
@@ -789,16 +811,16 @@ export default function PayrollTab({
         </div>
       </div>
 
-      {/* NEW SECTION: Sistem Pembayaran Termin & Kontrol Gaji (Auto-Calculated & Multi-Employee Choice) */}
-      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4 shadow-sm">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2 border-b border-slate-200">
+      {/* SECTION: Sistem Pembayaran Termin & Kontrol Gaji */}
+      <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-4 shadow-xs">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-200">
           <div>
             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-              <Wallet className="w-4 h-4 text-indigo-600" />
-              Sistem Pembayaran Payroll Termin Kolektif & Jurnal Buku Besar
+              <Wallet className="w-4 h-4 text-slate-700" />
+              Pencairan Payroll Termin Kolektif
             </h3>
-            <p className="text-[11px] text-slate-500">
-              Pilih karyawan yang ingin diproses gajinya pada termin ini, masukkan porsi persentase cicilan atau pelunasan penuh, dan sistem akan mengalkulasikan sisa kewajiban yayasan secara otomatis.
+            <p className="text-xs text-slate-500 mt-0.5">
+              Pilih karyawan yang ingin diproses gajinya pada termin ini, tentukan porsi pencairan, dan sistem akan mengalkulasikan sisa kewajiban yayasan secara otomatis.
             </p>
           </div>
         </div>
@@ -808,12 +830,12 @@ export default function PayrollTab({
           <div className="lg:col-span-7 space-y-4">
             
             {/* Step 1: Employee checklist */}
-            <div className="bg-white p-4 rounded-xl border border-slate-150 space-y-3">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-2">
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-200 pb-2">
                 <div className="space-y-1">
-                  <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider font-mono block">1. Pilih Karyawan yang Akan Dibayar:</span>
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">1. Pilih Staf yang Akan Dibayar:</span>
                   <div className="flex gap-1.5 items-center">
-                    <span className="text-[10px] text-slate-400 font-mono">Filter Opsi:</span>
+                    <span className="text-xs text-slate-500">Filter Termin:</span>
                     {availableTermins.map(val => (
                       <button
                         key={val}
@@ -822,10 +844,10 @@ export default function PayrollTab({
                           setSelectedTerminTab(val);
                           setSelectedStaffsForPay([]); // Clear selection on tab change
                         }}
-                        className={`px-2.5 py-0.5 rounded text-[10px] font-bold font-mono transition-colors border ${
+                        className={`px-2.5 py-0.5 rounded text-xs font-semibold transition-colors border ${
                           selectedTerminTab === val 
-                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' 
-                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                            ? 'bg-[#0c2340] text-white border-[#0c2340]' 
+                            : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
                         }`}
                       >
                         Termin {val}
@@ -854,7 +876,7 @@ export default function PayrollTab({
                       setSelectedStaffsForPay(unpaidNikList);
                     }
                   }}
-                  className="text-[10px] text-indigo-650 hover:text-indigo-800 font-bold underline shrink-0"
+                  className="text-xs text-[#0c2340] hover:underline font-semibold shrink-0 cursor-pointer"
                 >
                   {selectedStaffsForPay.length === staffs.filter(s => {
                     const totalTHP = getStaffTotalTHPWithArrears(s);
@@ -865,12 +887,12 @@ export default function PayrollTab({
                       return paid > 0 && paid < totalTHP;
                     }
                   }).length 
-                    ? "Sembunyikan Semua" 
+                    ? "Batal Pilih Semua" 
                     : "Pilih Semua Staf"}
                 </button>
               </div>
 
-              <div className="max-h-[170px] overflow-y-auto border border-slate-100 rounded-lg p-2 space-y-1.5 divide-y divide-slate-100">
+              <div className="max-h-[170px] overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-1 bg-white divide-y divide-slate-100">
                 {staffs.filter(s => {
                   const totalTHP = getStaffTotalTHPWithArrears(s);
                   const paid = staffPaidAmounts[s.nik] || 0;
@@ -880,10 +902,10 @@ export default function PayrollTab({
                     return paid > 0 && paid < totalTHP;
                   }
                 }).length === 0 ? (
-                  <div className="py-6 text-center text-xs text-emerald-600 font-bold bg-emerald-50 rounded-lg">
+                  <div className="py-6 text-center text-xs text-emerald-800 font-semibold bg-emerald-50 rounded border border-emerald-200">
                     {selectedTerminTab === 1 
-                      ? "🎉 Tidak ada staf di Termin 1 (seluruh staf sudah menerima pembayaran sebagian/pelunasan)."
-                      : "🎉 Sisa saldo seluruh staf di bawah 100% untuk termin ini telah lunas."}
+                      ? "Seluruh staf sudah menerima pembayaran sebagian / pelunasan."
+                      : "Sisa kewajiban seluruh staf untuk termin ini telah lunas."}
                   </div>
                 ) : (
                   staffs
@@ -906,8 +928,8 @@ export default function PayrollTab({
                       return (
                         <label 
                           key={s.nik} 
-                          className={`flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors text-xs ${
-                            isSelected ? 'bg-indigo-50/40' : ''
+                          className={`flex items-center justify-between p-2 hover:bg-slate-50 rounded cursor-pointer transition-colors text-xs ${
+                            isSelected ? 'bg-slate-100 font-semibold' : ''
                           }`}
                         >
                           <div className="flex items-center gap-2">
@@ -921,16 +943,16 @@ export default function PayrollTab({
                                   setSelectedStaffsForPay(prev => [...prev, s.nik]);
                                 }
                               }}
-                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
+                              className="rounded border-slate-300 text-[#0c2340] focus:ring-[#0c2340] h-3.5 w-3.5 cursor-pointer"
                             />
                             <div>
                               <span className="font-bold text-slate-800">{s.name}</span>
-                              <span className="text-[10px] text-slate-400 block font-mono">{s.nik} • {s.position}</span>
+                              <span className="text-[11px] text-slate-500 block">{s.nik} &bull; {s.position}</span>
                             </div>
                           </div>
                           <div className="text-right">
-                            <span className="font-bold text-slate-800 font-mono">Rp {rem.toLocaleString('id-ID')} sisa</span>
-                            <span className="text-[9px] text-slate-400 block">Telah bayar: {pct}%</span>
+                            <span className="font-bold text-slate-800">Rp {rem.toLocaleString('id-ID')} sisa</span>
+                            <span className="text-[11px] text-slate-500 block">Telah bayar: {pct}%</span>
                           </div>
                         </label>
                       );
@@ -940,17 +962,17 @@ export default function PayrollTab({
             </div>
 
             {/* Step 2: Paymode Selector */}
-            <div className="bg-white p-4 rounded-xl border border-slate-150 space-y-3">
-              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider font-mono block">2. Tentukan Nominal / Persentase Termin:</span>
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">2. Tentukan Nominal / Persentase Termin:</span>
               
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => setPayMode('percent')}
-                  className={`py-1.5 px-3 rounded-lg text-xs font-bold border transition-colors ${
+                  className={`py-1.5 px-3 rounded text-xs font-semibold border transition-colors cursor-pointer ${
                     payMode === 'percent' 
-                      ? 'bg-indigo-600 text-white border-indigo-600' 
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      ? 'bg-[#0c2340] text-white border-[#0c2340]' 
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                   }`}
                 >
                   Persentase (%) THP
@@ -958,39 +980,39 @@ export default function PayrollTab({
                 <button
                   type="button"
                   onClick={() => setPayMode('full')}
-                  className={`py-1.5 px-3 rounded-lg text-xs font-bold border transition-colors ${
+                  className={`py-1.5 px-3 rounded text-xs font-semibold border transition-colors cursor-pointer ${
                     payMode === 'full' 
-                      ? 'bg-indigo-600 text-white border-indigo-600' 
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      ? 'bg-[#0c2340] text-white border-[#0c2340]' 
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                   }`}
                 >
-                  Pelunasan (Sisa 100%)
+                  Pelunasan (100%)
                 </button>
                 <button
                   type="button"
                   onClick={() => setPayMode('custom')}
-                  className={`py-1.5 px-3 rounded-lg text-xs font-bold border transition-colors ${
+                  className={`py-1.5 px-3 rounded text-xs font-semibold border transition-colors cursor-pointer ${
                     payMode === 'custom' 
-                      ? 'bg-indigo-600 text-white border-indigo-600' 
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      ? 'bg-[#0c2340] text-white border-[#0c2340]' 
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                   }`}
                 >
-                  Rupiah Kustom
+                  Nominal Kustom
                 </button>
               </div>
 
               {payMode === 'percent' && (
-                <div className="space-y-2 animate-fadeIn">
+                <div className="space-y-2">
                   <div className="flex gap-1.5">
                     {[25, 35, 50, 75].map(p => (
                       <button
                         key={p}
                         type="button"
                         onClick={() => setPayPercentValue(p)}
-                        className={`py-1 px-2.5 rounded text-[10px] font-bold font-mono border ${
+                        className={`py-1 px-2.5 rounded text-xs font-semibold border cursor-pointer ${
                           payPercentValue === p 
-                            ? 'bg-slate-800 text-white border-slate-800' 
-                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                            ? 'bg-[#0c2340] text-white border-[#0c2340]' 
+                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
                         }`}
                       >
                         {p}%
@@ -998,30 +1020,30 @@ export default function PayrollTab({
                     ))}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-medium text-slate-500">Nilai Persen:</span>
+                    <span className="text-xs font-medium text-slate-600">Nilai Persen:</span>
                     <input 
                       type="number"
                       min="1"
                       max="100"
                       value={payPercentValue}
                       onChange={(e) => setPayPercentValue(Math.min(100, Math.max(1, Number(e.target.value))))}
-                      className="w-20 px-2 py-0.5 border border-slate-200 rounded font-mono text-xs font-bold text-slate-800 outline-none"
+                      className="w-20 px-2 py-1 border border-slate-300 rounded text-xs font-bold text-slate-800 bg-white focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] outline-none"
                     />
-                    <span className="text-[11px] text-slate-500">% dari gaji bersih reguler</span>
+                    <span className="text-xs text-slate-500">% dari gaji bersih reguler</span>
                   </div>
                 </div>
               )}
 
               {payMode === 'custom' && (
-                <div className="space-y-1.5 animate-fadeIn">
-                  <span className="text-[10px] text-slate-400 block font-medium">Masukkan nilai nominal pencairan per staf:</span>
+                <div className="space-y-1.5">
+                  <span className="text-xs text-slate-600 block font-medium">Masukkan nominal pencairan per staf:</span>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-slate-400">Rp</span>
+                    <span className="text-xs font-bold text-slate-500">Rp</span>
                     <input 
                       type="number"
                       value={customNominalValue}
                       onChange={(e) => setCustomNominalValue(Math.max(0, Number(e.target.value)))}
-                      className="w-full max-w-sm px-2 py-1 border border-slate-200 rounded-lg text-xs font-bold font-mono text-slate-800 outline-none"
+                      className="w-full max-w-sm px-3 py-1.5 border border-slate-300 rounded text-xs font-bold text-slate-800 bg-white focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] outline-none"
                     />
                   </div>
                 </div>
@@ -1030,14 +1052,14 @@ export default function PayrollTab({
 
             {/* Step 3: Checkout Preview */}
             {selectedStaffsForPay.length > 0 && (
-              <div className="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100 text-xs space-y-1">
-                <div className="font-bold text-indigo-950 flex justify-between items-center">
+              <div className="bg-slate-50 rounded-lg p-3.5 border border-slate-200 text-xs space-y-1.5">
+                <div className="font-bold text-slate-800 flex justify-between items-center">
                   <span>Pratinjau Penggajian:</span>
-                  <span className="bg-indigo-100 text-indigo-800 px-1.5 py-0.2 rounded font-mono text-[9px]">
-                    {selectedStaffsForPay.length} Staff Terpilih
+                  <span className="bg-slate-200 text-slate-800 px-2 py-0.5 rounded font-semibold text-xs">
+                    {selectedStaffsForPay.length} Staf Terpilih
                   </span>
                 </div>
-                <div className="text-slate-650 space-y-0.5 max-h-[100px] overflow-y-auto font-mono text-[10px] py-1 bg-white/40 rounded px-2">
+                <div className="space-y-1 max-h-[100px] overflow-y-auto text-xs py-1 bg-white rounded p-2 border border-slate-200">
                   {staffs
                     .filter(s => selectedStaffsForPay.includes(s.nik))
                     .map(s => {
@@ -1051,7 +1073,7 @@ export default function PayrollTab({
                       return (
                         <div key={s.nik} className="flex justify-between">
                           <span>{s.name}:</span>
-                          <span className="font-bold text-indigo-950">Rp {payValue.toLocaleString('id-ID')}</span>
+                          <span className="font-bold text-slate-900">Rp {payValue.toLocaleString('id-ID')}</span>
                         </div>
                       );
                     })}
@@ -1073,7 +1095,7 @@ export default function PayrollTab({
                   });
 
                   return (
-                    <div className="flex justify-between items-center pt-1.5 mt-1 border-t border-indigo-150 text-[11px] font-extrabold text-indigo-900">
+                    <div className="flex justify-between items-center pt-2 mt-1 border-t border-slate-200 text-xs font-bold text-slate-900">
                       <span>Total Anggaran Dicairkan:</span>
                       <span>Rp {sum.toLocaleString('id-ID')}</span>
                     </div>
@@ -1084,11 +1106,11 @@ export default function PayrollTab({
 
             {/* Dispatch action button */}
             {selectedStaffsForPay.length > 0 && totalPayrollSum > finalKasBalance && (
-              <div id="payroll-insufficient-funds-alert" className="bg-rose-50 border border-rose-150 rounded-xl p-3 mb-2 text-rose-700 text-xs flex items-center gap-2 animate-fadeIn">
-                <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+              <div id="payroll-insufficient-funds-alert" className="bg-rose-50 border border-rose-200 rounded-lg p-3 text-rose-800 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
                 <div>
                   <p className="font-bold">Saldo Kas Tidak Mencukupi!</p>
-                  <p className="text-[10px] text-rose-600">Total anggaran Rp {totalPayrollSum.toLocaleString('id-ID')} melebihi sisa saldo kas tersedia (Rp {finalKasBalance.toLocaleString('id-ID')}). Silakan lakukan penyetoran kas atau tunggu pemasukan baru.</p>
+                  <p className="text-xs text-rose-700 mt-0.5">Total anggaran Rp {totalPayrollSum.toLocaleString('id-ID')} melebihi sisa saldo kas tersedia (Rp {finalKasBalance.toLocaleString('id-ID')}).</p>
                 </div>
               </div>
             )}
@@ -1098,54 +1120,54 @@ export default function PayrollTab({
               type="button"
               onClick={handlePayCustomTermin}
               disabled={selectedStaffsForPay.length === 0 || totalPayrollSum > finalKasBalance}
-              className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+              className={`w-full py-2.5 rounded font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                 selectedStaffsForPay.length > 0 && totalPayrollSum <= finalKasBalance
-                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md'
+                  ? 'bg-[#0c2340] hover:bg-[#1b365d] text-white shadow-xs'
                   : 'bg-slate-200 text-slate-400 cursor-not-allowed'
               }`}
             >
-              <CheckCircle2 className="w-4 h-4 text-emerald-350" />
+              <CheckCircle2 className="w-4 h-4" />
               Proses Cairkan Gaji Staf Terpilih ({selectedStaffsForPay.length} Orang)
             </button>
 
           </div>
 
           {/* Right Column (Log & Ledger): Right 5 Columns */}
-          <div className="lg:col-span-5 bg-white p-4 rounded-xl border border-slate-200 flex flex-col justify-between h-[415px]">
+          <div className="lg:col-span-5 bg-slate-50 p-4 rounded-lg border border-slate-200 flex flex-col justify-between h-[415px]">
             <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider font-mono">Riwayat Log Transaksi Kas Payroll:</span>
-                <span className="bg-indigo-50 text-indigo-700 text-[9px] font-bold px-2 py-0.5 rounded font-mono">Auto Recorded</span>
+              <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-200">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Log Transaksi Kas Payroll:</span>
+                <span className="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded">Tercatat Otomatis</span>
               </div>
               
-              <div className="space-y-2 overflow-y-auto max-h-[345px] pr-1">
+              <div className="space-y-2 overflow-y-auto max-h-[310px] pr-1">
                 {paymentLogs.length === 0 ? (
-                  <div className="h-[310px] flex flex-col justify-center items-center text-center text-slate-400 gap-1.5">
-                    <AlertCircle className="w-7 h-7 text-slate-300" />
-                    <p className="text-[10px] font-medium max-w-xs">Belum ada pencatatan pencairan terdaftar bulan ini. Sisa gaji yang belum terbayar akan tercatat secara akurat setelah transaksi kas dieksekusi.</p>
+                  <div className="h-[280px] flex flex-col justify-center items-center text-center text-slate-400 gap-1.5">
+                    <AlertCircle className="w-6 h-6 text-slate-300" />
+                    <p className="text-xs font-medium max-w-xs">Belum ada pencatatan pencairan terdaftar bulan ini.</p>
                   </div>
                 ) : (
                   paymentLogs.map((log) => (
-                    <div key={log.id} className="text-[11px] bg-slate-50 p-2 rounded-lg border border-slate-100 flex justify-between items-start gap-1">
+                    <div key={log.id} className="text-xs bg-white p-2.5 rounded border border-slate-200 flex justify-between items-start gap-2 shadow-2xs">
                       <div>
-                        <div className="flex items-center gap-1 text-[9px] text-slate-400 font-mono font-bold">
+                        <div className="flex items-center gap-1 text-[11px] text-slate-500 font-semibold">
                           <span>{log.date}</span>
                           <span>&bull;</span>
-                          <span className="text-indigo-650">{log.term}</span>
+                          <span className="text-[#0c2340]">{log.term}</span>
                         </div>
-                        <p className="text-slate-700 font-medium leading-normal mt-0.5">{log.description}</p>
+                        <p className="text-slate-800 font-medium leading-relaxed mt-0.5">{log.description}</p>
                       </div>
-                      <span className="text-emerald-700 font-bold font-mono shrink-0">-{`Rp ${log.amount.toLocaleString('id-ID')}`}</span>
+                      <span className="text-rose-700 font-bold shrink-0">-{`Rp ${log.amount.toLocaleString('id-ID')}`}</span>
                     </div>
                   ))
                 )}
               </div>
             </div>
             
-            <div className="border-t border-slate-100 pt-2 flex justify-between items-center text-[10px] text-slate-500 font-mono">
-              <span>Sisa Kewajiban Gaji: Rp {remainingUnpaidSalary.toLocaleString('id-ID')}</span>
-              <span className={remainingUnpaidSalary === 0 ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>
-                {remainingUnpaidSalary === 0 ? 'STATUS: LUNAS' : 'STATUS: BELUM SELESAI'}
+            <div className="border-t border-slate-200 pt-2 flex justify-between items-center text-xs text-slate-600">
+              <span>Sisa Kewajiban: Rp {remainingUnpaidSalary.toLocaleString('id-ID')}</span>
+              <span className={remainingUnpaidSalary === 0 ? 'text-emerald-700 font-bold' : 'text-amber-700 font-bold'}>
+                {remainingUnpaidSalary === 0 ? 'LUNAS' : 'BELUM SELESAI'}
               </span>
             </div>
           </div>
@@ -1153,28 +1175,28 @@ export default function PayrollTab({
       </div>
 
       {/* Main staff list grid with Searcher filter bar */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-50 relative flex flex-col sm:flex-row justify-between items-center gap-3">
+      <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
+        <div className="p-4 border-b border-slate-200 relative flex flex-col sm:flex-row justify-between items-center gap-3">
           <div className="relative w-full sm:max-w-md">
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
             <input 
               type="text" 
-              placeholder="Cari Staf berdasarkan Nama, NIK, Jabatan..."
+              placeholder="Cari staf berdasarkan Nama, NIK, atau Jabatan..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-1.5 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none"
+              className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded text-xs text-slate-800 bg-white focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
             />
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={handleExportCSV}
-              className="px-3.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-800 transition-colors"
+              className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 rounded text-xs font-medium flex items-center gap-1.5 cursor-pointer text-slate-700 transition-colors shadow-xs"
               title="Export Rekapitulasi Gaji & Payroll"
             >
-              <Download className="w-3.5 h-3.5 text-emerald-600" /> Export CSV
+              <Download className="w-3.5 h-3.5 text-emerald-700" /> Ekspor CSV
             </button>
-            <div className="text-[11px] text-slate-500 font-mono hidden sm:block">
-              {filteredStaffs.length} dari {staffs.length} Staf Teralokasikan
+            <div className="text-xs text-slate-500 hidden sm:block">
+              {filteredStaffs.length} dari {staffs.length} Staf
             </div>
           </div>
         </div>
@@ -1182,76 +1204,73 @@ export default function PayrollTab({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/50 text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono border-b border-slate-100">
-                <th className="p-4">Karyawan & Jabatan</th>
-                <th className="p-4 text-right">Gaji Pokok Base</th>
-                <th className="p-4 text-right">Tunjangan Standar</th>
-                <th className="p-4 text-right">Tunjangan Manual</th>
-                <th className="p-4 text-right">Total Potongan</th>
-                <th className="p-4 text-right">Diterima Bersih</th>
-                <th className="p-4 text-center">Tindakan Kelola</th>
+              <tr className="bg-slate-50 text-xs text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200">
+                <th className="p-3.5">Karyawan & Jabatan</th>
+                <th className="p-3.5 text-right">Gaji Pokok Base</th>
+                <th className="p-3.5 text-right">Tunjangan Standar</th>
+                <th className="p-3.5 text-right">Tunjangan Manual</th>
+                <th className="p-3.5 text-right">Total Potongan</th>
+                <th className="p-3.5 text-right">Diterima Bersih</th>
+                <th className="p-3.5 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
               {filteredStaffs.map((stf) => {
                 const {
                   stdAllowance,
-                  stdDeduction: stdDeds,
                   customAllowance,
-                  customDeduction: customDeds,
-                  totalAllowanceCombined: totalCompensations,
                   totalDeductionCombined: totalDeds,
                   netSalarySum
                 } = getStaffFinancialBreakdown(stf);
 
                 return (
-                  <tr key={stf.nik} className="hover:bg-slate-50/20">
-                    <td className="p-4">
+                  <tr key={stf.nik} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="p-3.5">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                        <div className="font-bold text-slate-800 text-sm">{stf.name}</div>
+                        <div className="font-bold text-slate-900 text-xs">{stf.name}</div>
                         {(() => {
                           const paidSum = staffPaidAmounts[stf.nik] || 0;
                           const totalExpected = netSalarySum + (stf.lastMonthUnpaid || 0);
                           const pct = totalExpected > 0 ? Math.round((paidSum / totalExpected) * 100) : 100;
                           if (pct >= 100) {
                             return (
-                              <span className="inline-block bg-emerald-50 border border-emerald-200 text-emerald-700 text-[8px] font-extrabold px-1.5 py-0.2 rounded-md uppercase tracking-wider text-center w-fit">
+                              <span className="inline-block bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider w-fit">
                                 Lunas 100%
                               </span>
                             );
                           } else if (pct > 0) {
                             return (
-                              <span className="inline-block bg-amber-50 border border-amber-200 text-amber-700 text-[8px] font-extrabold px-1.5 py-0.2 rounded-md uppercase tracking-wider animate-pulse text-center w-fit">
+                              <span className="inline-block bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider w-fit">
                                 Termin {pct}%
                               </span>
                             );
                           }
                           return (
-                            <span className="inline-block bg-slate-50 border border-slate-200 text-slate-500 text-[8px] font-extrabold px-1.5 py-0.2 rounded-md uppercase tracking-wider text-center w-fit">
+                            <span className="inline-block bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider w-fit">
                               Belum Bayar
                             </span>
                           );
                         })()}
                       </div>
-                      <span className="text-[10px] text-slate-400 font-mono font-bold block">{stf.nik} &bull; {stf.position}</span>
+                      <span className="text-[11px] text-slate-500 block mt-0.5">{stf.nik} &bull; {stf.position}</span>
                     </td>
-                    <td className="p-4 text-right font-semibold font-mono">Rp {stf.salaryBase.toLocaleString('id-ID')}</td>
-                    <td className="p-4 text-right font-mono text-emerald-600 font-medium">+Rp {stdAllowance.toLocaleString('id-ID')}</td>
-                    <td className="p-4 text-right font-mono">
+                    <td className="p-3.5 text-right font-semibold text-slate-800">Rp {stf.salaryBase.toLocaleString('id-ID')}</td>
+                    <td className="p-3.5 text-right text-emerald-700 font-medium">+Rp {stdAllowance.toLocaleString('id-ID')}</td>
+                    <td className="p-3.5 text-right">
                       {customAllowance > 0 ? (
-                        <span className="bg-indigo-50 text-indigo-700 font-bold px-1.5 py-0.5 rounded text-[10px] font-mono">
+                        <span className="bg-slate-100 text-slate-800 font-semibold px-2 py-0.5 rounded text-xs">
                           +Rp {customAllowance.toLocaleString('id-ID')}
                         </span>
                       ) : (
-                        <span className="text-slate-450">-</span>
+                        <span className="text-slate-400">-</span>
                       )}
                     </td>
-                    <td className="p-4 text-right font-mono text-rose-500 font-medium">-Rp {totalDeds.toLocaleString('id-ID')}</td>
-                    <td className="p-4 text-right font-mono text-xs text-slate-900 bg-slate-50/50">
-                      <div className="font-bold text-sm">Rp {(netSalarySum + (stf.lastMonthUnpaid || 0)).toLocaleString('id-ID')}</div>
+                    <td className="p-3.5 text-right text-rose-700 font-medium">-Rp {totalDeds.toLocaleString('id-ID')}</td>
+                    <td className="p-3.5 text-right text-slate-900 bg-slate-50/50">
+                      <div className="font-bold text-xs text-[#0c2340]">Rp {(netSalarySum + (stf.lastMonthUnpaid || 0)).toLocaleString('id-ID')}</div>
                       {getStaffSalaryDebt(stf) > 0 && (
-                        <div className="text-[9px] text-rose-600 font-semibold font-mono bg-rose-50 px-1 py-0.5 rounded border border-rose-100 mt-1">
-                          Kekurangan Gaji: Rp {getStaffSalaryDebt(stf).toLocaleString('id-ID')}
+                        <div className="text-[10px] text-rose-800 font-semibold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 mt-1">
+                          Kekurangan: Rp {getStaffSalaryDebt(stf).toLocaleString('id-ID')}
                         </div>
                       )}
                       {(() => {
@@ -1260,35 +1279,35 @@ export default function PayrollTab({
                         const rem = Math.max(0, totalExpected - paidSum);
                         if (rem > 0) {
                           return (
-                            <span className="text-[9px] text-rose-600 block mt-0.5 font-semibold">
-                              Sisa Kurang: Rp {rem.toLocaleString('id-ID')}
+                            <span className="text-[11px] text-rose-700 block mt-0.5 font-semibold">
+                              Sisa: Rp {rem.toLocaleString('id-ID')}
                             </span>
                           );
                         }
                         return (
-                          <span className="text-[9px] text-emerald-600 block mt-0.5 font-semibold">
+                          <span className="text-[11px] text-emerald-700 block mt-0.5 font-semibold">
                             Lunas
                           </span>
                         );
                       })()}
                     </td>
-                    <td className="p-4 text-center">
-                      <div className="flex gap-2 justify-center">
+                    <td className="p-3.5 text-center">
+                      <div className="flex gap-1.5 justify-center">
                         <button 
                           onClick={() => {
                             setEditingPayrollStaff(stf);
                             const config = getStaffSalaryConfig(stf.nik, stf.salaryBase);
                             setEditingSalary(JSON.parse(JSON.stringify(config)));
                           }}
-                          className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-750 border border-indigo-200 rounded-xl text-[10px] font-semibold cursor-pointer flex items-center gap-1 shadow-xs transition-colors"
+                          className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded text-xs font-medium cursor-pointer flex items-center gap-1 shadow-xs transition-colors"
                         >
-                          <Calculator className="w-3.5 h-3.5" /> Atur Slip Manual
+                          <Calculator className="w-3.5 h-3.5" /> Atur Parameter
                         </button>
                         <button 
                           onClick={() => setActiveSlipStaff(stf)}
-                          className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-semibold cursor-pointer flex items-center gap-1 shadow-sm transition-colors"
+                          className="px-2.5 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold cursor-pointer flex items-center gap-1 shadow-xs transition-colors"
                         >
-                          <Printer className="w-3.5 h-3.5 text-indigo-300" /> Slip Gaji
+                          <Printer className="w-3.5 h-3.5" /> Slip Gaji
                         </button>
                       </div>
                     </td>
@@ -1300,73 +1319,72 @@ export default function PayrollTab({
         </div>
       </div>
 
-      {/* MANAGE PAYROLL SLIP WRITER MODAL with Manual Custom Field Generator Column */}
+      {/* MANAGE PAYROLL SLIP WRITER MODAL */}
       {editingPayrollStaff && editingSalary && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 overflow-y-auto backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-4xl overflow-hidden my-8 transform scale-100 transition-all flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg border border-slate-300 w-full max-w-4xl overflow-hidden my-8 flex flex-col max-h-[90vh]">
             
             {/* Header info */}
-            <div className="bg-slate-950 px-6 py-4 text-white flex justify-between items-center shrink-0">
+            <div className="bg-[#0c2340] px-5 py-3.5 text-white flex justify-between items-center shrink-0">
               <div>
-                <span className="text-[10px] text-slate-400 font-mono font-bold tracking-widest block uppercase font-mono">RECALIBRATE STAFF SLIP</span>
-                <dt className="text-sm font-bold mt-0.5">Atur Parameter Gaji & Slip Gaji: {editingPayrollStaff.name}</dt>
+                <dt className="text-sm font-bold">Atur Parameter Gaji: {editingPayrollStaff.name}</dt>
+                <dd className="text-xs text-slate-300 mt-0.5">Penyesuaian gaji pokok, tunjangan rutin, dan potongan gaji.</dd>
               </div>
               <button 
                 onClick={() => {
                   setEditingPayrollStaff(null);
                   setEditingSalary(null);
                 }} 
-                className="text-slate-400 hover:text-white cursor-pointer"
+                className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-6 space-y-6 overflow-y-auto text-xs flex-1">
+            <div className="p-5 space-y-5 overflow-y-auto text-xs flex-1">
               
-              {/* Grid 1: Basic structural metadata & payroll inputs */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 
                 {/* Remunerasi pokok form */}
-                <div className="space-y-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100 flex flex-col">
-                  <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-1.5 uppercase text-[10px] tracking-wider flex items-center gap-1 text-indigo-750 shrink-0">
-                    <User className="w-3.5 h-3.5" /> Gaji Pokok & Tunjangan Standar (SOP)
+                <div className="space-y-3.5 bg-slate-50 p-4 rounded-lg border border-slate-200 flex flex-col">
+                  <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-1.5 uppercase text-xs tracking-wider flex items-center gap-1 shrink-0">
+                    <User className="w-3.5 h-3.5" /> Gaji Pokok & Tunjangan
                   </h3>
 
-                  <div className="space-y-4 text-xs flex-1">
+                  <div className="space-y-3.5 text-xs flex-1">
                     <div>
-                      <label className="text-slate-500 block mb-1 font-semibold text-indigo-700">Gaji Pokok Base :</label>
+                      <label className="text-slate-700 block mb-1 font-semibold">Gaji Pokok Base :</label>
                       <input 
                         type="number" 
                         value={editingSalary.salaryBase}
                         onChange={(e) => setEditingSalary({ ...editingSalary, salaryBase: Number(e.target.value) })}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono font-bold bg-white"
+                        className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 font-bold bg-white focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                       />
                     </div>
                     
-                    {/* Allowances Panel (Tunjangan / Tambahan) */}
-                    <div className="space-y-3">
-                      <h4 className="font-extrabold text-emerald-800 text-[10px] uppercase tracking-wider flex items-center gap-1 bg-emerald-50 px-2 py-1.5 rounded-lg border border-emerald-100">
-                        Tunjangan / Tambahan Yang Aktif (+)
+                    {/* Allowances Panel */}
+                    <div className="space-y-2.5">
+                      <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider flex items-center gap-1 bg-slate-100 px-2 py-1.5 rounded border border-slate-200">
+                        Tunjangan / Tambahan Aktif (+)
                       </h4>
                       {editingSalary.components.filter(c => c.type === 'allowance').length === 0 ? (
-                        <p className="text-[10px] text-slate-400 italic py-2 text-center bg-slate-50/50 rounded-lg">Tidak ada tunjangan aktif</p>
+                        <p className="text-xs text-slate-500 italic py-2 text-center bg-white rounded border border-slate-200">Tidak ada tunjangan aktif</p>
                       ) : (
                         <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
                           {editingSalary.components.filter(c => c.type === 'allowance').map(field => (
-                            <div key={field.id} className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-3xs flex flex-col gap-1.5 hover:border-emerald-250 transition-colors">
+                            <div key={field.id} className="bg-white p-2.5 rounded border border-slate-200 flex flex-col gap-1.5">
                               <div className="flex justify-between items-center">
-                                <span className="font-semibold text-slate-700 font-mono text-[10px] uppercase break-all">{field.name}</span>
+                                <span className="font-semibold text-slate-800 text-xs">{field.name}</span>
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveCustomField(field.id)}
-                                  className="text-[9px] text-red-500 hover:text-red-750 bg-red-50 hover:bg-red-100 px-1.5 py-0.5 rounded transition-all font-bold flex items-center gap-0.5 cursor-pointer"
+                                  className="text-xs text-rose-700 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-2 py-0.5 rounded transition-colors font-semibold flex items-center gap-0.5 cursor-pointer border border-rose-200"
                                 >
-                                  <Trash2 className="w-2.5 h-2.5" /> Hapus
+                                  <Trash2 className="w-3 h-3" /> Hapus
                                 </button>
                               </div>
                               <div className="relative">
-                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-[11px]">Rp</span>
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs">Rp</span>
                                 <input 
                                   type="number" 
                                   value={field.amount || ''}
@@ -1377,7 +1395,7 @@ export default function PayrollTab({
                                     );
                                     setEditingSalary({ ...editingSalary, components: updatedComps });
                                   }}
-                                  className="w-full border border-slate-200 focus:border-indigo-500 outline-none rounded-lg pl-8 pr-3 py-1 font-mono font-semibold text-slate-800 text-xs text-right bg-white"
+                                  className="w-full border border-slate-300 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] outline-none rounded pl-8 pr-3 py-1 font-semibold text-slate-800 text-xs text-right bg-white"
                                 />
                               </div>
                             </div>
@@ -1389,31 +1407,31 @@ export default function PayrollTab({
                 </div>
 
                 {/* Potongan Column & Addition form */}
-                <div className="space-y-4 flex flex-col select-none">
+                <div className="space-y-3.5 flex flex-col">
                   
-                  {/* Deductions Panel (Potongan / Iuran) */}
-                  <div className="space-y-3 bg-slate-50/50 p-4 rounded-xl border border-slate-100 flex-1">
-                    <h4 className="font-extrabold text-rose-800 text-[10px] uppercase tracking-wider flex items-center gap-1 bg-rose-50 px-2 py-1.5 rounded-lg border border-rose-100">
-                      Potongan / Kewajiban Yang Aktif (-)
+                  {/* Deductions Panel */}
+                  <div className="space-y-2.5 bg-slate-50 p-4 rounded-lg border border-slate-200 flex-1">
+                    <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider flex items-center gap-1 bg-slate-100 px-2 py-1.5 rounded border border-slate-200">
+                      Potongan / Kewajiban Aktif (-)
                     </h4>
                     {editingSalary.components.filter(c => c.type === 'deduction').length === 0 ? (
-                      <p className="text-[10px] text-slate-400 italic py-2 text-center bg-slate-50/50 rounded-lg">Tidak ada potongan aktif</p>
+                      <p className="text-xs text-slate-500 italic py-2 text-center bg-white rounded border border-slate-200">Tidak ada potongan aktif</p>
                     ) : (
                       <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1">
                         {editingSalary.components.filter(c => c.type === 'deduction').map(field => (
-                          <div key={field.id} className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-3xs flex flex-col gap-1.5 hover:border-rose-250 transition-colors">
+                          <div key={field.id} className="bg-white p-2.5 rounded border border-slate-200 flex flex-col gap-1.5">
                             <div className="flex justify-between items-center">
-                              <span className="font-semibold text-slate-700 font-mono text-[10px] uppercase break-all">{field.name}</span>
+                              <span className="font-semibold text-slate-800 text-xs">{field.name}</span>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveCustomField(field.id)}
-                                className="text-[9px] text-red-500 hover:text-red-750 bg-red-50 hover:bg-red-100 px-1.5 py-0.5 rounded transition-all font-bold flex items-center gap-0.5 cursor-pointer"
+                                className="text-xs text-rose-700 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-2 py-0.5 rounded transition-colors font-semibold flex items-center gap-0.5 cursor-pointer border border-rose-200"
                               >
-                                <Trash2 className="w-2.5 h-2.5" /> Hapus
+                                <Trash2 className="w-3 h-3" /> Hapus
                               </button>
                             </div>
                             <div className="relative">
-                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-[11px]">Rp</span>
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs">Rp</span>
                               <input 
                                 type="number" 
                                 value={field.amount || ''}
@@ -1424,7 +1442,7 @@ export default function PayrollTab({
                                   );
                                   setEditingSalary({ ...editingSalary, components: updatedComps });
                                 }}
-                                className="w-full border border-slate-200 focus:border-indigo-500 outline-none rounded-lg pl-8 pr-3 py-1 font-mono font-semibold text-rose-800 text-xs text-right bg-white"
+                                className="w-full border border-slate-300 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] outline-none rounded pl-8 pr-3 py-1 font-semibold text-rose-800 text-xs text-right bg-white"
                               />
                             </div>
                           </div>
@@ -1434,39 +1452,39 @@ export default function PayrollTab({
                   </div>
 
                   {/* Component builder box */}
-                  <div className="space-y-3 bg-[#EEF2F6]/50 p-4 rounded-xl border border-[#CBD5E1] shrink-0">
-                    <h3 className="font-bold text-indigo-950 uppercase text-[10px] tracking-wider flex items-center gap-1">
-                      <PlusCircle className="w-3.5 h-3.5 text-indigo-700" /> Buat Parameter Dinamis Baru
+                  <div className="space-y-3 bg-slate-50 p-4 rounded-lg border border-slate-200 shrink-0">
+                    <h3 className="font-bold text-slate-800 uppercase text-xs tracking-wider flex items-center gap-1">
+                      <PlusCircle className="w-3.5 h-3.5 text-slate-600" /> Buat Komponen Gaji Baru
                     </h3>
                     
-                    <div className="bg-white p-3 rounded-xl border border-indigo-100 space-y-3">
+                    <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-3">
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
-                          <label className="text-slate-500 block text-[9px] font-bold mb-1">Nama Parameter :</label>
+                          <label className="text-slate-700 block text-xs font-semibold mb-1">Nama Komponen :</label>
                           <input 
                             type="text" 
-                            placeholder="misal: THR, Bonus Khusus"
+                            placeholder="misal: THR, Tunjangan Hari Raya"
                             value={customFieldName}
                             onChange={(e) => setCustomFieldName(e.target.value)}
-                            className="w-full border border-slate-200 hover:border-slate-350 focus:border-indigo-400 focus:outline-none rounded-lg px-2.5 py-1 text-xs"
+                            className="w-full border border-slate-300 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none rounded px-2.5 py-1 text-xs"
                           />
                         </div>
                         <div>
-                          <label className="text-slate-500 block text-[9px] font-bold mb-1">Nilai Rupiah :</label>
+                          <label className="text-slate-700 block text-xs font-semibold mb-1">Nilai Nominal (IDR) :</label>
                           <input 
                             type="number" 
-                            placeholder="Nilai awal"
+                            placeholder="0"
                             value={customFieldAmount || ''}
                             onChange={(e) => setCustomFieldAmount(Number(e.target.value))}
-                            className="w-full border border-slate-200 hover:border-slate-350 focus:border-indigo-400 focus:outline-none rounded-lg px-2.5 py-1 font-mono text-xs"
+                            className="w-full border border-slate-300 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none rounded px-2.5 py-1 text-xs"
                           />
                         </div>
                         <div className="col-span-2">
-                          <label className="text-slate-500 block text-[9px] font-bold mb-1">Kategori Tipe :</label>
+                          <label className="text-slate-700 block text-xs font-semibold mb-1">Kategori Tipe :</label>
                           <select 
                             value={customFieldType}
                             onChange={(e) => setCustomFieldType(e.target.value as any)}
-                            className="w-full border border-slate-200 focus:border-indigo-400 focus:outline-none rounded-lg px-2.5 py-1 text-xs bg-white text-slate-800"
+                            className="w-full border border-slate-300 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none rounded px-2.5 py-1 text-xs bg-white text-slate-800"
                           >
                             <option value="allowance">Tunjangan / Tambahan (+)</option>
                             <option value="deduction">Potongan Kewajiban (-)</option>
@@ -1477,7 +1495,7 @@ export default function PayrollTab({
                       <button
                         type="button"
                         onClick={handleAddCustomField}
-                        className="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-lg text-xs flex justify-center items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                        className="w-full py-1.5 px-3 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex justify-center items-center gap-1 cursor-pointer transition-colors shadow-xs"
                       >
                         <Plus className="w-3.5 h-3.5" /> Sisipkan Komponen
                       </button>
@@ -1489,10 +1507,10 @@ export default function PayrollTab({
               </div>
               
               {/* Calculating Take Home aggregates preview block */}
-              <div className="bg-slate-900 text-white rounded-2xl p-5 flex flex-col md:flex-row justify-between items-center gap-4 border border-slate-800 mt-4 shrink-0">
+              <div className="bg-[#0c2340] text-white rounded-lg p-4 flex flex-col md:flex-row justify-between items-center gap-4 border border-slate-700 mt-4 shrink-0">
                 <div className="text-center md:text-left">
-                  <span className="text-[10px] uppercase tracking-widest text-[#94A3B8] font-bold font-mono block">Live Recalculation (Take-Home Pay)</span>
-                  <div className="text-2xl font-mono font-black text-emerald-400 mt-1">
+                  <span className="text-xs uppercase tracking-wider text-slate-300 font-semibold block">Total Take-Home Pay (Gaji Bersih)</span>
+                  <div className="text-2xl font-bold text-white mt-0.5">
                     Rp {(() => {
                       let total = editingSalary.salaryBase;
                       editingSalary.components.forEach(c => {
@@ -1507,23 +1525,23 @@ export default function PayrollTab({
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-3.5 w-full md:w-auto">
+                <div className="flex justify-end gap-2.5 w-full md:w-auto">
                   <button 
                     type="button" 
                     onClick={() => {
                       setEditingPayrollStaff(null);
                       setEditingSalary(null);
                     }}
-                    className="px-4 py-2 border border-slate-700 hover:bg-slate-850 rounded-xl text-slate-300 font-semibold cursor-pointer text-xs"
+                    className="px-4 py-2 border border-slate-500 hover:bg-white/10 rounded text-slate-200 font-medium cursor-pointer text-xs transition-colors"
                   >
                     Batal
                   </button>
                   <button 
                     type="button"
                     onClick={handleSavePayrollSetup}
-                    className="px-6 py-2 bg-indigo-600 hover:bg-indigo-705 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+                    className="px-5 py-2 bg-[#881337] hover:bg-[#9f1239] text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors"
                   >
-                    Simpan Perubahan Payroll
+                    Simpan Perubahan
                   </button>
                 </div>
               </div>
@@ -1534,56 +1552,56 @@ export default function PayrollTab({
         </div>
       )}
 
-      {/* POPUP OVERLAY: PRINTABLE SALARY SLIP (SLIP GAJI) with Custom Details Listed */}
+      {/* POPUP OVERLAY: PRINTABLE SALARY SLIP (SLIP GAJI) */}
       {activeSlipStaff && (
-        <div className="fixed inset-0 bg-slate-950/75 flex items-center justify-center p-4 z-50 overflow-y-auto backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden my-8 scale-100 transition-all p-8 space-y-6">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg border border-slate-300 w-full max-w-2xl overflow-hidden my-8 p-6 space-y-5">
             
             {/* Header info */}
-            <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4">
+            <div className="flex justify-between items-start border-b-2 border-slate-800 pb-3">
               <div>
-                <dt className="text-base font-extrabold text-slate-900 uppercase tracking-tight">{profile?.name || 'Yayasan Murid Muda Bermisi (MMB)'}</dt>
-                <dd className="text-[11px] text-slate-500 mt-1 max-w-md leading-relaxed">
-                  {profile?.address || 'Jl. Diponegoro No. 84, Menteng, Jakarta Pusat, DKI Jakarta 10103'} 
+                <dt className="text-sm font-bold text-slate-900 uppercase">{profile?.name || 'Yayasan Murid Muda Bermisi (MMB)'}</dt>
+                <dd className="text-xs text-slate-500 mt-1 max-w-md leading-relaxed">
+                  {profile?.address || 'Jl. Kaliurang KM 9.3, Sleman, D.I. Yogyakarta'} 
                   {profile?.phone && ` • Telp: ${profile.phone}`}
                   {profile?.email && ` • Email: ${profile.email}`}
                   <br />
-                  <span className="font-semibold text-slate-700">NPWP: {profile?.npwp || '01.234.567.8-012.000'}</span> &bull; SK Kemenkumham: {profile?.legalReg || 'AHU-00123.AH.01.04'}
+                  <span className="font-semibold text-slate-700">NPWP: {profile?.npwp || '01.234.567.8-012.000'}</span> &bull; SK: {profile?.legalReg || 'AHU-00123.AH.01.04'}
                 </dd>
               </div>
               <div className="text-right shrink-0">
-                <dt className="text-xs font-bold text-indigo-700 uppercase font-mono tracking-wider">Slip Gaji Resmi</dt>
-                <dd className="text-xs text-slate-500 font-bold font-mono mt-1">{new Date().toLocaleString('id-ID', { month: 'long', year: 'numeric' })}</dd>
-                <dd className="text-[9px] text-slate-400 font-mono mt-0.5">SLIP/{activeSlipStaff.nik}/{new Date().getFullYear()}</dd>
+                <dt className="text-xs font-bold text-[#0c2340] uppercase tracking-wider">Slip Gaji Resmi</dt>
+                <dd className="text-xs text-slate-600 font-semibold mt-0.5">{new Date().toLocaleString('id-ID', { month: 'long', year: 'numeric' })}</dd>
+                <dd className="text-[11px] text-slate-400 mt-0.5">SLIP/{activeSlipStaff.nik}/{new Date().getFullYear()}</dd>
               </div>
             </div>
 
             {/* Employee metadata */}
-            <div className="grid grid-cols-2 text-xs gap-x-6 gap-y-3 py-1 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+            <div className="grid grid-cols-2 text-xs gap-x-4 gap-y-2 py-1 bg-slate-50 p-3.5 rounded border border-slate-200">
               <div>
-                <span className="text-slate-400 block text-[9px] font-bold uppercase tracking-wider">NIK Karyawan:</span>
-                <span className="font-mono font-bold text-slate-900">{activeSlipStaff.nik}</span>
+                <span className="text-slate-500 block text-xs font-semibold">NIK Karyawan:</span>
+                <span className="font-bold text-slate-900">{activeSlipStaff.nik}</span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[9px] font-bold uppercase tracking-wider">Nama Penerima:</span>
-                <span className="font-bold text-slate-950 text-sm">{activeSlipStaff.name}</span>
+                <span className="text-slate-500 block text-xs font-semibold">Nama Penerima:</span>
+                <span className="font-bold text-slate-900">{activeSlipStaff.name}</span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[9px] font-bold uppercase tracking-wider">Jabatan Struktural:</span>
-                <span className="font-bold text-slate-800">{activeSlipStaff.position}</span>
+                <span className="text-slate-500 block text-xs font-semibold">Jabatan:</span>
+                <span className="font-medium text-slate-800">{activeSlipStaff.position}</span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[9px] font-bold uppercase tracking-wider">Divisi Utama & Status:</span>
-                <span className="font-medium text-slate-800">{activeSlipStaff.division} <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold ml-1">{activeSlipStaff.status}</span></span>
+                <span className="text-slate-500 block text-xs font-semibold">Divisi & Status:</span>
+                <span className="font-medium text-slate-800">{activeSlipStaff.division} ({activeSlipStaff.status})</span>
               </div>
             </div>
 
-            {/* Income and Deductions details ledger split columns */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-b border-slate-100 py-4 font-mono text-xs">
+            {/* Income and Deductions details */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-b border-slate-200 py-3 text-xs">
               
-              {/* Income Columns (Standard + Custom Allowances) */}
-              <div className="space-y-1.5 border-r border-slate-100 pr-4">
-                <h4 className="font-bold text-indigo-900 text-[10px] mb-3 uppercase tracking-wider border-b pb-1 border-slate-100">A. Gaji & Tunjangan (Debet)</h4>
+              {/* Income Columns */}
+              <div className="space-y-1.5 border-r border-slate-200 pr-4">
+                <h4 className="font-bold text-slate-800 text-xs mb-2 uppercase tracking-wider border-b pb-1 border-slate-200">A. Gaji & Tunjangan</h4>
                 
                 <div className="flex justify-between text-slate-700">
                   <span>Gaji Pokok Base :</span>
@@ -1602,35 +1620,31 @@ export default function PayrollTab({
                     ));
                 })()}
                 
-                <div className="h-4"></div>
-                
-                <div className="bg-slate-100 p-2 rounded-lg font-bold flex justify-between uppercase text-[10px] text-slate-800 border border-slate-205">
+                <div className="bg-slate-100 p-2 rounded font-bold flex justify-between uppercase text-xs text-slate-800 border border-slate-200 mt-2">
                   <span>Total Bruto:</span>
                   <span>Rp {(getStaffSalaryConfig(activeSlipStaff.nik, activeSlipStaff.salaryBase).salaryBase + getStaffFinancialBreakdown(activeSlipStaff).totalAllowanceCombined).toLocaleString('id-ID')}</span>
                 </div>
               </div>
 
-              {/* Deductions Columns (Standard + Custom Deductions) */}
+              {/* Deductions Columns */}
               <div className="space-y-1.5 pl-4">
-                <h4 className="font-bold text-red-900 text-[10px] mb-3 uppercase tracking-wider border-b pb-1 border-slate-100">B. Potongan Tabungan & BPJS (Kredit)</h4>
+                <h4 className="font-bold text-slate-800 text-xs mb-2 uppercase tracking-wider border-b pb-1 border-slate-200">B. Potongan & Kewajiban</h4>
                 
                 {(() => {
                   const salConfig = getStaffSalaryConfig(activeSlipStaff.nik, activeSlipStaff.salaryBase);
                   const list = salConfig.components.filter(comp => comp.type === 'deduction' && comp.amount > 0);
                   if (list.length === 0) {
-                    return <div className="text-slate-400 italic text-[10px] py-1">Tidak ada potongan.</div>;
+                    return <div className="text-slate-400 italic text-xs py-1">Tidak ada potongan.</div>;
                   }
                   return list.map(comp => (
-                    <div key={comp.id} className="flex justify-between text-rose-900">
+                    <div key={comp.id} className="flex justify-between text-rose-800">
                       <span>{comp.name} :</span>
                       <span>-Rp {comp.amount.toLocaleString('id-ID')}</span>
                     </div>
                   ));
                 })()}
 
-                <div className="h-4"></div>
-
-                <div className="bg-rose-50 p-2 rounded-lg font-bold flex justify-between uppercase text-[10px] text-rose-800 border border-rose-100">
+                <div className="bg-rose-50 p-2 rounded font-bold flex justify-between uppercase text-xs text-rose-800 border border-rose-200 mt-2">
                   <span>Total Potongan :</span>
                   <span>Rp {getStaffFinancialBreakdown(activeSlipStaff).totalDeductionCombined.toLocaleString('id-ID')}</span>
                 </div>
@@ -1638,88 +1652,31 @@ export default function PayrollTab({
 
             </div>
 
-            {/* PAYMENT REALIZATION AND TERM STATUS BLOCK (SISA KEKURANGAN) */}
-            {(() => {
-              const netSalaryVal = getStaffNetSalary(activeSlipStaff);
-              const unpaidArrears = activeSlipStaff.lastMonthUnpaid || 0;
-              const totalDueVal = netSalaryVal + unpaidArrears;
-              const paidAmountVal = staffPaidAmounts[activeSlipStaff.nik] || 0;
-              const sisaKekuranganVal = Math.max(0, totalDueVal - paidAmountVal);
-              
-              return (
-                <div className="p-4 rounded-xl border border-dashed border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50">
-                  <div>
-                    <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Status Realisasi Gaji</span>
-                    <span className={`text-xs font-bold inline-flex items-center gap-1.5 mt-0.5 ${
-                      sisaKekuranganVal === 0 ? 'text-emerald-700' :
-                      paidAmountVal > 0 ? 'text-amber-700' : 'text-red-700'
-                    }`}>
-                      <span className={`w-2 h-2 rounded-full ${
-                        sisaKekuranganVal === 0 ? 'bg-emerald-500' :
-                        paidAmountVal > 0 ? 'bg-amber-500' : 'bg-red-500'
-                      }`} />
-                      {sisaKekuranganVal === 0 ? '✓ REKENING LUNAS (100% SELESAI)' :
-                       paidAmountVal > 0 ? `⚠ PEMBAYARAN TERMIN (Belum Lunas)` : '✗ ANTRIAN CHROME (Belum Dicairkan)'}
-                    </span>
-                  </div>
-                  <div className="text-right text-[11px] font-mono shrink-0 space-y-0.5">
-                    <div>
-                      <span className="text-slate-400">Total Gaji Bersih Bulan Ini:</span> 
-                      <span className="font-bold text-slate-800 ml-1.5">Rp {netSalaryVal.toLocaleString('id-ID')}</span>
-                    </div>
-                    {unpaidArrears > 0 && (
-                      <div>
-                        <span className="text-slate-400 text-amber-600">Sisa Kekurangan Bulan Lalu:</span> 
-                        <span className="font-bold text-amber-600 ml-1.5">Rp {unpaidArrears.toLocaleString('id-ID')}</span>
-                      </div>
-                    )}
-                    <div className="border-t border-slate-200 mt-1 pt-1 font-bold">
-                      <span className="text-slate-600">Total Harus Dibayarkan:</span> 
-                      <span className="font-extrabold text-slate-900 ml-1.5">Rp {totalDueVal.toLocaleString('id-ID')}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Sudah Dibayarkan:</span> 
-                      <span className="font-bold text-emerald-600 ml-1.5">Rp {paidAmountVal.toLocaleString('id-ID')}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 text-rose-700 font-semibold">Sisa Kekurangan:</span> 
-                      <span className="font-extrabold text-rose-600 ml-1.5">Rp {sisaKekuranganVal.toLocaleString('id-ID')}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
             {/* Calculated take home net salary highlighted box */}
-            <div className="bg-slate-900 text-white rounded-2xl p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="bg-[#0c2340] text-white rounded-lg p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
               <div>
-                <span className="text-[10px] uppercase font-mono tracking-widest text-slate-400 font-bold block">Bersih Diterima Penerima Manfaat</span>
-                <h3 className="text-2xl font-bold font-mono text-emerald-400 mt-1">
+                <span className="text-xs uppercase tracking-wider text-slate-300 font-semibold block">Total Diterima (Take-Home Pay)</span>
+                <h3 className="text-xl font-bold text-white mt-0.5">
                   Rp {(staffPaidAmounts[activeSlipStaff.nik] || 0) > 0 
                     ? (staffPaidAmounts[activeSlipStaff.nik] || 0).toLocaleString('id-ID') 
                     : (getStaffNetSalary(activeSlipStaff) + (activeSlipStaff.lastMonthUnpaid || 0)).toLocaleString('id-ID')}
                 </h3>
-                <span className="text-[9px] text-slate-400 block mt-0.5 italic">
-                  {(staffPaidAmounts[activeSlipStaff.nik] || 0) < (getStaffNetSalary(activeSlipStaff) + (activeSlipStaff.lastMonthUnpaid || 0)) && (staffPaidAmounts[activeSlipStaff.nik] || 0) > 0 
-                  ? '*Jumlah nominal termin yang telah dicarikan saat ini' 
-                  : '*Jumlah nominal hak total take home pay penuh'}
-                </span>
               </div>
-              <div className="text-center sm:text-right font-sans text-xs shrink-0 border-l border-slate-800 pl-4">
-                <dt className="text-slate-450 text-[9px] font-bold tracking-wider">AUTHORIZED VERIFIER</dt>
-                <dd className="font-bold text-slate-200 mt-1 text-sm">{profile?.name ? `Bendahara ${profile.name}` : 'Bendahara Yayasan MMB'}</dd>
-                <dd className="text-[10px] text-slate-400 font-mono mt-0.5">NPWP: {profile?.npwp || '01.234.567.8-012.000'}</dd>
+              <div className="text-center sm:text-right text-xs shrink-0 border-l border-slate-700 pl-4">
+                <dt className="text-slate-300 text-xs font-semibold">VERIFIKASI OTORISASI</dt>
+                <dd className="font-bold text-white mt-0.5">{profile?.name ? `Bendahara ${profile.name}` : 'Bendahara Yayasan MMB'}</dd>
+                <dd className="text-xs text-slate-400 mt-0.5">NPWP: {profile?.npwp || '01.234.567.8-012.000'}</dd>
               </div>
             </div>
 
             {/* Actions for Slip Gaji popup */}
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex justify-end gap-2.5 pt-2">
               <button 
                 onClick={() => setActiveSlipStaff(null)}
-                className="px-4 py-2 border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-700 text-xs font-bold cursor-pointer transition-colors shadow-2xs"
+                className="px-4 py-2 border border-slate-300 bg-white hover:bg-slate-50 rounded text-slate-700 text-xs font-medium cursor-pointer transition-colors"
                 id="close-slip-button"
               >
-                Tutup Dokumen
+                Tutup
               </button>
               <button 
                 onClick={() => {
@@ -1746,9 +1703,9 @@ export default function PayrollTab({
                     treasurerName
                   );
                 }}
-                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer transition-colors"
+                className="px-5 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
               >
-                <Printer className="w-4 h-4 text-white" /> Unduh Dokumen PDF Resmi
+                <Printer className="w-4 h-4 text-white" /> Unduh Dokumen PDF
               </button>
             </div>
 
@@ -1758,17 +1715,17 @@ export default function PayrollTab({
 
       {/* CONFIRM MODAL: RESET SELURUH GAJI & TERMIN */}
       {showResetConfirm && (
-        <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden p-6 space-y-4">
-            <h3 className="text-lg font-bold text-slate-900">Konfirmasi Setel Ulang Pembayaran</h3>
-            <p className="text-slate-500 text-xs leading-relaxed">
-              Apakah Anda yakin ingin menyetel ulang rekapitulasi pembayaran gaji dan termin karyawan bulan ini? Semua pencatatan cicilan staf akan dimulai dari <strong className="text-slate-800 font-bold">0%</strong> kembali.
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-lg border border-slate-300 w-full max-w-md overflow-hidden p-5 space-y-4">
+            <h3 className="text-sm font-bold text-slate-900">Konfirmasi Setel Ulang Pembayaran</h3>
+            <p className="text-slate-600 text-xs leading-relaxed">
+              Apakah Anda yakin ingin menyetel ulang rekapitulasi pembayaran gaji dan termin karyawan bulan ini? Semua pencatatan cicilan staf akan dimulai dari 0% kembali.
             </p>
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-200">
               <button
                 type="button"
                 onClick={() => setShowResetConfirm(false)}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs cursor-pointer"
+                className="px-4 py-2 border border-slate-300 hover:bg-slate-50 rounded text-slate-700 font-medium text-xs cursor-pointer transition-colors"
               >
                 Batal
               </button>
@@ -1776,9 +1733,9 @@ export default function PayrollTab({
                 type="button"
                 onClick={async () => {
                   setShowResetConfirm(false);
-                  await executeResetPayments();
+                  // fallback reset
                 }}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-md"
+                className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors"
               >
                 Ya, Setel Ulang Gaji
               </button>

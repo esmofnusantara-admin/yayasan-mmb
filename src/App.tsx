@@ -683,19 +683,19 @@ export default function App() {
     }
   };
 
-  // Sync data whenever activeTab changes or session becomes ready
+  // Stale-While-Revalidate Sync: Whenever activeTab changes, fetch fresh data for that tab in the background
   useEffect(() => {
     if (currentUser && !isVerifyingSession) {
-      loadDataForTab(activeTab);
+      loadDataForTab(activeTab, true);
     }
   }, [activeTab, currentUser, isVerifyingSession]);
 
-  // Periodic silent refresh for the active tab only (every 30s)
+  // Periodic background revalidation for the active tab only (every 20s)
   useEffect(() => {
     if (currentUser && !isVerifyingSession) {
       const interval = setInterval(() => {
         loadDataForTab(activeTab, true);
-      }, 30000);
+      }, 20000);
       return () => clearInterval(interval);
     }
   }, [activeTab, currentUser, isVerifyingSession]);

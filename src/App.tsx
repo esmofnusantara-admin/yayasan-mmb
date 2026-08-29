@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { 
   Building2, 
   Users, 
@@ -573,206 +573,132 @@ export default function App() {
     }
   };
 
-  const loadAllData = async () => {
-    if (isVerifyingSession) return;
-    if (!currentUser) return;
-    try {
-      let seededVal = isSystemSeeded;
-      if (seededVal === null) {
-        try {
-          const stateData = await safeFetchJson('/api/data/system_state?t=' + Date.now());
-          const statusObj = Array.isArray(stateData) ? stateData.find((x: any) => x.id === 'seed_status') : null;
-          if (statusObj && statusObj.seeded) {
-            seededVal = true;
-            setIsSystemSeeded(true);
-          } else {
-            seededVal = false;
-            setIsSystemSeeded(false);
-          }
-        } catch (stateErr: any) {
-          console.warn('Proteksi Sesi Sistem: Gagal melakukan pembacaan status seed (Akses Terbatas). Mengasumsikan database telah terisi...', stateErr);
-          // Set to true by default to bypass initial seed requirements for limited roles
-          seededVal = true;
-          setIsSystemSeeded(true);
+  const TAB_REQUIRED_COLLECTIONS: Record<string, string[]> = {
+    dashboard: ['members', 'transactions', 'partners', 'small_groups', 'approvals', 'audits', 'staff'],
+    members: ['members', 'small_groups', 'member_notes', 'prayer_requests', 'follow_ups'],
+    small_groups: ['small_groups', 'meeting_logs', 'materials', 'members'],
+    finance: ['transactions', 'categories'],
+    kegiatan: ['activities', 'activity_transactions', 'activity_rundowns', 'activity_preparations', 'transactions'],
+    partners: ['partners', 'donations'],
+    staff: ['staff'],
+    staff_tasks: ['staff_tasks', 'staff_meetings', 'staff'],
+    payroll: ['staff', 'transactions', 'salaries'],
+    letters: ['inward_letters', 'outward_letters', 'documents'],
+    reports: ['members', 'transactions', 'partners', 'small_groups', 'meeting_logs', 'staff', 'salaries', 'donations'],
+    approvals: ['approvals'],
+    system: ['audits'],
+    staff_profile: ['staff', 'salaries']
+  };
+
+  const loadedCollectionsRef = useRef<Set<string>>(new Set());
+
+  const loadSingleCollection = async (colName: string): Promise<any> => {
+    switch (colName) {
+      case 'members':
+        return loadCollection('members', INITIAL_MEMBERS, setMembers);
+      case 'member_notes':
+        return loadCollection('member_notes', INITIAL_MEMBER_NOTES, setNotes);
+      case 'prayer_requests':
+        return loadCollection('prayer_requests', INITIAL_PRAYER_REQUESTS, setPrayerRequests);
+      case 'follow_ups':
+        return loadCollection('follow_ups', INITIAL_FOLLOW_UPS, setFollowUps);
+      case 'small_groups':
+        return loadCollection('small_groups', INITIAL_SMALL_GROUPS, setSmallGroups);
+      case 'meeting_logs':
+        return loadCollection('meeting_logs', INITIAL_MEETING_LOGS, setMeetings);
+      case 'materials':
+        return loadCollection('materials', INITIAL_MATERIALS, setMaterials);
+      case 'transactions': {
+        const txs = await loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions);
+        if (txs && Array.isArray(txs)) {
+          await recalculateBalances(txs);
         }
+        return txs;
       }
-
-      const [
-        _p,
-        _s,
-        _m,
-        _n,
-        _pr,
-        _f,
-        _sg,
-        _mtg,
-        _mat,
-        loadedTransactions,
-        _c,
-        _part,
-        _st,
-        _sal,
-        _inw,
-        _out,
-        _doc,
-        _app,
-        _aud,
-        _don,
-        _act,
-        _rund,
-        _prep,
-        _acttx,
-        _tasks,
-        _meets
-      ] = await Promise.all([
-        loadProfile(),
-        loadStructures(),
-        loadCollection('members', INITIAL_MEMBERS, setMembers),
-        loadCollection('member_notes', INITIAL_MEMBER_NOTES, setNotes),
-        loadCollection('prayer_requests', INITIAL_PRAYER_REQUESTS, setPrayerRequests),
-        loadCollection('follow_ups', INITIAL_FOLLOW_UPS, setFollowUps),
-        loadCollection('small_groups', INITIAL_SMALL_GROUPS, setSmallGroups),
-        loadCollection('meeting_logs', INITIAL_MEETING_LOGS, setMeetings),
-        loadCollection('materials', INITIAL_MATERIALS, setMaterials),
-        loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions) as Promise<Transaction[]>,
-        loadCollection('categories', INITIAL_CATEGORIES, setCategories),
-        loadCollection('partners', INITIAL_PARTNERS, setPartners),
-        loadCollection('staff', INITIAL_STAFF, setStaffs),
-        loadCollection('salaries', INITIAL_SALARIES, setSalaries),
-        loadCollection('inward_letters', INITIAL_INWARD_LETTERS, setInwardLetters),
-        loadCollection('outward_letters', INITIAL_OUTWARD_LETTERS, setOutwardLetters),
-        loadCollection('documents', INITIAL_DOCUMENTS, setDocuments),
-        loadCollection('approvals', INITIAL_APPROVALS, setApprovals),
-        loadCollection('audits', INITIAL_AUDITS, setAuditLogs),
-        loadCollection('donations', INITIAL_DONATIONS, setDonations),
-        loadCollection('activities', [], setActivities),
-        loadCollection('activity_rundowns', [], setActivityRundowns),
-        loadCollection('activity_preparations', [], setActivityPreparations),
-        loadCollection('activity_transactions', [], setActivityTransactions),
-        loadCollection('staff_tasks', [], setStaffTasks),
-        loadCollection('staff_meetings', [], setStaffMeetings)
-      ]);
-
-      // Automatic database backward compatibility migration:
-      // If any fetched activities have legacy inline array "rundownItems" or "preparationItems",
-      // migrate them to their dedicated Firestore activity_rundowns & activity_preparations collections (separate tables) 
-      // and update the original activity documents to be completely clean/separated.
-      if (Array.isArray(_act) && _act.length > 0) {
-        let migrationTriggered = false;
-        for (const act of _act) {
-          const legacyRundown = (act as any).rundownItems;
-          const legacyPrep = (act as any).preparationItems;
-          let needsUpdate = false;
-
-          if (Array.isArray(legacyRundown) && legacyRundown.length > 0) {
-            console.log(`[Database Migration] Migrating ${legacyRundown.length} legacy rundown items for activity ${act.id} to separate table`);
-            for (const item of legacyRundown) {
-              const cleanedItem: ActivityRundownItem = {
-                id: item.id || `RND-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                activityId: act.id,
-                time: item.time || '',
-                activity: item.activity || '',
-                pic: item.pic || '-',
-                createdAt: item.createdAt || new Date().toISOString(),
-                createdBy: item.createdBy || 'System Migration'
-              };
-              await fetch(`/api/data/activity_rundowns/${cleanedItem.id}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(cleanedItem)
-              });
-            }
-            needsUpdate = true;
-          }
-
-          if (Array.isArray(legacyPrep) && legacyPrep.length > 0) {
-            console.log(`[Database Migration] Migrating ${legacyPrep.length} legacy preparation items for activity ${act.id} to separate table`);
-            for (const item of legacyPrep) {
-              const cleanedItem: ActivityPreparationItem = {
-                id: item.id || `PREP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                activityId: act.id,
-                task: item.task || '',
-                date: item.date || '',
-                pic: item.pic || '-',
-                needsFunding: item.needsFunding || false,
-                requiredAmount: item.requiredAmount || 0,
-                status: item.status || 'Pending',
-                funded: item.funded || false,
-                createdAt: item.createdAt || new Date().toISOString(),
-                createdBy: item.createdBy || 'System Migration'
-              };
-              await fetch(`/api/data/activity_preparations/${cleanedItem.id}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(cleanedItem)
-              });
-            }
-            needsUpdate = true;
-          }
-
-          if (needsUpdate) {
-            migrationTriggered = true;
-            const cleanAct = { ...act };
-            delete (cleanAct as any).rundownItems;
-            delete (cleanAct as any).preparationItems;
-            await fetch(`/api/data/activities/${act.id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                ...cleanAct,
-                updatedBy: 'System Migration',
-                updatedAt: new Date().toISOString()
-              })
-            });
-          }
-        }
-
-        if (migrationTriggered) {
-          console.log('[Database Migration] Legacy activity elements migrated successfully. Reloading updated collections...');
-          await Promise.all([
-            loadCollection('activities', [], setActivities),
-            loadCollection('activity_rundowns', [], setActivityRundowns),
-            loadCollection('activity_preparations', [], setActivityPreparations)
-          ]);
-        }
-      }
-
-      if (loadedTransactions && Array.isArray(loadedTransactions)) {
-        await recalculateBalances(loadedTransactions);
-      }
-
-      if (seededVal === false) {
-        console.log('Successfully completed initial data import. Saving seed_status to database...');
-        await fetch('/api/data/system_state/seed_status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: 'seed_status',
-            seeded: true,
-            createdAt: new Date().toISOString()
-          })
-        });
-        setIsSystemSeeded(true);
-      }
-    } catch (err: any) {
-      if (err?.message?.includes('401') || err?.message?.includes('unauthorized') || err?.message?.includes('Otentikasi')) {
-        console.warn('Session unauthorized while loading all database collections.');
-        return;
-      }
-      console.error('Failed to load all database collections:', err);
+      case 'categories':
+        return loadCollection('categories', INITIAL_CATEGORIES, setCategories);
+      case 'partners':
+        return loadCollection('partners', INITIAL_PARTNERS, setPartners);
+      case 'staff':
+        return loadCollection('staff', INITIAL_STAFF, setStaffs);
+      case 'salaries':
+        return loadCollection('salaries', INITIAL_SALARIES, setSalaries);
+      case 'inward_letters':
+        return loadCollection('inward_letters', INITIAL_INWARD_LETTERS, setInwardLetters);
+      case 'outward_letters':
+        return loadCollection('outward_letters', INITIAL_OUTWARD_LETTERS, setOutwardLetters);
+      case 'documents':
+        return loadCollection('documents', INITIAL_DOCUMENTS, setDocuments);
+      case 'approvals':
+        return loadCollection('approvals', INITIAL_APPROVALS, setApprovals);
+      case 'audits':
+        return loadCollection('audits', INITIAL_AUDITS, setAuditLogs);
+      case 'donations':
+        return loadCollection('donations', INITIAL_DONATIONS, setDonations);
+      case 'activities':
+        return loadCollection('activities', [], setActivities);
+      case 'activity_rundowns':
+        return loadCollection('activity_rundowns', [], setActivityRundowns);
+      case 'activity_preparations':
+        return loadCollection('activity_preparations', [], setActivityPreparations);
+      case 'activity_transactions':
+        return loadCollection('activity_transactions', [], setActivityTransactions);
+      case 'staff_tasks':
+        return loadCollection('staff_tasks', [], setStaffTasks);
+      case 'staff_meetings':
+        return loadCollection('staff_meetings', [], setStaffMeetings);
+      default:
+        return null;
     }
   };
 
-  // Sync effect periodically polling
+  const loadDataForTab = async (targetTab: string, force = false) => {
+    if (isVerifyingSession || !currentUser) return;
+    try {
+      // 1. Core Profile & Organization Structure & Approvals (for header counter)
+      if (!loadedCollectionsRef.current.has('core') || force) {
+        await Promise.all([
+          loadProfile(),
+          loadStructures(),
+          loadSingleCollection('approvals')
+        ]);
+        loadedCollectionsRef.current.add('core');
+        loadedCollectionsRef.current.add('approvals');
+      }
+
+      // 2. Active Tab On-Demand Collections
+      const required = TAB_REQUIRED_COLLECTIONS[targetTab] || [];
+      const pending = required.filter(col => force || !loadedCollectionsRef.current.has(col));
+
+      if (pending.length > 0) {
+        await Promise.all(pending.map(col => loadSingleCollection(col)));
+        pending.forEach(col => loadedCollectionsRef.current.add(col));
+      }
+    } catch (err: any) {
+      if (err?.message?.includes('401') || err?.message?.includes('unauthorized') || err?.message?.includes('Otentikasi')) {
+        console.warn('Session unauthorized while loading tab data.');
+        return;
+      }
+      console.error('Failed to load on-demand data for tab:', targetTab, err);
+    }
+  };
+
+  // Sync data whenever activeTab changes or session becomes ready
   useEffect(() => {
     if (currentUser && !isVerifyingSession) {
-      loadAllData();
+      loadDataForTab(activeTab);
+    }
+  }, [activeTab, currentUser, isVerifyingSession]);
+
+  // Periodic silent refresh for the active tab only (every 30s)
+  useEffect(() => {
+    if (currentUser && !isVerifyingSession) {
       const interval = setInterval(() => {
-        loadAllData();
-      }, 15000);
+        loadDataForTab(activeTab, true);
+      }, 30000);
       return () => clearInterval(interval);
     }
-  }, [currentUser, isVerifyingSession]);
+  }, [activeTab, currentUser, isVerifyingSession]);
 
   // Core Audit Logging API Utility
   const logAudit = async (actionDescription: string, moduleName: string, before?: string, after?: string) => {
@@ -2336,7 +2262,7 @@ if (!res.ok) {
       }
 
       await logAudit(`Resolusi Persetujuan Agenda ID: ${id} menjadi ${decision}`, 'Approval');
-      await loadAllData();
+      await loadDataForTab(activeTab, true);
     } catch (e: any) {
       console.error(e);
     }

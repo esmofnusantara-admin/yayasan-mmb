@@ -474,9 +474,9 @@ export default function App() {
 
   const loadStructures = async () => {
     try {
-      const data = await safeFetchJson('/api/data/structures');
+      const data = await safeFetchJson('/api/system/structures');
       if (Array.isArray(data)) {
-        const sanitized = data.map(item => ({
+        const sanitized = data.filter(item => !item.deleted).map(item => ({
           ...item,
           name: item.name || ''
         }));
@@ -2884,6 +2884,7 @@ if (!res.ok) {
                 auditLogs={auditLogs}
                 onUpdateProfile={handleUpdateProfile}
                 currentRole={currentRole}
+                onReloadStructures={loadStructures}
               />
             )}
 

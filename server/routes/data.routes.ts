@@ -14,31 +14,6 @@ router.get('/:colName', authenticateToken, checkCollectionPermission, async (req
   try {
     let dataItems = await dbDriver.getDocs(colName);
 
-    if (colName === 'structures') {
-      const defaultNodes = [
-        { id: 'ketua', title: 'Ketua Dewan Pembina', name: 'Fernandes Manihuruk', sub: 'Pembuat Keputusan/Ketua', order: 10, deleted: false },
-        { id: 'sekretaris', title: 'Sekretaris Eksekutif', name: 'Yusuf Raja Tamba', sub: 'Administrasi & Legalitas Lembaga', order: 20, deleted: false },
-        { id: 'bendahara', title: 'Bendahara Umum', name: 'Angelina Meilia Putri Manalu', sub: 'Jurnal Kas, Transaksi & Audit', order: 30, deleted: false },
-      ];
-
-      for (const def of defaultNodes) {
-        const existingIdx = dataItems.findIndex(item => item.id === def.id);
-        if (existingIdx > -1) {
-          const item = dataItems[existingIdx];
-          const needsRepair = !item.name;
-          
-          if (needsRepair) {
-            item.name = def.name;
-            item.deleted = false;
-            await dbDriver.setDoc('structures', def.id, item);
-          }
-        } else {
-          dataItems.push(def);
-          await dbDriver.setDoc('structures', def.id, def);
-        }
-      }
-    }
-
     if (colName === 'staff') {
       const role = req.user?.role;
       const features = req.user?.features || [];

@@ -43,22 +43,6 @@ router.put('/profile', authenticateToken, async (req: any, res: Response) => {
 router.get('/structures', authenticateToken, async (_req: any, res: Response) => {
   try {
     const structures = (await dbDriver.getDocs('structures')).filter((s: any) => !s.deleted);
-    // Pastikan default nodes selalu ada
-    const defaultNodes = [
-      { id: 'ketua', title: 'Ketua Dewan Pembina', name: 'Fernandes Manihuruk', sub: 'Pembuat Keputusan/Ketua', order: 10, deleted: false },
-      { id: 'sekretaris', title: 'Sekretaris Eksekutif', name: 'Yusuf Raja Tamba', sub: 'Administrasi & Legalitas Lembaga', order: 20, deleted: false },
-      { id: 'bendahara', title: 'Bendahara Umum', name: 'Angelina Meilia Putri Manalu', sub: 'Jurnal Kas, Transaksi & Audit', order: 30, deleted: false },
-    ];
-    for (const def of defaultNodes) {
-      const exists = structures.findIndex((s: any) => s.id === def.id);
-      if (exists === -1) {
-        structures.push(def);
-        await dbDriver.setDoc('structures', def.id, def);
-      } else if (!structures[exists].name) {
-        structures[exists].name = def.name;
-        await dbDriver.setDoc('structures', def.id, structures[exists]);
-      }
-    }
     res.json(structures);
   } catch (err: any) {
     res.status(500).json({ error: err.message });

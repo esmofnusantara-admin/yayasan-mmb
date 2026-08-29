@@ -41,6 +41,7 @@ interface SystemTabProps {
   auditLogs: AuditLog[];
   onUpdateProfile: (p: InstitutionalProfile) => void;
   currentRole: string;
+  onReloadStructures?: () => void;
 }
 
 export default function SystemTab({
@@ -48,18 +49,13 @@ export default function SystemTab({
   auditLogs,
   onUpdateProfile,
   currentRole,
+  onReloadStructures,
 }: SystemTabProps) {
   const [activeSubView, setActiveSubView] = useState<'profile' | 'structure' | 'operators' | 'audit' | 'variables'>('profile');
   const [activeNodeId, setActiveNodeId] = useState<string>('ketua');
   
   // Dynamic Organizational Structure State
-  const [orgTree, setOrgTree] = useState<any[]>([
-    { id: 'ketua', title: 'Ketua Dewan Pembina', name: 'Fernandes', sub: 'Pembuat Keputusan Tertinggi', order: 10, deleted: false },
-    { id: 'sekretaris', title: 'Sekretaris Eksekutif', name: 'Yusuf Raja Tamba', sub: 'Administrasi & Legalitas Lembaga', order: 20, deleted: false },
-    { id: 'bendahara', title: 'Bendahara Umum', name: 'Angelina', sub: 'Jurnal Kas, Transaksi & Audit', order: 30, deleted: false },
-    { id: 'korwil', title: 'Koordinator Wilayah DIY', name: 'Ahmad Faisal, S.Th.', sub: 'Lapangan & Persekutuan Cabang', order: 40, deleted: false },
-    { id: 'staff', title: 'Staf Lapangan & Kelompok Kecil', name: 'Simpatisan Mitra Aliansi', sub: 'Pendamping Siswa & Pelayanan', order: 50, deleted: false },
-  ]);
+  const [orgTree, setOrgTree] = useState<any[]>([]);
   const [isFetchingTree, setIsFetchingTree] = useState(false);
   const [isSavingTree, setIsSavingTree] = useState(false);
 
@@ -86,42 +82,33 @@ export default function SystemTab({
   const fetchOrgTree = async () => {
     setIsFetchingTree(true);
     try {
-      const res = await fetch('/api/data/structures');
+      const res = await fetch('/api/system/structures');
       if (res.ok) {
         const rawData = await res.json();
         if (Array.isArray(rawData)) {
-          const data = rawData.map(item => ({
+          const activeDocs = rawData
+            .filter(d => !d.deleted)
+            .map(item => ({
               ...item,
               name: item.name || ''
-          }));
-
-          const activeDocs = data.filter(d => !d.deleted);
-          
-          const defaultNodes = [
-            { id: 'ketua', title: 'Ketua Dewan Pembina', name: 'Fernandes', sub: 'Pembuat Keputusan Tertinggi', order: 10, deleted: false },
-            { id: 'sekretaris', title: 'Sekretaris Eksekutif', name: 'Yusuf Raja Tamba', sub: 'Administrasi & Legalitas Lembaga', order: 20, deleted: false },
-            { id: 'bendahara', title: 'Bendahara Umum', name: 'Angelina', sub: 'Jurnal Kas, Transaksi & Audit', order: 30, deleted: false },
-            { id: 'korwil', title: 'Koordinator Wilayah DIY', name: 'Ahmad Faisal, S.Th.', sub: 'Lapangan & Persekutuan Cabang', order: 40, deleted: false },
-            { id: 'staff', title: 'Staf Lapangan & Kelompok Kecil', name: 'Simpatisan Mitra Aliansi', sub: 'Pendamping Siswa & Pelayanan', order: 50, deleted: false },
-          ];
-
-          // Merge: default nodes that are not soft-deleted or customized in the database
-          const finalNodes = [...activeDocs];
-          defaultNodes.forEach(def => {
-            const hasCustomized = data.some(d => d.id === def.id);
-            if (!hasCustomized && !finalNodes.some(n => n.id === def.id)) {
-              finalNodes.push(def);
-            }
-          });
+            }));
 
           // Sort by the order parameter
-          finalNodes.sort((a, b) => {
+          activeDocs.sort((a, b) => {
             const ordA = typeof a.order === 'number' ? a.order : 100;
             const ordB = typeof b.order === 'number' ? b.order : 100;
             return ordA - ordB;
           });
 
-          setOrgTree(finalNodes);
+          setOrgTree(activeDocs);
+          if (activeDocs.length > 0) {
+            setActiveNodeId(prev => {
+              if (activeDocs.some(n => n.id === prev)) return prev;
+              return activeDocs[0].id;
+            });
+          } else {
+            setActiveNodeId('');
+          }
         }
       }
     } catch (err) {
@@ -149,8 +136,8 @@ export default function SystemTab({
         deleted: false
       };
 
-      const res = await fetch(`/api/data/structures/${activeNodeId}`, {
-        method: 'POST',
+      const res = await fetch(`/api/system/structures/${activeNodeId}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
@@ -158,31 +145,12 @@ export default function SystemTab({
       });
 
       if (res.ok) {
-        // Log to audit logger
-        const sessionUser = localStorage.getItem('esm_session_user');
-        const userName = sessionUser ? JSON.parse(sessionUser).name : 'Operator';
-        
-        const auditId = `AUD-STR-${Date.now()}`;
-        await fetch(`/api/data/audits/${auditId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            id: auditId,
-            userName: userName,
-            userRole: currentRole,
-            action: `[Bagan Organisasi] Mengubah data pengurus/staf ${editTitle} menjadi nama: "${editName}", urutan: ${editOrder}.`,
-            module: 'Sistem',
-            timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
-            deleted: false
-          })
-        });
-
         alert(`Sukses: Struktur jabatan ${editTitle} berhasil diperbarui.`);
         await fetchOrgTree();
+        if (onReloadStructures) onReloadStructures();
       } else {
-        alert('Gagal merekam data struktur ke database.');
+        const errJson = await res.json().catch(() => ({}));
+        alert(errJson.message || 'Gagal merekam data struktur ke database.');
       }
     } catch (err) {
       console.error('Failed to update structure node:', err);
@@ -205,7 +173,7 @@ export default function SystemTab({
       return;
     }
 
-    // Check if ID already exists
+    // Check if ID already exists in active tree
     if (orgTree.some(node => node?.id === cleanId)) {
       alert(`Error: ID Jabatan "${cleanId}" sudah ada dalam bagan.`);
       return;
@@ -222,7 +190,7 @@ export default function SystemTab({
         deleted: false
       };
 
-      const res = await fetch(`/api/data/structures/${cleanId}`, {
+      const res = await fetch('/api/system/structures', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -231,27 +199,6 @@ export default function SystemTab({
       });
 
       if (res.ok) {
-        // Log to audit logger
-        const sessionUser = localStorage.getItem('esm_session_user');
-        const userName = sessionUser ? JSON.parse(sessionUser).name : 'Operator';
-        
-        const auditId = `AUD-STR-ADD-${Date.now()}`;
-        await fetch(`/api/data/audits/${auditId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            id: auditId,
-            userName: userName,
-            userRole: currentRole,
-            action: `[Bagan Organisasi] Menambahkan struktur baru "${newNodeTitle}" (ID: ${cleanId}), Nama: "${newNodeName}".`,
-            module: 'Sistem',
-            timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
-            deleted: false
-          })
-        });
-
         alert(`Sukses: Struktur baru "${newNodeTitle}" berhasil ditambahkan.`);
         setIsAddingNode(false);
         setNewNodeId('');
@@ -261,8 +208,10 @@ export default function SystemTab({
         setNewNodeOrder(100);
         setActiveNodeId(cleanId);
         await fetchOrgTree();
+        if (onReloadStructures) onReloadStructures();
       } else {
-        alert('Gagal merekam data struktur baru ke database.');
+        const errJson = await res.json().catch(() => ({}));
+        alert(errJson.message || 'Gagal merekam data struktur baru ke database.');
       }
     } catch (err) {
       console.error('Failed to create structure node:', err);
@@ -283,59 +232,32 @@ export default function SystemTab({
 
     setIsSavingTree(true);
     try {
-      // Set to soft-delete by posting empty object with deleted: true
-      const res = await fetch(`/api/data/structures/${nodeId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          id: nodeId,
-          title: nodeToDelete?.title || '',
-          name: nodeToDelete?.name || '',
-          sub: nodeToDelete?.sub || '',
-          order: nodeToDelete?.order || 100,
-          deleted: true
-        })
+      const res = await fetch(`/api/system/structures/${nodeId}`, {
+        method: 'DELETE'
       });
 
       if (res.ok) {
-        // Log to audit logger
-        const sessionUser = localStorage.getItem('esm_session_user');
-        const userName = sessionUser ? JSON.parse(sessionUser).name : 'Operator';
-        
-        const auditId = `AUD-STR-DEL-${Date.now()}`;
-        await fetch(`/api/data/audits/${auditId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            id: auditId,
-            userName: userName,
-            userRole: currentRole,
-            action: `[Bagan Organisasi] Menghapus struktur jabatan/hierarki ID: "${nodeId}".`,
-            module: 'Sistem',
-            timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
-            deleted: false
-          })
-        });
-
         alert(`Sukses: Struktur jabatan ${titleLabel} berhasil dihapus.`);
         
         // Find next active nodeId that is not deleted
-        const remainingNodes = orgTree.filter(n => n.id !== nodeId);
-        if (remainingNodes.length > 0) {
-          setActiveNodeId(remainingNodes[0].id);
-        } else {
-          setActiveNodeId('ketua');
-        }
+        setOrgTree(prev => {
+          const remainingNodes = prev.filter(n => n.id !== nodeId);
+          if (remainingNodes.length > 0) {
+            setActiveNodeId(remainingNodes[0].id);
+          } else {
+            setActiveNodeId('');
+          }
+          return remainingNodes;
+        });
+
         await fetchOrgTree();
+        if (onReloadStructures) onReloadStructures();
       } else {
-        alert('Gagal menghapus struktur dari database.');
+        const errJson = await res.json().catch(() => ({}));
+        alert(errJson.message || 'Gagal menghapus struktur dari database.');
       }
     } catch (err) {
-      console.error('Error soft deleting node:', err);
+      console.error('Error deleting node:', err);
       alert('Kesalahan jaringan saat menghapus struktur.');
     } finally {
       setIsSavingTree(false);

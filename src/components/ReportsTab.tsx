@@ -36,6 +36,12 @@ import {
   exportMemberReportPDF, 
   exportPartnerReportPDF 
 } from '../utils/export';
+import { 
+  getCutoffDay, 
+  getCutoffPeriodRange, 
+  getCurrentActiveCycle, 
+  INDO_MONTHS 
+} from '../utils/cutoff';
 
 interface ReportsTabProps {
   members: Member[];
@@ -52,14 +58,14 @@ interface ReportsTabProps {
 
 type ReportModule = 'finance' | 'activities' | 'staff' | 'members' | 'partners';
 
-const INDONESIAN_MONTHS = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-];
+const INDONESIAN_MONTHS = INDO_MONTHS;
 
 function getMonthsInRange(startStr: string, endStr: string) {
-  const start = new Date(startStr);
-  const end = new Date(endStr);
+  const now = new Date();
+  const effectiveStart = startStr ? startStr : `${now.getFullYear()}-01-01`;
+  const effectiveEnd = endStr ? endStr : `${now.getFullYear()}-12-31`;
+  const start = new Date(effectiveStart);
+  const end = new Date(effectiveEnd);
   if (isNaN(start.getTime()) || isNaN(end.getTime())) {
     return [];
   }
@@ -68,7 +74,7 @@ function getMonthsInRange(startStr: string, endStr: string) {
   const endLimit = new Date(end.getFullYear(), end.getMonth(), 1);
   
   let count = 0;
-  while (current <= endLimit && count < 12) {
+  while (current <= endLimit && count < 24) {
     result.push({
       year: current.getFullYear(),
       month: current.getMonth(),
@@ -95,15 +101,23 @@ export default function ReportsTab({
   const [activeReport, setActiveReport] = useState<ReportModule>('finance');
   const [financeView, setFinanceView] = useState<'dense' | 'summary'>('dense');
   
+  // Cutoff and Financial Period calculation
+  const cutoffDay = getCutoffDay(profile);
+  const activeCycle = getCurrentActiveCycle(cutoffDay);
+  const currentPeriodRange = getCutoffPeriodRange(activeCycle.year, activeCycle.month, cutoffDay);
+
   // Simulation states matching the spreadsheet structure in user request
   const [initialCashBalance, setInitialCashBalance] = useState<number>(0);
   const [deficitNovember, setDeficitNovember] = useState<number>(12889000);
   const [salaryDecember, setSalaryDecember] = useState<number>(20069500);
   const [monthlyStaffSalaryBudget, setMonthlyStaffSalaryBudget] = useState<number>(32087300);
 
-  // Filtering states
-  const [startDate, setStartDate] = useState<string>('2026-05-01');
-  const [endDate, setEndDate] = useState<string>('2026-06-30');
+  // Dynamic Filtering states defaulting to the active financial cycle period
+  const [startDate, setStartDate] = useState<string>(() => currentPeriodRange.startDateStr);
+  const [endDate, setEndDate] = useState<string>(() => currentPeriodRange.endDateStr);
+  const [selectedCycleMonth, setSelectedCycleMonth] = useState<number>(activeCycle.month);
+  const [selectedCycleYear, setSelectedCycleYear] = useState<number>(activeCycle.year);
+
   const [regionFilter, setRegionFilter] = useState<string>('Semua');
   const [memberCompFilter, setMemberCompFilter] = useState<string>('Semua');
   const [staffStatusFilter, setStaffStatusFilter] = useState<string>('Semua');
@@ -142,14 +156,17 @@ export default function ReportsTab({
     return base + totalAllowances - totalDeductions;
   };
 
+  // Helper to verify approved transactions without casing or status union mismatches
+  const isApprovedTx = (t: Transaction) => {
+    if (!t.status) return true;
+    return t.status === 'Approved' || (t.status as string) === 'approved';
+  };
+
   // Calculations for Financial Report
   const filteredTransactions = transactions.filter(t => {
-    if (t.status !== 'Approved') return false;
-    const tDate = new Date(t.date);
-    const start = startDate ? new Date(startDate) : null;
-    const end = endDate ? new Date(endDate) : null;
-    if (start && tDate < start) return false;
-    if (end && tDate > end) return false;
+    if (!isApprovedTx(t)) return false;
+    if (startDate && t.date < startDate) return false;
+    if (endDate && t.date > endDate) return false;
     return true;
   });
 
@@ -159,11 +176,8 @@ export default function ReportsTab({
 
   // Calculations for Activity Report
   const filteredMeetings = meetings.filter(m => {
-    const mDate = new Date(m.date);
-    const start = startDate ? new Date(startDate) : null;
-    const end = endDate ? new Date(endDate) : null;
-    if (start && mDate < start) return false;
-    if (end && mDate > end) return false;
+    if (startDate && m.date < startDate) return false;
+    if (endDate && m.date > endDate) return false;
     
     // region check
     if (regionFilter !== 'Semua') {
@@ -371,8 +385,96 @@ export default function ReportsTab({
           </div>
 
           <div className="space-y-3">
+            {/* Periode Siklus Finansial */}
             <div>
-              <label className="text-[10px] uppercase font-bold text-slate-600 block mb-1">Rentang Tanggal Jurnal / Kegiatan</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[10px] uppercase font-bold text-slate-600">
+                  Target Periode (Siklus Finansial)
+                </label>
+                <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono">
+                  Cut-off tgl {cutoffDay}
+                </span>
+              </div>
+              <select
+                value={`${selectedCycleYear}-${selectedCycleMonth}`}
+                onChange={(e) => {
+                  const [y, m] = e.target.value.split('-').map(Number);
+                  setSelectedCycleYear(y);
+                  setSelectedCycleMonth(m);
+                  const range = getCutoffPeriodRange(y, m, cutoffDay);
+                  setStartDate(range.startDateStr);
+                  setEndDate(range.endDateStr);
+                }}
+                className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 bg-white font-medium focus:outline-none focus:border-[#0c2340]"
+              >
+                {Array.from({ length: 12 }, (_, i) => {
+                  const r = getCutoffPeriodRange(selectedCycleYear, i, cutoffDay);
+                  return (
+                    <option key={i} value={`${selectedCycleYear}-${i}`}>
+                      {r.label}
+                    </option>
+                  );
+                })}
+              </select>
+
+              {/* Quick Period Buttons */}
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                <button 
+                  type="button"
+                  onClick={() => { 
+                    setSelectedCycleYear(activeCycle.year);
+                    setSelectedCycleMonth(activeCycle.month);
+                    const range = getCutoffPeriodRange(activeCycle.year, activeCycle.month, cutoffDay);
+                    setStartDate(range.startDateStr); 
+                    setEndDate(range.endDateStr); 
+                  }}
+                  className="px-2 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-[10px] font-semibold cursor-pointer shadow-xs transition-colors"
+                >
+                  Periode Saat Ini
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => { 
+                    const prevMonth = activeCycle.month === 0 ? 11 : activeCycle.month - 1;
+                    const prevYear = activeCycle.month === 0 ? activeCycle.year - 1 : activeCycle.year;
+                    setSelectedCycleYear(prevYear);
+                    setSelectedCycleMonth(prevMonth);
+                    const range = getCutoffPeriodRange(prevYear, prevMonth, cutoffDay);
+                    setStartDate(range.startDateStr); 
+                    setEndDate(range.endDateStr); 
+                  }}
+                  className="px-2 py-1 bg-white hover:bg-slate-50 border border-slate-300 rounded text-[10px] text-slate-700 font-medium cursor-pointer transition-colors"
+                >
+                  Periode Sebelumnya
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => { 
+                    const now = new Date();
+                    const y = now.getFullYear();
+                    setStartDate(`${y}-01-01`); 
+                    setEndDate(`${y}-12-31`); 
+                  }}
+                  className="px-2 py-1 bg-white hover:bg-slate-50 border border-slate-300 rounded text-[10px] text-slate-700 font-medium cursor-pointer transition-colors"
+                >
+                  Tahun {selectedCycleYear}
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => { 
+                    setStartDate(''); 
+                    setEndDate(''); 
+                  }}
+                  className="px-2 py-1 bg-white hover:bg-slate-50 border border-slate-300 rounded text-[10px] text-slate-700 font-medium cursor-pointer transition-colors"
+                >
+                  Semua Data
+                </button>
+              </div>
+            </div>
+
+            {/* Custom Date Bounds */}
+            <div>
+              <label className="text-[10px] uppercase font-bold text-slate-600 block mb-1">Rentang Tanggal Kustom</label>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <span className="text-[10px] text-slate-500 block mb-0.5">Dari Tanggal:</span>
@@ -392,20 +494,6 @@ export default function ReportsTab({
                     className="w-full border border-slate-300 rounded px-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
                   />
                 </div>
-              </div>
-              <div className="flex gap-1.5 mt-2">
-                <button 
-                  onClick={() => { setStartDate('2026-06-01'); setEndDate('2026-06-30'); }}
-                  className="px-2 py-1 bg-white hover:bg-slate-50 border border-slate-300 rounded text-[10px] text-slate-700 font-medium cursor-pointer transition-colors"
-                >
-                  Bulan Ini
-                </button>
-                <button 
-                  onClick={() => { setStartDate('2026-01-01'); setEndDate('2026-12-31'); }}
-                  className="px-2 py-1 bg-white hover:bg-slate-50 border border-slate-300 rounded text-[10px] text-slate-700 font-medium cursor-pointer transition-colors"
-                >
-                  Semua (2026)
-                </button>
               </div>
             </div>
 
@@ -627,8 +715,8 @@ export default function ReportsTab({
             const selectedMonths = getMonthsInRange(startDate, endDate);
 
             // Filter approved transactions for calculations
-            const approvedIncomes = transactions.filter(t => (t.status === undefined || t.status === 'Approved') && t.type?.toLowerCase() === 'income');
-            const approvedExpenses = transactions.filter(t => (t.status === undefined || t.status === 'Approved') && t.type?.toLowerCase() === 'expense');
+            const approvedIncomes = transactions.filter(t => isApprovedTx(t) && t.type?.toLowerCase() === 'income');
+            const approvedExpenses = transactions.filter(t => isApprovedTx(t) && t.type?.toLowerCase() === 'expense');
 
             // Unique categories
             const incomeCategories = Array.from(new Set(approvedIncomes.map(t => t.category))).sort();

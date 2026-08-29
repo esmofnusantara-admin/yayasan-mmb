@@ -1412,7 +1412,7 @@ export function exportFinanceReportPDF(transactions: any[], profile: any, startD
   doc.text(`Rentang Analisis: ${startDate || 'Awal'} s.d. ${endDate || 'Akhir'}  •  Dicetak: ${new Date().toLocaleDateString('id-ID')} WIB`, 15, 35);
 
   // Financial Stats Box
-  const approvedTx = transactions.filter(t => t.status === 'Approved');
+  const approvedTx = transactions.filter(t => t.status === undefined || t.status === 'Approved' || t.status === 'approved');
   const totalIn = approvedTx.filter(t => t.type?.toLowerCase() === 'income').reduce((s, t) => s + t.amount, 0);
   const totalOut = approvedTx.filter(t => t.type?.toLowerCase() === 'expense').reduce((s, t) => s + t.amount, 0);
   const net = totalIn - totalOut;

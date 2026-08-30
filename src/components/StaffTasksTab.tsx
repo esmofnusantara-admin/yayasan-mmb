@@ -202,26 +202,22 @@ export default function StaffTasksTab({
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth() + 1; // 1-12
 
-  // Distinct Wilayah Pelayanan list
-  const availableRegions = Array.from(new Set([
-    'Cilegon',
-    'Serang',
-    'Yogyakarta',
-    'Jakarta',
-    'Bandung',
-    'Surabaya',
-    'Solo',
-    'Medan',
-    ...(profile?.regions || []),
-    ...members.map(m => m.region).filter(Boolean)
-  ]));
+  // Dynamic Wilayah Pelayanan directly from profile settings
+  const availableRegions = (profile?.regions && profile.regions.length > 0)
+    ? profile.regions
+    : Array.from(new Set(members.map(m => m.region).filter(Boolean)));
+
+  // Dynamic Sektor Pelayanan directly from profile settings
+  const availableSectors = (profile?.memberComponents && profile.memberComponents.length > 0)
+    ? profile.memberComponents.filter(c => c !== 'Umum')
+    : ['Siswa', 'Mahasiswa', 'Alumni'];
 
   // Open Committee Modal
   const handleOpenAddCommittee = (defaultRegion?: string) => {
     setEditingCommitteeMember(null);
     setCommitteeMemberId(members[0]?.id || '');
     setCommitteeSector(selectedSector);
-    setCommitteeRegion(defaultRegion || (selectedRegionFilter !== 'Semua' ? selectedRegionFilter : (availableRegions[0] || 'Cilegon')));
+    setCommitteeRegion(defaultRegion || (selectedRegionFilter !== 'Semua' ? selectedRegionFilter : (availableRegions[0] || '')));
     setCommitteeRoleName('');
     setCommitteeCommunityName('');
     setCommitteeNotesText('');
@@ -232,7 +228,7 @@ export default function StaffTasksTab({
     setEditingCommitteeMember(member);
     setCommitteeMemberId(member.id);
     setCommitteeSector((member.component as any) || selectedSector);
-    setCommitteeRegion(member.region || availableRegions[0] || 'Cilegon');
+    setCommitteeRegion(member.region || availableRegions[0] || '');
     setCommitteeCommunityName(member.coreCircleCommunity || member.intimateSpaceCommunity || member.socialSpaceCommunity || '');
     setCommitteeRoleName(member.committeeRole ? member.committeeRole.replace(/\s*\([^)]*\)/g, '').trim() : '');
     setCommitteeNotesText('');
@@ -1723,59 +1719,31 @@ export default function StaffTasksTab({
               </button>
             </div>
 
-            {/* 3 Sektor Selector Pills */}
+            {/* Sektor Selector Pills */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg border border-slate-200 w-full sm:w-auto">
-                <button
-                  onClick={() => setSelectedSector('Siswa')}
-                  className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                    selectedSector === 'Siswa'
-                      ? 'bg-[#0c2340] text-white shadow-xs'
-                      : 'text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  <School className="w-3.5 h-3.5" />
-                  <span>Pengurus Siswa</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-normal ${
-                    selectedSector === 'Siswa' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {members.filter(m => m.component === 'Siswa' && (m.committeeRole || m.communitySpaces?.length)).length}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setSelectedSector('Mahasiswa')}
-                  className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                    selectedSector === 'Mahasiswa'
-                      ? 'bg-[#0c2340] text-white shadow-xs'
-                      : 'text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  <GraduationCap className="w-3.5 h-3.5" />
-                  <span>Pengurus Mahasiswa</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-normal ${
-                    selectedSector === 'Mahasiswa' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {members.filter(m => (m.component === 'Mahasiswa' || !m.component) && (m.committeeRole || m.communitySpaces?.length)).length}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setSelectedSector('Alumni')}
-                  className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                    selectedSector === 'Alumni'
-                      ? 'bg-[#0c2340] text-white shadow-xs'
-                      : 'text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  <Briefcase className="w-3.5 h-3.5" />
-                  <span>Pengurus Alumni</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-normal ${
-                    selectedSector === 'Alumni' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {members.filter(m => m.component === 'Alumni' && (m.committeeRole || m.communitySpaces?.length)).length}
-                  </span>
-                </button>
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg border border-slate-200 w-full sm:w-auto flex-wrap">
+                {availableSectors.map((sec) => {
+                  const count = members.filter(m => (m.component === sec || (sec === 'Mahasiswa' && !m.component)) && (m.committeeRole || m.communitySpaces?.length)).length;
+                  return (
+                    <button
+                      key={sec}
+                      onClick={() => setSelectedSector(sec as any)}
+                      className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                        selectedSector === sec
+                          ? 'bg-[#0c2340] text-white shadow-xs'
+                          : 'text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      {sec === 'Siswa' ? <School className="w-3.5 h-3.5" /> : sec === 'Mahasiswa' ? <GraduationCap className="w-3.5 h-3.5" /> : <Briefcase className="w-3.5 h-3.5" />}
+                      <span>Pengurus {sec}</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-normal ${
+                        selectedSector === sec ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                      }`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Search Bar for Members/Committee */}
@@ -1845,7 +1813,7 @@ export default function StaffTasksTab({
 
             // Determine which regions to display
             const regionsToDisplay = selectedRegionFilter === 'Semua'
-              ? Array.from(new Set([...availableRegions, ...searchFilteredMembers.map(m => m.region).filter(Boolean)]))
+              ? availableRegions
               : [selectedRegionFilter];
 
             const totalAssignedCount = searchFilteredMembers.filter(m => m.committeeRole || m.coreCircleCommunity).length;
@@ -1960,7 +1928,7 @@ export default function StaffTasksTab({
                     <Award className="w-8 h-8 text-slate-300 mx-auto" />
                     <h4 className="text-sm font-bold text-slate-800">Belum Ada Pengurus {selectedSector} Terdaftar</h4>
                     <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                      Tetapkan anggota pelayanan sebagai pengurus siswa, mahasiswa, atau alumni per wilayah (Cilegon, Serang, Yogyakarta, dll).
+                      Tetapkan anggota pelayanan sebagai pengurus {selectedSector.toLowerCase()} di wilayah pelayanan yang telah dikonfigurasi.
                     </p>
                     <button
                       onClick={() => handleOpenAddCommittee()}
@@ -2010,9 +1978,9 @@ export default function StaffTasksTab({
                     className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs outline-none bg-white text-slate-800 font-medium"
                     required
                   >
-                    <option value="Siswa">Pelayanan Siswa</option>
-                    <option value="Mahasiswa">Pelayanan Mahasiswa</option>
-                    <option value="Alumni">Pelayanan Alumni</option>
+                    {availableSectors.map(sec => (
+                      <option key={sec} value={sec}>Pelayanan {sec}</option>
+                    ))}
                   </select>
                 </div>
 

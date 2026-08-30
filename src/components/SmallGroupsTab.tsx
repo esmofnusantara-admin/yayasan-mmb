@@ -85,7 +85,7 @@ export default function SmallGroupsTab({
   const [isAddGroupOpen, setIsAddGroupOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [groupSpace, setGroupSpace] = useState<'Core Circle' | 'Intimate Space' | 'Social Space'>('Intimate Space');
-  const [groupRegion, setGroupRegion] = useState(profile?.regions?.[0] || 'Yogyakarta');
+  const [groupRegion, setGroupRegion] = useState(profile?.regions?.[0] || '');
   const [groupStaff, setGroupStaff] = useState('Joseph Daniel');
   const [groupLeader, setGroupLeader] = useState('');
   const [groupDay, setGroupDay] = useState(profile?.meetingDays?.[0] || 'Rabu');
@@ -1370,7 +1370,7 @@ export default function SmallGroupsTab({
                     onChange={(e) => setGroupRegion(e.target.value)}
                     className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   >
-                    {(profile?.regions || ["Yogyakarta", "Surabaya", "Jakarta", "Bandung", "Medan"]).map((r, idx) => (
+                    {(profile?.regions || []).map((r, idx) => (
                       <option key={idx} value={r}>{r}</option>
                     ))}
                   </select>
@@ -1601,7 +1601,7 @@ export default function SmallGroupsTab({
                     onChange={(e) => setEditGroupRegion(e.target.value)}
                     className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   >
-                    {(profile?.regions || ["Yogyakarta", "Surabaya", "Jakarta", "Bandung", "Medan"]).map((r, idx) => (
+                    {(profile?.regions || []).map((r, idx) => (
                       <option key={idx} value={r}>{r}</option>
                     ))}
                   </select>

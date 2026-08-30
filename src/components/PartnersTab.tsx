@@ -159,7 +159,7 @@ export default function PartnersTab({
   const [pBirthDate, setPBirthDate] = useState('');
   const [pOccupation, setPOccupation] = useState('');
   const [pType, setPType] = useState<any>(profile?.partnerTypes?.[0] || 'Pribadi');
-  const [pRegion, setPRegion] = useState(profile?.regions?.[0] || 'Yogyakarta');
+  const [pRegion, setPRegion] = useState(profile?.regions?.[0] || '');
   const [pStaff, setPStaff] = useState('Joseph Daniel');
   const [pStatus, setPStatus] = useState<any>(profile?.partnerStatuses?.[0] || 'Prospek');
 
@@ -215,7 +215,7 @@ export default function PartnersTab({
     setPBirthDate('');
     setPOccupation('');
     setPType('Pribadi');
-    setPRegion(profile?.regions?.[0] || 'Yogyakarta');
+    setPRegion(profile?.regions?.[0] || '');
     setPStaff('Joseph Daniel');
     setPStatus('Prospek');
     setPAmount(500000);
@@ -2408,7 +2408,7 @@ export default function PartnersTab({
                     onChange={(e) => setPRegion(e.target.value)}
                     className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   >
-                    {(profile?.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]).map((r, idx) => (
+                    {(profile?.regions || []).map((r, idx) => (
                       <option key={idx} value={r}>{r}</option>
                     ))}
                   </select>

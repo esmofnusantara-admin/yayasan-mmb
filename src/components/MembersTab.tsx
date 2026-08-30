@@ -98,7 +98,7 @@ export default function MembersTab({
   const [occupation, setOccupation] = useState('');
 
   const [component, setComponent] = useState<'Siswa' | 'Mahasiswa' | 'Alumni' | 'Umum'>((profile?.memberComponents?.[0] as any) || 'Mahasiswa');
-  const [region, setRegion] = useState(profile?.regions?.[0] || 'Yogyakarta');
+  const [region, setRegion] = useState(profile?.regions?.[0] || '');
 
   // 3 Space Communities states
   const [selectedSpaces, setSelectedSpaces] = useState<('Core Circle' | 'Intimate Space' | 'Social Space')[]>(['Intimate Space']);
@@ -186,7 +186,7 @@ export default function MembersTab({
     setEducation('');
     setOccupation('');
     setComponent((profile?.memberComponents?.[0] as any) || 'Mahasiswa');
-    setRegion(profile?.regions?.[0] || 'Yogyakarta');
+    setRegion(profile?.regions?.[0] || '');
 
     setSelectedSpaces(['Intimate Space']);
     setCoreCircleComm('');
@@ -1826,7 +1826,7 @@ export default function MembersTab({
                       onChange={(e) => setRegion(e.target.value)}
                       className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     >
-                      {(profile?.regions || ["Yogyakarta", "Surabaya", "Jakarta", "Bandung", "Medan"]).map((r, idx) => (
+                      {(profile?.regions || []).map((r, idx) => (
                         <option key={idx} value={r}>{r}</option>
                       ))}
                     </select>

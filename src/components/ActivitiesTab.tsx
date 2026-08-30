@@ -17,7 +17,11 @@ import {
   CalendarCheck,
   CheckCircle2,
   AlertCircle,
-  Download
+  Download,
+  ExternalLink,
+  FolderOpen,
+  FileText,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Activity, ActivityTransaction, ActivityRundownItem, ActivityPreparationItem, Transaction } from '../types';
 import { exportToCSV, exportActivityDetailToPDF } from '../utils/export';
@@ -87,6 +91,8 @@ export default function ActivitiesTab({
   const [newPlace, setNewPlace] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newBudgetEstimated, setNewBudgetEstimated] = useState<number>(0);
+  const [newDocumentationUrl, setNewDocumentationUrl] = useState('');
+  const [newAdditionalDocUrl, setNewAdditionalDocUrl] = useState('');
 
   // Form states for Rundown / Agenda
   const [rundownTime, setRundownTime] = useState('');
@@ -150,6 +156,8 @@ export default function ActivitiesTab({
   const [editPlace, setEditPlace] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editBudgetEstimated, setEditBudgetEstimated] = useState<number>(0);
+  const [editDocumentationUrl, setEditDocumentationUrl] = useState('');
+  const [editAdditionalDocUrl, setEditAdditionalDocUrl] = useState('');
   const [editIsTimeManual, setEditIsTimeManual] = useState(false);
   const [editTimeValueManual, setEditTimeValueManual] = useState('');
   const [editDate, setEditDate] = useState('');
@@ -291,6 +299,8 @@ export default function ActivitiesTab({
       place: newPlace.trim() || undefined,
       budgetEstimated: Number(newBudgetEstimated) || 0,
       budgetWalletBalance: 0,
+      documentationUrl: newDocumentationUrl.trim() || undefined,
+      additionalDocUrl: newAdditionalDocUrl.trim() || undefined,
       committeeMembers: [],
       deleted: false
     };
@@ -321,6 +331,8 @@ export default function ActivitiesTab({
       setNewPlace('');
       setNewDescription('');
       setNewBudgetEstimated(0);
+      setNewDocumentationUrl('');
+      setNewAdditionalDocUrl('');
       setIsNewActivityFormOpen(false);
       setSelectedActivityId(activityId); // Auto view
     } catch (err: any) {
@@ -744,6 +756,8 @@ export default function ActivitiesTab({
     setEditPlace(act.place || '');
     setEditDescription(act.description || '');
     setEditBudgetEstimated(act.budgetEstimated);
+    setEditDocumentationUrl(act.documentationUrl || '');
+    setEditAdditionalDocUrl(act.additionalDocUrl || '');
     
     // Check if act.time has the format "Waktu..." or is manual
     if (act.time && act.time.includes('WIB')) {
@@ -783,6 +797,8 @@ export default function ActivitiesTab({
       place: editPlace.trim() || undefined,
       description: editDescription.trim() || undefined,
       budgetEstimated: Number(editBudgetEstimated) || 0,
+      documentationUrl: editDocumentationUrl.trim() || undefined,
+      additionalDocUrl: editAdditionalDocUrl.trim() || undefined,
       time: finalTimeValue
     };
 
@@ -1027,6 +1043,32 @@ export default function ActivitiesTab({
                           <div className="text-slate-500 line-clamp-1 text-xs">
                             {act.description || 'Tidak ada deskripsi.'}
                           </div>
+                          {(act.documentationUrl || act.additionalDocUrl) && (
+                            <div className="flex flex-wrap gap-1 mt-1.5" onClick={(e) => e.stopPropagation()}>
+                              {act.documentationUrl && (
+                                <a 
+                                  href={act.documentationUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="inline-flex items-center gap-1 text-[10px] bg-blue-50 text-blue-800 border border-blue-200 px-1.5 py-0.2 rounded font-semibold hover:bg-blue-100 transition-colors"
+                                  title="Buka Foto/Video Dokumentasi Google Drive"
+                                >
+                                  <ImageIcon className="w-3 h-3 text-blue-600" /> Foto GDrive <ExternalLink className="w-2.5 h-2.5" />
+                                </a>
+                              )}
+                              {act.additionalDocUrl && (
+                                <a 
+                                  href={act.additionalDocUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="inline-flex items-center gap-1 text-[10px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded font-semibold hover:bg-amber-100 transition-colors"
+                                  title="Buka Dokumen Tambahan / Surat-Surat"
+                                >
+                                  <FileText className="w-3 h-3 text-amber-600" /> Dokumen <ExternalLink className="w-2.5 h-2.5" />
+                                </a>
+                              )}
+                            </div>
+                          )}
                         </td>
                         <td className="p-3 text-slate-700 font-medium text-xs">
                           {act.ministers || 'Belum diatur'}
@@ -1121,6 +1163,30 @@ export default function ActivitiesTab({
                           <Clock className="w-3.5 h-3.5 text-slate-400" />
                           <span>Waktu: <strong>{act.time || 'Belum diatur'}</strong></span>
                         </div>
+                        {(act.documentationUrl || act.additionalDocUrl) && (
+                          <div className="flex flex-wrap gap-1 pt-1.5 border-t border-slate-100">
+                            {act.documentationUrl && (
+                              <a 
+                                href={act.documentationUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="inline-flex items-center gap-1 text-[10px] bg-blue-50 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded font-semibold hover:bg-blue-100 transition-colors"
+                              >
+                                <ImageIcon className="w-3 h-3 text-blue-600" /> Foto GDrive <ExternalLink className="w-2.5 h-2.5" />
+                              </a>
+                            )}
+                            {act.additionalDocUrl && (
+                              <a 
+                                href={act.additionalDocUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="inline-flex items-center gap-1 text-[10px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-semibold hover:bg-amber-100 transition-colors"
+                              >
+                                <FileText className="w-3 h-3 text-amber-600" /> Dokumen Surat <ExternalLink className="w-2.5 h-2.5" />
+                              </a>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1308,8 +1374,31 @@ export default function ActivitiesTab({
                       rows={3}
                       value={newDescription}
                       onChange={(e) => setNewDescription(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340]"
+                      className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                     />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div className="space-y-1">
+                      <label className="text-slate-700 font-semibold block">Tautan Foto/Video (Google Drive)</label>
+                      <input
+                        type="url"
+                        placeholder="https://drive.google.com/..."
+                        value={newDocumentationUrl}
+                        onChange={(e) => setNewDocumentationUrl(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded font-mono text-slate-800 focus:outline-none focus:border-[#0c2340]"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-slate-700 font-semibold block">Dokumen Tambahan / Surat (Google Drive)</label>
+                      <input
+                        type="url"
+                        placeholder="https://drive.google.com/..."
+                        value={newAdditionalDocUrl}
+                        onChange={(e) => setNewAdditionalDocUrl(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded font-mono text-slate-800 focus:outline-none focus:border-[#0c2340]"
+                      />
+                    </div>
                   </div>
 
                   <div className="flex gap-2.5 justify-end pt-3 border-t border-slate-200">
@@ -1378,6 +1467,30 @@ export default function ActivitiesTab({
               >
                 <Download className="w-3.5 h-3.5" /> Unduh Laporan PDF
               </button>
+
+              {activeActivity.documentationUrl && (
+                <a
+                  href={activeActivity.documentationUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200 rounded flex items-center gap-1.5 text-xs font-semibold transition-colors shadow-xs"
+                  title="Buka Foto/Video Dokumentasi Google Drive"
+                >
+                  <ImageIcon className="w-3.5 h-3.5 text-blue-600" /> Foto GDrive <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+
+              {activeActivity.additionalDocUrl && (
+                <a
+                  href={activeActivity.additionalDocUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 rounded flex items-center gap-1.5 text-xs font-semibold transition-colors shadow-xs"
+                  title="Buka Dokumen Tambahan / Surat Kegiatan"
+                >
+                  <FileText className="w-3.5 h-3.5 text-amber-600" /> Dokumen Surat <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
 
               <button
                 onClick={async () => {
@@ -2481,6 +2594,29 @@ export default function ActivitiesTab({
                   onChange={(e) => setEditDescription(e.target.value)}
                   className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-800 focus:outline-none focus:border-[#0c2340]"
                 />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div className="space-y-1">
+                  <label className="text-slate-700 font-semibold block">Tautan Foto/Video (Google Drive)</label>
+                  <input
+                    type="url"
+                    placeholder="https://drive.google.com/..."
+                    value={editDocumentationUrl}
+                    onChange={(e) => setEditDocumentationUrl(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded font-mono text-slate-800 focus:outline-none focus:border-[#0c2340]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-slate-700 font-semibold block">Dokumen Tambahan / Surat (Google Drive)</label>
+                  <input
+                    type="url"
+                    placeholder="https://drive.google.com/..."
+                    value={editAdditionalDocUrl}
+                    onChange={(e) => setEditAdditionalDocUrl(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded font-mono text-slate-800 focus:outline-none focus:border-[#0c2340]"
+                  />
+                </div>
               </div>
 
               <div className="flex gap-2.5 justify-end pt-3 border-t border-slate-200">

@@ -54,18 +54,27 @@ export interface Member {
   component: 'Siswa' | 'Mahasiswa' | 'Alumni' | 'Umum';
   region: string;
   smallGroupId?: string;
-  staffAdvisor: string;
-  mentor: string;
-  statusKeaktifan: 'Aktif' | 'Pasif' | 'Cuti' | 'Pindah';
+  staffAdvisor: string; // Staff Pendamping
+  mentor: string; // Pemimpin Komunitas
+  discipleshipLeader?: string; // Pemimpin Pemuridan
+  statusKeaktifan: 'Penjangkauan' | 'Aktif' | 'Pasif' | 'Cuti' | 'Pindah' | string;
   joinedDate: string;
+
+  // 3 Community Spaces
+  communitySpaces?: ('Core Circle' | 'Intimate Space' | 'Social Space')[];
+  coreCircleCommunity?: string;
+  intimateSpaceCommunity?: string;
+  socialSpaceCommunity?: string;
+  committeeRole?: string; // e.g. "Ketua Pengurus Mahasiswa (Core Circle)", "Sekretaris", etc.
 }
 
 export interface MemberNote {
   id: string;
   memberId: string;
   date: string;
-  category: string; // e.g. Konseling Akademik, Follow Up Retret, Kepemimpinan
+  category: 'Penginjilan' | 'Pemuridan' | 'Pengutusan' | string;
   notes: string;
+  committeeNotes?: string; // Catatan kepengurusan atau kepanitiaan
   author: string;
 }
 
@@ -84,7 +93,8 @@ export interface FollowUpLog {
   memberId: string;
   memberName: string;
   date: string;
-  type: 'Telepon' | 'Kunjungan' | 'Konseling' | 'Mentoring' | 'Pemuridan';
+  type: 'Telepon' | 'Kunjungan' | 'Konseling' | 'Mentoring' | 'Pemuridan' | string;
+  serviceCategory?: 'Konseling Akademik' | 'Bimbingan Karir' | 'Konseling Pribadi' | 'Pengutusan Kepemimpinan' | 'Follow Up Kegiatan' | string;
   notes: string;
   staffName: string;
 }
@@ -100,6 +110,8 @@ export interface SmallGroup {
   meetingTime: string;
   location: string;
   memberCount: number;
+  communitySpace?: 'Core Circle' | 'Intimate Space' | 'Social Space' | string;
+  documentationUrl?: string; // Tautan foto / dokumentasi GDrive
 }
 
 export interface MeetingLog {
@@ -118,7 +130,9 @@ export interface MaterialInfo {
   description: string;
   fileSize?: string;
   pdfData?: string;
+  pdfUrl?: string;
   externalLink?: string;
+  uploadedAt?: string;
 }
 
 export interface Transaction {
@@ -232,6 +246,7 @@ export interface PublicField {
 }
 
 export interface Staff {
+  id?: string;
   nik: string; // e.g. NIK-1002
   name: string;
   phone: string;
@@ -432,6 +447,8 @@ export interface Activity {
   budgetWalletBalance: number; // saldo kantong dana kegiatan sendiri
   committeeMembers?: ActivityCommitteeMember[];
   status?: 'Sedang Berjalan' | 'Selesai';
+  documentationUrl?: string; // Tautan GDrive dokumentasi kegiatan (foto/video)
+  additionalDocUrl?: string; // Tautan dokumen tambahan (surat-surat, proposal dsb.)
   createdAt?: string;
   createdBy?: string;
   deleted?: boolean;

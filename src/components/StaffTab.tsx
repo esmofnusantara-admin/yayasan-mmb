@@ -4,13 +4,13 @@
  */
 
 import React, { useState } from 'react';
-import { 
-  Users, 
-  Plus, 
-  Search, 
-  Trash, 
-  Edit, 
-  X, 
+import {
+  Users,
+  Plus,
+  Search,
+  Trash,
+  Edit,
+  X,
   Lock,
   Building,
   Activity,
@@ -41,7 +41,7 @@ export default function StaffTab({
   // Form registration states
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
-  
+
   // Fields staff
   const [sNik, setSNik] = useState('');
   const [sName, setSName] = useState('');
@@ -54,14 +54,14 @@ export default function StaffTab({
   const [sContractEndDate, setSContractEndDate] = useState('');
   const [sBirthPlace, setSBirthPlace] = useState('');
   const [sBirthDate, setSBirthDate] = useState('');
-  
+
   // Re-hire inline panel state
   const [isRehireOpen, setIsRehireOpen] = useState(false);
   const [rehireDate, setRehireDate] = useState('');
-  
+
   // Custom delete confirmation state
   const [deleteConfirmStaff, setDeleteConfirmStaff] = useState<{ nik: string; name: string } | null>(null);
-  
+
   // Base constants when registering a new staff
   const [baseSalary, setBaseSalary] = useState<number>(4500000);
 
@@ -73,27 +73,27 @@ export default function StaffTab({
     if (!joinedDateStr) return '0 Hari';
     const joined = new Date(joinedDateStr);
     const today = new Date('2026-06-10'); // Unified system date or current context date
-    
+
     let years = today.getFullYear() - joined.getFullYear();
     let months = today.getMonth() - joined.getMonth();
     let days = today.getDate() - joined.getDate();
-    
+
     if (days < 0) {
       months -= 1;
       const prevMonth = new Date(today.getFullYear(), today.getMonth(), 0);
       days += prevMonth.getDate();
     }
-    
+
     if (months < 0) {
       years -= 1;
       months += 12;
     }
-    
+
     const parts = [];
     if (years > 0) parts.push(`${years} Tahun`);
     if (months > 0) parts.push(`${months} Bulan`);
     if (days > 0 || parts.length === 0) parts.push(`${days} Hari`);
-    
+
     return parts.join(' ');
   };
 
@@ -101,12 +101,12 @@ export default function StaffTab({
     if (!dateStr) return { color: 'text-slate-400', label: 'Selamanya (Tetap)', badgeClass: 'bg-emerald-50 text-emerald-700' };
     const targetDate = new Date(dateStr);
     const today = new Date('2026-06-10');
-    today.setHours(0,0,0,0);
-    targetDate.setHours(0,0,0,0);
-    
+    today.setHours(0, 0, 0, 0);
+    targetDate.setHours(0, 0, 0, 0);
+
     const diffTime = targetDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) {
       return { color: 'text-red-650 font-bold', label: `Selesai (${Math.abs(diffDays)} hari lalu)`, expired: true, daysLeft: diffDays, badgeClass: 'bg-red-50 text-red-700 border border-red-200' };
     } else if (diffDays === 0) {
@@ -216,9 +216,9 @@ export default function StaffTab({
     setIsFormOpen(false);
   };
 
-  const filteredStaffs = staffs.filter(s => 
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    s.position.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredStaffs = staffs.filter(s =>
+    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.nik.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -258,7 +258,7 @@ export default function StaffTab({
 
   return (
     <div className="space-y-6">
-      
+
       {/* Upper header action bar */}
       <div className="bg-[#0c2340] text-white rounded-lg p-5 shadow-xs border border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -267,14 +267,14 @@ export default function StaffTab({
         </div>
 
         <div className="flex gap-2 shrink-0">
-          <button 
+          <button
             onClick={handleExportCSV}
             className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded border border-slate-600 flex items-center gap-1.5 shadow-xs text-xs cursor-pointer transition-colors"
           >
             <Download className="w-3.5 h-3.5 text-emerald-400" /> Export CSV
           </button>
           {canModifyHR && (
-            <button 
+            <button
               onClick={openAddForm}
               className="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-900 font-semibold rounded flex items-center gap-1.5 shadow-xs text-xs cursor-pointer transition-colors"
             >
@@ -285,15 +285,15 @@ export default function StaffTab({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        
+
         {/* Staff registry profile lists */}
         <div className="lg:col-span-2 bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden flex flex-col justify-between">
           <div>
             {/* Search filter bar */}
             <div className="p-3.5 border-b border-slate-200 relative bg-slate-50">
               <Search className="absolute left-6 top-6 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="Cari Staf berdasarkan Nama, NIK, Divisi..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -317,12 +317,11 @@ export default function StaffTab({
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
                   {filteredStaffs.map((staff) => (
-                    <tr 
-                      key={staff.nik} 
+                    <tr
+                      key={staff.nik}
                       onClick={() => setSelectedStaff(staff)}
-                      className={`hover:bg-slate-50 transition-colors cursor-pointer ${
-                        selectedStaff?.nik === staff.nik ? 'bg-slate-100/80 font-semibold' : ''
-                      }`}
+                      className={`hover:bg-slate-50 transition-colors cursor-pointer ${selectedStaff?.nik === staff.nik ? 'bg-slate-100/80 font-semibold' : ''
+                        }`}
                     >
                       <td className="p-3">
                         <span className="font-mono text-[9px] font-bold text-slate-500 block tracking-wider">{staff.nik}</span>
@@ -331,9 +330,8 @@ export default function StaffTab({
                       <td className="p-3 font-semibold text-slate-700">{staff.position}</td>
                       <td className="p-3 text-slate-600">{staff.division}</td>
                       <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
-                          staff.status === 'Tetap' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-50 text-slate-700 border-slate-200'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${staff.status === 'Tetap' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-50 text-slate-700 border-slate-200'
+                          }`}>
                           {staff.status}
                         </span>
                       </td>
@@ -355,13 +353,13 @@ export default function StaffTab({
                       {canModifyHR && (
                         <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
                           <div className="flex gap-1 justify-center">
-                            <button 
+                            <button
                               onClick={() => openEditForm(staff)}
                               className="px-2 py-0.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded text-[10px] font-semibold cursor-pointer shadow-xs transition-colors"
                             >
                               Edit
                             </button>
-                            <button 
+                            <button
                               onClick={() => setDeleteConfirmStaff({ nik: staff.nik, name: staff.name })}
                               className="px-2 py-0.5 bg-white hover:bg-rose-50 text-rose-800 border border-rose-300 rounded text-[10px] font-semibold cursor-pointer shadow-xs transition-colors"
                             >
@@ -386,7 +384,7 @@ export default function StaffTab({
         <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-5">
           {selectedStaff ? (
             <div className="space-y-5">
-              
+
               <div className="text-center pb-4 border-b border-slate-200">
                 <div className="w-10 h-10 bg-[#0c2340] text-white font-bold rounded mx-auto flex items-center justify-center font-mono text-xs">
                   HR
@@ -409,7 +407,7 @@ export default function StaffTab({
 
                 <div className="pt-1">
                   <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1.5">Histori Struktural Pelayanan</h4>
-                  
+
                   {canViewHRDetails ? (
                     <div className="bg-slate-50 border border-slate-200 p-3 rounded space-y-2">
                       <div className="flex justify-between items-center bg-white p-2 text-xs rounded border border-slate-200">
@@ -437,9 +435,8 @@ export default function StaffTab({
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-slate-600 font-medium">Akhir Pengabdian :</span>
                           {selectedStaff.contractEndDate ? (
-                            <span className={`font-bold font-mono px-2 py-0.5 rounded text-[11px] ${
-                              getExpirationStatus(selectedStaff.contractEndDate).badgeClass
-                            }`}>
+                            <span className={`font-bold font-mono px-2 py-0.5 rounded text-[11px] ${getExpirationStatus(selectedStaff.contractEndDate).badgeClass
+                              }`}>
                               {selectedStaff.contractEndDate}
                             </span>
                           ) : (
@@ -468,7 +465,7 @@ export default function StaffTab({
                                 Tentukan Batas Akhir Baru (Re-hire):
                               </label>
                               <div className="flex gap-2">
-                                <input 
+                                <input
                                   type="date"
                                   value={rehireDate}
                                   onChange={(e) => setRehireDate(e.target.value)}
@@ -537,7 +534,7 @@ export default function StaffTab({
       {isFormOpen && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-2xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
-            
+
             <div className="bg-[#0c2340] px-5 py-3.5 text-white flex justify-between items-center">
               <div>
                 <h3 className="text-sm font-bold">{editingStaff ? 'Ubah Akun Data Staf' : 'Registrasi Profil Angkatan Staf Baru'}</h3>
@@ -547,13 +544,13 @@ export default function StaffTab({
             </div>
 
             <form onSubmit={handleSaveStaffForm} className="p-5 space-y-4 text-xs">
-              
+
               <div className="space-y-3.5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
                     <label className="text-slate-600 block mb-1 font-semibold">NIK Identitas Pegawai :</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={sNik}
                       onChange={(e) => setSNik(e.target.value)}
                       className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 font-mono font-bold bg-slate-100"
@@ -562,11 +559,11 @@ export default function StaffTab({
                   </div>
                   <div>
                     <label className="text-slate-600 block mb-1 font-semibold">Nama Lengkap & Gelar :</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={sName}
                       onChange={(e) => setSName(e.target.value)}
-                      placeholder="Ahmad Faisal, S.Th."
+                      placeholder="Joseph Daniel, S.Th."
                       className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 font-semibold focus:outline-none focus:border-[#0c2340]"
                       required
                     />
@@ -574,8 +571,8 @@ export default function StaffTab({
 
                   <div>
                     <label className="text-slate-600 block mb-1 font-semibold">E-mail Yayasan :</label>
-                    <input 
-                      type="email" 
+                    <input
+                      type="email"
                       value={sEmail}
                       onChange={(e) => setSEmail(e.target.value)}
                       className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:border-[#0c2340]"
@@ -583,8 +580,8 @@ export default function StaffTab({
                   </div>
                   <div>
                     <label className="text-slate-600 block mb-1 font-semibold">Telepon Handphone :</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={sPhone}
                       onChange={(e) => setSPhone(e.target.value)}
                       className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:border-[#0c2340]"
@@ -593,8 +590,8 @@ export default function StaffTab({
 
                   <div>
                     <label className="text-slate-600 block mb-1 font-semibold">Tempat Lahir :</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={sBirthPlace}
                       onChange={(e) => setSBirthPlace(e.target.value)}
                       placeholder="Contoh: Jakarta"
@@ -603,8 +600,8 @@ export default function StaffTab({
                   </div>
                   <div>
                     <label className="text-slate-600 block mb-1 font-semibold">Tanggal Lahir :</label>
-                    <input 
-                      type="date" 
+                    <input
+                      type="date"
                       value={sBirthDate}
                       onChange={(e) => setSBirthDate(e.target.value)}
                       className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:border-[#0c2340]"
@@ -613,7 +610,7 @@ export default function StaffTab({
 
                   <div>
                     <label className="text-slate-600 block mb-1 font-semibold">Struktural Divisi :</label>
-                    <select 
+                    <select
                       value={sDivision}
                       onChange={(e) => setSDivision(e.target.value)}
                       className="w-full border border-slate-300 rounded px-2 py-1.5 bg-white text-slate-800 focus:outline-none focus:border-[#0c2340]"
@@ -627,8 +624,8 @@ export default function StaffTab({
 
                   <div>
                     <label className="text-slate-600 block mb-1 font-semibold">Jabatan Struktural :</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={sPosition}
                       onChange={(e) => setSPosition(e.target.value)}
                       placeholder="Koordinator Pelayanan & HR"
@@ -639,7 +636,7 @@ export default function StaffTab({
 
                   <div>
                     <label className="text-slate-600 block mb-1 font-semibold">Status Kepegawaian :</label>
-                    <select 
+                    <select
                       value={sStatus}
                       onChange={(e) => {
                         const val = e.target.value as any;
@@ -659,8 +656,8 @@ export default function StaffTab({
 
                   <div>
                     <label className="text-slate-600 block mb-1 font-semibold">Gaji Pokok Awal (Base) :</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       value={baseSalary}
                       onChange={(e) => setBaseSalary(Number(e.target.value))}
                       className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 font-mono font-bold bg-white focus:outline-none focus:border-[#0c2340]"
@@ -670,8 +667,8 @@ export default function StaffTab({
                   <div className="sm:col-span-2 bg-slate-50 p-3 rounded border border-slate-200 space-y-1">
                     <label className="text-slate-700 block font-bold text-xs">Batas Akhir Pelayanan / Komitmen Pengabdian :</label>
                     <div className="flex flex-col sm:flex-row gap-2.5">
-                      <input 
-                        type="date" 
+                      <input
+                        type="date"
                         value={sContractEndDate}
                         onChange={(e) => setSContractEndDate(e.target.value)}
                         className="border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 bg-white font-mono flex-1 focus:outline-none focus:border-[#0c2340] text-xs"
@@ -685,7 +682,7 @@ export default function StaffTab({
 
                 <div className="col-span-2">
                   <label className="text-slate-600 block mb-1 font-semibold">Alamat Domisili :</label>
-                  <textarea 
+                  <textarea
                     value={sAddress}
                     onChange={(e) => setSAddress(e.target.value)}
                     rows={2}
@@ -696,14 +693,14 @@ export default function StaffTab({
               </div>
 
               <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setIsFormOpen(false)}
                   className="px-3.5 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium rounded transition-colors cursor-pointer"
                 >
                   Batal
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="px-4 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded cursor-pointer shadow-xs transition-colors"
                 >
@@ -727,12 +724,12 @@ export default function StaffTab({
               </div>
               <h3 className="text-sm font-bold text-slate-900">Konfirmasi Hapus Data Kepegawaian</h3>
             </div>
-            
+
             <p className="text-xs text-slate-600 leading-relaxed">
-              Apakah Anda yakin ingin menghapus data kepegawaian <strong className="text-slate-800">"{deleteConfirmStaff.name}"</strong> (NIK: {deleteConfirmStaff.nik})? 
+              Apakah Anda yakin ingin menghapus data kepegawaian <strong className="text-slate-800">"{deleteConfirmStaff.name}"</strong> (NIK: {deleteConfirmStaff.nik})?
               Tindakan ini akan mengubah status data <code className="bg-slate-100 text-rose-800 px-1 py-0.5 rounded text-[10px] font-mono font-medium">deleted: true</code> (soft delete).
             </p>
-            
+
             <div className="flex justify-end gap-2 pt-1">
               <button
                 type="button"

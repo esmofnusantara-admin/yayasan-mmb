@@ -69,7 +69,7 @@ function normalizePartner(p: any) {
     type: p.partnerType || p.type || 'Pribadi',
     commitmentAmount: Number(p.commitmentAmount || 0),
     frequency: p.frequency || 'Bulanan',
-    staffRelasi: p.staffRelasi || 'Ahmad Faisal',
+    staffRelasi: p.staffRelasi || 'Joseph Daniel',
     status: p.status || 'Prospek',
     region: p.region || 'Yogyakarta',
     donationDay: Number(p.donationDay || 10),

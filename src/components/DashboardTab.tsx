@@ -7,23 +7,16 @@ import React from 'react';
 import { 
   Users, 
   Coins, 
-  TrendingUp, 
-  TrendingDown, 
   BookOpen, 
   HeartHandshake, 
-  CheckSquare, 
   ShieldAlert, 
   ChevronRight, 
   Plus, 
-  Calendar, 
   Activity,
   ArrowUpRight,
   ArrowDownRight,
-  Printer,
   Gift,
-  FilePieChart,
-  Sparkles,
-  Copy
+  FilePieChart
 } from 'lucide-react';
 import { Member, Transaction, Partner, SmallGroup, ApprovalRequest, AuditLog, Staff } from '../types';
 import { exportDashboardSummaryToPDF } from '../utils/export';
@@ -74,7 +67,6 @@ export default function DashboardTab({
   const generateMonthsList = () => {
     const list = [];
     const now = new Date();
-    // Generate 6 months ending with current month
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       list.push({
@@ -88,7 +80,7 @@ export default function DashboardTab({
     return list;
   };
 
-  const monthlyTimeline = generateMonthsList().map((m, idx) => {
+  const monthlyTimeline = generateMonthsList().map((m) => {
     const txsInMonth = approvedTx.filter(t => {
       const tDateString = t.date || t.transaction_date || t.created_at;
       if (!tDateString) return false;
@@ -106,58 +98,54 @@ export default function DashboardTab({
 
     return {
       monthLabel: m.shortName,
-      monthFullLabel: idx === 5 ? `${m.fullName} (Aktif)` : m.fullName,
+      fullName: m.fullName,
+      year: m.year,
       inc,
       exp,
-      isCurrent: m.isCurrent,
+      net: inc - exp,
     };
   });
 
-  const maxInTimeline = Math.max(...monthlyTimeline.map(m => Math.max(m.inc, m.exp)), 1000000);
-  const chartMax = Math.ceil(maxInTimeline / 5000000) * 5000000;
+  const maxTimelineAmount = Math.max(
+    ...monthlyTimeline.map(m => Math.max(m.inc, m.exp)),
+    5000000
+  );
+  const chartMax = Math.ceil(maxTimelineAmount / 1000000) * 1000000;
 
-  // Partner Counts
-  const activePartners = partners.filter(p => p.status === 'Aktif');
-  const prospectivePartners = partners.filter(p => ['Prospek', 'Kontak Awal', 'Presentasi'].includes(p.status));
-  const activeCommitmentsTotal = (partners || [])
-    .filter(p => p.status === 'Aktif')
-    .reduce((sum, p) => {
-      const amt = Number(p.commitmentAmount || 0);
-      if (p.frequency === 'Bulanan') return sum + (amt * 12);
-      return sum + amt;
-    }, 0);
-
-  // Member Status Distribution
+  // Member stats
   const totalMembers = members.length;
   const activeMembersCount = members.filter(m => m.statusKeaktifan === 'Aktif').length;
-  
-  // Quick notifications
+
+  // Partner stats
+  const activePartners = partners.filter(p => p.status === 'Aktif' || p.status === 'Komitmen');
+  const prospectivePartners = partners.filter(p => p.status === 'Prospek' || p.status === 'Kontak Awal' || p.status === 'Presentasi');
+  const activeCommitmentsTotal = activePartners.reduce((sum, p) => sum + (p.commitmentAmount || 0), 0);
+
+  // Approval queue
   const pendingApprovalsCount = approvals.filter(a => a.status === 'Pending').length;
 
-  // Birthdays Filter & Print Summary Handler
-  const currentMonthNumStr = String(new Date().getMonth() + 1).padStart(2, '0');
-  const monthName = new Date().toLocaleDateString('id-ID', { month: 'long' });
+  // Upcoming birthdays this month
+  const currentMonthNum = new Date().getMonth() + 1;
+  const currentMonthNumStr = currentMonthNum < 10 ? `0${currentMonthNum}` : `${currentMonthNum}`;
+  const monthName = new Date().toLocaleString('id-ID', { month: 'long' });
 
-  // Define unified birthday elements
   const memberBirthdays = members
     .filter(m => m.birthDate)
     .map(m => ({
       id: m.id,
       fullName: m.fullName,
-      nickName: m.nickName || m.fullName.split(' ')[0],
       birthDate: m.birthDate,
-      component: m.component || 'Anggota',
-      region: m.region || 'Umum'
+      component: m.component,
+      region: m.region
     }));
 
   const staffBirthdays = (staffs || [])
     .filter(s => s.birthDate)
     .map(s => ({
-      id: s.nik,
-      fullName: s.name,
-      nickName: s.name.split(' ')[0],
+      id: s.id || s.nik,
+      fullName: `${s.name} (Staff)`,
       birthDate: s.birthDate,
-      component: 'Staf kepegawaian',
+      component: 'Staff Pelayanan',
       region: s.division || 'Kantor Pusat'
     }));
 
@@ -178,16 +166,6 @@ export default function DashboardTab({
     exportDashboardSummaryToPDF(upcomingBirthdays, pendingApprovals);
   };
 
-  // Let's build a timeline of transactions for dynamic mini graph
-  // Sorting transactions chronologically
-  const sortedTx = [...transactions]
-    .filter(t => t.status === undefined || t.status === 'Approved')
-    .sort((a, b) => {
-      const dateA = a.date || a.transaction_date || '';
-      const dateB = b.date || b.transaction_date || '';
-      return new Date(dateA).getTime() - new Date(dateB).getTime();
-    });
-
   return (
     <div className="space-y-6">
       {/* Upper Welcoming Banner - Institutional Executive Header */}
@@ -206,7 +184,7 @@ export default function DashboardTab({
               Ringkasan Eksekutif & Monitoring Pelayanan
             </h1>
             <p className="text-slate-600 text-xs sm:text-sm mt-0.5 max-w-2xl leading-relaxed">
-              Pusat pemantauan data keanggotaan, kelompok kecil pemuridan (KTB), transaksi jurnal kas, kemitraan, dan persetujuan eksekutif.
+              Pusat pemantauan data keanggotaan, kelompok pemuridan misional, transaksi jurnal kas, kemitraan, dan persetujuan eksekutif.
             </p>
           </div>
         </div>
@@ -291,13 +269,13 @@ export default function DashboardTab({
           </div>
         </div>
 
-        {/* KPI: Kelompok Kecil */}
+        {/* KPI: Kelompok Pemuridan */}
         <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between overflow-hidden">
           <div className="flex justify-between items-start gap-3">
             <div className="min-w-0 flex-1">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Kelompok Kecil (KTB)</span>
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Pemuridan Misional</span>
               <h2 className="text-xl font-bold text-slate-900 tracking-tight mt-1">
-                {smallGroups.length} Kelompok
+                {smallGroups.length} Komunitas
               </h2>
             </div>
             <div className="p-2.5 bg-slate-100 text-slate-700 rounded border border-slate-200 shrink-0">
@@ -306,7 +284,7 @@ export default function DashboardTab({
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
             <span className="text-slate-700 font-medium">
-              Di Wilayah Pelayanan
+              3 Ruang Komunitas
             </span>
             <span className="text-[#0c2340] font-semibold cursor-pointer flex items-center hover:underline" onClick={() => setTab('small_groups')}>
               Detail <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
@@ -367,7 +345,7 @@ export default function DashboardTab({
         </div>
       )}
 
-      {/* Main Grid: Analytical Charts & Recent Transactions */}
+      {/* Main Grid: Analytical Charts & Right Column Widgets */}
       <div className={`grid grid-cols-1 ${currentRole === 'Staff' ? 'lg:grid-cols-2' : 'lg:grid-cols-3'} gap-6`}>
         
         {/* Cashflow Custom Visual Graphic (Left & Center) */}
@@ -441,22 +419,21 @@ export default function DashboardTab({
           </div>
         )}
  
-        {/* Right Column Grid: Career pipeline and Birthday highlights */}
+        {/* Right Column Grid: Component distribution and Birthday highlights */}
         {currentRole !== 'Staff' ? (
           <div className="space-y-6 flex flex-col">
             {/* Member Journey Conversion Widget */}
             <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between flex-1">
               <div>
-                <h3 className="text-sm font-bold text-slate-800 mb-0.5">Distribusi Jenjang Kaderisasi</h3>
-                <p className="text-slate-500 text-xs mb-4">Klasifikasi anggota dari tahap Siswa hingga Alumni</p>
+                <h3 className="text-sm font-bold text-slate-800 mb-0.5">Distribusi Komponen Anggota</h3>
+                <p className="text-slate-500 text-xs mb-4">Klasifikasi anggota: Siswa, Mahasiswa, Alumni, dan Umum</p>
                 
                 <div className="space-y-3">
                   {[
-                    { status: 'Umum / Simpatisan', color: 'bg-slate-400', count: members.filter(m => m.component === 'Umum').length },
-                    { status: 'Siswa / Encounter', color: 'bg-emerald-600', count: members.filter(m => m.component === 'Siswa').length },
-                    { status: 'Mahasiswa / Explore', color: 'bg-blue-600', count: members.filter(m => m.component === 'Mahasiswa').length },
-                    { status: 'Alumni Terdaftar', color: 'bg-amber-600', count: members.filter(m => m.component === 'Alumni' && m.statusKeaktifan !== 'Aktif').length },
-                    { status: 'Alumni Aktif Melayani', color: 'bg-[#0c2340]', count: members.filter(m => m.component === 'Alumni' && m.statusKeaktifan === 'Aktif').length },
+                    { status: 'Siswa', color: 'bg-emerald-600', count: members.filter(m => m.component === 'Siswa').length },
+                    { status: 'Mahasiswa', color: 'bg-blue-600', count: members.filter(m => m.component === 'Mahasiswa').length },
+                    { status: 'Alumni', color: 'bg-amber-600', count: members.filter(m => m.component === 'Alumni').length },
+                    { status: 'Umum', color: 'bg-slate-500', count: members.filter(m => m.component === 'Umum').length },
                   ].map((stage, idx) => {
                     const percentage = Math.max((stage.count / (totalMembers || 1)) * 100, 4);
                     return (
@@ -551,16 +528,15 @@ export default function DashboardTab({
             {/* Member Journey Conversion Widget */}
             <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs flex flex-col justify-between">
               <div>
-                <h3 className="text-sm font-bold text-slate-800 mb-0.5">Distribusi Kaderisasi</h3>
-                <p className="text-slate-500 text-xs mb-4">Klasifikasi anggota dari tahap Siswa hingga Alumni</p>
+                <h3 className="text-sm font-bold text-slate-800 mb-0.5">Distribusi Komponen Anggota</h3>
+                <p className="text-slate-500 text-xs mb-4">Klasifikasi anggota: Siswa, Mahasiswa, Alumni, dan Umum</p>
                 
                 <div className="space-y-3">
                   {[
-                    { status: 'Umum / Simpatisan', color: 'bg-slate-400', count: members.filter(m => m.component === 'Umum').length },
-                    { status: 'Siswa / Encounter', color: 'bg-emerald-600', count: members.filter(m => m.component === 'Siswa').length },
-                    { status: 'Mahasiswa / Explore', color: 'bg-blue-600', count: members.filter(m => m.component === 'Mahasiswa').length },
-                    { status: 'Alumni Terdaftar', color: 'bg-amber-600', count: members.filter(m => m.component === 'Alumni' && m.statusKeaktifan !== 'Aktif').length },
-                    { status: 'Alumni Aktif Melayani', color: 'bg-[#0c2340]', count: members.filter(m => m.component === 'Alumni' && m.statusKeaktifan === 'Aktif').length },
+                    { status: 'Siswa', color: 'bg-emerald-600', count: members.filter(m => m.component === 'Siswa').length },
+                    { status: 'Mahasiswa', color: 'bg-blue-600', count: members.filter(m => m.component === 'Mahasiswa').length },
+                    { status: 'Alumni', color: 'bg-amber-600', count: members.filter(m => m.component === 'Alumni').length },
+                    { status: 'Umum', color: 'bg-slate-500', count: members.filter(m => m.component === 'Umum').length },
                   ].map((stage, idx) => {
                     const percentage = Math.max((stage.count / (totalMembers || 1)) * 100, 4);
                     return (

@@ -1,20 +1,47 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Yayasan MMB - Executive Management & Financial System (ESM)
 
-# Run and deploy your AI Studio app
+Sistem Tata Kelola Manajemen Terpadu, Tata Kerja Institusional, Pelayanan Anggota, Kas & Donasi Finansial, Manajemen Payroll, Administrasi Surat Menyurat, dan Pusat Laporan Siklus Cut-off Yayasan MMB.
 
-This contains everything you need to run your app locally.
+---
 
-View your app in AI Studio: https://ai.studio/apps/1a2b8ee0-a734-4e71-a587-ff010325d8af
+## 📚 Knowledge Base & Dokumentasi Lengkap
+Untuk panduan arsitektur teknis, aturan bisnis cut-off, deployment server Biznet, dan petunjuk prompt AI, silakan baca:
+👉 **[KNOWLEDGE_BASE.md](./KNOWLEDGE_BASE.md)**
 
-## Run Locally
+---
 
-**Prerequisites:**  Node.js
+## 🚀 Menjalankan Aplikasi Secara Lokal
 
+### Prasyarat
+* Node.js (v18+ direkomendasikan)
+* npm
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### Langkah Instalasi
+1. Install dependensi:
+   ```bash
+   npm install
+   ```
+2. Jalankan server lokal:
+   ```bash
+   npm run dev
+   ```
+3. Buka browser di: `http://localhost:3000`
+
+---
+
+## 🛠️ Build & Type Check
+* **Pemeriksaan Tipe TypeScript:**
+  ```bash
+  npm run lint
+  ```
+* **Production Build:**
+  ```bash
+  npm run build
+  ```
+
+---
+
+## 🌐 Alur Deployment Server (Biznet VPS)
+```bash
+ssh Muridmudabermisi2026@103.93.134.220 "cd ~/yayasan-mmb && git pull origin main && npm run build && pm2 restart yayasan-mmb"
+```

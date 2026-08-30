@@ -4,20 +4,20 @@
  */
 
 import React, { useState } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Trash, 
-  Edit, 
-  FileText, 
-  Upload, 
-  Download, 
-  CheckCircle, 
-  Clock, 
-  X, 
-  Mail, 
-  FileMinus, 
-  FileSignature, 
+import {
+  Plus,
+  Search,
+  Trash,
+  Edit,
+  FileText,
+  Upload,
+  Download,
+  CheckCircle,
+  Clock,
+  X,
+  Mail,
+  FileMinus,
+  FileSignature,
   Info,
   Calendar,
   User,
@@ -164,7 +164,7 @@ export default function LettersTab({
     if (onAddDocument) {
       await onAddDocument(docObj);
     }
-    
+
     // Clear and close
     setNewDocName('');
     setUploadFile(null);
@@ -197,7 +197,7 @@ export default function LettersTab({
     setSignPlaceDate(letter.signPlaceDate || `Cilegon, ${formatIndonesianDate(letter.date || new Date().toISOString().substring(0, 10))}`);
     setAdditionalSignatures(letter.additionalSignatures || []);
     setSelectedAdditionalNodeId('');
-    
+
     setIsFormOutOpen(true);
     setReadingLetter(null); // Close reading modal if open
   };
@@ -222,7 +222,7 @@ export default function LettersTab({
     setSignPlaceDate(`Cilegon, ${formatIndonesianDate(new Date().toISOString().substring(0, 10))}`);
     setAdditionalSignatures([]);
     setSelectedAdditionalNodeId('');
-    
+
     setIsFormOutOpen(true);
   };
 
@@ -236,7 +236,7 @@ export default function LettersTab({
   const [inAttachmentBase64, setInAttachmentBase64] = useState<string>('');
   const [inAttachmentName, setInAttachmentName] = useState<string>('');
   const [inExternalLink, setInExternalLink] = useState<string>('');
-  
+
   const [editingInwardLetter, setEditingInwardLetter] = useState<LetterInward | null>(null);
   const [readingInwardLetter, setReadingInwardLetter] = useState<LetterInward | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -252,7 +252,7 @@ export default function LettersTab({
     setInAttachmentBase64('');
     setInAttachmentName('');
     setInExternalLink('');
-    
+
     setIsFormInOpen(true);
   };
 
@@ -266,7 +266,7 @@ export default function LettersTab({
     setInAttachmentBase64(letter.attachmentUrl || '');
     setInAttachmentName(letter.attachmentUrl ? 'lampiran_terunggah' : '');
     setInExternalLink(letter.externalLink || '');
-    
+
     setIsFormInOpen(true);
     setReadingInwardLetter(null);
   };
@@ -409,7 +409,7 @@ export default function LettersTab({
     const roman = getRomanMonth(currentMonth);
     const count = outwardLetters.filter(l => l.templateType === typeCode).length + 1;
     const serial = String(count).padStart(3, '0');
-    
+
     // type abbreviations
     let abbrev = 'SK';
     if (typeCode === 'Surat Tugas') abbrev = 'Surat-Tugas';
@@ -427,7 +427,7 @@ export default function LettersTab({
       alert('Isi seluruh data Surat Masuk!');
       return;
     }
-    
+
     if (editingInwardLetter) {
       const updatedIn: LetterInward = {
         ...editingInwardLetter,
@@ -549,7 +549,7 @@ export default function LettersTab({
     setOutRecipient('');
     setOutSubject('');
     setOutContent('');
-    
+
     // Reset stamp customization states to default values
     setStampTarget('left');
     setStampOffsetX(0);
@@ -563,15 +563,15 @@ export default function LettersTab({
     }
   };
 
-  const filteredInward = inwardLetters.filter(l => 
-    l.letterNumber.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    l.sender.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredInward = inwardLetters.filter(l =>
+    l.letterNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    l.sender.toLowerCase().includes(searchQuery.toLowerCase()) ||
     l.subject.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredOutward = outwardLetters.filter(l => 
-    l.letterNumber.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    l.recipient.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredOutward = outwardLetters.filter(l =>
+    l.letterNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    l.recipient.toLowerCase().includes(searchQuery.toLowerCase()) ||
     l.subject.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -643,33 +643,30 @@ export default function LettersTab({
 
   return (
     <div className="space-y-6">
-      
+
       {/* Sub menu controls */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-3">
-        
+
         {/* Toggle tabs */}
         <div className="flex flex-wrap gap-1.5 p-1 bg-slate-100 rounded-lg border border-slate-200">
-          <button 
+          <button
             onClick={() => setSubTab('outward')}
-            className={`px-3.5 py-1.5 rounded text-xs font-semibold cursor-pointer transition-colors ${
-              subTab === 'outward' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900'
-            }`}
+            className={`px-3.5 py-1.5 rounded text-xs font-semibold cursor-pointer transition-colors ${subTab === 'outward' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900'
+              }`}
           >
             Surat Keluar (Outbox)
           </button>
-          <button 
+          <button
             onClick={() => setSubTab('inward')}
-            className={`px-3.5 py-1.5 rounded text-xs font-semibold cursor-pointer transition-colors ${
-              subTab === 'inward' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900'
-            }`}
+            className={`px-3.5 py-1.5 rounded text-xs font-semibold cursor-pointer transition-colors ${subTab === 'inward' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900'
+              }`}
           >
             Registrasi Surat Masuk (Inbox)
           </button>
-          <button 
+          <button
             onClick={() => setSubTab('repository')}
-            className={`px-3.5 py-1.5 rounded text-xs font-semibold cursor-pointer transition-colors ${
-              subTab === 'repository' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900'
-            }`}
+            className={`px-3.5 py-1.5 rounded text-xs font-semibold cursor-pointer transition-colors ${subTab === 'repository' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900'
+              }`}
           >
             Berkas Legal & Dokumen Organisasi
           </button>
@@ -677,14 +674,14 @@ export default function LettersTab({
 
         {/* Dynamic Buttons */}
         <div className="flex gap-2 text-xs">
-          <button 
+          <button
             onClick={handleExportCSV}
             className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
           >
             <Download className="w-3.5 h-3.5 text-slate-600" /> Ekspor CSV
           </button>
           {subTab === 'outward' && isEditable && (
-            <button 
+            <button
               onClick={handleStartNewOutwardLetter}
               className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
             >
@@ -693,7 +690,7 @@ export default function LettersTab({
           )}
 
           {subTab === 'inward' && isEditable && (
-            <button 
+            <button
               onClick={handleStartNewInwardLetter}
               className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
             >
@@ -710,8 +707,8 @@ export default function LettersTab({
           <div className="p-4 border-b border-slate-200 flex gap-4">
             <div className="relative flex-1 text-xs">
               <Search className="absolute left-3 top-2 w-3.5 h-3.5 text-slate-400" />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="Cari register nomor surat keluar, perihal atau penerima..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -752,17 +749,16 @@ export default function LettersTab({
                     </td>
                     <td className="p-3.5 text-slate-500">{letter.date}</td>
                     <td className="p-3.5">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                        letter.status === 'Approved' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
-                        letter.status === 'Draft' ? 'bg-slate-100 text-slate-700 border border-slate-300' :
-                        'bg-amber-50 text-amber-800 border border-amber-200'
-                      }`}>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${letter.status === 'Approved' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                          letter.status === 'Draft' ? 'bg-slate-100 text-slate-700 border border-slate-300' :
+                            'bg-amber-50 text-amber-800 border border-amber-200'
+                        }`}>
                         {letter.status}
                       </span>
                     </td>
                     <td className="p-3.5">
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-1.5">
-                        <button 
+                        <button
                           onClick={() => setReadingLetter(letter)}
                           className="px-2.5 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-medium flex items-center gap-1 shadow-xs cursor-pointer transition-colors"
                         >
@@ -770,7 +766,7 @@ export default function LettersTab({
                         </button>
                         {isEditable && (
                           <>
-                            <button 
+                            <button
                               onClick={() => handleStartEditOutwardLetter(letter)}
                               className="px-2.5 py-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-xs font-medium flex items-center gap-1 shadow-xs cursor-pointer whitespace-nowrap transition-colors"
                             >
@@ -796,7 +792,7 @@ export default function LettersTab({
                                   </button>
                                 </div>
                               ) : (
-                                <button 
+                                <button
                                   onClick={() => setDeleteConfirmId(letter.id)}
                                   className="px-2.5 py-1 text-rose-700 hover:bg-rose-50 border border-rose-200 rounded transition-colors text-xs font-medium cursor-pointer flex items-center gap-0.5"
                                 >
@@ -822,8 +818,8 @@ export default function LettersTab({
           <div className="p-4 border-b border-slate-200 flex gap-4">
             <div className="relative flex-1 text-xs">
               <Search className="absolute left-3 top-2 w-3.5 h-3.5 text-slate-400" />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="Cari register nomor surat masuk, pengirim atau judul..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -856,18 +852,17 @@ export default function LettersTab({
                     </td>
                     <td className="p-3.5 text-slate-500 font-medium">{letter.receivedDate}</td>
                     <td className="p-3.5">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
-                        letter.status === 'Arsip' ? 'bg-slate-50 text-slate-700 border-slate-300' :
-                        letter.status === 'Disposisi' ? 'bg-slate-100 text-slate-800 border-slate-300' :
-                        'bg-amber-50 text-amber-800 border-amber-200'
-                      }`}>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${letter.status === 'Arsip' ? 'bg-slate-50 text-slate-700 border-slate-300' :
+                          letter.status === 'Disposisi' ? 'bg-slate-100 text-slate-800 border-slate-300' :
+                            'bg-amber-50 text-amber-800 border-amber-200'
+                        }`}>
                         {letter.status || 'Disposisi'}
                       </span>
                     </td>
                     <td className="p-3.5">
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-1.5">
                         {letter.externalLink && (
-                          <a 
+                          <a
                             href={letter.externalLink}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -877,7 +872,7 @@ export default function LettersTab({
                             <ExternalLink className="w-3 h-3 text-slate-600" /> GDrive
                           </a>
                         )}
-                        <button 
+                        <button
                           onClick={() => setReadingInwardLetter(letter)}
                           className="px-2.5 py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-medium flex items-center gap-1 shadow-xs cursor-pointer whitespace-nowrap transition-colors"
                         >
@@ -885,7 +880,7 @@ export default function LettersTab({
                         </button>
                         {isEditable && (
                           <>
-                            <button 
+                            <button
                               onClick={() => handleStartEditInwardLetter(letter)}
                               className="px-2.5 py-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-xs font-medium flex items-center gap-1 shadow-xs cursor-pointer whitespace-nowrap transition-colors"
                             >
@@ -912,7 +907,7 @@ export default function LettersTab({
                                 </button>
                               </div>
                             ) : (
-                              <button 
+                              <button
                                 onClick={() => setDeleteConfirmId(letter.id)}
                                 className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded border border-rose-200 text-xs font-medium flex items-center cursor-pointer transition-colors"
                                 title="Hapus Surat Masuk"
@@ -943,7 +938,7 @@ export default function LettersTab({
               </p>
             </div>
             {isEditable && (
-              <button 
+              <button
                 onClick={() => setIsUploadDocOpen(true)}
                 className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold flex items-center gap-1.5 shadow-xs cursor-pointer whitespace-nowrap transition-colors"
               >
@@ -988,7 +983,7 @@ export default function LettersTab({
                           </button>
                         </div>
                       ) : (
-                        <button 
+                        <button
                           onClick={() => setDeleteConfirmId(doc.id)}
                           className="p-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded border border-rose-200 text-xs font-medium flex items-center cursor-pointer transition-colors"
                           title="Hapus Dokumen"
@@ -1011,13 +1006,13 @@ export default function LettersTab({
                         <ExternalLink className="w-3 h-3 text-slate-600" /> GDrive
                       </a>
                     )}
-                    <button 
+                    <button
                       onClick={() => setPreviewingDocument(doc)}
                       className="p-1 px-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded text-xs flex items-center gap-1 cursor-pointer transition-colors"
                     >
                       <Eye className="w-3.5 h-3.5" /> Pratinjau
                     </button>
-                    <a 
+                    <a
                       href={`/api/documents/download/${doc.id}?token=${getSessionUserToken()}`}
                       download
                       className="p-1 px-3 bg-[#0c2340] hover:bg-[#1b365d] text-white font-medium rounded text-xs flex items-center gap-1 cursor-pointer transition-colors"
@@ -1041,9 +1036,9 @@ export default function LettersTab({
                 <dt className="text-sm font-bold">Unggah Berkas Dokumen Resmi</dt>
                 <dd className="text-xs text-slate-300 mt-0.5">Batas upload langsung maks. 1 MB</dd>
               </div>
-              <button 
-                type="button" 
-                onClick={() => setIsUploadDocOpen(false)} 
+              <button
+                type="button"
+                onClick={() => setIsUploadDocOpen(false)}
                 className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -1053,7 +1048,7 @@ export default function LettersTab({
             <form onSubmit={handleUploadSubmit} className="p-5 space-y-4 text-xs">
               <div>
                 <label className="text-slate-700 block mb-1 font-semibold">Kategori Dokumen :</label>
-                <select 
+                <select
                   value={newDocCategory}
                   onChange={(e) => setNewDocCategory(e.target.value)}
                   className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
@@ -1069,8 +1064,8 @@ export default function LettersTab({
 
               <div>
                 <label className="text-slate-700 block mb-1 font-semibold">Nama Dokumen Resmi / Berkas :</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={newDocName}
                   onChange={(e) => setNewDocName(e.target.value)}
                   placeholder="Contoh: AD-ART MMB Terbaru 2026"
@@ -1095,8 +1090,8 @@ export default function LettersTab({
                     <FolderOpen className="w-3.5 h-3.5" /> Buka Folder GDrive <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
-                <input 
-                  type="url" 
+                <input
+                  type="url"
                   value={newDocExternalLink}
                   onChange={(e) => setNewDocExternalLink(e.target.value)}
                   placeholder="https://drive.google.com/... (Cantumkan jika berkas > 1 MB)"
@@ -1107,8 +1102,8 @@ export default function LettersTab({
               <div>
                 <label className="text-slate-700 block mb-1 font-semibold">Pilih Berkas Fail Langsung (Maks. 1 MB) :</label>
                 <div className="border-2 border-dashed border-slate-300 rounded p-4 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors relative">
-                  <input 
-                    type="file" 
+                  <input
+                    type="file"
                     onChange={handleFileChange}
                     accept=".pdf,.docx,.xlsx,.doc,.xls,.png,.jpg,.jpeg,.zip"
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -1124,8 +1119,8 @@ export default function LettersTab({
               </div>
 
               <div className="pt-3 border-t border-slate-200 flex justify-end gap-2.5">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => {
                     setIsUploadDocOpen(false);
                     setNewDocExternalLink('');
@@ -1134,7 +1129,7 @@ export default function LettersTab({
                 >
                   Batal
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded cursor-pointer transition-colors shadow-xs"
                 >
@@ -1167,9 +1162,9 @@ export default function LettersTab({
                   </dd>
                 </div>
               </div>
-              <button 
+              <button
                 type="button"
-                onClick={() => setPreviewingDocument(null)} 
+                onClick={() => setPreviewingDocument(null)}
                 className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
                 title="Tutup Pratinjau"
               >
@@ -1181,7 +1176,7 @@ export default function LettersTab({
             <div className="flex-1 bg-slate-100 p-4 flex flex-col md:flex-row gap-4 overflow-hidden">
               {/* Left Side: Browser Preview Frame */}
               <div className="flex-1 bg-white rounded border border-slate-300 shadow-xs overflow-hidden relative flex flex-col h-full">
-                <iframe 
+                <iframe
                   src={`/api/documents/preview/${previewingDocument.id}?token=${getSessionUserToken()}`}
                   className="w-full h-full border-none"
                   title={`Pratinjau dari ${previewingDocument.name}`}
@@ -1192,7 +1187,7 @@ export default function LettersTab({
               <div className="w-full md:w-64 bg-white rounded border border-slate-300 p-4 shrink-0 flex flex-col justify-between space-y-4">
                 <div className="space-y-4">
                   <h4 className="font-bold text-slate-900 text-xs border-b border-slate-200 pb-2">Status Arsip Elektronik</h4>
-                  
+
                   <div className="space-y-2 text-xs">
                     <div>
                       <span className="text-slate-500 block font-semibold text-[10px] uppercase">ID Register</span>
@@ -1215,14 +1210,14 @@ export default function LettersTab({
                 </div>
 
                 <div className="space-y-2 pt-2 border-t border-slate-200">
-                  <a 
+                  <a
                     href={`/api/documents/download/${previewingDocument.id}?token=${getSessionUserToken()}`}
                     download
                     className="w-full py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                   >
                     <Download className="w-3.5 h-3.5" /> Unduh Berkas
                   </a>
-                  <button 
+                  <button
                     onClick={() => setPreviewingDocument(null)}
                     type="button"
                     className="w-full py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded text-xs cursor-pointer transition-colors"
@@ -1240,7 +1235,7 @@ export default function LettersTab({
       {isFormInOpen && (
         <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-lg border border-slate-300 w-full max-w-xl overflow-hidden flex flex-col max-h-[calc(100vh-3rem)]">
-            
+
             <div className="bg-[#0c2340] px-5 py-3.5 text-white flex justify-between items-center shrink-0">
               <div>
                 <dt className="text-sm font-bold">
@@ -1250,12 +1245,12 @@ export default function LettersTab({
                   {editingInwardLetter ? 'Perubahan pada berkas surat masuk akan disimpan ke database.' : 'Menerima dan melaporkan surat dinas luar yang masuk ke sekretariat.'}
                 </dd>
               </div>
-              <button 
+              <button
                 type="button"
                 onClick={() => {
                   setIsFormInOpen(false);
                   setEditingInwardLetter(null);
-                }} 
+                }}
                 className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -1264,153 +1259,153 @@ export default function LettersTab({
 
             <form onSubmit={handleSaveInwardLetter} className="flex flex-col flex-1 min-h-0 overflow-hidden text-xs">
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-700 block mb-1 font-semibold">Nomor Berkas Surat :</label>
-                  <input 
-                    type="text" 
-                    value={inNum}
-                    onChange={(e) => setInNum(e.target.value)}
-                    placeholder="Contoh: 120/EXT/DINSOS/VI/2026"
-                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-700 block mb-1 font-semibold">Instansi Pengirim :</label>
-                  <input 
-                    type="text" 
-                    value={inSender}
-                    onChange={(e) => setInSender(e.target.value)}
-                    placeholder="Contoh: Dinas Sosial / Kantor Camat"
-                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
-                    required
-                  />
-                </div>
-              </div>
 
-              <div>
-                <label className="text-slate-700 block mb-1 font-semibold">Perihal / Agenda Surat :</label>
-                <input 
-                  type="text" 
-                  value={inSubject}
-                  onChange={(e) => setInSubject(e.target.value)}
-                  placeholder="Contoh: Undangan Koordinasi Hibah Kemasyarakatan"
-                  className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-700 block mb-1 font-semibold">Tanggal Berkas Diterima :</label>
-                  <input 
-                    type="date" 
-                    value={inDate}
-                    onChange={(e) => setInDate(e.target.value)}
-                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-700 block mb-1 font-semibold">Status Alur Disposisi :</label>
-                  <select 
-                    value={inStatus}
-                    onChange={(e) => setInStatus(e.target.value as any)}
-                    className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
-                  >
-                    <option value="Disposisi">Perlu Disposisi Ketua</option>
-                    <option value="Tindak Lanjut">Tindak Lanjut Staf</option>
-                    <option value="Arsip">Selesai & Arsipkan</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* EXTERNAL LINK & GDRIVE HELPER */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-slate-700 block font-semibold">
-                    Tautan Google Drive / Scan Surat (Opsional) :
-                  </label>
-                  <a
-                    href={GDRIVE_LETTERS_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-semibold text-[#0c2340] hover:underline flex items-center gap-1"
-                    title="Buka Folder Google Drive Persuratan MMB"
-                  >
-                    <FolderOpen className="w-3.5 h-3.5" /> Buka Folder GDrive <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-                <input 
-                  type="url" 
-                  value={inExternalLink}
-                  onChange={(e) => setInExternalLink(e.target.value)}
-                  placeholder="https://drive.google.com/... (Cantumkan tautan jika scan surat > 1 MB)"
-                  className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 font-mono text-xs focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-slate-700 block mb-1 font-semibold">Unggah File Scan Fisik Surat Langsung (Maks. 1 MB) :</label>
-                <div className="border border-dashed border-slate-300 rounded p-4 text-center bg-slate-50 relative hover:bg-slate-100 transition-colors">
-                  <input 
-                    type="file" 
-                    accept="image/*,application/pdf"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        if (file.size > MAX_LETTERS_UPLOAD_BYTES) {
-                          alert(
-                            `Ukuran berkas "${file.name}" (${(file.size / (1024 * 1024)).toFixed(2)} MB) melebihi batas upload langsung ${MAX_LETTERS_UPLOAD_MB} MB agar database tetap ringan.\n\nSilakan unggah scan surat ke Folder Google Drive Surat Yayasan melalui tombol di atas, lalu cantumkan tautannya.`
-                          );
-                          e.target.value = '';
-                          return;
-                        }
-                        setInAttachmentName(file.name);
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          setInAttachmentBase64(reader.result as string);
-                        };
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                  />
-                  <div className="space-y-1">
-                    <Upload className="mx-auto h-6 w-6 text-slate-400" />
-                    <div className="text-slate-700 font-medium text-xs">
-                      {inAttachmentName ? (
-                        <span className="text-[#0c2340] font-bold truncate block max-w-xs mx-auto">{inAttachmentName}</span>
-                      ) : (
-                        <span>Pilih scan gambar/PDF dokumen atau tarik kesini (≤ 1 MB)</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-500">Jika berkas &gt; 1 MB, unggah ke Google Drive & cantumkan tautan di atas</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-slate-700 block mb-1 font-semibold">Nomor Berkas Surat :</label>
+                    <input
+                      type="text"
+                      value={inNum}
+                      onChange={(e) => setInNum(e.target.value)}
+                      placeholder="Contoh: 120/EXT/DINSOS/VI/2026"
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-700 block mb-1 font-semibold">Instansi Pengirim :</label>
+                    <input
+                      type="text"
+                      value={inSender}
+                      onChange={(e) => setInSender(e.target.value)}
+                      placeholder="Contoh: Dinas Sosial / Kantor Camat"
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                      required
+                    />
                   </div>
                 </div>
-                {inAttachmentBase64 && (
-                  <div className="mt-2 flex justify-end">
-                    <button 
-                      type="button" 
-                      onClick={() => {
-                        setInAttachmentBase64('');
-                        setInAttachmentName('');
-                      }}
-                      className="text-rose-700 hover:underline font-semibold text-xs flex items-center gap-0.5 cursor-pointer"
+
+                <div>
+                  <label className="text-slate-700 block mb-1 font-semibold">Perihal / Agenda Surat :</label>
+                  <input
+                    type="text"
+                    value={inSubject}
+                    onChange={(e) => setInSubject(e.target.value)}
+                    placeholder="Contoh: Undangan Koordinasi Hibah Kemasyarakatan"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-slate-700 block mb-1 font-semibold">Tanggal Berkas Diterima :</label>
+                    <input
+                      type="date"
+                      value={inDate}
+                      onChange={(e) => setInDate(e.target.value)}
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-700 block mb-1 font-semibold">Status Alur Disposisi :</label>
+                    <select
+                      value={inStatus}
+                      onChange={(e) => setInStatus(e.target.value as any)}
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     >
-                      <Trash className="w-3.5 h-3.5" /> Hapus Lampiran
-                    </button>
+                      <option value="Disposisi">Perlu Disposisi Ketua</option>
+                      <option value="Tindak Lanjut">Tindak Lanjut Staf</option>
+                      <option value="Arsip">Selesai & Arsipkan</option>
+                    </select>
                   </div>
-                )}
-              </div>
+                </div>
+
+                {/* EXTERNAL LINK & GDRIVE HELPER */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-700 block font-semibold">
+                      Tautan Google Drive / Scan Surat (Opsional) :
+                    </label>
+                    <a
+                      href={GDRIVE_LETTERS_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-semibold text-[#0c2340] hover:underline flex items-center gap-1"
+                      title="Buka Folder Google Drive Persuratan MMB"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5" /> Buka Folder GDrive <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                  <input
+                    type="url"
+                    value={inExternalLink}
+                    onChange={(e) => setInExternalLink(e.target.value)}
+                    placeholder="https://drive.google.com/... (Cantumkan tautan jika scan surat > 1 MB)"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 font-mono text-xs focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-700 block mb-1 font-semibold">Unggah File Scan Fisik Surat Langsung (Maks. 1 MB) :</label>
+                  <div className="border border-dashed border-slate-300 rounded p-4 text-center bg-slate-50 relative hover:bg-slate-100 transition-colors">
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > MAX_LETTERS_UPLOAD_BYTES) {
+                            alert(
+                              `Ukuran berkas "${file.name}" (${(file.size / (1024 * 1024)).toFixed(2)} MB) melebihi batas upload langsung ${MAX_LETTERS_UPLOAD_MB} MB agar database tetap ringan.\n\nSilakan unggah scan surat ke Folder Google Drive Surat Yayasan melalui tombol di atas, lalu cantumkan tautannya.`
+                            );
+                            e.target.value = '';
+                            return;
+                          }
+                          setInAttachmentName(file.name);
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setInAttachmentBase64(reader.result as string);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <div className="space-y-1">
+                      <Upload className="mx-auto h-6 w-6 text-slate-400" />
+                      <div className="text-slate-700 font-medium text-xs">
+                        {inAttachmentName ? (
+                          <span className="text-[#0c2340] font-bold truncate block max-w-xs mx-auto">{inAttachmentName}</span>
+                        ) : (
+                          <span>Pilih scan gambar/PDF dokumen atau tarik kesini (≤ 1 MB)</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500">Jika berkas &gt; 1 MB, unggah ke Google Drive & cantumkan tautan di atas</p>
+                    </div>
+                  </div>
+                  {inAttachmentBase64 && (
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInAttachmentBase64('');
+                          setInAttachmentName('');
+                        }}
+                        className="text-rose-700 hover:underline font-semibold text-xs flex items-center gap-0.5 cursor-pointer"
+                      >
+                        <Trash className="w-3.5 h-3.5" /> Hapus Lampiran
+                      </button>
+                    </div>
+                  )}
+                </div>
 
               </div>
 
               <div className="px-5 py-3.5 border-t border-slate-200 flex justify-end gap-2.5 shrink-0 bg-slate-50">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => {
                     setIsFormInOpen(false);
                     setEditingInwardLetter(null);
@@ -1419,7 +1414,7 @@ export default function LettersTab({
                 >
                   Batal
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded cursor-pointer transition-colors shadow-xs"
                 >
@@ -1444,9 +1439,9 @@ export default function LettersTab({
                   Surat diterima dan diarsipkan di database sekretariat MMB.
                 </dd>
               </div>
-              <button 
+              <button
                 type="button"
-                onClick={() => setReadingInwardLetter(null)} 
+                onClick={() => setReadingInwardLetter(null)}
                 className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -1462,11 +1457,10 @@ export default function LettersTab({
                   </div>
                   <div>
                     <span className="text-slate-500 block text-xs uppercase font-semibold">Status Pengarsipan</span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold inline-block border ${
-                      readingInwardLetter.status === 'Arsip' ? 'bg-slate-50 text-slate-700 border-slate-300' :
-                      readingInwardLetter.status === 'Disposisi' ? 'bg-slate-100 text-slate-800 border-slate-300' :
-                      'bg-amber-50 text-amber-800 border-amber-200'
-                    }`}>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold inline-block border ${readingInwardLetter.status === 'Arsip' ? 'bg-slate-50 text-slate-700 border-slate-300' :
+                        readingInwardLetter.status === 'Disposisi' ? 'bg-slate-100 text-slate-800 border-slate-300' :
+                          'bg-amber-50 text-amber-800 border-amber-200'
+                      }`}>
                       {readingInwardLetter.status || 'Disposisi'}
                     </span>
                   </div>
@@ -1492,7 +1486,7 @@ export default function LettersTab({
               {/* ATTACHMENT DETAILS */}
               <div className="border border-slate-200 rounded-lg p-4 bg-white space-y-3">
                 <span className="text-slate-800 text-xs font-bold block uppercase tracking-wide">Lampiran Dokumen Scan Asli</span>
-                
+
                 {readingInwardLetter.externalLink && (
                   <div className="flex items-center justify-between bg-slate-50 border border-slate-200 p-3 rounded">
                     <div className="flex items-center gap-2 min-w-0">
@@ -1522,18 +1516,18 @@ export default function LettersTab({
                         <p className="text-xs text-slate-500">Tersimpan di Cloud Database</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex gap-1.5 shrink-0">
-                      <a 
-                        href={`/api/inward_letters/preview/${readingInwardLetter.id}?token=${getSessionUserToken()}`} 
-                        target="_blank" 
+                      <a
+                        href={`/api/inward_letters/preview/${readingInwardLetter.id}?token=${getSessionUserToken()}`}
+                        target="_blank"
                         rel="noreferrer"
                         className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-xs font-medium cursor-pointer transition-colors"
                       >
                         Pratinjau
                       </a>
-                      <a 
-                        href={`/api/inward_letters/download/${readingInwardLetter.id}?token=${getSessionUserToken()}`} 
+                      <a
+                        href={`/api/inward_letters/download/${readingInwardLetter.id}?token=${getSessionUserToken()}`}
                         download={`Scan_Surat_Masuk_${readingInwardLetter.letterNumber?.replace(/\//g, '_') || 'doc'}.pdf`}
                         className="px-3 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-medium cursor-pointer transition-colors shadow-xs"
                       >
@@ -1571,8 +1565,8 @@ export default function LettersTab({
               </div>
 
               <div className="pt-3 border-t border-slate-200 flex justify-end">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setReadingInwardLetter(null)}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded text-slate-700 font-medium cursor-pointer transition-colors"
                 >
@@ -1588,7 +1582,7 @@ export default function LettersTab({
       {isFormOutOpen && (
         <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-lg border border-slate-300 w-full max-w-2xl overflow-hidden flex flex-col max-h-[calc(100vh-3rem)]">
-            
+
             <div className="bg-[#0c2340] px-5 py-3.5 text-white flex justify-between items-center shrink-0">
               <div>
                 <dt className="text-sm font-bold">
@@ -1598,9 +1592,9 @@ export default function LettersTab({
                   {editingLetter ? 'Perubahan pada isi surat akan disimpan secara dinamis ke database.' : 'Setiap surat keluar akan mereferensikan format nomor registrasi otomatis.'}
                 </dd>
               </div>
-              <button 
+              <button
                 type="button"
-                onClick={() => setIsFormOutOpen(false)} 
+                onClick={() => setIsFormOutOpen(false)}
                 className="w-7 h-7 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -1609,407 +1603,407 @@ export default function LettersTab({
 
             <form onSubmit={handleComposeOutwardLetter} className="flex flex-col flex-1 min-h-0 overflow-hidden text-xs">
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-700 block mb-1 font-semibold">Klasifikasi Surat Template :</label>
-                  <select 
-                    value={outType}
-                    onChange={(e) => setOutType(e.target.value as any)}
-                    className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
-                  >
-                    <option value="SK">Surat Keputusan (SK)</option>
-                    <option value="Surat Tugas">Surat Tugas Pengutusan</option>
-                    <option value="Surat Keterangan">Surat Keterangan Aktif</option>
-                    <option value="Surat Relasi">Surat Pengantar Relasi</option>
-                    <option value="Surat Peminjaman">Peminjaman Aula/Akomodasi</option>
-                    <option value="Surat Permohonan">Surat Permohonan Biaya/Sponsor</option>
-                  </select>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-slate-700 block mb-1 font-semibold">Klasifikasi Surat Template :</label>
+                    <select
+                      value={outType}
+                      onChange={(e) => setOutType(e.target.value as any)}
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                    >
+                      <option value="SK">Surat Keputusan (SK)</option>
+                      <option value="Surat Tugas">Surat Tugas Pengutusan</option>
+                      <option value="Surat Keterangan">Surat Keterangan Aktif</option>
+                      <option value="Surat Relasi">Surat Pengantar Relasi</option>
+                      <option value="Surat Peminjaman">Peminjaman Aula/Akomodasi</option>
+                      <option value="Surat Permohonan">Surat Permohonan Biaya/Sponsor</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-slate-700 block mb-1 font-semibold">Ditujukan Kepada (Pihak Penerima) :</label>
+                    <textarea
+                      value={outRecipient}
+                      onChange={(e) => setOutRecipient(e.target.value)}
+                      placeholder="Contoh:&#10;Pdt. Jeffrey Siauw, D.Th.&#10;Lead Pastor Gracelife Community Church"
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 text-xs min-h-[60px] resize-y focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                      required
+                    />
+                  </div>
                 </div>
+
                 <div>
-                  <label className="text-slate-700 block mb-1 font-semibold">Ditujukan Kepada (Pihak Penerima) :</label>
-                  <textarea 
-                    value={outRecipient}
-                    onChange={(e) => setOutRecipient(e.target.value)}
-                    placeholder="Contoh:&#10;Pdt. Jeffrey Siauw, D.Th.&#10;Lead Pastor Gracelife Community Church"
-                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 text-xs min-h-[60px] resize-y focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                  <label className="text-slate-700 block mb-1 font-semibold">Perihal / Subject Surat Keluar :</label>
+                  <input
+                    type="text"
+                    value={outSubject}
+                    onChange={(e) => setOutSubject(e.target.value)}
+                    placeholder="Contoh: Surat Tugas Pengutusan Pendamping Persekutuan"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 font-semibold focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     required
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="text-slate-700 block mb-1 font-semibold">Perihal / Subject Surat Keluar :</label>
-                <input 
-                  type="text" 
-                  value={outSubject}
-                  onChange={(e) => setOutSubject(e.target.value)}
-                  placeholder="Contoh: Surat Tugas Pengutusan Pendamping Persekutuan"
-                  className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 font-semibold focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-slate-700 block mb-1 font-semibold">Konten Inti Paragraf Surat Resmi :</label>
-                <textarea 
-                  rows={6}
-                  value={outContent}
-                  onChange={(e) => setOutContent(e.target.value)}
-                  placeholder="Isi draft surat resmi di sini secara lengkap & berbobot...."
-                  className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 leading-relaxed focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
-                  required
-                />
-              </div>
-
-              {/* PENGATURAN TANDA TANGAN & STEMPEL */}
-              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-800 font-bold block text-xs uppercase tracking-wide">Pengaturan Otorisasi & Tanda Tangan</span>
-                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={showStamp}
-                      onChange={(e) => setShowStamp(e.target.checked)}
-                      className="rounded border-slate-300 text-[#0c2340] focus:ring-[#0c2340] w-3.5 h-3.5"
-                    />
-                    <span className="text-xs font-semibold text-slate-700">Bubuhkan Stempel Lembaga</span>
-                  </label>
+                <div>
+                  <label className="text-slate-700 block mb-1 font-semibold">Konten Inti Paragraf Surat Resmi :</label>
+                  <textarea
+                    rows={6}
+                    value={outContent}
+                    onChange={(e) => setOutContent(e.target.value)}
+                    placeholder="Isi draft surat resmi di sini secara lengkap & berbobot...."
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-800 leading-relaxed focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                    required
+                  />
                 </div>
 
-                {/* STEMPELS CUSTOM LAYOUT */}
-                {showStamp && (
-                  <div className="bg-white p-3.5 rounded border border-slate-200 mt-2 space-y-3">
-                    <p className="text-xs text-slate-700 font-bold uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-1.5">
-                      <span className="w-2 h-2 rounded-full bg-[#0c2340] inline-block"></span>
-                      Kustomisasi Tata Letak Stempel Resmi
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <label className="text-slate-600 block mb-1 font-semibold">Sasaran Overlap Stempel:</label>
-                        <select
-                          value={stampTarget}
-                          onChange={(e) => setStampTarget(e.target.value as any)}
-                          className="w-full border border-slate-300 rounded p-1.5 bg-white text-slate-800 text-xs focus:border-[#0c2340] focus:outline-none"
-                        >
-                          <option value="left">Tanda Tangan Kiri (Overlay Sisi Kiri)</option>
-                          <option value="right">Tanda Tangan Kanan (Overlay Sisi Kiri)</option>
-                          <option value="center">Murni di Tengah Kertas (Center Alignment)</option>
-                        </select>
-                      </div>
+                {/* PENGATURAN TANDA TANGAN & STEMPEL */}
+                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-800 font-bold block text-xs uppercase tracking-wide">Pengaturan Otorisasi & Tanda Tangan</span>
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={showStamp}
+                        onChange={(e) => setShowStamp(e.target.checked)}
+                        className="rounded border-slate-300 text-[#0c2340] focus:ring-[#0c2340] w-3.5 h-3.5"
+                      />
+                      <span className="text-xs font-semibold text-slate-700">Bubuhkan Stempel Lembaga</span>
+                    </label>
+                  </div>
 
-                      <div>
-                        <label className="text-slate-600 block mb-1 font-semibold">Diameter Ukuran Stempel (mm):</label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="range"
-                            min="10"
-                            max="50"
-                            value={stampSize}
-                            onChange={(e) => setStampSize(Number(e.target.value))}
-                            className="flex-1 accent-[#0c2340] cursor-pointer"
-                          />
-                          <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 min-w-[28px] text-center font-bold text-xs">
-                            {stampSize}mm
-                          </span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-slate-600 block mb-1 font-semibold flex justify-between">
-                          <span>Geser Horisontal (X-Offset):</span>
-                          <span className="font-mono text-xs text-slate-500">({stampOffsetX > 0 ? `+${stampOffsetX}` : stampOffsetX} mm)</span>
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-400">Kiri</span>
-                          <input
-                            type="range"
-                            min="-40"
-                            max="40"
-                            value={stampOffsetX}
-                            onChange={(e) => setStampOffsetX(Number(e.target.value))}
-                            className="flex-1 accent-[#0c2340] cursor-pointer"
-                          />
-                          <span className="text-xs text-slate-400">Kanan</span>
-                          <button
-                            type="button"
-                            onClick={() => setStampOffsetX(0)}
-                            className="text-xs font-semibold text-slate-600 hover:text-[#0c2340] bg-slate-100 px-1.5 py-0.5 rounded cursor-pointer border border-slate-200"
+                  {/* STEMPELS CUSTOM LAYOUT */}
+                  {showStamp && (
+                    <div className="bg-white p-3.5 rounded border border-slate-200 mt-2 space-y-3">
+                      <p className="text-xs text-slate-700 font-bold uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-1.5">
+                        <span className="w-2 h-2 rounded-full bg-[#0c2340] inline-block"></span>
+                        Kustomisasi Tata Letak Stempel Resmi
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <label className="text-slate-600 block mb-1 font-semibold">Sasaran Overlap Stempel:</label>
+                          <select
+                            value={stampTarget}
+                            onChange={(e) => setStampTarget(e.target.value as any)}
+                            className="w-full border border-slate-300 rounded p-1.5 bg-white text-slate-800 text-xs focus:border-[#0c2340] focus:outline-none"
                           >
-                            Reset
-                          </button>
+                            <option value="left">Tanda Tangan Kiri (Overlay Sisi Kiri)</option>
+                            <option value="right">Tanda Tangan Kanan (Overlay Sisi Kiri)</option>
+                            <option value="center">Murni di Tengah Kertas (Center Alignment)</option>
+                          </select>
                         </div>
-                      </div>
 
-                      <div>
-                        <label className="text-slate-600 block mb-1 font-semibold flex justify-between">
-                          <span>Geser Vertikal (Y-Offset):</span>
-                          <span className="font-mono text-xs text-slate-500">({stampOffsetY > 0 ? `+${stampOffsetY}` : stampOffsetY} mm)</span>
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-400">Atas</span>
-                          <input
-                            type="range"
-                            min="-40"
-                            max="40"
-                            value={stampOffsetY}
-                            onChange={(e) => setStampOffsetY(Number(e.target.value))}
-                            className="flex-1 accent-[#0c2340] cursor-pointer"
-                          />
-                          <span className="text-xs text-slate-400">Bawah</span>
-                          <button
-                            type="button"
-                            onClick={() => setStampOffsetY(0)}
-                            className="text-xs font-semibold text-slate-600 hover:text-[#0c2340] bg-slate-100 px-1.5 py-0.5 rounded cursor-pointer border border-slate-200"
-                          >
-                            Reset
-                          </button>
+                        <div>
+                          <label className="text-slate-600 block mb-1 font-semibold">Diameter Ukuran Stempel (mm):</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="range"
+                              min="10"
+                              max="50"
+                              value={stampSize}
+                              onChange={(e) => setStampSize(Number(e.target.value))}
+                              className="flex-1 accent-[#0c2340] cursor-pointer"
+                            />
+                            <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 min-w-[28px] text-center font-bold text-xs">
+                              {stampSize}mm
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-slate-600 block mb-1 font-semibold flex justify-between">
+                            <span>Geser Horisontal (X-Offset):</span>
+                            <span className="font-mono text-xs text-slate-500">({stampOffsetX > 0 ? `+${stampOffsetX}` : stampOffsetX} mm)</span>
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-400">Kiri</span>
+                            <input
+                              type="range"
+                              min="-40"
+                              max="40"
+                              value={stampOffsetX}
+                              onChange={(e) => setStampOffsetX(Number(e.target.value))}
+                              className="flex-1 accent-[#0c2340] cursor-pointer"
+                            />
+                            <span className="text-xs text-slate-400">Kanan</span>
+                            <button
+                              type="button"
+                              onClick={() => setStampOffsetX(0)}
+                              className="text-xs font-semibold text-slate-600 hover:text-[#0c2340] bg-slate-100 px-1.5 py-0.5 rounded cursor-pointer border border-slate-200"
+                            >
+                              Reset
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-slate-600 block mb-1 font-semibold flex justify-between">
+                            <span>Geser Vertikal (Y-Offset):</span>
+                            <span className="font-mono text-xs text-slate-500">({stampOffsetY > 0 ? `+${stampOffsetY}` : stampOffsetY} mm)</span>
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-400">Atas</span>
+                            <input
+                              type="range"
+                              min="-40"
+                              max="40"
+                              value={stampOffsetY}
+                              onChange={(e) => setStampOffsetY(Number(e.target.value))}
+                              className="flex-1 accent-[#0c2340] cursor-pointer"
+                            />
+                            <span className="text-xs text-slate-400">Bawah</span>
+                            <button
+                              type="button"
+                              onClick={() => setStampOffsetY(0)}
+                              className="text-xs font-semibold text-slate-600 hover:text-[#0c2340] bg-slate-100 px-1.5 py-0.5 rounded cursor-pointer border border-slate-200"
+                            >
+                              Reset
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* LOKASI & TANGGAL PENGESAHAN */}
-                <div className="bg-white p-3 rounded border border-slate-200">
-                  <label className="text-xs font-bold text-slate-800 block mb-1">
-                    Lokasi & Tanggal Surat (Muncul di Atas Tanda Tangan):
-                  </label>
-                  <input
-                    type="text"
-                    value={signPlaceDate}
-                    onChange={(e) => setSignPlaceDate(e.target.value)}
-                    placeholder="Contoh: Cilegon, 12 Juni 2026"
-                    className="w-full border border-slate-300 rounded p-1.5 text-slate-800 text-xs font-semibold focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
-                    required
-                  />
-                  <p className="text-xs text-slate-500 mt-1">
-                    * Format ini akan tercetak secara presisi di atas tanda tangan.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {/* PENANDATANGAN 1 (KIRI) */}
-                  <div className="bg-white p-3 rounded border border-slate-200 space-y-2">
-                    <label className="text-xs font-bold text-slate-700 block">Penandatangan Utama 1 (Kiri):</label>
-                    <select
-                      value={signLeftType}
-                      onChange={(e) => handleLeftSigneeTypeChange(e.target.value)}
-                      className="w-full border border-slate-300 rounded p-1.5 bg-white text-slate-800 text-xs"
-                    >
-                      {structures && structures.map(n => (
-                        <option key={n.id} value={n.id}>{n.title} ({n.name})</option>
-                      ))}
-                      {(!structures || !structures.some(n => n.id === 'ketua')) && (
-                        <option value="Ketua">Ketua Dewan/Yayasan ({ketuaName})</option>
-                      )}
-                      {(!structures || !structures.some(n => n.id === 'sekretaris')) && (
-                        <option value="Sekretaris">Sekretaris ({sekretarisName})</option>
-                      )}
-                      {(!structures || !structures.some(n => n.id === 'bendahara')) && (
-                        <option value="Bendahara">Bendahara ({bendaharaName})</option>
-                      )}
-                      <option value="Custom">Kustom (Ketik Manual)</option>
-                      <option value="None">Tanpa Tanda Tangan Kiri</option>
-                    </select>
-
-                    {signLeftType !== 'None' && (
-                      <div className="space-y-1.5 pt-1">
-                        <input
-                          type="text"
-                          value={signLeftName}
-                          onChange={(e) => setSignLeftName(e.target.value)}
-                          placeholder="Nama lengkap penandatangan"
-                          className="w-full border border-slate-300 rounded p-1.5 text-slate-800 text-xs"
-                          disabled={signLeftType !== 'Custom'}
-                          required
-                        />
-                        <input
-                          type="text"
-                          value={signLeftTitle}
-                          onChange={(e) => setSignLeftTitle(e.target.value)}
-                          placeholder="Jabatan resmi"
-                          className="w-full border border-slate-300 rounded p-1.5 text-slate-600 text-xs"
-                          disabled={signLeftType !== 'Custom'}
-                          required
-                        />
-                      </div>
-                    )}
+                  {/* LOKASI & TANGGAL PENGESAHAN */}
+                  <div className="bg-white p-3 rounded border border-slate-200">
+                    <label className="text-xs font-bold text-slate-800 block mb-1">
+                      Lokasi & Tanggal Surat (Muncul di Atas Tanda Tangan):
+                    </label>
+                    <input
+                      type="text"
+                      value={signPlaceDate}
+                      onChange={(e) => setSignPlaceDate(e.target.value)}
+                      placeholder="Contoh: Cilegon, 12 Juni 2026"
+                      className="w-full border border-slate-300 rounded p-1.5 text-slate-800 text-xs font-semibold focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                      required
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      * Format ini akan tercetak secara presisi di atas tanda tangan.
+                    </p>
                   </div>
 
-                  {/* PENANDATANGAN 2 (KANAN) */}
-                  <div className="bg-white p-3 rounded border border-slate-200 space-y-2">
-                    <label className="text-xs font-bold text-slate-700 block">Penandatangan Utama 2 (Kanan):</label>
-                    <select
-                      value={signRightType}
-                      onChange={(e) => handleRightSigneeTypeChange(e.target.value)}
-                      className="w-full border border-slate-300 rounded p-1.5 bg-white text-slate-800 text-xs"
-                    >
-                      {structures && structures.map(n => (
-                        <option key={n.id} value={n.id}>{n.title} ({n.name})</option>
-                      ))}
-                      {(!structures || !structures.some(n => n.id === 'sekretaris')) && (
-                        <option value="Sekretaris">Sekretaris ({sekretarisName})</option>
-                      )}
-                      {(!structures || !structures.some(n => n.id === 'ketua')) && (
-                        <option value="Ketua">Ketua Dewan/Yayasan ({ketuaName})</option>
-                      )}
-                      {(!structures || !structures.some(n => n.id === 'bendahara')) && (
-                        <option value="Bendahara">Bendahara ({bendaharaName})</option>
-                      )}
-                      <option value="Custom">Kustom (Ketik Manual)</option>
-                      <option value="None">Tanpa Tanda Tangan Kanan</option>
-                    </select>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* PENANDATANGAN 1 (KIRI) */}
+                    <div className="bg-white p-3 rounded border border-slate-200 space-y-2">
+                      <label className="text-xs font-bold text-slate-700 block">Penandatangan Utama 1 (Kiri):</label>
+                      <select
+                        value={signLeftType}
+                        onChange={(e) => handleLeftSigneeTypeChange(e.target.value)}
+                        className="w-full border border-slate-300 rounded p-1.5 bg-white text-slate-800 text-xs"
+                      >
+                        {structures && structures.map(n => (
+                          <option key={n.id} value={n.id}>{n.title} ({n.name})</option>
+                        ))}
+                        {(!structures || !structures.some(n => n.id === 'ketua')) && (
+                          <option value="Ketua">Ketua Dewan/Yayasan ({ketuaName})</option>
+                        )}
+                        {(!structures || !structures.some(n => n.id === 'sekretaris')) && (
+                          <option value="Sekretaris">Sekretaris ({sekretarisName})</option>
+                        )}
+                        {(!structures || !structures.some(n => n.id === 'bendahara')) && (
+                          <option value="Bendahara">Bendahara ({bendaharaName})</option>
+                        )}
+                        <option value="Custom">Kustom (Ketik Manual)</option>
+                        <option value="None">Tanpa Tanda Tangan Kiri</option>
+                      </select>
 
-                    {signRightType !== 'None' && (
-                      <div className="space-y-1.5 pt-1">
-                        <input
-                          type="text"
-                          value={signRightName}
-                          onChange={(e) => setSignRightName(e.target.value)}
-                          placeholder="Nama lengkap penandatangan"
-                          className="w-full border border-slate-300 rounded p-1.5 text-slate-800 text-xs"
-                          disabled={signRightType !== 'Custom'}
-                          required
-                        />
-                        <input
-                          type="text"
-                          value={signRightTitle}
-                          onChange={(e) => setSignRightTitle(e.target.value)}
-                          placeholder="Jabatan resmi"
-                          className="w-full border border-slate-300 rounded p-1.5 text-slate-600 text-xs"
-                          disabled={signRightType !== 'Custom'}
-                          required
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* TANDA TANGAN TAMBAHAN CUSTOM */}
-              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs font-bold text-slate-800 block uppercase tracking-wider">
-                    Tanda Tangan Tambahan:
-                  </label>
-                  <span className="text-xs text-slate-500 font-medium">
-                    * Opsional
-                  </span>
-                </div>
-
-                {/* List of currently added signatures */}
-                {additionalSignatures.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {additionalSignatures.map((sig) => (
-                      <div key={sig.id} className="bg-white border border-slate-200 rounded p-2 flex items-center justify-between text-xs font-semibold text-slate-700 shadow-xs">
-                        <div className="truncate pr-2">
-                          <p className="text-slate-900 text-xs truncate">{sig.name}</p>
-                          <p className="text-[11px] text-slate-500 truncate">{sig.title}</p>
+                      {signLeftType !== 'None' && (
+                        <div className="space-y-1.5 pt-1">
+                          <input
+                            type="text"
+                            value={signLeftName}
+                            onChange={(e) => setSignLeftName(e.target.value)}
+                            placeholder="Nama lengkap penandatangan"
+                            className="w-full border border-slate-300 rounded p-1.5 text-slate-800 text-xs"
+                            disabled={signLeftType !== 'Custom'}
+                            required
+                          />
+                          <input
+                            type="text"
+                            value={signLeftTitle}
+                            onChange={(e) => setSignLeftTitle(e.target.value)}
+                            placeholder="Jabatan resmi"
+                            className="w-full border border-slate-300 rounded p-1.5 text-slate-600 text-xs"
+                            disabled={signLeftType !== 'Custom'}
+                            required
+                          />
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setAdditionalSignatures(prev => prev.filter(s => s.id !== sig.id))}
-                          className="bg-rose-50 hover:bg-rose-100 text-rose-700 px-2 py-1 rounded text-[10px] font-bold cursor-pointer transition-colors"
-                        >
-                          Hapus
-                        </button>
-                      </div>
-                    ))}
+                      )}
+                    </div>
+
+                    {/* PENANDATANGAN 2 (KANAN) */}
+                    <div className="bg-white p-3 rounded border border-slate-200 space-y-2">
+                      <label className="text-xs font-bold text-slate-700 block">Penandatangan Utama 2 (Kanan):</label>
+                      <select
+                        value={signRightType}
+                        onChange={(e) => handleRightSigneeTypeChange(e.target.value)}
+                        className="w-full border border-slate-300 rounded p-1.5 bg-white text-slate-800 text-xs"
+                      >
+                        {structures && structures.map(n => (
+                          <option key={n.id} value={n.id}>{n.title} ({n.name})</option>
+                        ))}
+                        {(!structures || !structures.some(n => n.id === 'sekretaris')) && (
+                          <option value="Sekretaris">Sekretaris ({sekretarisName})</option>
+                        )}
+                        {(!structures || !structures.some(n => n.id === 'ketua')) && (
+                          <option value="Ketua">Ketua Dewan/Yayasan ({ketuaName})</option>
+                        )}
+                        {(!structures || !structures.some(n => n.id === 'bendahara')) && (
+                          <option value="Bendahara">Bendahara ({bendaharaName})</option>
+                        )}
+                        <option value="Custom">Kustom (Ketik Manual)</option>
+                        <option value="None">Tanpa Tanda Tangan Kanan</option>
+                      </select>
+
+                      {signRightType !== 'None' && (
+                        <div className="space-y-1.5 pt-1">
+                          <input
+                            type="text"
+                            value={signRightName}
+                            onChange={(e) => setSignRightName(e.target.value)}
+                            placeholder="Nama lengkap penandatangan"
+                            className="w-full border border-slate-300 rounded p-1.5 text-slate-800 text-xs"
+                            disabled={signRightType !== 'Custom'}
+                            required
+                          />
+                          <input
+                            type="text"
+                            value={signRightTitle}
+                            onChange={(e) => setSignRightTitle(e.target.value)}
+                            placeholder="Jabatan resmi"
+                            className="w-full border border-slate-300 rounded p-1.5 text-slate-600 text-xs"
+                            disabled={signRightType !== 'Custom'}
+                            required
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  <div className="text-center py-2.5 border border-dashed border-slate-300 rounded bg-white">
-                    <p className="text-xs text-slate-500">Belum ada tanda tangan tambahan yang ditambahkan.</p>
-                  </div>
-                )}
-
-                {/* Input form to add a new additional signatory from structures */}
-                <div className="flex flex-col sm:flex-row gap-2 items-stretch">
-                  <div className="flex-1">
-                    <select
-                      value={selectedAdditionalNodeId}
-                      onChange={(e) => setSelectedAdditionalNodeId(e.target.value)}
-                      className="w-full border border-slate-300 rounded p-1.5 bg-white text-slate-800 text-xs focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
-                    >
-                      <option value="">-- Pilih Jabatan / Personel Struktur --</option>
-                      {structures && structures
-                        .map(n => (
-                          <option key={n.id} value={n.id}>
-                            {n.title} ({n.name})
-                          </option>
-                        ))
-                      }
-                      {!structures || structures.length === 0 ? (
-                        <>
-                          <option value="korwil">Koordinator Wilayah (Ahmad Faisal, S.Th.)</option>
-                          <option value="staff">Staf Lapangan (Simpatisan Mitra Aliansi)</option>
-                        </>
-                      ) : null}
-                    </select>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!selectedAdditionalNodeId) {
-                        alert('Silakan pilih salah satu jabatan dari struktur organisasi.');
-                        return;
-                      }
-                      let resolvedName = '';
-                      let resolvedTitle = '';
-                      const matchedNode = structures?.find(n => n.id === selectedAdditionalNodeId);
-                      if (matchedNode) {
-                        resolvedName = matchedNode.name;
-                        resolvedTitle = matchedNode.title;
-                      } else if (selectedAdditionalNodeId === 'korwil') {
-                        resolvedName = 'Ahmad Faisal, S.Th.';
-                        resolvedTitle = 'Koordinator Wilayah';
-                      } else if (selectedAdditionalNodeId === 'staff') {
-                        resolvedName = 'Simpatisan Mitra Aliansi';
-                        resolvedTitle = 'Staf Lapangan';
-                      }
-
-                      if (!resolvedName) return;
-
-                      if (additionalSignatures.some(s => s.nodeId === selectedAdditionalNodeId)) {
-                        alert('Jabatan ini sudah ditambahkan.');
-                        return;
-                      }
-
-                      const newSig = {
-                        id: `SIG-${Date.now()}`,
-                        nodeId: selectedAdditionalNodeId,
-                        name: resolvedName,
-                        title: resolvedTitle,
-                      };
-                      setAdditionalSignatures(prev => [...prev, newSig]);
-                      setSelectedAdditionalNodeId('');
-                    }}
-                    className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs cursor-pointer transition-colors flex items-center justify-center shadow-xs"
-                  >
-                    + Tambahkan Tanda Tangan
-                  </button>
                 </div>
-              </div>
 
-              <div className="bg-slate-50 p-3 rounded border border-slate-200 text-slate-700 text-xs">
-                {editingLetter ? (
-                  <>Mengubah detail Surat Keluar No: <strong className="text-slate-900">{editingLetter.letterNumber}</strong></>
-                ) : (
-                  <>Nomor serial yang akan diterbitkan: <strong className="text-slate-900">{generateOutwardLetterNumber(outType)}</strong></>
-                )}
-              </div>
+                {/* TANDA TANGAN TAMBAHAN CUSTOM */}
+                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-bold text-slate-800 block uppercase tracking-wider">
+                      Tanda Tangan Tambahan:
+                    </label>
+                    <span className="text-xs text-slate-500 font-medium">
+                      * Opsional
+                    </span>
+                  </div>
+
+                  {/* List of currently added signatures */}
+                  {additionalSignatures.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {additionalSignatures.map((sig) => (
+                        <div key={sig.id} className="bg-white border border-slate-200 rounded p-2 flex items-center justify-between text-xs font-semibold text-slate-700 shadow-xs">
+                          <div className="truncate pr-2">
+                            <p className="text-slate-900 text-xs truncate">{sig.name}</p>
+                            <p className="text-[11px] text-slate-500 truncate">{sig.title}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setAdditionalSignatures(prev => prev.filter(s => s.id !== sig.id))}
+                            className="bg-rose-50 hover:bg-rose-100 text-rose-700 px-2 py-1 rounded text-[10px] font-bold cursor-pointer transition-colors"
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-2.5 border border-dashed border-slate-300 rounded bg-white">
+                      <p className="text-xs text-slate-500">Belum ada tanda tangan tambahan yang ditambahkan.</p>
+                    </div>
+                  )}
+
+                  {/* Input form to add a new additional signatory from structures */}
+                  <div className="flex flex-col sm:flex-row gap-2 items-stretch">
+                    <div className="flex-1">
+                      <select
+                        value={selectedAdditionalNodeId}
+                        onChange={(e) => setSelectedAdditionalNodeId(e.target.value)}
+                        className="w-full border border-slate-300 rounded p-1.5 bg-white text-slate-800 text-xs focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                      >
+                        <option value="">-- Pilih Jabatan / Personel Struktur --</option>
+                        {structures && structures
+                          .map(n => (
+                            <option key={n.id} value={n.id}>
+                              {n.title} ({n.name})
+                            </option>
+                          ))
+                        }
+                        {!structures || structures.length === 0 ? (
+                          <>
+                            <option value="korwil">Koordinator Wilayah (Joseph Daniel, S.Th.)</option>
+                            <option value="staff">Staf Lapangan (Simpatisan Mitra Aliansi)</option>
+                          </>
+                        ) : null}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!selectedAdditionalNodeId) {
+                          alert('Silakan pilih salah satu jabatan dari struktur organisasi.');
+                          return;
+                        }
+                        let resolvedName = '';
+                        let resolvedTitle = '';
+                        const matchedNode = structures?.find(n => n.id === selectedAdditionalNodeId);
+                        if (matchedNode) {
+                          resolvedName = matchedNode.name;
+                          resolvedTitle = matchedNode.title;
+                        } else if (selectedAdditionalNodeId === 'korwil') {
+                          resolvedName = 'Joseph Daniel, S.Th.';
+                          resolvedTitle = 'Koordinator Wilayah';
+                        } else if (selectedAdditionalNodeId === 'staff') {
+                          resolvedName = 'Simpatisan Mitra Aliansi';
+                          resolvedTitle = 'Staf Lapangan';
+                        }
+
+                        if (!resolvedName) return;
+
+                        if (additionalSignatures.some(s => s.nodeId === selectedAdditionalNodeId)) {
+                          alert('Jabatan ini sudah ditambahkan.');
+                          return;
+                        }
+
+                        const newSig = {
+                          id: `SIG-${Date.now()}`,
+                          nodeId: selectedAdditionalNodeId,
+                          name: resolvedName,
+                          title: resolvedTitle,
+                        };
+                        setAdditionalSignatures(prev => [...prev, newSig]);
+                        setSelectedAdditionalNodeId('');
+                      }}
+                      className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs cursor-pointer transition-colors flex items-center justify-center shadow-xs"
+                    >
+                      + Tambahkan Tanda Tangan
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded border border-slate-200 text-slate-700 text-xs">
+                  {editingLetter ? (
+                    <>Mengubah detail Surat Keluar No: <strong className="text-slate-900">{editingLetter.letterNumber}</strong></>
+                  ) : (
+                    <>Nomor serial yang akan diterbitkan: <strong className="text-slate-900">{generateOutwardLetterNumber(outType)}</strong></>
+                  )}
+                </div>
 
               </div>
 
               <div className="px-5 py-3.5 border-t border-slate-200 flex justify-end gap-2.5 shrink-0 bg-slate-50">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setIsFormOutOpen(false)}
                   className="px-4 py-2 border border-slate-300 rounded text-slate-700 font-medium cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   Batal
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="px-5 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs cursor-pointer shadow-xs inline-flex items-center gap-1.5 transition-colors"
                 >
@@ -2048,25 +2042,25 @@ export default function LettersTab({
         const bendaharaNameResolved = bendaharaNode?.name || 'Angelina';
 
         const leftName = readingLetter.signLeftName || (
-          leftType.toLowerCase() === 'ketua' ? ketuaNameResolved : 
-          leftType.toLowerCase() === 'sekretaris' ? sekretarisNameResolved : 
-          leftType.toLowerCase() === 'bendahara' ? bendaharaNameResolved : ''
+          leftType.toLowerCase() === 'ketua' ? ketuaNameResolved :
+            leftType.toLowerCase() === 'sekretaris' ? sekretarisNameResolved :
+              leftType.toLowerCase() === 'bendahara' ? bendaharaNameResolved : ''
         );
         const leftTitle = readingLetter.signLeftTitle || (
-          leftType.toLowerCase() === 'ketua' ? 'Ketua Yayasan' : 
-          leftType.toLowerCase() === 'sekretaris' ? 'Sekretaris Yayasan' : 
-          leftType.toLowerCase() === 'bendahara' ? 'Bendahara Yayasan' : ''
+          leftType.toLowerCase() === 'ketua' ? 'Ketua Yayasan' :
+            leftType.toLowerCase() === 'sekretaris' ? 'Sekretaris Yayasan' :
+              leftType.toLowerCase() === 'bendahara' ? 'Bendahara Yayasan' : ''
         );
 
         const rightName = readingLetter.signRightName || (
-          rightType.toLowerCase() === 'ketua' ? ketuaNameResolved : 
-          rightType.toLowerCase() === 'sekretaris' ? sekretarisNameResolved : 
-          rightType.toLowerCase() === 'bendahara' ? bendaharaNameResolved : ''
+          rightType.toLowerCase() === 'ketua' ? ketuaNameResolved :
+            rightType.toLowerCase() === 'sekretaris' ? sekretarisNameResolved :
+              rightType.toLowerCase() === 'bendahara' ? bendaharaNameResolved : ''
         );
         const rightTitle = readingLetter.signRightTitle || (
-          rightType.toLowerCase() === 'ketua' ? 'Ketua Yayasan' : 
-          rightType.toLowerCase() === 'sekretaris' ? 'Sekretaris Yayasan' : 
-          rightType.toLowerCase() === 'bendahara' ? 'Bendahara Yayasan' : ''
+          rightType.toLowerCase() === 'ketua' ? 'Ketua Yayasan' :
+            rightType.toLowerCase() === 'sekretaris' ? 'Sekretaris Yayasan' :
+              rightType.toLowerCase() === 'bendahara' ? 'Bendahara Yayasan' : ''
         );
 
         const resolveSignatureImg = (type: string, title: string, name: string) => {
@@ -2118,15 +2112,15 @@ export default function LettersTab({
         return (
           <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="bg-white rounded-lg shadow-xl border border-slate-300 w-full max-w-[800px] overflow-hidden p-8 md:p-12 text-slate-900 flex flex-col justify-between my-8 min-h-[750px] relative">
-              
+
               {/* Kop Surat Header */}
               <div className="border-b-[3px] border-double border-slate-900 pb-4 relative flex items-center gap-5 select-none text-left">
                 {profile?.logoUrl ? (
-                  <img 
-                    src={profile.logoUrl} 
-                    alt="Logo Yayasan" 
+                  <img
+                    src={profile.logoUrl}
+                    alt="Logo Yayasan"
                     referrerPolicy="no-referrer"
-                    className="w-[75px] h-[75px] object-contain shrink-0" 
+                    className="w-[75px] h-[75px] object-contain shrink-0"
                   />
                 ) : (
                   <div className="w-[72px] h-[72px] border-2 border-red-700 rounded-full flex items-center justify-center relative select-none shrink-0">
@@ -2137,7 +2131,7 @@ export default function LettersTab({
                     </div>
                   </div>
                 )}
-                
+
                 <div className="flex-1 text-center">
                   <h2 className="font-bold text-base md:text-lg tracking-tight text-slate-900 uppercase leading-tight">
                     {profile?.kopTitle || profile?.name || 'YAYASAN MURID MUDA BERMISI'}
@@ -2158,7 +2152,7 @@ export default function LettersTab({
 
               {/* Body Letter content */}
               <div className="mt-6 space-y-4 text-left text-xs md:text-sm text-slate-900 flex-1 leading-relaxed">
-                
+
                 {/* Publish Date - Right Aligned */}
                 <div className="text-right text-slate-900 font-medium">
                   {finalPlaceDate}
@@ -2192,7 +2186,7 @@ export default function LettersTab({
 
               {/* Symmetrical Dual Signatures Block Area */}
               <div className="mt-8 pt-4 border-t border-slate-200 grid grid-cols-2 gap-8 relative text-xs md:text-sm text-slate-900 select-none pb-4">
-                
+
                 {/* Mengetahui at the center top */}
                 {leftType !== 'None' && leftType !== 'none' && rightType !== 'None' && rightType !== 'none' && (
                   <div className="absolute top-4 left-1/2 -translate-x-1/2 font-medium text-center h-[18px]">
@@ -2206,15 +2200,15 @@ export default function LettersTab({
                     <p className="leading-tight h-[18px] mb-1 font-medium">
                       {rightType !== 'None' && rightType !== 'none' ? '' : finalPlaceDate}
                     </p>
-                    
+
                     {/* Image slot */}
                     <div className="h-12 flex items-center justify-center my-1 relative w-full">
                       {leftSignatureImg ? (
-                        <img 
-                          src={leftSignatureImg} 
-                          alt="TTD Utama" 
+                        <img
+                          src={leftSignatureImg}
+                          alt="TTD Utama"
                           referrerPolicy="no-referrer"
-                          className="max-h-12 object-contain" 
+                          className="max-h-12 object-contain"
                         />
                       ) : (
                         <div className="h-8 w-24 relative opacity-70 border border-dashed border-slate-300 rounded flex items-center justify-center bg-slate-50">
@@ -2240,11 +2234,11 @@ export default function LettersTab({
                     {/* Image slot */}
                     <div className="h-12 flex items-center justify-center my-1 relative w-full">
                       {rightSignatureImg ? (
-                        <img 
-                          src={rightSignatureImg} 
-                          alt="TTD Sekretaris" 
+                        <img
+                          src={rightSignatureImg}
+                          alt="TTD Sekretaris"
                           referrerPolicy="no-referrer"
-                          className="max-h-12 object-contain" 
+                          className="max-h-12 object-contain"
                         />
                       ) : (
                         <div className="h-8 w-24 relative opacity-70 border border-dashed border-slate-300 rounded flex items-center justify-center bg-slate-50">
@@ -2273,9 +2267,9 @@ export default function LettersTab({
                     if (stampTarget === 'center') leftPosStyle = 'left-[42%]';
 
                     return (
-                      <div 
+                      <div
                         className={`absolute z-30 pointer-events-none transition-all duration-300 ${leftPosStyle}`}
-                        style={{ 
+                        style={{
                           top: `calc(1rem + ${stampOffsetY}px)`,
                           marginLeft: `${stampOffsetX}px`,
                           width: `${stampSize * 3}px`,
@@ -2283,14 +2277,14 @@ export default function LettersTab({
                         }}
                       >
                         {profile?.stampUrl ? (
-                          <img 
-                            src={profile.stampUrl} 
-                            alt="Stempel Resmi" 
+                          <img
+                            src={profile.stampUrl}
+                            alt="Stempel Resmi"
                             referrerPolicy="no-referrer"
-                            className="w-full h-full object-contain rotate-[-7deg] opacity-85" 
+                            className="w-full h-full object-contain rotate-[-7deg] opacity-85"
                           />
                         ) : (
-                          <div 
+                          <div
                             className="w-full h-full border-[2px] border-double border-blue-800 rounded-full flex items-center justify-center rotate-[-12deg] opacity-80"
                           >
                             <div className="w-[82%] h-[82%] border border-blue-800 rounded-full flex flex-col items-center justify-center font-bold text-blue-800 select-none bg-white/50">
@@ -2308,27 +2302,25 @@ export default function LettersTab({
 
               {/* Additional Signaries Block Area */}
               {readingLetter.additionalSignatures && readingLetter.additionalSignatures.length > 0 && (
-                <div className={`mt-4 pt-3 border-t border-slate-200 relative text-xs md:text-sm text-slate-900 select-none pb-4 ${
-                  readingLetter.additionalSignatures.length === 1 ? 'flex justify-center' : 'grid grid-cols-2 gap-8'
-                }`}>
+                <div className={`mt-4 pt-3 border-t border-slate-200 relative text-xs md:text-sm text-slate-900 select-none pb-4 ${readingLetter.additionalSignatures.length === 1 ? 'flex justify-center' : 'grid grid-cols-2 gap-8'
+                  }`}>
                   {readingLetter.additionalSignatures.map((sig: any, idx: number) => {
                     const sigImg = resolveSignatureImg('', sig.title || '', sig.name || '');
                     const isLoneLast = readingLetter.additionalSignatures.length > 1 && idx === readingLetter.additionalSignatures.length - 1 && idx % 2 === 0;
                     return (
-                      <div 
-                        key={sig.id || idx} 
-                        className={`text-center flex flex-col items-center relative z-25 ${
-                          readingLetter.additionalSignatures.length === 1 ? 'max-w-xs w-full' : isLoneLast ? 'col-span-2 mx-auto max-w-xs w-full' : ''
-                        }`}
+                      <div
+                        key={sig.id || idx}
+                        className={`text-center flex flex-col items-center relative z-25 ${readingLetter.additionalSignatures.length === 1 ? 'max-w-xs w-full' : isLoneLast ? 'col-span-2 mx-auto max-w-xs w-full' : ''
+                          }`}
                       >
-                        
+
                         <div className="h-12 flex items-center justify-center my-1 relative w-full">
                           {sigImg ? (
-                            <img 
-                              src={sigImg} 
-                              alt={`TTD ${sig.name}`} 
+                            <img
+                              src={sigImg}
+                              alt={`TTD ${sig.name}`}
                               referrerPolicy="no-referrer"
-                              className="max-h-12 object-contain" 
+                              className="max-h-12 object-contain"
                             />
                           ) : (
                             <div className="h-8 w-24 relative opacity-70 border border-dashed border-slate-300 rounded flex items-center justify-center bg-slate-50">
@@ -2345,21 +2337,21 @@ export default function LettersTab({
                 </div>
               )}
               <div className="pt-4 border-t border-slate-200 flex flex-wrap justify-end gap-2.5 no-print">
-                <button 
+                <button
                   onClick={() => setReadingLetter(null)}
                   className="px-4 py-2 border border-slate-300 hover:bg-slate-50 rounded text-xs font-medium cursor-pointer text-slate-700 transition-colors"
                 >
                   Tutup
                 </button>
                 {isEditable && (
-                  <button 
+                  <button
                     onClick={() => handleStartEditOutwardLetter(readingLetter)}
                     className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-xs font-medium cursor-pointer flex items-center gap-1.5 transition-colors"
                   >
                     <Edit className="w-3.5 h-3.5" /> Edit
                   </button>
                 )}
-                <button 
+                <button
                   onClick={() => exportLetterToPDF(readingLetter, profile, structures)}
                   className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                 >

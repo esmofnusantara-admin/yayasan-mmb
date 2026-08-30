@@ -3,27 +3,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { 
-  Member, 
-  MemberNote, 
-  PrayerRequest, 
-  FollowUpLog, 
-  SmallGroup, 
-  MeetingLog, 
-  MaterialInfo, 
-  Transaction, 
-  FinancialCategory, 
-  Partner, 
-  CampaignDonation, 
-  Staff, 
+import {
+  Member,
+  MemberNote,
+  PrayerRequest,
+  FollowUpLog,
+  SmallGroup,
+  MeetingLog,
+  MaterialInfo,
+  Transaction,
+  FinancialCategory,
+  Partner,
+  CampaignDonation,
+  Staff,
   StaffSalary,
-  CareerHistory, 
-  LetterInward, 
-  LetterOutward, 
-  OrgDocument, 
-  ApprovalRequest, 
-  InstitutionalProfile, 
-  AuditLog 
+  CareerHistory,
+  LetterInward,
+  LetterOutward,
+  OrgDocument,
+  ApprovalRequest,
+  InstitutionalProfile,
+  AuditLog
 } from '../types';
 
 export const INITIAL_PROFILE: InstitutionalProfile = {
@@ -44,7 +44,7 @@ export const INITIAL_PROFILE: InstitutionalProfile = {
   materialCategories: ["Materi Dasar / Siswa", "Siswa & Mahasiswa", "Alumni", "Pelatihan Pemimpin (PKK)", "Materi Umum / Publik"],
   incomeAllocations: ["Gaji / Operasional", "Peralatan", "Kegiatan Khusus", "Lainnya"],
   meetingDays: ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"],
-  memberKeaktifanStatuses: ["Aktif", "Pasif", "Cuti", "Pindah"],
+  memberKeaktifanStatuses: ["Penjangkauan", "Aktif", "Pasif", "Cuti", "Pindah"],
   memberComponents: ["Siswa", "Mahasiswa", "Alumni", "Umum"],
   partnerStatuses: ["Prospek", "Kontak Awal", "Presentasi", "Komitmen", "Donasi Pertama", "Aktif", "Tidak Aktif"],
   partnerTypes: ["Pribadi", "Gereja", "Perusahaan", "Instansi", "Yayasan"],
@@ -82,10 +82,15 @@ export const INITIAL_MEMBERS: Member[] = [
     component: 'Mahasiswa',
     region: 'Yogyakarta',
     smallGroupId: 'SG-01',
-    staffAdvisor: 'Ahmad Faisal',
+    staffAdvisor: 'Joseph Daniel',
     mentor: 'Christian Sitorus',
+    discipleshipLeader: 'Joseph Daniel',
     statusKeaktifan: 'Aktif',
-    joinedDate: '2024-02-15'
+    joinedDate: '2024-02-15',
+    communitySpaces: ['Core Circle', 'Intimate Space', 'Social Space'],
+    coreCircleCommunity: 'Tim Inti Pemuridan Kampus',
+    intimateSpaceCommunity: 'Tunas Kasih UGM (KTB 1)',
+    socialSpaceCommunity: 'Persekutuan Mahasiswa Jogja'
   },
   {
     id: 'ENC-2026-00002',
@@ -109,8 +114,12 @@ export const INITIAL_MEMBERS: Member[] = [
     smallGroupId: 'SG-02',
     staffAdvisor: 'Sarah Sitorus',
     mentor: 'Maria Grace Wijaya',
+    discipleshipLeader: 'Sarah Sitorus',
     statusKeaktifan: 'Aktif',
-    joinedDate: '2025-01-10'
+    joinedDate: '2025-01-10',
+    communitySpaces: ['Intimate Space', 'Social Space'],
+    intimateSpaceCommunity: 'Agape Siswa Surabaya',
+    socialSpaceCommunity: 'Persekutuan Siswa Surabaya Timur'
   },
   {
     id: 'CON-2026-00003',
@@ -132,10 +141,14 @@ export const INITIAL_MEMBERS: Member[] = [
     component: 'Alumni',
     region: 'Jakarta',
     smallGroupId: 'SG-03',
-    staffAdvisor: 'Ahmad Faisal',
+    staffAdvisor: 'Joseph Daniel',
     mentor: 'Andi Siregar',
+    discipleshipLeader: 'Andi Siregar',
     statusKeaktifan: 'Aktif',
-    joinedDate: '2018-09-01'
+    joinedDate: '2018-09-01',
+    communitySpaces: ['Core Circle', 'Social Space'],
+    coreCircleCommunity: 'Forum Profesional Alumni MMB',
+    socialSpaceCommunity: 'Persekutuan Alumni Jabodetabek'
   },
   {
     id: 'ENC-2026-00004',
@@ -159,8 +172,11 @@ export const INITIAL_MEMBERS: Member[] = [
     smallGroupId: 'SG-04',
     staffAdvisor: 'Grace Natalia',
     mentor: 'Budi Hartono',
-    statusKeaktifan: 'Aktif',
-    joinedDate: '2025-07-20'
+    discipleshipLeader: 'Budi Hartono',
+    statusKeaktifan: 'Penjangkauan',
+    joinedDate: '2025-07-20',
+    communitySpaces: ['Social Space'],
+    socialSpaceCommunity: 'Persekutuan Remaja Bandung'
   },
   {
     id: 'EXP-2026-00005',
@@ -184,8 +200,11 @@ export const INITIAL_MEMBERS: Member[] = [
     smallGroupId: undefined,
     staffAdvisor: 'Sarah Sitorus',
     mentor: 'Grace Natalia',
+    discipleshipLeader: 'Grace Natalia',
     statusKeaktifan: 'Pasif',
-    joinedDate: '2023-08-11'
+    joinedDate: '2023-08-11',
+    communitySpaces: ['Intimate Space'],
+    intimateSpaceCommunity: 'KTB Medis USU'
   }
 ];
 
@@ -194,32 +213,36 @@ export const INITIAL_MEMBER_NOTES: MemberNote[] = [
     id: 'NOTE-01',
     memberId: 'EXP-2026-00001',
     date: '2026-01-10',
-    category: 'Konseling Akademik',
+    category: 'Pemuridan',
     notes: 'Yusuf berkonsultasi mengenai beban SKS semester akhir yang padat berbarengan dengan magang industri. Didoakan agar diberikan hikmat manajemen waktu.',
-    author: 'Ahmad Faisal'
+    committeeNotes: 'Koordinator Acara Retret Pemuridan Mahasiswa 2026',
+    author: 'Joseph Daniel'
   },
   {
     id: 'NOTE-02',
     memberId: 'EXP-2026-00001',
     date: '2026-01-15',
-    category: 'Follow Up Retret',
-    notes: 'Mengikuti retret kepemimpinan dengan fokus materi visi pemuridan di kampus. Yusuf menunjukkan ketertarikan tinggi untuk memimpin Kelompok Kecil baru.',
+    category: 'Penginjilan',
+    notes: 'Mengikuti retret kepemimpinan dengan fokus materi visi pemuridan di kampus. Yusuf menunjukkan ketertarikan tinggi untuk merintis penjangkauan baru.',
+    committeeNotes: 'Tim Doa & Misi Kampus',
     author: 'Christian Sitorus'
   },
   {
     id: 'NOTE-03',
     memberId: 'EXP-2026-00001',
     date: '2026-01-25',
-    category: 'Kepemimpinan',
-    notes: 'Yusuf resmi mulai menjadi pendamping kelompok kecil binaan siswa SMA. Sangat antusias dalam membimbing adik-adik tingkat.',
-    author: 'Ahmad Faisal'
+    category: 'Pengutusan',
+    notes: 'Yusuf resmi mulai menjadi pendamping kelompok pemuridan binaan siswa SMA. Sangat antusias dalam membimbing adik-adik tingkat.',
+    committeeNotes: 'Pengurus Harian Divisi Pemuridan Mahasiswa',
+    author: 'Joseph Daniel'
   },
   {
     id: 'NOTE-04',
     memberId: 'ENC-2026-00002',
     date: '2026-02-14',
-    category: 'Follow Up Retret',
-    notes: 'Maria sangat diberkati melalui sesi Encounter Camp. Dia menyerahkan komitmen penuh untuk rajin menghadiri persekutuan kelompok kecil setiap minggu.',
+    category: 'Pemuridan',
+    notes: 'Maria sangat diberkati melalui sesi Encounter Camp. Dia menyerahkan komitmen penuh untuk rajin menghadiri persekutuan kelompok setiap minggu.',
+    committeeNotes: 'Sie Musik & Pujian Persekutuan Siswa',
     author: 'Sarah Sitorus'
   }
 ];
@@ -261,6 +284,7 @@ export const INITIAL_FOLLOW_UPS: FollowUpLog[] = [
     memberName: 'Yusuf Raja Tamba',
     date: '2026-05-18',
     type: 'Mentoring',
+    serviceCategory: 'Bimbingan Karir',
     notes: 'Pertemuan rutin membahas materi Integritas di Tempat Kerja. Yusuf terbuka menceritakan tantangan menjaga integritas di perkantoran saat magang.',
     staffName: 'Christian Sitorus'
   },
@@ -270,6 +294,7 @@ export const INITIAL_FOLLOW_UPS: FollowUpLog[] = [
     memberName: 'Stella Caroline Simanjuntak',
     date: '2026-05-22',
     type: 'Kunjungan',
+    serviceCategory: 'Konseling Pribadi',
     notes: 'Kunjungan ke area kos Stella untuk menanyakan alasan absen dari persekutuan dalam 3 minggu terakhir. Ternyata Stella sedang kesulitan finansial untuk membayar sewa kos.',
     staffName: 'Sarah Sitorus'
   },
@@ -279,6 +304,7 @@ export const INITIAL_FOLLOW_UPS: FollowUpLog[] = [
     memberName: 'Maria Grace Wijaya',
     date: '2026-05-30',
     type: 'Pemuridan',
+    serviceCategory: 'Pengutusan Kepemimpinan',
     notes: 'Belajar bersama Metode Pemuridan Kontekstual untuk Siswa. Maria sangat antusias menyusun daftar bahan perbincangan harian berbasis Alkitab.',
     staffName: 'Sarah Sitorus'
   }
@@ -289,12 +315,14 @@ export const INITIAL_SMALL_GROUPS: SmallGroup[] = [
     id: 'SG-01',
     name: 'Tunas Kasih UGM',
     region: 'Yogyakarta',
-    staffAdvisor: 'Ahmad Faisal',
+    staffAdvisor: 'Joseph Daniel',
     leaderName: 'Christian Sitorus',
     meetingDay: 'Rabu',
     meetingTime: '17:00',
     location: 'Selasar Perpustakaan Pusat UGM',
-    memberCount: 6
+    memberCount: 6,
+    communitySpace: 'Intimate Space',
+    documentationUrl: 'https://drive.google.com/drive/folders/1z9WXkVgZUCNzZHOmyQKh3mBP0axvLxAg?usp=sharing'
   },
   {
     id: 'SG-02',
@@ -305,18 +333,22 @@ export const INITIAL_SMALL_GROUPS: SmallGroup[] = [
     meetingDay: 'Jumat',
     meetingTime: '15:30',
     location: 'Gazebo GKI Manyar',
-    memberCount: 5
+    memberCount: 5,
+    communitySpace: 'Intimate Space',
+    documentationUrl: 'https://drive.google.com/drive/folders/1z9WXkVgZUCNzZHOmyQKh3mBP0axvLxAg?usp=sharing'
   },
   {
     id: 'SG-03',
     name: 'Sinergi Alumni Jakarta',
     region: 'Jakarta',
-    staffAdvisor: 'Ahmad Faisal',
+    staffAdvisor: 'Joseph Daniel',
     leaderName: 'Andi Siregar',
     meetingDay: 'Sabtu',
     meetingTime: '10:00',
     location: 'Starbucks Wisma BNI 46',
-    memberCount: 8
+    memberCount: 8,
+    communitySpace: 'Core Circle',
+    documentationUrl: 'https://drive.google.com/drive/folders/1z9WXkVgZUCNzZHOmyQKh3mBP0axvLxAg?usp=sharing'
   },
   {
     id: 'SG-04',
@@ -327,7 +359,9 @@ export const INITIAL_SMALL_GROUPS: SmallGroup[] = [
     meetingDay: 'Kamis',
     meetingTime: '16:00',
     location: 'Taman Gasibu Bandung',
-    memberCount: 4
+    memberCount: 4,
+    communitySpace: 'Social Space',
+    documentationUrl: 'https://drive.google.com/drive/folders/1z9WXkVgZUCNzZHOmyQKh3mBP0axvLxAg?usp=sharing'
   }
 ];
 
@@ -492,7 +526,7 @@ export const INITIAL_PARTNERS: Partner[] = [
     address: 'Jl. Menteng Asri No. 12',
     partnerType: 'Pribadi',
     region: 'Jakarta',
-    staffRelasi: 'Ahmad Faisal',
+    staffRelasi: 'Joseph Daniel',
     status: 'Aktif',
     commitmentAmount: 1500000,
     frequency: 'Bulanan',
@@ -524,7 +558,7 @@ export const INITIAL_PARTNERS: Partner[] = [
     address: 'Menara Berkah Perkasa Lt. 14, Sudirman',
     partnerType: 'Perusahaan',
     region: 'Jakarta',
-    staffRelasi: 'Ahmad Faisal',
+    staffRelasi: 'Joseph Daniel',
     status: 'Komitmen',
     commitmentAmount: 10000000,
     frequency: 'Satu Kali',
@@ -540,7 +574,7 @@ export const INITIAL_PARTNERS: Partner[] = [
     address: 'Pondok Indah Indah Lestari Blok F4',
     partnerType: 'Pribadi',
     region: 'Jakarta',
-    staffRelasi: 'Ahmad Faisal',
+    staffRelasi: 'Joseph Daniel',
     status: 'Presentasi',
     commitmentAmount: 500000,
     frequency: 'Bulanan',
@@ -569,7 +603,7 @@ export const INITIAL_PARTNERS: Partner[] = [
 export const INITIAL_STAFF: Staff[] = [
   {
     nik: 'NIK-1001',
-    name: 'Ahmad Faisal, S.Th.',
+    name: 'Joseph Daniel, S.Th.',
     phone: '081273645341',
     email: 'ahmad.faisal@esm-student.or.id',
     address: 'Komplek Permata Indah Residence No. D4, Depok',
@@ -702,7 +736,7 @@ export const INITIAL_OUTWARD_LETTERS: LetterOutward[] = [
     subject: 'Surat Keputusan Pengangkatan Pemimpin Kelompok Kecil Wilayah Yogyakarta',
     date: '2026-06-01',
     content: 'Dengan ini memutuskan mengangkat Sdr. Christian Sitorus sebagai Pemimpin Kelompok Kecil Yogyakarta terhitung mulai tanggal 1 Juni 2026 sampai dengan 31 Mei 2027.',
-    author: 'Ahmad Faisal, S.Th.',
+    author: 'Joseph Daniel, S.Th.',
     status: 'Approved'
   },
   {
@@ -713,7 +747,7 @@ export const INITIAL_OUTWARD_LETTERS: LetterOutward[] = [
     subject: 'Surat Tugas Pendampingan Camp Encounter Salatiga',
     date: '2026-06-03',
     content: 'Menugaskan Sdri. Sarah Sitorus untuk mendampingi kontingen siswa Surabaya dalam kegiatan Encounter Camp Salatiga yang diselenggarakan pada 15-18 Juni 2026.',
-    author: 'Ahmad Faisal, S.Th.',
+    author: 'Joseph Daniel, S.Th.',
     status: 'Approved'
   },
   {
@@ -773,7 +807,7 @@ export const INITIAL_APPROVALS: ApprovalRequest[] = [
 
 export const INITIAL_AUDITS: AuditLog[] = [
   { id: 'AUD-01', userName: 'Yusuf Raja Tamba', userRole: 'Staff', action: 'Create Prayer Request', module: 'Anggota', timestamp: '2026-06-01 09:12' },
-  { id: 'AUD-02', userName: 'Ahmad Faisal, S.Th.', userRole: 'Ketua Yayasan', action: 'Approve Outward Letter', module: 'Surat', timestamp: '2026-06-01 10:15', beforeValue: 'Status: Draft', afterValue: 'Status: Approved' },
+  { id: 'AUD-02', userName: 'Joseph Daniel, S.Th.', userRole: 'Ketua Yayasan', action: 'Approve Outward Letter', module: 'Surat', timestamp: '2026-06-01 10:15', beforeValue: 'Status: Draft', afterValue: 'Status: Approved' },
   { id: 'AUD-03', userName: 'Grace Natalia', userRole: 'Bendahara', action: 'Import Member Excel', module: 'Anggota', timestamp: '2026-06-03 14:00', beforeValue: '0 members', afterValue: '5 members loaded' },
   { id: 'AUD-04', userName: 'Bendahara (System)', userRole: 'Bendahara', action: 'Process Payroll', module: 'Staff & Payroll', timestamp: '2026-06-03 15:45', beforeValue: 'Draft', afterValue: 'Disbursed' }
 ];

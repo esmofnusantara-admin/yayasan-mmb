@@ -8,10 +8,10 @@ export async function seedUsersIfEmpty() {
     if (rawUsers.length === 0) {
       console.log('Seeding default Super Admin user to users collection (Empty State Reset)...');
       const defaultUsers = [
-        { 
-          email: 'superadmin@esm.or.id', 
-          password: 'admin123', 
-          name: 'Super Admin Operator', 
+        {
+          email: 'superadmin@esm.or.id',
+          password: 'admin123',
+          name: 'Super Admin Operator',
           role: 'Super Admin',
           features: ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'reports', 'kegiatan', 'staff_tasks'],
           approved: true,
@@ -37,7 +37,7 @@ export async function seedStructuresIfEmpty() {
         { id: 'ketua', title: 'Ketua Dewan Pembina', name: 'Fernandes Manihuruk', sub: 'Pembuat Keputusan/Ketua', order: 10, parentId: null, deleted: false },
         { id: 'sekretaris', title: 'Sekretaris Eksekutif', name: 'Yusuf Raja Tamba', sub: 'Administrasi & Legalitas Lembaga', order: 20, parentId: 'ketua', deleted: false },
         { id: 'bendahara', title: 'Bendahara Umum', name: 'Angelina Meilia Putri Manalu', sub: 'Jurnal Kas, Transaksi & Audit', order: 30, parentId: 'ketua', deleted: false },
-        { id: 'korwil', title: 'Koordinator Wilayah DIY', name: 'Ahmad Faisal, S.Th.', sub: 'Lapangan & Persekutuan Cabang', order: 40, parentId: 'ketua', deleted: false },
+        { id: 'korwil', title: 'Koordinator Wilayah DIY', name: 'Joseph Daniel, S.Th.', sub: 'Lapangan & Persekutuan Cabang', order: 40, parentId: 'ketua', deleted: false },
         { id: 'staff', title: 'Staf Lapangan & Kelompok Kecil', name: 'Simpatisan Mitra Aliansi', sub: 'Pendamping Siswa & Pelayanan', order: 50, parentId: 'korwil', deleted: false },
       ];
       for (const s of defaultStructures) {
@@ -146,4 +146,4 @@ export async function seedAllInitialData() {
 }
 
 // No-op — staff data diinput manual
-export async function seedStaffIfEmpty() {}
+export async function seedStaffIfEmpty() { }

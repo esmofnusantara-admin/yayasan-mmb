@@ -910,6 +910,26 @@ export default function App() {
     }
   };
 
+  const handleUpdateSmallGroup = async (sg: SmallGroup) => {
+    try {
+      const payload = {
+        ...sg,
+        updatedBy: `${currentRole} Operator`,
+        updatedAt: new Date().toISOString(),
+        deleted: false
+      };
+      await fetch(`/api/data/small_groups/${sg.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      await logAudit(`Memperbarui Komunitas Pemuridan ID: ${sg.id} (${sg.name})`, 'Kelompok Kecil');
+      loadCollection('small_groups', INITIAL_SMALL_GROUPS, setSmallGroups);
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
   const handleDeleteSmallGroup = async (id: string) => {
     try {
       const res = await fetch(`/api/data/small_groups/${id}?role=${encodeURIComponent(currentRole)}`, {
@@ -2526,7 +2546,7 @@ if (!res.ok) {
                     activeTab === 'small_groups' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
                 >
-                  <BookOpen className="w-4 h-4 shrink-0" /> Kelompok Kecil
+                  <BookOpen className="w-4 h-4 shrink-0" /> Pemuridan Misional
                 </button>
               )}
 
@@ -2728,6 +2748,7 @@ if (!res.ok) {
                 onAddFollowUp={handleAddFollowUp}
                 currentRole={currentRole}
                 profile={profile}
+                staffs={staffs}
               />
             )}
 
@@ -2738,12 +2759,14 @@ if (!res.ok) {
                 materials={materials}
                 members={members}
                 onAddGroup={handleAddSmallGroup}
+                onUpdateGroup={handleUpdateSmallGroup}
                 onDeleteGroup={handleDeleteSmallGroup}
                 onAddMeeting={handleAddGroupMeeting}
                 onAddMaterial={handleAddMaterial}
                 onDeleteMaterial={handleDeleteMaterial}
                 onUpdateMeeting={handleUpdateGroupMeeting}
                 onDeleteMeeting={handleDeleteGroupMeeting}
+                onUpdateMember={handleUpdateMember}
                 profile={profile}
                 currentRole={currentRole}
               />
@@ -2860,12 +2883,18 @@ if (!res.ok) {
                 staffTasks={staffTasks}
                 staffMeetings={staffMeetings}
                 staffs={staffs}
+                members={members}
+                notes={notes}
+                smallGroups={smallGroups}
                 currentUser={currentUser}
                 currentRole={currentRole}
+                profile={profile}
                 onSaveTask={handleSaveStaffTask}
                 onDeleteTask={handleDeleteStaffTask}
                 onSaveMeeting={handleSaveStaffMeeting}
                 onDeleteMeeting={handleDeleteStaffMeeting}
+                onUpdateMember={handleUpdateMember}
+                onAddMemberNote={handleAddMemberNote}
               />
             )}
 

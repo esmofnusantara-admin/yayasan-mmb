@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
-import { 
-  ClipboardList, 
-  Users, 
-  Calendar, 
-  Plus, 
-  Search, 
-  FileText, 
-  ExternalLink, 
-  Edit, 
-  Trash, 
-  Download, 
-  Paperclip, 
-  Clock, 
-  CheckCircle2, 
-  AlertCircle, 
+import {
+  ClipboardList,
+  Users,
+  Calendar,
+  Plus,
+  Search,
+  FileText,
+  ExternalLink,
+  Edit,
+  Trash,
+  Download,
+  Paperclip,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
   X,
   PlusCircle,
   FileDown,
@@ -22,20 +22,37 @@ import {
   ArrowLeft,
   Archive,
   CheckCircle,
-  FolderOpen
+  FolderOpen,
+  Award,
+  Layers,
+  Sparkles,
+  ShieldCheck,
+  UserPlus,
+  GraduationCap,
+  Briefcase,
+  School,
+  UserCheck,
+  BookOpen,
+  HeartHandshake
 } from 'lucide-react';
-import { StaffTask, StaffMeeting, Staff } from '../types';
+import { StaffTask, StaffMeeting, Staff, Member, MemberNote, SmallGroup, InstitutionalProfile } from '../types';
 
 interface StaffTasksTabProps {
   staffTasks: StaffTask[];
   staffMeetings: StaffMeeting[];
   staffs: Staff[];
+  members?: Member[];
+  notes?: MemberNote[];
+  smallGroups?: SmallGroup[];
   currentUser: any;
   currentRole: string;
+  profile?: InstitutionalProfile;
   onSaveTask: (task: StaffTask) => Promise<void>;
   onDeleteTask: (id: string, title: string) => Promise<void>;
   onSaveMeeting: (meeting: StaffMeeting) => Promise<void>;
   onDeleteMeeting: (id: string, title: string) => Promise<void>;
+  onUpdateMember?: (member: Member) => Promise<void> | void;
+  onAddMemberNote?: (note: MemberNote) => Promise<void> | void;
 }
 
 const getSessionUserToken = () => {
@@ -99,15 +116,21 @@ export default function StaffTasksTab({
   staffTasks,
   staffMeetings,
   staffs,
+  members = [],
+  notes = [],
+  smallGroups = [],
   currentUser,
   currentRole,
+  profile,
   onSaveTask,
   onDeleteTask,
   onSaveMeeting,
-  onDeleteMeeting
+  onDeleteMeeting,
+  onUpdateMember,
+  onAddMemberNote
 }: StaffTasksTabProps) {
-  const [subTab, setSubTab] = useState<'tasks' | 'meetings'>('tasks');
-  
+  const [subTab, setSubTab] = useState<'tasks' | 'meetings' | 'structure'>('tasks');
+
   // Search state for staff grid
   const [staffSearch, setStaffSearch] = useState('');
 
@@ -125,6 +148,19 @@ export default function StaffTasksTab({
 
   // Selected meeting for details modal
   const [viewingMeeting, setViewingMeeting] = useState<StaffMeeting | null>(null);
+
+  // Kepengurusan Structure state
+  const [selectedSector, setSelectedSector] = useState<'Siswa' | 'Mahasiswa' | 'Alumni'>('Siswa');
+  const [selectedRegionFilter, setSelectedRegionFilter] = useState<string>('Semua');
+  const [structureSearch, setStructureSearch] = useState('');
+  const [isCommitteeModalOpen, setIsCommitteeModalOpen] = useState(false);
+  const [editingCommitteeMember, setEditingCommitteeMember] = useState<Member | null>(null);
+  const [committeeMemberId, setCommitteeMemberId] = useState('');
+  const [committeeSector, setCommitteeSector] = useState<'Siswa' | 'Mahasiswa' | 'Alumni'>('Siswa');
+  const [committeeRegion, setCommitteeRegion] = useState('Cilegon');
+  const [committeeRoleName, setCommitteeRoleName] = useState('');
+  const [committeeCommunityName, setCommitteeCommunityName] = useState('');
+  const [committeeNotesText, setCommitteeNotesText] = useState('');
 
   // Modals state
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -156,7 +192,7 @@ export default function StaffTasksTab({
   const [meetingNotes, setMeetingNotes] = useState('');
   const [meetingExternalLink, setMeetingExternalLink] = useState('');
 
-  const isSuperAdmin = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan' || currentRole === 'Sekretaris';
+  const isSuperAdmin = currentRole === 'Super Admin' || currentRole === 'Ketua Yayasan' || currentRole === 'Pembina Yayasan' || currentRole === 'Sekretaris' || currentRole === 'Staff';
 
   // Get current logged-in staff info if any
   const matchedCurrentStaff = staffs.find(s => s.email?.toLowerCase().trim() === currentUser?.email?.toLowerCase().trim());
@@ -166,12 +202,126 @@ export default function StaffTasksTab({
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth() + 1; // 1-12
 
+  // Distinct Wilayah Pelayanan list
+  const availableRegions = Array.from(new Set([
+    'Cilegon',
+    'Serang',
+    'Yogyakarta',
+    'Jakarta',
+    'Bandung',
+    'Surabaya',
+    'Solo',
+    'Medan',
+    ...(profile?.regions || []),
+    ...members.map(m => m.region).filter(Boolean)
+  ]));
+
+  // Open Committee Modal
+  const handleOpenAddCommittee = (defaultRegion?: string) => {
+    setEditingCommitteeMember(null);
+    setCommitteeMemberId(members[0]?.id || '');
+    setCommitteeSector(selectedSector);
+    setCommitteeRegion(defaultRegion || (selectedRegionFilter !== 'Semua' ? selectedRegionFilter : (availableRegions[0] || 'Cilegon')));
+    setCommitteeRoleName('');
+    setCommitteeCommunityName('');
+    setCommitteeNotesText('');
+    setIsCommitteeModalOpen(true);
+  };
+
+  const handleOpenEditCommittee = (member: Member) => {
+    setEditingCommitteeMember(member);
+    setCommitteeMemberId(member.id);
+    setCommitteeSector((member.component as any) || selectedSector);
+    setCommitteeRegion(member.region || availableRegions[0] || 'Cilegon');
+    setCommitteeCommunityName(member.coreCircleCommunity || member.intimateSpaceCommunity || member.socialSpaceCommunity || '');
+    setCommitteeRoleName(member.committeeRole ? member.committeeRole.replace(/\s*\([^)]*\)/g, '').trim() : '');
+    setCommitteeNotesText('');
+    setIsCommitteeModalOpen(true);
+  };
+
+  const handleSaveCommitteeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!committeeMemberId || !committeeRoleName.trim()) {
+      alert('Pilih Anggota & Masukkan Jabatan Kepengurusan!');
+      return;
+    }
+
+    const member = members.find(m => m.id === committeeMemberId);
+    if (!member) {
+      alert('Data anggota tidak ditemukan!');
+      return;
+    }
+
+    const updatedMember: Member = {
+      ...member,
+      component: committeeSector,
+      region: committeeRegion,
+      committeeRole: `${committeeRoleName.trim()} (${committeeSector} ${committeeRegion})`,
+      ...(committeeCommunityName.trim() ? { coreCircleCommunity: committeeCommunityName.trim() } : {})
+    };
+
+    if (onUpdateMember) {
+      await onUpdateMember(updatedMember);
+    }
+
+    if (onAddMemberNote) {
+      const newNote: MemberNote = {
+        id: `NOTE-${Date.now()}`,
+        memberId: member.id,
+        date: new Date().toISOString().split('T')[0],
+        category: 'Pengutusan',
+        notes: `Ditetapkan dalam Struktur Kepengurusan ${committeeSector} Wilayah ${committeeRegion} sebagai ${committeeRoleName.trim()}${committeeNotesText ? `. Catatan: ${committeeNotesText}` : ''}`,
+        committeeNotes: `${committeeRoleName.trim()} • ${committeeSector} ${committeeRegion}${committeeCommunityName.trim() ? ` (${committeeCommunityName.trim()})` : ''}`,
+        author: currentUser?.name || currentRole || 'Staff Yayasan'
+      };
+      await onAddMemberNote(newNote);
+    }
+
+    setIsCommitteeModalOpen(false);
+    setEditingCommitteeMember(null);
+    setCommitteeMemberId('');
+    setCommitteeRoleName('');
+    setCommitteeCommunityName('');
+    setCommitteeNotesText('');
+    alert(`Berhasil menetapkan ${member.fullName} sebagai ${committeeRoleName.trim()} Pengurus ${committeeSector} (${committeeRegion}). Data otomatis masuk ke profil & rapor anggota.`);
+  };
+
+  const handleRemoveCommittee = async (member: Member) => {
+    if (!window.confirm(`Apakah Anda yakin ingin melepas status/jabatan kepengurusan "${member.committeeRole || 'Pengurus'}" dari ${member.fullName}?`)) {
+      return;
+    }
+
+    const updatedMember: Member = {
+      ...member,
+      committeeRole: undefined
+    };
+
+    if (onUpdateMember) {
+      await onUpdateMember(updatedMember);
+    }
+
+    if (onAddMemberNote) {
+      const newNote: MemberNote = {
+        id: `NOTE-${Date.now()}`,
+        memberId: member.id,
+        date: new Date().toISOString().split('T')[0],
+        category: 'Pengutusan',
+        notes: `Purna tugas amanah kepengurusan Sektor ${member.component} Wilayah ${member.region}. Terima kasih atas pelayanan dan dedikasinya.`,
+        committeeNotes: `Purna Tugas / Selesai Masa Bakti Kepengurusan`,
+        author: currentUser?.name || currentRole || 'Staff Yayasan'
+      };
+      await onAddMemberNote(newNote);
+    }
+
+    alert(`Status kepengurusan ${member.fullName} telah dinonaktifkan.`);
+  };
+
   const handleOpenAddTask = (staffNik?: string) => {
     setEditingTask(null);
     setTaskTitle('');
     setTaskStaffNik(staffNik || matchedCurrentStaff?.nik || staffs[0]?.nik || '');
     setTaskPeriodType('Weekly');
-    
+
     // Set default target period (current week)
     const today = new Date();
     const currentYear = today.getFullYear();
@@ -260,11 +410,11 @@ export default function StaffTasksTab({
     reader.onload = async () => {
       const base64Data = reader.result as string;
       const fileId = `DOC-STAFF-${Date.now()}`;
-      
+
       try {
         const response = await fetch('/api/documents/upload', {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${getSessionUserToken()}`
           },
@@ -403,15 +553,15 @@ export default function StaffTasksTab({
   // Filtered staffs based on search
   const filteredStaffs = staffs.filter(s => {
     return s.name.toLowerCase().includes(staffSearch.toLowerCase()) ||
-           (s.position || '').toLowerCase().includes(staffSearch.toLowerCase()) ||
-           s.nik.includes(staffSearch);
+      (s.position || '').toLowerCase().includes(staffSearch.toLowerCase()) ||
+      s.nik.includes(staffSearch);
   });
 
   // Split tasks for selected staff member:
   // 1. Ongoing Tasks: Not Completed OR (Completed AND target date is in current month)
   // 2. Archived Tasks: Completed AND target date is in previous months
-  const allSelectedStaffTasks = selectedStaff 
-    ? staffTasks.filter(t => t.staffNik === selectedStaff.nik) 
+  const allSelectedStaffTasks = selectedStaff
+    ? staffTasks.filter(t => t.staffNik === selectedStaff.nik)
     : [];
 
   const ongoingTasks = allSelectedStaffTasks.filter(t => {
@@ -442,9 +592,9 @@ export default function StaffTasksTab({
   // Filter Meetings with Date Range support
   const filteredMeetings = staffMeetings.filter(m => {
     const matchesSearch = m.title.toLowerCase().includes(meetingSearch.toLowerCase()) ||
-                          m.notes.toLowerCase().includes(meetingSearch.toLowerCase()) ||
-                          m.leaderName.toLowerCase().includes(meetingSearch.toLowerCase());
-    
+      m.notes.toLowerCase().includes(meetingSearch.toLowerCase()) ||
+      m.leaderName.toLowerCase().includes(meetingSearch.toLowerCase());
+
     const matchesStart = !meetingStartDate || m.date >= meetingStartDate;
     const matchesEnd = !meetingEndDate || m.date <= meetingEndDate;
 
@@ -491,26 +641,33 @@ export default function StaffTasksTab({
               </div>
             </div>
 
-            <div className="flex bg-slate-800/80 p-1 rounded border border-slate-700 shrink-0">
+            <div className="flex bg-slate-800/80 p-1 rounded border border-slate-700 shrink-0 flex-wrap gap-1">
               <button
                 onClick={() => setSubTab('tasks')}
-                className={`flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded transition-colors cursor-pointer ${
-                  subTab === 'tasks'
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded transition-colors cursor-pointer ${subTab === 'tasks'
                     ? 'bg-white text-slate-900 shadow-xs'
                     : 'text-slate-300 hover:text-white'
-                }`}
+                  }`}
               >
                 <ClipboardList className="w-3.5 h-3.5" /> Program Kerja Staf
               </button>
               <button
                 onClick={() => setSubTab('meetings')}
-                className={`flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded transition-colors cursor-pointer ${
-                  subTab === 'meetings'
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded transition-colors cursor-pointer ${subTab === 'meetings'
                     ? 'bg-white text-slate-900 shadow-xs'
                     : 'text-slate-300 hover:text-white'
-                }`}
+                  }`}
               >
                 <Users className="w-3.5 h-3.5" /> Dokumentasi Rapat
+              </button>
+              <button
+                onClick={() => setSubTab('structure')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded transition-colors cursor-pointer ${subTab === 'structure'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-300 hover:text-white'
+                  }`}
+              >
+                <Award className="w-3.5 h-3.5 text-amber-400" /> Struktur Kepengurusan
               </button>
             </div>
           </div>
@@ -519,7 +676,7 @@ export default function StaffTasksTab({
 
       {subTab === 'tasks' && !selectedStaff && (
         <div className="space-y-5">
-          
+
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-xs flex items-center gap-3">
               <div className="p-2.5 bg-slate-100 rounded text-slate-700">
@@ -530,7 +687,7 @@ export default function StaffTasksTab({
                 <span className="text-base font-bold text-slate-900 font-mono">{totalTasksThisMonth}</span>
               </div>
             </div>
-            
+
             <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-xs flex items-center gap-3">
               <div className="p-2.5 bg-emerald-50 rounded text-emerald-800 border border-emerald-200">
                 <CheckCircle2 className="w-4 h-4" />
@@ -598,7 +755,7 @@ export default function StaffTasksTab({
                   const tYear = getYearFromTargetDate(t.targetDate);
                   return tMonth === currentMonth && tYear === currentYear;
                 });
-                
+
                 const completed = myMonthlyTasks.filter(t => t.status === 'Selesai').length;
                 const total = myMonthlyTasks.length;
                 const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -627,12 +784,11 @@ export default function StaffTasksTab({
                           <span className="text-slate-400 italic">Tidak ada kegiatan</span>
                         )}
                       </div>
-                      
+
                       <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200">
-                        <div 
-                          className={`h-full rounded-full transition-all duration-300 ${
-                            total > 0 ? 'bg-[#0c2340]' : 'bg-slate-200'
-                          }`} 
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${total > 0 ? 'bg-[#0c2340]' : 'bg-slate-200'
+                            }`}
                           style={{ width: `${total > 0 ? percent : 0}%` }}
                         ></div>
                       </div>
@@ -666,7 +822,7 @@ export default function StaffTasksTab({
               >
                 <ArrowLeft className="w-3.5 h-3.5" /> Kembali ke Daftar Staf
               </button>
-              
+
               <div className="flex items-center gap-3 pt-1">
                 <div className="w-10 h-10 rounded bg-slate-800 text-white flex items-center justify-center font-bold text-xs uppercase shrink-0 border border-slate-700 font-mono">
                   {selectedStaff.name.substring(0, 2)}
@@ -693,7 +849,7 @@ export default function StaffTasksTab({
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
-            
+
             <div className="lg:col-span-2 space-y-4">
               <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4">
                 <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
@@ -713,7 +869,7 @@ export default function StaffTasksTab({
                       const parentTask = staffTasks.find(x => x.id === task.parentTaskId);
 
                       const getBorderClass = (st: StaffTask['status']) => {
-                        switch(st) {
+                        switch (st) {
                           case 'Selesai': return 'border-l-4 border-emerald-600 bg-emerald-50/20';
                           case 'Dalam Proses': return 'border-l-4 border-amber-500 bg-amber-50/20';
                           case 'Tertunda': return 'border-l-4 border-rose-600 bg-rose-50/20';
@@ -725,25 +881,23 @@ export default function StaffTasksTab({
                         <div key={task.id} className={`p-4 rounded-lg border border-slate-200 space-y-2.5 relative hover:border-slate-300 transition-colors ${getBorderClass(task.status)}`}>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
-                              <span className={`px-2 py-0.5 rounded font-semibold text-[9px] uppercase border ${
-                                task.periodType === 'Weekly' ? 'bg-slate-100 text-slate-700 border-slate-200' :
-                                task.periodType === 'Monthly' ? 'bg-slate-100 text-slate-700 border-slate-200' :
-                                'bg-slate-100 text-slate-700 border-slate-200'
-                              }`}>
+                              <span className={`px-2 py-0.5 rounded font-semibold text-[9px] uppercase border ${task.periodType === 'Weekly' ? 'bg-slate-100 text-slate-700 border-slate-200' :
+                                  task.periodType === 'Monthly' ? 'bg-slate-100 text-slate-700 border-slate-200' :
+                                    'bg-slate-100 text-slate-700 border-slate-200'
+                                }`}>
                                 {task.periodType === 'Weekly' ? 'Mingguan' :
-                                 task.periodType === 'Monthly' ? 'Bulanan' : 'Tahunan'}
+                                  task.periodType === 'Monthly' ? 'Bulanan' : 'Tahunan'}
                               </span>
                               <span className="text-[10px] text-slate-600 font-mono font-semibold">
                                 {task.targetDate}
                               </span>
                             </div>
 
-                            <span className={`px-2 py-0.5 rounded text-[9px] font-semibold uppercase border ${
-                              task.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                              task.status === 'Dalam Proses' ? 'bg-amber-50 text-amber-800 border-amber-200' :
-                              task.status === 'Tertunda' ? 'bg-rose-50 text-rose-800 border-rose-200' :
-                              'bg-slate-100 text-slate-800 border-slate-200'
-                            }`}>
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-semibold uppercase border ${task.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                                task.status === 'Dalam Proses' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                                  task.status === 'Tertunda' ? 'bg-rose-50 text-rose-800 border-rose-200' :
+                                    'bg-slate-100 text-slate-800 border-slate-200'
+                              }`}>
                               {task.status}
                             </span>
                           </div>
@@ -868,9 +1022,9 @@ export default function StaffTasksTab({
                             <span className="font-semibold text-slate-600 font-mono">{task.targetDate}</span>
                             <span className="font-semibold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded border border-emerald-200">Arsip Selesai</span>
                           </div>
-                          
+
                           <h5 className="font-bold text-slate-900 text-xs leading-tight">{task.title}</h5>
-                          
+
                           <div className="flex flex-wrap gap-1.5 pt-1">
                             {task.attachmentUrl && task.attachmentName && (
                               <a
@@ -925,10 +1079,10 @@ export default function StaffTasksTab({
 
       {subTab === 'meetings' && !selectedStaff && (
         <div className="space-y-5">
-          
+
           <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs space-y-3">
             <div className="flex flex-col lg:flex-row gap-3 items-center justify-between">
-              
+
               <div className="relative w-full lg:max-w-xs">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
@@ -980,7 +1134,7 @@ export default function StaffTasksTab({
             ) : (
               filteredMeetings.map((meet) => (
                 <div key={meet.id} className="bg-white hover:bg-slate-50/50 border border-slate-200 rounded-lg p-4 shadow-xs hover:border-slate-300 transition-colors relative flex flex-col justify-between space-y-3.5">
-                  
+
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-1.5 justify-between">
                       <span className="bg-[#0c2340] text-white font-semibold font-mono text-[9px] px-2 py-0.5 rounded shadow-xs">
@@ -1056,7 +1210,7 @@ export default function StaffTasksTab({
                 <Users className="w-4 h-4 text-slate-300" />
                 <h3 className="font-bold text-xs">Notulensi Rapat: {viewingMeeting.id}</h3>
               </div>
-              <button 
+              <button
                 onClick={() => setViewingMeeting(null)}
                 className="text-slate-300 hover:text-white transition-colors cursor-pointer"
               >
@@ -1152,7 +1306,7 @@ export default function StaffTasksTab({
                 <ClipboardList className="w-4 h-4 text-slate-300" />
                 <h3 className="font-bold text-xs">{editingTask ? 'Ubah Rencana Program Kerja' : 'Entri Kegiatan Kerja Baru'}</h3>
               </div>
-              <button 
+              <button
                 onClick={() => { setIsTaskModalOpen(false); setEditingTask(null); }}
                 className="text-slate-300 hover:text-white transition-colors cursor-pointer"
               >
@@ -1309,7 +1463,7 @@ export default function StaffTasksTab({
                 <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">
                   Unggah Berkas Lampiran Langsung (PDF/Gambar - Maks. 1 MB)
                 </label>
-                
+
                 {uploadedFile ? (
                   <div className="flex items-center justify-between bg-white p-2 rounded border border-slate-200">
                     <span className="font-semibold text-slate-800 truncate max-w-[200px] flex items-center gap-1 text-[11px]">
@@ -1341,26 +1495,25 @@ export default function StaffTasksTab({
                 )}
               </div>
 
-              <div className="flex justify-end gap-2 pt-2.5 border-t border-slate-200 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => { setIsTaskModalOpen(false); setEditingTask(null); }}
-                  className="px-3.5 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 rounded text-xs font-medium text-slate-700 transition-colors cursor-pointer"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                >
-                  Simpan Kegiatan
-                </button>
-              </div>
+                <div className="flex justify-end gap-2 pt-2.5 border-t border-slate-200 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => { setIsTaskModalOpen(false); setEditingTask(null); }}
+                    className="px-3.5 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 rounded text-xs font-medium text-slate-700 transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  >
+                    Simpan Kegiatan
+                  </button>
+                </div>
             </form>
           </div>
         </div>
       )}
-
       {isMeetingModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
           <div className="bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[calc(100vh-4rem)]">
@@ -1369,7 +1522,7 @@ export default function StaffTasksTab({
                 <Users className="w-4 h-4 text-slate-300" />
                 <h3 className="font-bold text-xs">{editingMeeting ? 'Ubah Notulensi Rapat Staf' : 'Pencatatan Rapat Staf Baru'}</h3>
               </div>
-              <button 
+              <button
                 onClick={() => { setIsMeetingModalOpen(false); setEditingMeeting(null); }}
                 className="text-slate-300 hover:text-white transition-colors cursor-pointer"
               >
@@ -1492,7 +1645,7 @@ export default function StaffTasksTab({
                 <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">
                   Lampiran Notulen Resmi (PDF/Gambar - Maks. 1 MB)
                 </label>
-                
+
                 {uploadedFile ? (
                   <div className="flex items-center justify-between bg-white p-2 rounded border border-slate-200">
                     <span className="font-semibold text-slate-800 truncate max-w-[250px] flex items-center gap-1 text-[11px]">
@@ -1543,7 +1696,460 @@ export default function StaffTasksTab({
           </div>
         </div>
       )}
+            {/* SUBTAB 3: STRUKTUR KEPENGURUSAN PELAYANAN (BERDASARKAN SEKTOR & WILAYAH PELAYANAN) */}
+      {subTab === 'structure' && !selectedStaff && (
+        <div className="space-y-6">
+          
+          {/* Header & Sector Switcher */}
+          <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4 border-b border-slate-100">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Award className="w-5 h-5 text-[#0c2340]" />
+                  <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                    Struktur Kepengurusan Pelayanan
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Pengelolaan struktur kepengurusan sektor Siswa, Mahasiswa, dan Alumni yang terdistribusi di setiap wilayah pelayanan.
+                </p>
+              </div>
+
+              <button
+                onClick={() => handleOpenAddCommittee()}
+                className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold flex items-center gap-2 shadow-xs transition-colors cursor-pointer shrink-0"
+              >
+                <UserPlus className="w-4 h-4 text-amber-400" /> Tetapkan Pengurus Baru
+              </button>
+            </div>
+
+            {/* 3 Sektor Selector Pills */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg border border-slate-200 w-full sm:w-auto">
+                <button
+                  onClick={() => setSelectedSector('Siswa')}
+                  className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                    selectedSector === 'Siswa'
+                      ? 'bg-[#0c2340] text-white shadow-xs'
+                      : 'text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <School className="w-3.5 h-3.5" />
+                  <span>Pengurus Siswa</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-normal ${
+                    selectedSector === 'Siswa' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {members.filter(m => m.component === 'Siswa' && (m.committeeRole || m.communitySpaces?.length)).length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedSector('Mahasiswa')}
+                  className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                    selectedSector === 'Mahasiswa'
+                      ? 'bg-[#0c2340] text-white shadow-xs'
+                      : 'text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span>Pengurus Mahasiswa</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-normal ${
+                    selectedSector === 'Mahasiswa' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {members.filter(m => (m.component === 'Mahasiswa' || !m.component) && (m.committeeRole || m.communitySpaces?.length)).length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedSector('Alumni')}
+                  className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                    selectedSector === 'Alumni'
+                      ? 'bg-[#0c2340] text-white shadow-xs'
+                      : 'text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <Briefcase className="w-3.5 h-3.5" />
+                  <span>Pengurus Alumni</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-normal ${
+                    selectedSector === 'Alumni' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {members.filter(m => m.component === 'Alumni' && (m.committeeRole || m.communitySpaces?.length)).length}
+                  </span>
+                </button>
+              </div>
+
+              {/* Search Bar for Members/Committee */}
+              <div className="relative w-full sm:w-64">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Cari nama pengurus, jabatan..."
+                  value={structureSearch}
+                  onChange={(e) => setStructureSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded text-xs bg-white text-slate-800 focus:outline-none focus:border-[#0c2340]"
+                />
+              </div>
+            </div>
+
+            {/* Wilayah Pelayanan Filter Pills */}
+            <div className="pt-2 border-t border-slate-100 flex items-center gap-2 flex-wrap text-xs">
+              <span className="text-slate-500 font-semibold text-[11px]">Wilayah Pelayanan:</span>
+              <button
+                onClick={() => setSelectedRegionFilter('Semua')}
+                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
+                  selectedRegionFilter === 'Semua'
+                    ? 'bg-[#0c2340] text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                }`}
+              >
+                Semua Wilayah
+              </button>
+              {availableRegions.map(reg => (
+                <button
+                  key={reg}
+                  onClick={() => setSelectedRegionFilter(reg)}
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
+                    selectedRegionFilter === reg
+                      ? 'bg-[#0c2340] text-white'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                  }`}
+                >
+                  {reg}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Grouped by Wilayah Pelayanan */}
+          {(() => {
+            const sectorMembersList = members.filter(m => {
+              if (selectedSector === 'Mahasiswa') {
+                return m.component === 'Mahasiswa' || !m.component;
+              }
+              return m.component === selectedSector;
+            });
+
+            // Filter by search query
+            const searchFilteredMembers = sectorMembersList.filter(m => {
+              if (!structureSearch.trim()) return true;
+              const q = structureSearch.toLowerCase();
+              return (
+                m.fullName.toLowerCase().includes(q) ||
+                m.nickName.toLowerCase().includes(q) ||
+                m.id.toLowerCase().includes(q) ||
+                (m.committeeRole || '').toLowerCase().includes(q) ||
+                (m.coreCircleCommunity || '').toLowerCase().includes(q) ||
+                (m.region || '').toLowerCase().includes(q)
+              );
+            });
+
+            // Determine which regions to display
+            const regionsToDisplay = selectedRegionFilter === 'Semua'
+              ? Array.from(new Set([...availableRegions, ...searchFilteredMembers.map(m => m.region).filter(Boolean)]))
+              : [selectedRegionFilter];
+
+            const totalAssignedCount = searchFilteredMembers.filter(m => m.committeeRole || m.coreCircleCommunity).length;
+
+            return (
+              <div className="space-y-6">
+                {regionsToDisplay.map(regionName => {
+                  const regionMembers = searchFilteredMembers.filter(m => 
+                    (m.region || '').toLowerCase() === regionName.toLowerCase()
+                  );
+                  const regionPengurus = regionMembers.filter(m => m.committeeRole || m.coreCircleCommunity);
+
+                  if (selectedRegionFilter === 'Semua' && regionPengurus.length === 0 && !structureSearch) {
+                    return null;
+                  }
+
+                  return (
+                    <div key={regionName} className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
+                      <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#0c2340]"></span>
+                          <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                            Pengurus {selectedSector} &mdash; Wilayah {regionName}
+                          </h4>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs px-2 py-0.5 rounded bg-slate-200 text-slate-800 font-mono font-semibold">
+                            {regionPengurus.length} Pengurus
+                          </span>
+                          <button
+                            onClick={() => handleOpenAddCommittee(regionName)}
+                            className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 rounded text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5 text-slate-600" /> Tambah
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="p-4">
+                        {regionPengurus.length > 0 ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {regionPengurus.map(member => (
+                              <div key={member.id} className="p-3.5 bg-white border border-slate-200 rounded-lg hover:border-slate-400 transition-colors shadow-2xs space-y-2 flex flex-col justify-between">
+                                <div>
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex items-center gap-2.5">
+                                      <div className="w-8 h-8 rounded-full bg-[#0c2340] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                                        {member.nickName ? member.nickName.slice(0, 2).toUpperCase() : member.fullName.slice(0, 2).toUpperCase()}
+                                      </div>
+                                      <div>
+                                        <h5 className="font-bold text-xs text-slate-900 leading-snug">{member.fullName}</h5>
+                                        <span className="text-[10px] font-mono text-slate-500">{member.id} &bull; {member.region}</span>
+                                      </div>
+                                    </div>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-medium border border-emerald-200">
+                                      {member.statusKeaktifan}
+                                    </span>
+                                  </div>
+
+                                  {/* Role Badge */}
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    <span className="inline-flex items-center gap-1 text-[11px] bg-slate-100 text-[#0c2340] font-bold px-2 py-0.5 rounded border border-slate-300">
+                                      👑 {member.committeeRole || `Pengurus ${selectedSector} ${member.region}`}
+                                    </span>
+                                    {member.coreCircleCommunity && (
+                                      <span className="text-[10px] bg-slate-50 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+                                        {member.coreCircleCommunity}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px]">
+                                  <span className="text-slate-500">{member.phone || 'No WA: -'}</span>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => handleOpenEditCommittee(member)}
+                                      className="text-[#0c2340] hover:underline font-semibold cursor-pointer"
+                                    >
+                                      Edit
+                                    </button>
+                                    <span className="text-slate-300">&bull;</span>
+                                    <button
+                                      onClick={() => handleRemoveCommittee(member)}
+                                      className="text-rose-700 hover:underline cursor-pointer"
+                                    >
+                                      Lepas
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 bg-slate-50 rounded-lg border border-dashed border-slate-200 p-4 space-y-2">
+                            <p className="text-xs text-slate-500">Belum ada pengurus {selectedSector} terdaftar di Wilayah {regionName}.</p>
+                            <button
+                              onClick={() => handleOpenAddCommittee(regionName)}
+                              className="px-3 py-1 bg-white hover:bg-slate-100 text-[#0c2340] border border-slate-300 rounded text-xs font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" /> Tetapkan Pengurus {regionName}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {totalAssignedCount === 0 && (
+                  <div className="p-10 text-center bg-white rounded-lg border border-slate-200 shadow-xs space-y-3">
+                    <Award className="w-8 h-8 text-slate-300 mx-auto" />
+                    <h4 className="text-sm font-bold text-slate-800">Belum Ada Pengurus {selectedSector} Terdaftar</h4>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                      Tetapkan anggota pelayanan sebagai pengurus siswa, mahasiswa, atau alumni per wilayah (Cilegon, Serang, Yogyakarta, dll).
+                    </p>
+                    <button
+                      onClick={() => handleOpenAddCommittee()}
+                      className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold inline-flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+                    >
+                      <UserPlus className="w-4 h-4 text-amber-400" /> Tetapkan Pengurus Pertama
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+        </div>
+      )}
+
+      {/* MODAL PENETAPAN / EDIT PENGURUS PELAYANAN */}
+      {isCommitteeModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[calc(100vh-4rem)]">
+            <div className="bg-[#0c2340] p-4 text-white flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-2">
+                <Award className="w-4 h-4 text-amber-400" />
+                <h3 className="font-bold text-xs">
+                  {editingCommitteeMember ? 'Edit Penugasan Kepengurusan' : 'Penetapan Pengurus Pelayanan'}
+                </h3>
+              </div>
+              <button
+                onClick={() => { setIsCommitteeModalOpen(false); setEditingCommitteeMember(null); }}
+                className="text-slate-300 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCommitteeSubmit} className="p-4 space-y-3.5 text-xs overflow-y-auto flex-1">
+              
+              {/* Sektor & Wilayah Pelayanan */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">
+                    1. Sektor Pelayanan
+                  </label>
+                  <select
+                    value={committeeSector}
+                    onChange={(e) => setCommitteeSector(e.target.value as any)}
+                    className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs outline-none bg-white text-slate-800 font-medium"
+                    required
+                  >
+                    <option value="Siswa">Pelayanan Siswa</option>
+                    <option value="Mahasiswa">Pelayanan Mahasiswa</option>
+                    <option value="Alumni">Pelayanan Alumni</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">
+                    2. Wilayah Pelayanan
+                  </label>
+                  <select
+                    value={committeeRegion}
+                    onChange={(e) => setCommitteeRegion(e.target.value)}
+                    className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs outline-none bg-white text-slate-800 font-medium"
+                    required
+                  >
+                    {availableRegions.map(reg => (
+                      <option key={reg} value={reg}>{reg}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Pilih Anggota Pelayanan */}
+              <div className="space-y-1">
+                <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">
+                  3. Pilih Anggota Pelayanan (Database Anggota)
+                </label>
+                <select
+                  value={committeeMemberId}
+                  onChange={(e) => {
+                    setCommitteeMemberId(e.target.value);
+                    const selected = members.find(m => m.id === e.target.value);
+                    if (selected?.region) {
+                      setCommitteeRegion(selected.region);
+                    }
+                  }}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs outline-none bg-white text-slate-800"
+                  required
+                >
+                  <option value="">-- Pilih Anggota Pelayanan --</option>
+                  {members.map(m => (
+                    <option key={m.id} value={m.id}>
+                      [{m.id}] {m.fullName} ({m.nickName}) - {m.component} ({m.region})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Jabatan / Peran Kepengurusan */}
+              <div className="space-y-1">
+                <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">
+                  4. Jabatan / Amanah Kepengurusan
+                </label>
+                <input
+                  type="text"
+                  placeholder="Misal: Ketua Pengurus, Koordinator Pelayanan, Sekretaris..."
+                  value={committeeRoleName}
+                  onChange={(e) => setCommitteeRoleName(e.target.value)}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs outline-none bg-white text-slate-800"
+                  required
+                />
+
+                {/* Quick suggestions */}
+                <div className="flex flex-wrap gap-1 pt-1">
+                  <span className="text-[10px] text-slate-400 self-center">Pilihan Cepat:</span>
+                  {[
+                    'Ketua Pengurus',
+                    'Wakil Ketua',
+                    'Sekretaris',
+                    'Bendahara',
+                    'Koordinator Pelayanan',
+                    'Sie Acara',
+                    'Sie Doa & Pemerhati',
+                    'Tim Media'
+                  ].map(roleItem => (
+                    <button
+                      key={roleItem}
+                      type="button"
+                      onClick={() => setCommitteeRoleName(roleItem)}
+                      className="text-[10px] px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-200 cursor-pointer"
+                    >
+                      {roleItem}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Nama Komunitas Terkait */}
+              <div className="space-y-1">
+                <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">
+                  5. Nama Komunitas / Tim Kepengurusan (Opsional)
+                </label>
+                <input
+                  type="text"
+                  placeholder={`Misal: Pengurus ${committeeSector} ${committeeRegion}, Tim Pelayanan Misi...`}
+                  value={committeeCommunityName}
+                  onChange={(e) => setCommitteeCommunityName(e.target.value)}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs outline-none bg-white text-slate-800"
+                />
+              </div>
+
+              {/* Catatan / Periode Penugasan */}
+              <div className="space-y-1">
+                <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">
+                  6. Catatan Penugasan / Periode (Opsional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Misal: Periode Kepengurusan 2026/2027, Pembina: Joseph Daniel..."
+                  value={committeeNotesText}
+                  onChange={(e) => setCommitteeNotesText(e.target.value)}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs outline-none bg-white text-slate-800"
+                />
+              </div>
+
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded text-[11px] text-slate-700 leading-relaxed">
+                ℹ️ <strong>Sinkronisasi Otomatis:</strong> Data kepengurusan langsung tersinkron ke profil anggota di menu <strong>Anggota Pelayanan</strong>, tercatat dalam log pengutusan, dan dicetak pada rapor pertumbuhan anggota.
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2.5 border-t border-slate-200 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => { setIsCommitteeModalOpen(false); setEditingCommitteeMember(null); }}
+                  className="px-3.5 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 rounded text-xs font-medium text-slate-700 transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                >
+                  {editingCommitteeMember ? 'Simpan Perubahan' : 'Tetapkan Pengurus'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );
-}
+};

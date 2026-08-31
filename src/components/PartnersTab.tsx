@@ -246,6 +246,28 @@ export default function PartnersTab({
     setIsFormOpen(true);
   };
 
+  // Helper to generate unique Partner ID
+  const generatePartnerId = (existingPartners: Partner[]): string => {
+    let maxSeq = 0;
+    existingPartners.forEach(p => {
+      if (!p.id) return;
+      const match = p.id.match(/^PTR-(\d+)$/i) || p.id.match(/(\d+)/g);
+      if (match) {
+        const lastNum = parseInt(match[match.length - 1], 10);
+        if (!isNaN(lastNum) && lastNum > maxSeq) {
+          maxSeq = lastNum;
+        }
+      }
+    });
+    let nextSeq = maxSeq + 1;
+    let candidate = `PTR-${String(nextSeq).padStart(2, '0')}`;
+    while (existingPartners.some(p => p.id === candidate)) {
+      nextSeq++;
+      candidate = `PTR-${String(nextSeq).padStart(2, '0')}`;
+    }
+    return candidate;
+  };
+
   const handleSavePartner = (e: React.FormEvent) => {
     e.preventDefault();
     if (!pName || pAmount <= 0) {
@@ -278,7 +300,7 @@ export default function PartnersTab({
       onUpdatePartner(updated);
     } else {
       const newly: Partner = {
-        id: `PTR-${String(partners.length + 1).padStart(2, '0')}`,
+        id: generatePartnerId(partners),
         name: pName,
         phone: pPhone,
         email: pEmail,

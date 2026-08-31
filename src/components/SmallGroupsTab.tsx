@@ -133,6 +133,28 @@ export default function SmallGroupsTab({
   // Matrix Filter state
   const [matrixSearch, setMatrixSearch] = useState('');
 
+  // Helper to generate unique group ID
+  const generateGroupId = (existingGroups: SmallGroup[]): string => {
+    let maxSeq = 0;
+    existingGroups.forEach(g => {
+      if (!g.id) return;
+      const match = g.id.match(/^SG-(\d+)$/i) || g.id.match(/(\d+)/g);
+      if (match) {
+        const lastNum = parseInt(match[match.length - 1], 10);
+        if (!isNaN(lastNum) && lastNum > maxSeq) {
+          maxSeq = lastNum;
+        }
+      }
+    });
+    let nextSeq = maxSeq + 1;
+    let candidate = `SG-${String(nextSeq).padStart(2, '0')}`;
+    while (existingGroups.some(g => g.id === candidate)) {
+      nextSeq++;
+      candidate = `SG-${String(nextSeq).padStart(2, '0')}`;
+    }
+    return candidate;
+  };
+
   // Function to create group
   const handleCreateGroup = (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,8 +162,9 @@ export default function SmallGroupsTab({
       alert('Nama Komunitas & Pemimpin wajib diisi!');
       return;
     }
+    const newGroupId = generateGroupId(groups);
     const newGroup: SmallGroup = {
-      id: `SG-${String(groups.length + 1).padStart(2, '0')}`,
+      id: newGroupId,
       name: groupName,
       communitySpace: groupSpace,
       region: groupRegion,
@@ -267,12 +290,14 @@ export default function SmallGroupsTab({
           }
         } else if (wasInGroup && !isNowSelected) {
           // Member was removed from this community
+          const remainingSpaces = (member.communitySpaces || []).filter(s => s !== editingGroup.communitySpace);
           const updatedMember: Member = {
             ...member,
+            communitySpaces: remainingSpaces as any,
             ...(member.smallGroupId === editingGroup.id ? { smallGroupId: undefined } : {}),
-            ...(member.coreCircleCommunity === editingGroup.name ? { coreCircleCommunity: '' } : {}),
-            ...(member.intimateSpaceCommunity === editingGroup.name ? { intimateSpaceCommunity: '' } : {}),
-            ...(member.socialSpaceCommunity === editingGroup.name ? { socialSpaceCommunity: '' } : {}),
+            ...(member.coreCircleCommunity === editingGroup.name ? { coreCircleCommunity: undefined } : {}),
+            ...(member.intimateSpaceCommunity === editingGroup.name ? { intimateSpaceCommunity: undefined } : {}),
+            ...(member.socialSpaceCommunity === editingGroup.name ? { socialSpaceCommunity: undefined } : {}),
           };
           onUpdateMember(updatedMember);
         }
@@ -281,6 +306,39 @@ export default function SmallGroupsTab({
 
     setIsEditGroupOpen(false);
     setEditingGroup(null);
+  };
+
+  // Function to delete group and clean up references
+  const handleDeleteGroup = (group: SmallGroup) => {
+    if (window.confirm(`Apakah Anda yakin ingin menghapus komunitas "${group.name}"?`)) {
+      onDeleteGroup(group.id);
+      if (selectedGroup?.id === group.id) {
+        const remaining = groups.filter(g => g.id !== group.id);
+        setSelectedGroup(remaining[0] || null);
+      }
+      if (onUpdateMember) {
+        members.forEach(member => {
+          const wasInGroup =
+            member.smallGroupId === group.id ||
+            member.coreCircleCommunity === group.name ||
+            member.intimateSpaceCommunity === group.name ||
+            member.socialSpaceCommunity === group.name;
+
+          if (wasInGroup) {
+            const remainingSpaces = (member.communitySpaces || []).filter(s => s !== group.communitySpace);
+            const updatedMember: Member = {
+              ...member,
+              communitySpaces: remainingSpaces as any,
+              ...(member.smallGroupId === group.id ? { smallGroupId: undefined } : {}),
+              ...(member.coreCircleCommunity === group.name ? { coreCircleCommunity: undefined } : {}),
+              ...(member.intimateSpaceCommunity === group.name ? { intimateSpaceCommunity: undefined } : {}),
+              ...(member.socialSpaceCommunity === group.name ? { socialSpaceCommunity: undefined } : {}),
+            };
+            onUpdateMember(updatedMember);
+          }
+        });
+      }
+    }
   };
 
   // Function to lock in meeting logs
@@ -693,9 +751,7 @@ export default function SmallGroupsTab({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (window.confirm(`Apakah Anda yakin ingin menghapus komunitas "${group.name}"?`)) {
-                                onDeleteGroup(group.id);
-                              }
+                              handleDeleteGroup(group);
                             }}
                             className="text-xs text-rose-700 hover:underline cursor-pointer font-medium"
                           >
@@ -817,9 +873,9 @@ export default function SmallGroupsTab({
             </h3>
             <p className="text-xs text-slate-600 mt-1 leading-relaxed">
               Setiap anggota pelayanan dapat terdaftar dan bertumbuh di <strong>satu, dua, atau ketiga ruang komunitas sekaligus</strong>:
-              <span className="font-semibold text-purple-800 ml-1">Core Circle</span> (Tim Inti / Kepemimpinan),
-              <span className="font-semibold text-amber-800 ml-1">Intimate Space</span> (Kelompok Kecil Pemuridan / KTB), dan
-              <span className="font-semibold text-blue-800 ml-1">Social Space</span> (Persekutuan Terbuka / Misi Kampus).
+              <span className="font-semibold text-purple-800 ml-1">Core Circle</span> (Sekelompok murid yang berkomitmen hidup meneladani Kristus),
+              <span className="font-semibold text-amber-800 ml-1">Intimate Space</span> (Ruang berbagi kerentanan dan saling menguatkan), dan
+              <span className="font-semibold text-blue-800 ml-1">Social Space</span> (Ruang mengalami & menghidupi misi Allah bersama).
             </p>
           </div>
 
@@ -837,7 +893,7 @@ export default function SmallGroupsTab({
                   {groups.filter(g => g.communitySpace === 'Core Circle').length} Komunitas
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500">Lingkar kepemimpinan, perintis pelayanan, dan pengurus inti.</p>
+              <p className="text-[11px] text-slate-600 leading-relaxed">Sekelompok murid yang berkomitmen hidup meneladani (imitating) Kristus.</p>
 
               <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                 {groups.filter(g => g.communitySpace === 'Core Circle').map(g => {
@@ -882,7 +938,7 @@ export default function SmallGroupsTab({
                   {groups.filter(g => !g.communitySpace || g.communitySpace === 'Intimate Space').length} Komunitas
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500">Kelompok kecil pemuridan (KTB 3-6 orang) untuk akuntabilitas rohani mendalam.</p>
+              <p className="text-[11px] text-slate-600 leading-relaxed">Ruang bagi para murid untuk berbagi kerentanan dan saling menguatkan.</p>
 
               <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                 {groups.filter(g => !g.communitySpace || g.communitySpace === 'Intimate Space').map(g => {
@@ -922,7 +978,7 @@ export default function SmallGroupsTab({
                   {groups.filter(g => g.communitySpace === 'Social Space').length} Komunitas
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500">Persekutuan terbuka, ibadah gabungan regional, dan wadah misi penjangkauan.</p>
+              <p className="text-[11px] text-slate-600 leading-relaxed">Ruang untuk mengalami dan menghidupi misi Allah bersama-sama, yang lahir dari kebutuhan lokal.</p>
 
               <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                 {groups.filter(g => g.communitySpace === 'Social Space').map(g => {
@@ -1348,6 +1404,11 @@ export default function SmallGroupsTab({
                     </button>
                   ))}
                 </div>
+                <p className="text-[11px] text-slate-500 mt-1.5 italic">
+                  {groupSpace === 'Core Circle' && 'Sekelompok murid yang berkomitmen hidup meneladani (imitating) Kristus.'}
+                  {groupSpace === 'Intimate Space' && 'Ruang bagi para murid untuk berbagi kerentanan dan saling menguatkan'}
+                  {groupSpace === 'Social Space' && 'Ruang untuk mengalami dan menghidupi misi Allah bersama-sama, yang lahir dari kebutuhan lokal'}
+                </p>
               </div>
 
               <div>
@@ -1579,6 +1640,11 @@ export default function SmallGroupsTab({
                     </button>
                   ))}
                 </div>
+                <p className="text-[11px] text-slate-500 mt-1.5 italic">
+                  {editGroupSpace === 'Core Circle' && 'Sekelompok murid yang berkomitmen hidup meneladani (imitating) Kristus.'}
+                  {editGroupSpace === 'Intimate Space' && 'Ruang bagi para murid untuk berbagi kerentanan dan saling menguatkan'}
+                  {editGroupSpace === 'Social Space' && 'Ruang untuk mengalami dan menghidupi misi Allah bersama-sama, yang lahir dari kebutuhan lokal'}
+                </p>
               </div>
 
               <div>

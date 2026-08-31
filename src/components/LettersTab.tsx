@@ -407,8 +407,19 @@ export default function LettersTab({
     const currentMonth = new Date().getMonth(); // 0-indexed
     const currentYear = new Date().getFullYear();
     const roman = getRomanMonth(currentMonth);
-    const count = outwardLetters.filter(l => l.templateType === typeCode).length + 1;
-    const serial = String(count).padStart(3, '0');
+
+    let maxSerial = 0;
+    outwardLetters.filter(l => l.templateType === typeCode).forEach(l => {
+      if (l.letterNumber) {
+        const parts = l.letterNumber.split('/');
+        const num = parseInt(parts[0], 10);
+        if (!isNaN(num) && num > maxSerial) {
+          maxSerial = num;
+        }
+      }
+    });
+
+    const serial = String(maxSerial + 1).padStart(3, '0');
 
     // type abbreviations
     let abbrev = 'SK';

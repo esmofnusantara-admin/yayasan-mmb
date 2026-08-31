@@ -131,9 +131,30 @@ export default function StaffTab({
     alert(`Sukses: Komitmen pelayanan ${selectedStaff.name} berhasil diperpanjang hingga tanggal ${rehireDate}!`);
   };
 
+  const generateStaffNik = (existingStaffs: Staff[]): string => {
+    let maxNum = 1000;
+    existingStaffs.forEach(s => {
+      if (!s.nik) return;
+      const match = s.nik.match(/^NIK-(\d+)$/i) || s.nik.match(/(\d+)/g);
+      if (match) {
+        const lastNum = parseInt(match[match.length - 1], 10);
+        if (!isNaN(lastNum) && lastNum > maxNum) {
+          maxNum = lastNum;
+        }
+      }
+    });
+    let nextNum = maxNum + 1;
+    let candidate = `NIK-${nextNum}`;
+    while (existingStaffs.some(s => s.nik === candidate)) {
+      nextNum++;
+      candidate = `NIK-${nextNum}`;
+    }
+    return candidate;
+  };
+
   const openAddForm = () => {
     setEditingStaff(null);
-    setSNik(`NIK-${1000 + staffs.length + 1}`);
+    setSNik(generateStaffNik(staffs));
     setSName('');
     setSPhone('');
     setSEmail('');

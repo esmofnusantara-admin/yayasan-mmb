@@ -388,9 +388,9 @@ export default function App() {
 
   // Dynamic document title and favicon sync based on organization profile
   useEffect(() => {
-    if (profile.name || profile.systemTitle) {
-      document.title = profile.name || profile.systemTitle;
-    }
+    document.title = profile.systemTitle && profile.systemTitle !== 'Yayasan MMB' 
+      ? profile.systemTitle 
+      : 'Management Yayasan MMB';
     
     let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
     if (!link) {
@@ -781,8 +781,49 @@ export default function App() {
         alert(`Gagal menghapus Anggota: ${errText}`);
         return;
       }
-      await logAudit(`Menghapus anggota ID: ${id} (Soft-Delete)`, 'Anggota');
+
+      // Cascade soft-delete all related notes, prayer requests, and follow-ups
+      const relatedNotes = notes.filter(n => n.memberId === id);
+      for (const n of relatedNotes) {
+        try {
+          await fetch(`/api/data/member_notes/${n.id}?role=${encodeURIComponent(currentRole)}`, {
+            method: 'DELETE',
+            headers: { 'x-user-role': currentRole }
+          });
+        } catch (err) {
+          console.warn('Error deleting related note:', err);
+        }
+      }
+
+      const relatedPrayers = prayerRequests.filter(p => p.memberId === id);
+      for (const p of relatedPrayers) {
+        try {
+          await fetch(`/api/data/prayer_requests/${p.id}?role=${encodeURIComponent(currentRole)}`, {
+            method: 'DELETE',
+            headers: { 'x-user-role': currentRole }
+          });
+        } catch (err) {
+          console.warn('Error deleting related prayer:', err);
+        }
+      }
+
+      const relatedFollowUps = followUps.filter(fu => fu.memberId === id);
+      for (const fu of relatedFollowUps) {
+        try {
+          await fetch(`/api/data/follow_ups/${fu.id}?role=${encodeURIComponent(currentRole)}`, {
+            method: 'DELETE',
+            headers: { 'x-user-role': currentRole }
+          });
+        } catch (err) {
+          console.warn('Error deleting related follow up:', err);
+        }
+      }
+
+      await logAudit(`Menghapus anggota ID: ${id} beserta riwayat catatan/doa/pendampingannya (Soft-Delete)`, 'Anggota');
       loadCollection('members', INITIAL_MEMBERS, setMembers);
+      loadCollection('member_notes', INITIAL_MEMBER_NOTES, setNotes);
+      loadCollection('prayer_requests', INITIAL_PRAYER_REQUESTS, setPrayerRequests);
+      loadCollection('follow_ups', INITIAL_FOLLOW_UPS, setFollowUps);
     } catch (e: any) {
       console.error(e);
       alert(`Terjadi kesalahan saat menghapus anggota: ${e.message}`);
@@ -831,6 +872,45 @@ export default function App() {
     }
   };
 
+  const handleUpdateMemberNote = async (note: MemberNote) => {
+    try {
+      const payload = {
+        ...note,
+        updatedBy: `${currentRole} Operator`,
+        updatedAt: new Date().toISOString(),
+        deleted: false
+      };
+      await fetch(`/api/data/member_notes/${note.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      await logAudit(`Memperbarui Catatan Pertumbuhan ID: ${note.id}`, 'Anggota');
+      loadCollection('member_notes', INITIAL_MEMBER_NOTES, setNotes);
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteMemberNote = async (id: string) => {
+    try {
+      const res = await fetch(`/api/data/member_notes/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE',
+        headers: { 'x-user-role': currentRole }
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        alert(`Gagal menghapus catatan: ${errText}`);
+        return;
+      }
+      await logAudit(`Menghapus Catatan Pertumbuhan ID: ${id} (Soft-Delete)`, 'Anggota');
+      loadCollection('member_notes', INITIAL_MEMBER_NOTES, setNotes);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Terjadi kesalahan saat menghapus catatan: ${e.message}`);
+    }
+  };
+
   const handleAddPrayerRequest = async (prayer: PrayerRequest) => {
     try {
       const payload = {
@@ -848,6 +928,45 @@ export default function App() {
       loadCollection('prayer_requests', INITIAL_PRAYER_REQUESTS, setPrayerRequests);
     } catch (e: any) {
       console.error(e);
+    }
+  };
+
+  const handleUpdatePrayerRequest = async (prayer: PrayerRequest) => {
+    try {
+      const payload = {
+        ...prayer,
+        updatedBy: `${currentRole} Operator`,
+        updatedAt: new Date().toISOString(),
+        deleted: false
+      };
+      await fetch(`/api/data/prayer_requests/${prayer.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      await logAudit(`Memperbarui Pokok Doa ID: ${prayer.id}`, 'Anggota');
+      loadCollection('prayer_requests', INITIAL_PRAYER_REQUESTS, setPrayerRequests);
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
+  const handleDeletePrayerRequest = async (id: string) => {
+    try {
+      const res = await fetch(`/api/data/prayer_requests/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE',
+        headers: { 'x-user-role': currentRole }
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        alert(`Gagal menghapus permohonan doa: ${errText}`);
+        return;
+      }
+      await logAudit(`Menghapus Pokok Doa ID: ${id} (Soft-Delete)`, 'Anggota');
+      loadCollection('prayer_requests', INITIAL_PRAYER_REQUESTS, setPrayerRequests);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Terjadi kesalahan saat menghapus permohonan doa: ${e.message}`);
     }
   };
 
@@ -886,6 +1005,45 @@ export default function App() {
       loadCollection('follow_ups', INITIAL_FOLLOW_UPS, setFollowUps);
     } catch (e: any) {
       console.error(e);
+    }
+  };
+
+  const handleUpdateFollowUp = async (logVal: FollowUpLog) => {
+    try {
+      const payload = {
+        ...logVal,
+        updatedBy: `${currentRole} Operator`,
+        updatedAt: new Date().toISOString(),
+        deleted: false
+      };
+      await fetch(`/api/data/follow_ups/${logVal.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      await logAudit(`Memperbarui Log Pendampingan ID: ${logVal.id}`, 'Anggota');
+      loadCollection('follow_ups', INITIAL_FOLLOW_UPS, setFollowUps);
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteFollowUp = async (id: string) => {
+    try {
+      const res = await fetch(`/api/data/follow_ups/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE',
+        headers: { 'x-user-role': currentRole }
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        alert(`Gagal menghapus log pendampingan: ${errText}`);
+        return;
+      }
+      await logAudit(`Menghapus Log Pendampingan ID: ${id} (Soft-Delete)`, 'Anggota');
+      loadCollection('follow_ups', INITIAL_FOLLOW_UPS, setFollowUps);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Terjadi kesalahan saat menghapus log pendampingan: ${e.message}`);
     }
   };
 
@@ -2741,11 +2899,17 @@ if (!res.ok) {
                 smallGroups={smallGroups}
                 notes={notes}
                 onAddNote={handleAddMemberNote}
+                onUpdateNote={handleUpdateMemberNote}
+                onDeleteNote={handleDeleteMemberNote}
                 prayerRequests={prayerRequests}
                 onAddPrayerRequest={handleAddPrayerRequest}
+                onUpdatePrayerRequest={handleUpdatePrayerRequest}
+                onDeletePrayerRequest={handleDeletePrayerRequest}
                 onUpdatePrayerStatus={handleUpdatePrayerStatus}
                 followUps={followUps}
                 onAddFollowUp={handleAddFollowUp}
+                onUpdateFollowUp={handleUpdateFollowUp}
+                onDeleteFollowUp={handleDeleteFollowUp}
                 currentRole={currentRole}
                 profile={profile}
                 staffs={staffs}

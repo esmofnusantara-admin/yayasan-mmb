@@ -39,11 +39,17 @@ interface MembersTabProps {
   smallGroups: SmallGroup[];
   notes: MemberNote[];
   onAddNote: (note: MemberNote) => void;
+  onUpdateNote?: (note: MemberNote) => void;
+  onDeleteNote?: (id: string) => void;
   prayerRequests: PrayerRequest[];
   onAddPrayerRequest: (p: PrayerRequest) => void;
+  onUpdatePrayerRequest?: (p: PrayerRequest) => void;
+  onDeletePrayerRequest?: (id: string) => void;
   onUpdatePrayerStatus: (id: string, status: 'Pending' | 'Didoakan' | 'Terjawab') => void;
   followUps: FollowUpLog[];
   onAddFollowUp: (fu: FollowUpLog) => void;
+  onUpdateFollowUp?: (fu: FollowUpLog) => void;
+  onDeleteFollowUp?: (id: string) => void;
   currentRole: string;
   profile?: InstitutionalProfile;
   staffs?: Staff[];
@@ -57,11 +63,17 @@ export default function MembersTab({
   smallGroups,
   notes,
   onAddNote,
+  onUpdateNote,
+  onDeleteNote,
   prayerRequests,
   onAddPrayerRequest,
+  onUpdatePrayerRequest,
+  onDeletePrayerRequest,
   onUpdatePrayerStatus,
   followUps,
   onAddFollowUp,
+  onUpdateFollowUp,
+  onDeleteFollowUp,
   currentRole,
   profile,
   staffs = []
@@ -111,28 +123,45 @@ export default function MembersTab({
   const [staffAdvisor, setStaffAdvisor] = useState('');
   const [statusKeaktifan, setStatusKeaktifan] = useState<'Penjangkauan' | 'Aktif' | 'Pasif' | 'Cuti' | 'Pindah'>('Aktif');
 
-  // Sub-tab States: Adding Growth Note
+  // Sub-tab States: Adding / Editing Growth Note
+  const [editingNote, setEditingNote] = useState<MemberNote | null>(null);
   const [noteCategory, setNoteCategory] = useState<'Penginjilan' | 'Pemuridan' | 'Pengutusan' | string>('Pemuridan');
+  const [noteDate, setNoteDate] = useState(new Date().toISOString().split('T')[0]);
   const [noteContent, setNoteContent] = useState('');
   const [noteCommittee, setNoteCommittee] = useState('');
   const [noteMemberId, setNoteMemberId] = useState('');
   const [noteSearchQuery, setNoteSearchQuery] = useState('');
   const [expandedNoteMemberIds, setExpandedNoteMemberIds] = useState<string[]>([]);
 
-  // Sub-tab States: Adding prayer
+  // Sub-tab States: Adding / Editing prayer
+  const [editingPrayer, setEditingPrayer] = useState<PrayerRequest | null>(null);
   const [prayerTitle, setPrayerTitle] = useState('');
   const [prayerContent, setPrayerContent] = useState('');
   const [prayerMemberId, setPrayerMemberId] = useState('');
+  const [prayerDate, setPrayerDate] = useState(new Date().toISOString().split('T')[0]);
+  const [prayerStatus, setPrayerStatus] = useState<'Pending' | 'Didoakan' | 'Terjawab'>('Pending');
   const [prayerSearchQuery, setPrayerSearchQuery] = useState('');
   const [expandedPrayerMemberIds, setExpandedPrayerMemberIds] = useState<string[]>([]);
 
-  // Sub-tab States: Adding follow up
+  // Sub-tab States: Adding / Editing follow up
+  const [editingFollowUp, setEditingFollowUp] = useState<FollowUpLog | null>(null);
   const [followUpType, setFollowUpType] = useState<'Telepon' | 'Kunjungan' | 'Konseling' | 'Mentoring' | 'Pemuridan'>('Konseling');
   const [serviceCategory, setServiceCategory] = useState<'Konseling Akademik' | 'Bimbingan Karir' | 'Konseling Pribadi' | 'Pengutusan Kepemimpinan' | 'Follow Up Kegiatan' | string>('Konseling Pribadi');
+  const [followUpDate, setFollowUpDate] = useState(new Date().toISOString().split('T')[0]);
   const [followUpNotes, setFollowUpNotes] = useState('');
+  const [followUpStaffName, setFollowUpStaffName] = useState('');
   const [followUpMemberId, setFollowUpMemberId] = useState('');
   const [followUpSearchQuery, setFollowUpSearchQuery] = useState('');
   const [expandedFollowUpMemberIds, setExpandedFollowUpMemberIds] = useState<string[]>([]);
+
+  const getMemberInitials = (m: { fullName: string; nickName?: string }) => {
+    if (!m.fullName) return '??';
+    const words = m.fullName.trim().split(/\s+/);
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    return m.fullName.slice(0, 2).toUpperCase();
+  };
 
   const toggleExpandNoteMember = (id: string) => {
     setExpandedNoteMemberIds(prev =>
@@ -244,14 +273,36 @@ export default function MembersTab({
     if (comp === 'Siswa') prefix = 'ENC';
     else if (comp === 'Alumni') prefix = 'CON';
 
-    const count = members.filter(m => {
-      if (comp === 'Siswa') return m.component === 'Siswa';
-      if (comp === 'Alumni') return m.component === 'Alumni';
-      return m.component === 'Mahasiswa' || m.component === 'Umum';
-    }).length;
+    let maxSeq = 0;
 
-    const sequenceNum = String(count + 1).padStart(5, '0');
-    return `${prefix}-${currentYear}-${sequenceNum}`;
+    const checkId = (id?: string) => {
+      if (!id || !id.startsWith(prefix)) return;
+      const match = id.match(/(\d+)$/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxSeq) {
+          maxSeq = num;
+        }
+      }
+    };
+
+    members.forEach(m => checkId(m.id));
+    notes.forEach(n => checkId(n.memberId));
+    prayerRequests.forEach(p => checkId(p.memberId));
+    followUps.forEach(f => checkId(f.memberId));
+
+    let nextSeq = maxSeq + 1;
+    let candidate = `${prefix}-${currentYear}-${String(nextSeq).padStart(5, '0')}`;
+    while (
+      members.some(m => m.id === candidate) ||
+      notes.some(n => n.memberId === candidate) ||
+      prayerRequests.some(p => p.memberId === candidate) ||
+      followUps.some(f => f.memberId === candidate)
+    ) {
+      nextSeq++;
+      candidate = `${prefix}-${currentYear}-${String(nextSeq).padStart(5, '0')}`;
+    }
+    return candidate;
   };
 
   const handleSaveMember = (e: React.FormEvent) => {
@@ -335,69 +386,216 @@ export default function MembersTab({
     setIsFormOpen(false);
   };
 
-  const handleAddNotesForm = (e: React.FormEvent) => {
+  // --- Growth Notes Handlers ---
+  const handleStartEditNote = (n: MemberNote) => {
+    setEditingNote(n);
+    setNoteMemberId(n.memberId);
+    setNoteCategory(n.category);
+    setNoteDate(n.date || new Date().toISOString().split('T')[0]);
+    setNoteContent(n.notes);
+    setNoteCommittee(n.committeeNotes || '');
+    if (!expandedNoteMemberIds.includes(n.memberId)) {
+      setExpandedNoteMemberIds(prev => [...prev, n.memberId]);
+    }
+  };
+
+  const handleCancelEditNote = () => {
+    setEditingNote(null);
+    setNoteMemberId('');
+    setNoteCategory('Pemuridan');
+    setNoteDate(new Date().toISOString().split('T')[0]);
+    setNoteContent('');
+    setNoteCommittee('');
+  };
+
+  const handleSaveNotesForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!noteContent || !noteMemberId) {
       alert('Mohon isi catatan pertumbuhan dan pilih anggota');
       return;
     }
-    const newNote: MemberNote = {
-      id: `NOTE-${Date.now()}`,
-      memberId: noteMemberId,
-      date: new Date().toISOString().split('T')[0],
-      category: noteCategory,
-      notes: noteContent,
-      committeeNotes: noteCommittee.trim() || undefined,
-      author: currentRole === 'Staff' ? 'Internal Staff' : `${currentRole}`
-    };
-    onAddNote(newNote);
-    setNoteContent('');
-    setNoteCommittee('');
-    alert('Catatan pertumbuhan & kepengurusan berhasil dicatat.');
+    if (editingNote) {
+      if (onUpdateNote) {
+        onUpdateNote({
+          ...editingNote,
+          memberId: noteMemberId,
+          date: noteDate,
+          category: noteCategory,
+          notes: noteContent,
+          committeeNotes: noteCommittee.trim() || undefined
+        });
+      }
+      handleCancelEditNote();
+      alert('Catatan pertumbuhan berhasil diperbarui.');
+    } else {
+      const newNote: MemberNote = {
+        id: `NOTE-${Date.now()}`,
+        memberId: noteMemberId,
+        date: noteDate,
+        category: noteCategory,
+        notes: noteContent,
+        committeeNotes: noteCommittee.trim() || undefined,
+        author: currentRole === 'Staff' ? 'Internal Staff' : `${currentRole}`
+      };
+      onAddNote(newNote);
+      handleCancelEditNote();
+      alert('Catatan pertumbuhan & kepengurusan berhasil dicatat.');
+    }
   };
 
-  const handleAddPrayerForm = (e: React.FormEvent) => {
+  const handleDeleteNoteClick = (id: string) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus catatan pertumbuhan ini?')) {
+      if (onDeleteNote) {
+        onDeleteNote(id);
+      }
+      if (editingNote?.id === id) {
+        handleCancelEditNote();
+      }
+    }
+  };
+
+  // --- Prayer Requests Handlers ---
+  const handleStartEditPrayer = (p: PrayerRequest) => {
+    setEditingPrayer(p);
+    setPrayerMemberId(p.memberId);
+    setPrayerTitle(p.title);
+    setPrayerContent(p.request);
+    setPrayerDate(p.date || new Date().toISOString().split('T')[0]);
+    setPrayerStatus(p.status || 'Pending');
+    if (!expandedPrayerMemberIds.includes(p.memberId)) {
+      setExpandedPrayerMemberIds(prev => [...prev, p.memberId]);
+    }
+  };
+
+  const handleCancelEditPrayer = () => {
+    setEditingPrayer(null);
+    setPrayerMemberId('');
+    setPrayerTitle('');
+    setPrayerContent('');
+    setPrayerDate(new Date().toISOString().split('T')[0]);
+    setPrayerStatus('Pending');
+  };
+
+  const handleSavePrayerForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!prayerTitle || !prayerContent || !prayerMemberId) {
       alert('Mohon isi seluruh data prayer request');
       return;
     }
-    const memberName = members.find(m => m.id === prayerMemberId)?.fullName || 'Anggota Mandiri';
-    const newPrayer: PrayerRequest = {
-      id: `PRAY-${Date.now()}`,
-      memberId: prayerMemberId,
-      memberName,
-      title: prayerTitle,
-      request: prayerContent,
-      date: new Date().toISOString().split('T')[0],
-      status: 'Pending'
-    };
-    onAddPrayerRequest(newPrayer);
-    setPrayerTitle('');
-    setPrayerContent('');
-    alert('Prayer request berhasil diajukan untuk didoakan bersama!');
+    const memberName = members.find(m => m.id === prayerMemberId)?.fullName || editingPrayer?.memberName || 'Anggota Mandiri';
+    if (editingPrayer) {
+      if (onUpdatePrayerRequest) {
+        onUpdatePrayerRequest({
+          ...editingPrayer,
+          memberId: prayerMemberId,
+          memberName,
+          title: prayerTitle,
+          request: prayerContent,
+          date: prayerDate,
+          status: prayerStatus
+        });
+      }
+      handleCancelEditPrayer();
+      alert('Pokok permohonan doa berhasil diperbarui.');
+    } else {
+      const newPrayer: PrayerRequest = {
+        id: `PRAY-${Date.now()}`,
+        memberId: prayerMemberId,
+        memberName,
+        title: prayerTitle,
+        request: prayerContent,
+        date: prayerDate,
+        status: prayerStatus
+      };
+      onAddPrayerRequest(newPrayer);
+      handleCancelEditPrayer();
+      alert('Prayer request berhasil diajukan untuk didoakan bersama!');
+    }
   };
 
-  const handleAddFollowUpForm = (e: React.FormEvent) => {
+  const handleDeletePrayerClick = (id: string) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus permohonan doa ini?')) {
+      if (onDeletePrayerRequest) {
+        onDeletePrayerRequest(id);
+      }
+      if (editingPrayer?.id === id) {
+        handleCancelEditPrayer();
+      }
+    }
+  };
+
+  // --- Follow-Up Handlers ---
+  const handleStartEditFollowUp = (fu: FollowUpLog) => {
+    setEditingFollowUp(fu);
+    setFollowUpMemberId(fu.memberId);
+    setFollowUpType((fu.type as any) || 'Konseling');
+    setServiceCategory(fu.serviceCategory || 'Konseling Pribadi');
+    setFollowUpDate(fu.date || new Date().toISOString().split('T')[0]);
+    setFollowUpNotes(fu.notes);
+    setFollowUpStaffName(fu.staffName || currentRole);
+    if (!expandedFollowUpMemberIds.includes(fu.memberId)) {
+      setExpandedFollowUpMemberIds(prev => [...prev, fu.memberId]);
+    }
+  };
+
+  const handleCancelEditFollowUp = () => {
+    setEditingFollowUp(null);
+    setFollowUpMemberId('');
+    setFollowUpType('Konseling');
+    setServiceCategory('Konseling Pribadi');
+    setFollowUpDate(new Date().toISOString().split('T')[0]);
+    setFollowUpNotes('');
+    setFollowUpStaffName('');
+  };
+
+  const handleSaveFollowUpForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!followUpNotes || !followUpMemberId) {
       alert('Mohon isi laporan follow up');
       return;
     }
-    const memberName = members.find(m => m.id === followUpMemberId)?.fullName || 'Anggota';
-    const newLog: FollowUpLog = {
-      id: `FU-${Date.now()}`,
-      memberId: followUpMemberId,
-      memberName,
-      date: new Date().toISOString().split('T')[0],
-      type: followUpType,
-      serviceCategory,
-      notes: followUpNotes,
-      staffName: currentRole
-    };
-    onAddFollowUp(newLog);
-    setFollowUpNotes('');
-    alert('Laporan pendampingan berhasil tersimpan.');
+    const memberName = members.find(m => m.id === followUpMemberId)?.fullName || editingFollowUp?.memberName || 'Anggota';
+    if (editingFollowUp) {
+      if (onUpdateFollowUp) {
+        onUpdateFollowUp({
+          ...editingFollowUp,
+          memberId: followUpMemberId,
+          memberName,
+          date: followUpDate,
+          type: followUpType,
+          serviceCategory,
+          notes: followUpNotes,
+          staffName: followUpStaffName.trim() || currentRole
+        });
+      }
+      handleCancelEditFollowUp();
+      alert('Laporan pendampingan berhasil diperbarui.');
+    } else {
+      const newLog: FollowUpLog = {
+        id: `FU-${Date.now()}`,
+        memberId: followUpMemberId,
+        memberName,
+        date: followUpDate,
+        type: followUpType,
+        serviceCategory,
+        notes: followUpNotes,
+        staffName: followUpStaffName.trim() || currentRole
+      };
+      onAddFollowUp(newLog);
+      handleCancelEditFollowUp();
+      alert('Laporan pendampingan berhasil tersimpan.');
+    }
+  };
+
+  const handleDeleteFollowUpClick = (id: string) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus log pendampingan ini?')) {
+      if (onDeleteFollowUp) {
+        onDeleteFollowUp(id);
+      }
+      if (editingFollowUp?.id === id) {
+        handleCancelEditFollowUp();
+      }
+    }
   };
 
   // Parsing pasted excel rows
@@ -988,7 +1186,7 @@ export default function MembersTab({
                         >
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-[#0c2340] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                              {member.nickName ? member.nickName.slice(0, 2).toUpperCase() : member.fullName.slice(0, 2).toUpperCase()}
+                              {getMemberInitials(member)}
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
@@ -1040,7 +1238,27 @@ export default function MembersTab({
                                       }`}>
                                         {n.category}
                                       </span>
-                                      <span className="text-[11px] text-slate-500">{n.date}</span>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[11px] text-slate-500">{n.date}</span>
+                                        {isEditable && (
+                                          <div className="flex items-center gap-1.5 ml-1">
+                                            <button
+                                              onClick={() => handleStartEditNote(n)}
+                                              className="text-xs text-[#0c2340] hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
+                                              title="Edit Catatan"
+                                            >
+                                              <Edit className="w-3 h-3" /> Edit
+                                            </button>
+                                            <button
+                                              onClick={() => handleDeleteNoteClick(n.id)}
+                                              className="text-xs text-rose-700 hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
+                                              title="Hapus Catatan"
+                                            >
+                                              <Trash className="w-3 h-3" /> Hapus
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
                                     <p className="text-xs text-slate-700 leading-relaxed bg-slate-50 p-2.5 rounded border border-slate-200">
                                       "{n.notes}"
@@ -1073,13 +1291,25 @@ export default function MembersTab({
 
           </div>
 
-          {/* Form to add growth note */}
+          {/* Form to add / edit growth note */}
           {isEditable && (
             <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
-              <h3 className="text-sm font-bold text-slate-800 mb-3.5 flex items-center gap-1.5 border-b border-slate-200 pb-2.5">
-                <Plus className="w-4 h-4 text-slate-600" /> Catat Pertumbuhan Anggota
-              </h3>
-              <form onSubmit={handleAddNotesForm} className="space-y-3.5 text-xs">
+              <div className="flex justify-between items-center mb-3.5 border-b border-slate-200 pb-2.5">
+                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                  {editingNote ? <Edit className="w-4 h-4 text-amber-600" /> : <Plus className="w-4 h-4 text-slate-600" />}
+                  {editingNote ? 'Edit Catatan Pertumbuhan' : 'Catat Pertumbuhan Anggota'}
+                </h3>
+                {editingNote && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEditNote}
+                    className="text-xs text-slate-500 hover:text-slate-800 cursor-pointer flex items-center gap-1"
+                  >
+                    <X className="w-3.5 h-3.5" /> Batal Edit
+                  </button>
+                )}
+              </div>
+              <form onSubmit={handleSaveNotesForm} className="space-y-3.5 text-xs">
                 <div>
                   <label className="text-slate-700 font-semibold block mb-1">Anggota Pelayanan :</label>
                   <select
@@ -1093,6 +1323,17 @@ export default function MembersTab({
                       <option key={m.id} value={m.id}>{m.fullName} ({m.id})</option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-semibold block mb-1">Tanggal Catatan :</label>
+                  <input
+                    type="date"
+                    value={noteDate}
+                    onChange={(e) => setNoteDate(e.target.value)}
+                    className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                    required
+                  />
                 </div>
 
                 <div>
@@ -1131,12 +1372,23 @@ export default function MembersTab({
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                >
-                  Simpan Catatan Pertumbuhan
-                </button>
+                <div className="flex gap-2">
+                  {editingNote && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditNote}
+                      className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    className="flex-1 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  >
+                    {editingNote ? 'Simpan Perubahan Catatan' : 'Simpan Catatan Pertumbuhan'}
+                  </button>
+                </div>
               </form>
             </div>
           )}
@@ -1180,7 +1432,13 @@ export default function MembersTab({
                 return query ? (nameMatches || prayerMatches) : memberPrayers.length > 0;
               });
 
-              if (matchingMembers.length === 0) {
+              // Orphan prayers whose memberId/name isn't in active members list
+              const orphanPrayers = prayerRequests.filter(p => 
+                !members.some(m => m.id === p.memberId || m.fullName.toLowerCase() === p.memberName?.toLowerCase()) &&
+                (!query || p.title.toLowerCase().includes(query) || p.request.toLowerCase().includes(query) || (p.memberName && p.memberName.toLowerCase().includes(query)) || p.status.toLowerCase().includes(query))
+              );
+
+              if (matchingMembers.length === 0 && orphanPrayers.length === 0) {
                 return (
                   <div className="text-center py-12 bg-slate-50 rounded-lg border border-dashed border-slate-200 p-4 space-y-2">
                     <Heart className="w-8 h-8 text-slate-300 mx-auto" />
@@ -1206,7 +1464,7 @@ export default function MembersTab({
                         >
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-[#0c2340] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                              {member.nickName ? member.nickName.slice(0, 2).toUpperCase() : member.fullName.slice(0, 2).toUpperCase()}
+                              {getMemberInitials(member)}
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
@@ -1248,35 +1506,67 @@ export default function MembersTab({
                             {memberPrayers.length > 0 ? (
                               memberPrayers.map(p => (
                                 <div key={p.id} className="pt-3 first:pt-0 space-y-2">
-                                  <div className="flex justify-between items-start">
+                                  <div className="flex justify-between items-start gap-2">
                                     <div>
                                       <h5 className="text-xs font-bold text-slate-900">{p.title}</h5>
                                       <span className="text-[10px] text-slate-400">{p.date}</span>
                                     </div>
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                      p.status === 'Terjawab' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
-                                      p.status === 'Didoakan' ? 'bg-blue-50 text-blue-800 border border-blue-200' :
-                                      'bg-slate-100 text-slate-600 border border-slate-200'
-                                    }`}>
-                                      {p.status}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                        p.status === 'Terjawab' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                                        p.status === 'Didoakan' ? 'bg-blue-50 text-blue-800 border border-blue-200' :
+                                        'bg-slate-100 text-slate-600 border border-slate-200'
+                                      }`}>
+                                        {p.status}
+                                      </span>
+                                      {isEditable && (
+                                        <div className="flex items-center gap-1.5 ml-1">
+                                          <button
+                                            onClick={() => handleStartEditPrayer(p)}
+                                            className="text-xs text-[#0c2340] hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
+                                            title="Edit Pokok Doa"
+                                          >
+                                            <Edit className="w-3 h-3" /> Edit
+                                          </button>
+                                          <button
+                                            onClick={() => handleDeletePrayerClick(p.id)}
+                                            className="text-xs text-rose-700 hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
+                                            title="Hapus Pokok Doa"
+                                          >
+                                            <Trash className="w-3 h-3" /> Hapus
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                   <p className="text-xs text-slate-700 italic leading-relaxed py-2 pl-3 border-l-2 border-slate-300 bg-slate-50/50 rounded-r">
                                     "{p.request}"
                                   </p>
 
                                   {isEditable && (
-                                    <div className="flex gap-2 justify-end pt-1">
-                                      <span className="text-[11px] text-slate-500 self-center">Ubah Status:</span>
+                                    <div className="flex gap-1.5 justify-end pt-1 flex-wrap items-center">
+                                      <span className="text-[11px] text-slate-500">Ubah Status:</span>
+                                      <button
+                                        onClick={() => onUpdatePrayerStatus(p.id, 'Pending')}
+                                        className={`px-2 py-0.5 rounded text-[10px] font-medium cursor-pointer transition-colors border ${
+                                          p.status === 'Pending' ? 'bg-slate-200 text-slate-800 border-slate-400 font-bold' : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-300'
+                                        }`}
+                                      >
+                                        Pending
+                                      </button>
                                       <button
                                         onClick={() => onUpdatePrayerStatus(p.id, 'Didoakan')}
-                                        className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded text-[11px] font-medium cursor-pointer transition-colors"
+                                        className={`px-2 py-0.5 rounded text-[10px] font-medium cursor-pointer transition-colors border ${
+                                          p.status === 'Didoakan' ? 'bg-blue-100 text-blue-800 border-blue-400 font-bold' : 'bg-white hover:bg-blue-50 text-blue-700 border-blue-200'
+                                        }`}
                                       >
                                         Sedang Didoakan
                                       </button>
                                       <button
                                         onClick={() => onUpdatePrayerStatus(p.id, 'Terjawab')}
-                                        className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded text-[11px] font-medium cursor-pointer transition-colors"
+                                        className={`px-2 py-0.5 rounded text-[10px] font-medium cursor-pointer transition-colors border ${
+                                          p.status === 'Terjawab' ? 'bg-emerald-100 text-emerald-800 border-emerald-400 font-bold' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
+                                        }`}
                                       >
                                         Puji Tuhan, Terjawab!
                                       </button>
@@ -1294,19 +1584,85 @@ export default function MembersTab({
                       </div>
                     );
                   })}
+
+                  {/* Orphan prayers section */}
+                  {orphanPrayers.length > 0 && (
+                    <div className="border border-amber-200 rounded-lg bg-amber-50/30 overflow-hidden shadow-2xs">
+                      <div className="p-3.5 bg-amber-100/50 flex items-center justify-between border-b border-amber-200">
+                        <div className="flex items-center gap-2">
+                          <Heart className="w-4 h-4 text-amber-700" />
+                          <h4 className="text-xs font-bold text-amber-900">Pokok Doa Lainnya / Non-Terdaftar ({orphanPrayers.length})</h4>
+                        </div>
+                      </div>
+                      <div className="p-4 space-y-3 bg-white divide-y divide-slate-100">
+                        {orphanPrayers.map(p => (
+                          <div key={p.id} className="pt-3 first:pt-0 space-y-2">
+                            <div className="flex justify-between items-start gap-2">
+                              <div>
+                                <h5 className="text-xs font-bold text-slate-900">{p.title}</h5>
+                                <p className="text-[10px] text-slate-500">Pemohon: <strong>{p.memberName || p.memberId}</strong> &bull; {p.date}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  p.status === 'Terjawab' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                                  p.status === 'Didoakan' ? 'bg-blue-50 text-blue-800 border border-blue-200' :
+                                  'bg-slate-100 text-slate-600 border border-slate-200'
+                                }`}>
+                                  {p.status}
+                                </span>
+                                {isEditable && (
+                                  <div className="flex items-center gap-1.5 ml-1">
+                                    <button
+                                      onClick={() => handleStartEditPrayer(p)}
+                                      className="text-xs text-[#0c2340] hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
+                                      title="Edit Pokok Doa"
+                                    >
+                                      <Edit className="w-3 h-3" /> Edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeletePrayerClick(p.id)}
+                                      className="text-xs text-rose-700 hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
+                                      title="Hapus Pokok Doa"
+                                    >
+                                      <Trash className="w-3 h-3" /> Hapus
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <p className="text-xs text-slate-700 italic leading-relaxed py-2 pl-3 border-l-2 border-amber-300 bg-slate-50/50 rounded-r">
+                              "{p.request}"
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })()}
 
           </div>
 
-          {/* Form to add prayer */}
+          {/* Form to add / edit prayer */}
           {isEditable && (
             <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
-              <h3 className="text-sm font-bold text-slate-800 mb-3.5 flex items-center gap-1.5 border-b border-slate-200 pb-2.5">
-                <Plus className="w-4 h-4 text-slate-600" /> Ajukan Pokok Doa Baru
-              </h3>
-              <form onSubmit={handleAddPrayerForm} className="space-y-3.5 text-xs">
+              <div className="flex justify-between items-center mb-3.5 border-b border-slate-200 pb-2.5">
+                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                  {editingPrayer ? <Edit className="w-4 h-4 text-amber-600" /> : <Plus className="w-4 h-4 text-slate-600" />}
+                  {editingPrayer ? 'Edit Pokok Permohonan Doa' : 'Ajukan Pokok Doa Baru'}
+                </h3>
+                {editingPrayer && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEditPrayer}
+                    className="text-xs text-slate-500 hover:text-slate-800 cursor-pointer flex items-center gap-1"
+                  >
+                    <X className="w-3.5 h-3.5" /> Batal Edit
+                  </button>
+                )}
+              </div>
+              <form onSubmit={handleSavePrayerForm} className="space-y-3.5 text-xs">
                 <div>
                   <label className="text-slate-700 font-semibold block mb-1">Nama Anggota Pemohon :</label>
                   <select
@@ -1320,6 +1676,17 @@ export default function MembersTab({
                       <option key={m.id} value={m.id}>{m.fullName} ({m.id})</option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-semibold block mb-1">Tanggal Permohonan :</label>
+                  <input
+                    type="date"
+                    value={prayerDate}
+                    onChange={(e) => setPrayerDate(e.target.value)}
+                    className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                    required
+                  />
                 </div>
 
                 <div>
@@ -1346,12 +1713,38 @@ export default function MembersTab({
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                >
-                  Kirimkan Pokok Doa
-                </button>
+                {editingPrayer && (
+                  <div>
+                    <label className="text-slate-700 font-semibold block mb-1">Status Pokok Doa :</label>
+                    <select
+                      value={prayerStatus}
+                      onChange={(e) => setPrayerStatus(e.target.value as any)}
+                      className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                    >
+                      <option value="Pending">Pending (Baru)</option>
+                      <option value="Didoakan">Didoakan (Sedang Berjalan)</option>
+                      <option value="Terjawab">Terjawab (Selesai/Puji Tuhan)</option>
+                    </select>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  {editingPrayer && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditPrayer}
+                      className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    className="flex-1 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  >
+                    {editingPrayer ? 'Simpan Perubahan Doa' : 'Kirimkan Pokok Doa'}
+                  </button>
+                </div>
               </form>
             </div>
           )}
@@ -1395,7 +1788,13 @@ export default function MembersTab({
                 return query ? (nameMatches || fuMatches) : memberFollowUps.length > 0;
               });
 
-              if (matchingMembers.length === 0) {
+              // Orphan follow-ups whose memberId/name isn't in active members list
+              const orphanFollowUps = followUps.filter(fu => 
+                !members.some(m => m.id === fu.memberId || m.fullName.toLowerCase() === fu.memberName?.toLowerCase()) &&
+                (!query || fu.notes.toLowerCase().includes(query) || fu.serviceCategory?.toLowerCase().includes(query) || (fu.memberName && fu.memberName.toLowerCase().includes(query)) || fu.type.toLowerCase().includes(query))
+              );
+
+              if (matchingMembers.length === 0 && orphanFollowUps.length === 0) {
                 return (
                   <div className="text-center py-12 bg-slate-50 rounded-lg border border-dashed border-slate-200 p-4 space-y-2">
                     <Compass className="w-8 h-8 text-slate-300 mx-auto" />
@@ -1420,7 +1819,7 @@ export default function MembersTab({
                         >
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-[#0c2340] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                              {member.nickName ? member.nickName.slice(0, 2).toUpperCase() : member.fullName.slice(0, 2).toUpperCase()}
+                              {getMemberInitials(member)}
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
@@ -1473,7 +1872,27 @@ export default function MembersTab({
                                         Metode: {fu.type}
                                       </span>
                                     </div>
-                                    <span className="text-[11px] text-slate-500">{fu.date}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[11px] text-slate-500">{fu.date}</span>
+                                      {isEditable && (
+                                        <div className="flex items-center gap-1.5 ml-1">
+                                          <button
+                                            onClick={() => handleStartEditFollowUp(fu)}
+                                            className="text-xs text-[#0c2340] hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
+                                            title="Edit Log Pendampingan"
+                                          >
+                                            <Edit className="w-3 h-3" /> Edit
+                                          </button>
+                                          <button
+                                            onClick={() => handleDeleteFollowUpClick(fu.id)}
+                                            className="text-xs text-rose-700 hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
+                                            title="Hapus Log Pendampingan"
+                                          >
+                                            <Trash className="w-3 h-3" /> Hapus
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                   <p className="text-xs text-slate-700 leading-relaxed bg-slate-50 p-2.5 rounded border border-slate-200">
                                     "{fu.notes}"
@@ -1493,6 +1912,63 @@ export default function MembersTab({
                       </div>
                     );
                   })}
+
+                  {/* Orphan follow ups section */}
+                  {orphanFollowUps.length > 0 && (
+                    <div className="border border-amber-200 rounded-lg bg-amber-50/30 overflow-hidden shadow-2xs">
+                      <div className="p-3.5 bg-amber-100/50 flex items-center justify-between border-b border-amber-200">
+                        <div className="flex items-center gap-2">
+                          <Compass className="w-4 h-4 text-amber-700" />
+                          <h4 className="text-xs font-bold text-amber-900">Pendampingan Lainnya / Non-Terdaftar ({orphanFollowUps.length})</h4>
+                        </div>
+                      </div>
+                      <div className="p-4 space-y-3 bg-white divide-y divide-slate-100">
+                        {orphanFollowUps.map(fu => (
+                          <div key={fu.id} className="pt-3 first:pt-0 space-y-1.5">
+                            <div className="flex justify-between items-start gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {fu.serviceCategory && (
+                                  <span className="text-[10px] bg-slate-100 text-[#0c2340] py-0.5 px-2 rounded border border-slate-200 font-bold">
+                                    {fu.serviceCategory}
+                                  </span>
+                                )}
+                                <span className="text-[10px] bg-slate-50 text-slate-600 py-0.5 px-2 rounded border border-slate-200">
+                                  Metode: {fu.type}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] text-slate-500">{fu.date}</span>
+                                {isEditable && (
+                                  <div className="flex items-center gap-1.5 ml-1">
+                                    <button
+                                      onClick={() => handleStartEditFollowUp(fu)}
+                                      className="text-xs text-[#0c2340] hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
+                                      title="Edit Log Pendampingan"
+                                    >
+                                      <Edit className="w-3 h-3" /> Edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteFollowUpClick(fu.id)}
+                                      className="text-xs text-rose-700 hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
+                                      title="Hapus Log Pendampingan"
+                                    >
+                                      <Trash className="w-3 h-3" /> Hapus
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <p className="text-xs text-slate-700 italic leading-relaxed py-2 pl-3 border-l-2 border-amber-300 bg-slate-50/50 rounded-r">
+                              "{fu.notes}"
+                            </p>
+                            <div className="text-[10px] text-slate-400">
+                              Anggota: <strong>{fu.memberName || fu.memberId}</strong> &bull; Staff: <span className="text-slate-700 font-medium">{fu.staffName}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })()}
@@ -1502,10 +1978,22 @@ export default function MembersTab({
           {/* Form to submit a follow up report */}
           {isEditable && (
             <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
-              <h3 className="text-sm font-bold text-slate-800 mb-3.5 flex items-center gap-1.5 border-b border-slate-200 pb-2.5">
-                <Plus className="w-4 h-4 text-slate-600" /> Catat Laporan Pendampingan
-              </h3>
-              <form onSubmit={handleAddFollowUpForm} className="space-y-3.5 text-xs">
+              <div className="flex justify-between items-center mb-3.5 border-b border-slate-200 pb-2.5">
+                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                  {editingFollowUp ? <Edit className="w-4 h-4 text-amber-600" /> : <Plus className="w-4 h-4 text-slate-600" />}
+                  {editingFollowUp ? 'Edit Laporan Pendampingan' : 'Catat Laporan Pendampingan'}
+                </h3>
+                {editingFollowUp && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEditFollowUp}
+                    className="text-xs text-slate-500 hover:text-slate-800 cursor-pointer flex items-center gap-1"
+                  >
+                    <X className="w-3.5 h-3.5" /> Batal Edit
+                  </button>
+                )}
+              </div>
+              <form onSubmit={handleSaveFollowUpForm} className="space-y-3.5 text-xs">
                 <div>
                   <label className="text-slate-700 font-semibold block mb-1">Anggota yang Didampingi :</label>
                   <select
@@ -1519,6 +2007,17 @@ export default function MembersTab({
                       <option key={m.id} value={m.id}>{m.fullName} ({m.id})</option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-semibold block mb-1">Tanggal :</label>
+                  <input
+                    type="date"
+                    value={followUpDate}
+                    onChange={(e) => setFollowUpDate(e.target.value)}
+                    className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                    required
+                  />
                 </div>
 
                 <div>
@@ -1552,6 +2051,17 @@ export default function MembersTab({
                 </div>
 
                 <div>
+                  <label className="text-slate-700 font-semibold block mb-1">Staff Pendamping :</label>
+                  <input
+                    type="text"
+                    value={followUpStaffName}
+                    onChange={(e) => setFollowUpStaffName(e.target.value)}
+                    placeholder={currentRole}
+                    className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 bg-white focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                  />
+                </div>
+
+                <div>
                   <label className="text-slate-700 font-semibold block mb-1">Hasil Pertemuan / Tindak Lanjut :</label>
                   <textarea
                     rows={4}
@@ -1563,12 +2073,23 @@ export default function MembersTab({
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                >
-                  Simpan Pendampingan
-                </button>
+                <div className="flex gap-2">
+                  {editingFollowUp && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditFollowUp}
+                      className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    className="flex-1 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  >
+                    {editingFollowUp ? 'Simpan Perubahan Laporan' : 'Simpan Pendampingan'}
+                  </button>
+                </div>
               </form>
             </div>
           )}
@@ -1841,14 +2362,17 @@ export default function MembersTab({
 
                   {/* 1. Core Circle */}
                   <div className="p-2.5 bg-white border border-purple-200 rounded space-y-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                    <label className="flex items-start gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={selectedSpaces.includes('Core Circle')}
                         onChange={() => toggleSpaceSelection('Core Circle')}
-                        className="rounded text-purple-700 focus:ring-0"
+                        className="rounded text-purple-700 focus:ring-0 mt-0.5"
                       />
-                      <span className="font-bold text-purple-900 text-xs">Ruang 1: Core Circle (Tim Inti / Kepemimpinan)</span>
+                      <div>
+                        <span className="font-bold text-purple-900 text-xs block">Ruang 1: Core Circle</span>
+                        <span className="text-[11px] text-slate-500 block leading-tight">Sekelompok murid yang berkomitmen hidup meneladani (imitating) Kristus.</span>
+                      </div>
                     </label>
                     {selectedSpaces.includes('Core Circle') && (
                       <div className="pl-6 pt-1">
@@ -1869,14 +2393,17 @@ export default function MembersTab({
 
                   {/* 2. Intimate Space */}
                   <div className="p-2.5 bg-white border border-amber-200 rounded space-y-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                    <label className="flex items-start gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={selectedSpaces.includes('Intimate Space')}
                         onChange={() => toggleSpaceSelection('Intimate Space')}
-                        className="rounded text-amber-700 focus:ring-0"
+                        className="rounded text-amber-700 focus:ring-0 mt-0.5"
                       />
-                      <span className="font-bold text-amber-900 text-xs">Ruang 2: Intimate Space (Kelompok Kecil Pemuridan / KTB)</span>
+                      <div>
+                        <span className="font-bold text-amber-900 text-xs block">Ruang 2: Intimate Space</span>
+                        <span className="text-[11px] text-slate-500 block leading-tight">Ruang bagi para murid untuk berbagi kerentanan dan saling menguatkan</span>
+                      </div>
                     </label>
                     {selectedSpaces.includes('Intimate Space') && (
                       <div className="pl-6 pt-1">
@@ -1897,14 +2424,17 @@ export default function MembersTab({
 
                   {/* 3. Social Space */}
                   <div className="p-2.5 bg-white border border-blue-200 rounded space-y-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                    <label className="flex items-start gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={selectedSpaces.includes('Social Space')}
                         onChange={() => toggleSpaceSelection('Social Space')}
-                        className="rounded text-blue-700 focus:ring-0"
+                        className="rounded text-blue-700 focus:ring-0 mt-0.5"
                       />
-                      <span className="font-bold text-blue-900 text-xs">Ruang 3: Social Space (Persekutuan Terbuka / Misi Kampus)</span>
+                      <div>
+                        <span className="font-bold text-blue-900 text-xs block">Ruang 3: Social Space</span>
+                        <span className="text-[11px] text-slate-500 block leading-tight">Ruang untuk mengalami dan menghidupi misi Allah bersama-sama, yang lahir dari kebutuhan lokal</span>
+                      </div>
                     </label>
                     {selectedSpaces.includes('Social Space') && (
                       <div className="pl-6 pt-1">

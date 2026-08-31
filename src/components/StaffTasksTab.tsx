@@ -462,8 +462,28 @@ export default function StaffTasksTab({
       }
     }
 
+    const generateStaffTaskId = (existingTasks: StaffTask[]): string => {
+      const currentYear = new Date().getFullYear();
+      let maxSeq = 0;
+      existingTasks.forEach(t => {
+        if (!t.id) return;
+        const match = t.id.match(/(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > maxSeq) maxSeq = num;
+        }
+      });
+      let nextSeq = maxSeq + 1;
+      let candidate = `ST-${currentYear}-${String(nextSeq).padStart(5, '0')}`;
+      while (existingTasks.some(t => t.id === candidate)) {
+        nextSeq++;
+        candidate = `ST-${currentYear}-${String(nextSeq).padStart(5, '0')}`;
+      }
+      return candidate;
+    };
+
     const taskPayload: StaffTask = {
-      id: editingTask ? editingTask.id : `ST-2026-${String(staffTasks.length + 1).padStart(5, '0')}`,
+      id: editingTask ? editingTask.id : generateStaffTaskId(staffTasks),
       staffNik: taskStaffNik,
       staffName,
       title: taskTitle,
@@ -503,8 +523,28 @@ export default function StaffTasksTab({
       }
     }
 
+    const generateStaffMeetingId = (existingMeetings: StaffMeeting[]): string => {
+      const currentYear = new Date().getFullYear();
+      let maxSeq = 0;
+      existingMeetings.forEach(m => {
+        if (!m.id) return;
+        const match = m.id.match(/(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > maxSeq) maxSeq = num;
+        }
+      });
+      let nextSeq = maxSeq + 1;
+      let candidate = `SM-${currentYear}-${String(nextSeq).padStart(5, '0')}`;
+      while (existingMeetings.some(m => m.id === candidate)) {
+        nextSeq++;
+        candidate = `SM-${currentYear}-${String(nextSeq).padStart(5, '0')}`;
+      }
+      return candidate;
+    };
+
     const meetingPayload: StaffMeeting = {
-      id: editingMeeting ? editingMeeting.id : `SM-2026-${String(staffMeetings.length + 1).padStart(5, '0')}`,
+      id: editingMeeting ? editingMeeting.id : generateStaffMeetingId(staffMeetings),
       title: meetingTitle,
       date: meetingDate,
       location: meetingLocation,

@@ -191,7 +191,7 @@ export default function FinanceTab({
     setTxCategory(tx.category);
     setTxDescription(tx.description);
     setTxAmount(tx.amount);
-    setTxType(tx.type);
+    setTxType((tx.type === 'expense' || tx.type === 'Expense') ? 'Expense' : 'Income');
     setTxSource(tx.sourceOrRecipient);
     setTxAllocation(tx.allocationObjective || profile?.incomeAllocations?.[0] || 'Gaji / Operasional');
     setIsFormOpen(true);

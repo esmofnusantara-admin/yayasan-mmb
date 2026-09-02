@@ -158,6 +158,7 @@ export interface Transaction {
   approvedBy?: string;
   status?: 'Draft' | 'Pending Approval' | 'Approved' | 'Rejected';
   allocationObjective?: string;
+  deleted?: boolean;
 }
 
 export interface FinancialCategory {
@@ -377,6 +378,7 @@ export interface InstitutionalProfile {
   partnerTypes?: string[];
   donationChannels?: Array<{ name: string; detail: string }>;
   cutoffDay?: number; // Tanggal cut-off finansial & penggajian (default: 7)
+  role?: string;
   // Stamp and Role-based custom signatures
   stampUrl?: string;
   signatureChairmanUrl?: string;
@@ -471,8 +473,12 @@ export interface StaffTask {
   staffNik: string;
   staffName: string;
   title: string;
-  periodType: 'Weekly' | 'Monthly' | 'Yearly';
-  targetDate: string; // e.g. "2026-W28", "2026-07", "2026"
+  periodType: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'ONE_TIME_ACTIVITY';
+  targetDate: string; // e.g. "2026-W28", "2026-07", "2026", "2026-09-02"
+  scheduleMode?: 'Range' | 'SpecificDate' | 'Today';
+  startDate?: string;
+  endDate?: string;
+  time?: string; // e.g. "08:00"
   status: 'Belum Mulai' | 'Dalam Proses' | 'Selesai' | 'Tertunda';
   notes?: string;
   attachmentUrl?: string; // documents id

@@ -289,11 +289,11 @@ export default function LettersTab({
   const bendaharaName = bendaharaNode?.name || 'Angelina';
 
   // Form states: dynamic signees
-  const [signLeftType, setSignLeftType] = useState<string>('ketua');
+  const [signLeftType, setSignLeftType] = useState<LetterOutward['signLeftType']>('Ketua');
   const [signLeftName, setSignLeftName] = useState(ketuaName);
   const [signLeftTitle, setSignLeftTitle] = useState('Ketua Yayasan');
 
-  const [signRightType, setSignRightType] = useState<string>('sekretaris');
+  const [signRightType, setSignRightType] = useState<LetterOutward['signRightType']>('Sekretaris');
   const [signRightName, setSignRightName] = useState(sekretarisName);
   const [signRightTitle, setSignRightTitle] = useState('Sekretaris Yayasan');
 
@@ -346,7 +346,7 @@ export default function LettersTab({
   }, [structures, signRightType, ketuaName, sekretarisName, bendaharaName, editingLetter]);
 
   const handleLeftSigneeTypeChange = (val: string) => {
-    setSignLeftType(val);
+    setSignLeftType(val as any);
     if (val === 'Custom') {
       // Keep existing or empty for user input
     } else if (val === 'None') {
@@ -371,7 +371,7 @@ export default function LettersTab({
   };
 
   const handleRightSigneeTypeChange = (val: string) => {
-    setSignRightType(val);
+    setSignRightType(val as any);
     if (val === 'Custom') {
       // Keep existing or empty for user input
     } else if (val === 'None') {
@@ -2199,17 +2199,17 @@ export default function LettersTab({
               <div className="mt-8 pt-4 border-t border-slate-200 grid grid-cols-2 gap-8 relative text-xs md:text-sm text-slate-900 select-none pb-4">
 
                 {/* Mengetahui at the center top */}
-                {leftType !== 'None' && leftType !== 'none' && rightType !== 'None' && rightType !== 'none' && (
+                {leftType !== 'None' && rightType !== 'None' && (
                   <div className="absolute top-4 left-1/2 -translate-x-1/2 font-medium text-center h-[18px]">
                     Mengetahui,
                   </div>
                 )}
 
                 {/* Penandatangan Kiri */}
-                {leftType !== 'None' && leftType !== 'none' ? (
+                {leftType !== 'None' ? (
                   <div className="text-center flex flex-col items-center relative z-25">
                     <p className="leading-tight h-[18px] mb-1 font-medium">
-                      {rightType !== 'None' && rightType !== 'none' ? '' : finalPlaceDate}
+                      {rightType !== 'None' ? '' : finalPlaceDate}
                     </p>
 
                     {/* Image slot */}
@@ -2236,10 +2236,10 @@ export default function LettersTab({
                 )}
 
                 {/* Penandatangan Kanan */}
-                {rightType !== 'None' && rightType !== 'none' ? (
+                {rightType !== 'None' ? (
                   <div className="text-center flex flex-col items-center relative z-25">
                     <p className="leading-tight h-[18px] mb-1 font-medium">
-                      {leftType !== 'None' && leftType !== 'none' ? '' : finalPlaceDate}
+                      {leftType !== 'None' ? '' : finalPlaceDate}
                     </p>
 
                     {/* Image slot */}

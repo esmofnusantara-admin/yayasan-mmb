@@ -33,7 +33,14 @@ import {
   School,
   UserCheck,
   BookOpen,
-  HeartHandshake
+  HeartHandshake,
+  Kanban,
+  CalendarDays,
+  ListFilter,
+  Check,
+  Zap,
+  Tag,
+  ArrowRight
 } from 'lucide-react';
 import { StaffTask, StaffMeeting, Staff, Member, MemberNote, SmallGroup, InstitutionalProfile } from '../types';
 
@@ -68,31 +75,6 @@ const getSessionUserToken = () => {
   return '';
 };
 
-const getMonthFromTargetDate = (dateStr: string): number => {
-  if (!dateStr) return 0;
-  if (dateStr.includes('-W')) {
-    const [yearPart, weekPart] = dateStr.split('-W');
-    const y = parseInt(yearPart);
-    const w = parseInt(weekPart);
-    if (!isNaN(y) && !isNaN(w)) {
-      const d = new Date(y, 0, 1 + (w - 1) * 7);
-      return d.getMonth() + 1;
-    }
-  } else if (dateStr.length === 7 && dateStr.includes('-')) {
-    const parts = dateStr.split('-');
-    const m = parseInt(parts[1]);
-    if (!isNaN(m)) return m;
-  }
-  return 0;
-};
-
-const getYearFromTargetDate = (dateStr: string): number => {
-  if (!dateStr) return 0;
-  const yearPart = dateStr.split('-')[0];
-  const y = parseInt(yearPart);
-  return isNaN(y) ? 0 : y;
-};
-
 const MONTHS_IN_INDONESIAN = [
   { val: 1, label: 'Januari' },
   { val: 2, label: 'Februari' },
@@ -107,6 +89,187 @@ const MONTHS_IN_INDONESIAN = [
   { val: 11, label: 'November' },
   { val: 12, label: 'Desember' }
 ];
+
+export const formatIndonesianDateFull = (dateStr?: string): string => {
+  if (!dateStr || dateStr.length < 10) return dateStr || '-';
+  try {
+    const d = new Date(dateStr.substring(0, 10));
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('id-ID', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  } catch {
+    return dateStr;
+  }
+};
+
+export const formatIndonesianDateShort = (dateStr?: string): string => {
+  if (!dateStr || dateStr.length < 10) return dateStr || '-';
+  try {
+    const d = new Date(dateStr.substring(0, 10));
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  } catch {
+    return dateStr;
+  }
+};
+
+const getMonthFromTargetDate = (dateStr: string): number => {
+  if (!dateStr) return 0;
+  if (dateStr.includes('-W')) {
+    const matchMonthWeek = dateStr.match(/^(\d{4})-(\d{2})-W(\d+)$/);
+    if (matchMonthWeek) {
+      const m = parseInt(matchMonthWeek[2], 10);
+      if (!isNaN(m)) return m;
+    }
+    const [yearPart, weekPart] = dateStr.split('-W');
+    const y = parseInt(yearPart);
+    const w = parseInt(weekPart);
+    if (!isNaN(y) && !isNaN(w)) {
+      const d = new Date(y, 0, 1 + (w - 1) * 7);
+      return d.getMonth() + 1;
+    }
+  } else if (dateStr.includes('-')) {
+    const parts = dateStr.split('-');
+    if (parts.length >= 2) {
+      const m = parseInt(parts[1], 10);
+      if (!isNaN(m)) return m;
+    }
+  }
+  return 0;
+};
+
+const getYearFromTargetDate = (dateStr: string): number => {
+  if (!dateStr) return 0;
+  const match = dateStr.match(/^(\d{4})/);
+  if (match) {
+    const y = parseInt(match[1], 10);
+    return isNaN(y) ? 0 : y;
+  }
+  return 0;
+};
+
+export const normalizePeriodType = (p?: string): 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'ONE_TIME_ACTIVITY' => {
+  if (!p) return 'ONE_TIME_ACTIVITY';
+  const clean = p.toUpperCase().replace(/[\s\-_]/g, '');
+  if (clean.includes('DAILY') || clean.includes('HARIAN')) return 'DAILY';
+  if (clean.includes('WEEK') || clean.includes('MINGGU')) return 'WEEKLY';
+  if (clean.includes('MONTH') || clean.includes('BULAN')) return 'MONTHLY';
+  if (clean.includes('YEAR') || clean.includes('TAHUN')) return 'YEARLY';
+  return 'ONE_TIME_ACTIVITY';
+};
+
+export const formatTaskPeriodBadge = (task: {
+  periodType?: string;
+  targetDate?: string;
+  startDate?: string;
+  endDate?: string;
+  time?: string;
+  scheduleMode?: string;
+}): { badge: string; icon: string; label: string; dateRangeText: string } => {
+  const pType = normalizePeriodType(task.periodType);
+  const tDate = task.targetDate || '';
+  const sDate = task.startDate || '';
+  const eDate = task.endDate || '';
+  const time = task.time || '';
+
+  if (pType === 'ONE_TIME_ACTIVITY') {
+    if (sDate && eDate && sDate !== eDate) {
+      return {
+        badge: 'bg-purple-50 text-purple-800 border-purple-200',
+        icon: '⚡',
+        label: 'Kegiatan Khusus',
+        dateRangeText: `${formatIndonesianDateShort(sDate)} s/d ${formatIndonesianDateShort(eDate)}${time ? ` • ${time} WIB` : ''}`
+      };
+    }
+    const dt = sDate || tDate;
+    return {
+      badge: 'bg-purple-50 text-purple-800 border-purple-200',
+      icon: '⚡',
+      label: 'Kegiatan Khusus',
+      dateRangeText: `${formatIndonesianDateFull(dt)}${time ? ` • ${time} WIB` : ''}`
+    };
+  }
+
+  if (pType === 'DAILY') {
+    if (sDate && eDate && sDate !== eDate) {
+      return {
+        badge: 'bg-sky-50 text-sky-800 border-sky-200',
+        icon: '📅',
+        label: 'Harian',
+        dateRangeText: `${formatIndonesianDateShort(sDate)} s/d ${formatIndonesianDateShort(eDate)}${time ? ` • ${time} WIB` : ''}`
+      };
+    }
+    const dt = sDate || tDate;
+    return {
+      badge: 'bg-sky-50 text-sky-800 border-sky-200',
+      icon: '📅',
+      label: 'Harian',
+      dateRangeText: `${formatIndonesianDateFull(dt)}${time ? ` • ${time} WIB` : ''}`
+    };
+  }
+
+  if (pType === 'WEEKLY') {
+    let text = tDate;
+    const matchMW = tDate.match(/^(\d{4})-(\d{2})-W(\d+)$/);
+    if (matchMW) {
+      const mName = MONTHS_IN_INDONESIAN[parseInt(matchMW[2], 10) - 1]?.label || matchMW[2];
+      const wNum = parseInt(matchMW[3], 10);
+      const startDay = (wNum - 1) * 7 + 1;
+      const lastDay = Math.min(wNum * 7, 31);
+      text = `Pekan ${wNum} (${startDay}-${lastDay} ${mName} ${matchMW[1]})`;
+    } else if (tDate.includes('-W')) {
+      const [y, w] = tDate.split('-W');
+      text = `Pekan ke-${w} (${y})`;
+    }
+    return {
+      badge: 'bg-indigo-50 text-indigo-800 border-indigo-200',
+      icon: '🗓️',
+      label: 'Mingguan',
+      dateRangeText: text
+    };
+  }
+
+  if (pType === 'MONTHLY') {
+    let text = tDate;
+    if (tDate.includes('-')) {
+      const parts = tDate.split('-');
+      const mIdx = parseInt(parts[1], 10) - 1;
+      if (mIdx >= 0 && mIdx < 12) {
+        text = `${MONTHS_IN_INDONESIAN[mIdx].label} ${parts[0]}`;
+      }
+    }
+    return {
+      badge: 'bg-blue-50 text-blue-800 border-blue-200',
+      icon: '📆',
+      label: 'Bulanan',
+      dateRangeText: text
+    };
+  }
+
+  if (pType === 'YEARLY') {
+    return {
+      badge: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+      icon: '🎯',
+      label: 'Tahunan',
+      dateRangeText: `Tahun ${tDate}`
+    };
+  }
+
+  return {
+    badge: 'bg-slate-100 text-slate-700 border-slate-200',
+    icon: '📌',
+    label: pType,
+    dateRangeText: tDate
+  };
+};
 
 const GDRIVE_FOLDER_URL = "https://drive.google.com/drive/folders/1UeWgBx8r7jP9I03XO4r-1xtTmDER5x4t?usp=drive_link";
 const MAX_DIRECT_UPLOAD_MB = 1;
@@ -131,10 +294,16 @@ export default function StaffTasksTab({
 }: StaffTasksTabProps) {
   const [subTab, setSubTab] = useState<'tasks' | 'meetings' | 'structure'>('tasks');
 
-  // Search state for staff grid
-  const [staffSearch, setStaffSearch] = useState('');
+  // Tracking View Mode: 'staff' (Grid Staf) | 'kanban' (Papan Kanban) | 'timeline' (Timeline / Agenda)
+  const [taskViewMode, setTaskViewMode] = useState<'staff' | 'kanban' | 'timeline'>('staff');
 
-  // Selected staff for full page task details (Null means show grid)
+  // Tracking Filters
+  const [staffSearch, setStaffSearch] = useState('');
+  const [filterPeriodType, setFilterPeriodType] = useState<string>('ALL');
+  const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [filterStaffNik, setFilterStaffNik] = useState<string>('ALL');
+
+  // Selected staff for full page task details (Null means show grid/kanban/timeline)
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
 
   // Filters within staff task details archive section
@@ -173,11 +342,34 @@ export default function StaffTasksTab({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{ id: string; name: string } | null>(null);
 
+  // Determine current calendar Month and Year
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1; // 1-12
+  const todayStr = today.toISOString().substring(0, 10);
+
   // Form Fields - Task
   const [taskTitle, setTaskTitle] = useState('');
   const [taskStaffNik, setTaskStaffNik] = useState('');
-  const [taskPeriodType, setTaskPeriodType] = useState<'Weekly' | 'Monthly' | 'Yearly'>('Weekly');
-  const [taskTargetDate, setTaskTargetDate] = useState('');
+  const [taskPeriodType, setTaskPeriodType] = useState<StaffTask['periodType']>('ONE_TIME_ACTIVITY');
+  const [taskScheduleMode, setTaskScheduleMode] = useState<'SpecificDate' | 'Range' | 'Today'>('SpecificDate');
+  const [taskStartDate, setTaskStartDate] = useState(todayStr);
+  const [taskEndDate, setTaskEndDate] = useState(todayStr);
+  const [taskTime, setTaskTime] = useState('08:00');
+  const [taskTargetDate, setTaskTargetDate] = useState(todayStr);
+
+  // Weekly Helper State
+  const [taskWeekYear, setTaskWeekYear] = useState(currentYear);
+  const [taskWeekMonth, setTaskWeekMonth] = useState(currentMonth);
+  const [taskWeekNum, setTaskWeekNum] = useState(1);
+
+  // Monthly Helper State
+  const [taskMonthYear, setTaskMonthYear] = useState(currentYear);
+  const [taskMonthVal, setTaskMonthVal] = useState(currentMonth);
+
+  // Yearly Helper State
+  const [taskYearVal, setTaskYearVal] = useState(currentYear);
+
   const [taskStatus, setTaskStatus] = useState<StaffTask['status']>('Belum Mulai');
   const [taskNotes, setTaskNotes] = useState('');
   const [taskParentId, setTaskParentId] = useState('');
@@ -197,11 +389,19 @@ export default function StaffTasksTab({
   // Get current logged-in staff info if any
   const matchedCurrentStaff = staffs.find(s => s.email?.toLowerCase().trim() === currentUser?.email?.toLowerCase().trim());
 
-  // Determine current calendar Month and Year
-  const today = new Date();
-  const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth() + 1; // 1-12
-
+  // Quick Status Update Handler
+  const handleQuickUpdateStatus = async (task: StaffTask, newStatus: StaffTask['status']) => {
+    if (!isSuperAdmin && matchedCurrentStaff && task.staffNik !== matchedCurrentStaff.nik) {
+      alert('Akses Ditolak: Anda hanya diizinkan mengubah status program kerja Anda sendiri.');
+      return;
+    }
+    const updated: StaffTask = {
+      ...task,
+      status: newStatus,
+      updatedAt: new Date().toISOString()
+    };
+    await onSaveTask(updated);
+  };
   // Dynamic Wilayah Pelayanan directly from profile settings
   const availableRegions = (profile?.regions && profile.regions.length > 0)
     ? profile.regions
@@ -316,15 +516,28 @@ export default function StaffTasksTab({
     setEditingTask(null);
     setTaskTitle('');
     setTaskStaffNik(staffNik || matchedCurrentStaff?.nik || staffs[0]?.nik || '');
-    setTaskPeriodType('Weekly');
+    setTaskPeriodType('ONE_TIME_ACTIVITY');
 
-    // Set default target period (current week)
     const today = new Date();
-    const currentYear = today.getFullYear();
-    const oneJan = new Date(currentYear, 0, 1);
-    const numberOfDays = Math.floor((today.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
-    const currentWeekNumber = Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
-    setTaskTargetDate(`${currentYear}-W${String(currentWeekNumber).padStart(2, '0')}`);
+    const todayStr = today.toISOString().substring(0, 10);
+    const currYear = today.getFullYear();
+    const currMonth = today.getMonth() + 1;
+
+    setTaskScheduleMode('SpecificDate');
+    setTaskStartDate(todayStr);
+    setTaskEndDate(todayStr);
+    setTaskTime('08:00');
+    setTaskTargetDate(todayStr);
+
+    setTaskWeekYear(currYear);
+    setTaskWeekMonth(currMonth);
+    setTaskWeekNum(1);
+
+    setTaskMonthYear(currYear);
+    setTaskMonthVal(currMonth);
+
+    setTaskYearVal(currYear);
+
     setTaskStatus('Belum Mulai');
     setTaskNotes('');
     setTaskParentId('');
@@ -340,11 +553,70 @@ export default function StaffTasksTab({
       return;
     }
 
+    const today = new Date();
+    const todayStr = today.toISOString().substring(0, 10);
+    const currYear = today.getFullYear();
+    const currMonth = today.getMonth() + 1;
+
     setEditingTask(task);
     setTaskTitle(task.title);
     setTaskStaffNik(task.staffNik);
-    setTaskPeriodType(task.periodType);
-    setTaskTargetDate(task.targetDate);
+
+    const pType = normalizePeriodType(task.periodType);
+    setTaskPeriodType(pType);
+
+    const schedMode = task.scheduleMode || (task.startDate && task.endDate && task.startDate !== task.endDate ? 'Range' : 'SpecificDate');
+    setTaskScheduleMode(schedMode);
+
+    const sDate = task.startDate || (task.targetDate && task.targetDate.length === 10 ? task.targetDate : todayStr);
+    const eDate = task.endDate || sDate;
+    setTaskStartDate(sDate);
+    setTaskEndDate(eDate);
+    setTaskTime(task.time || '08:00');
+    setTaskTargetDate(task.targetDate || sDate);
+
+    // Parse Weekly state
+    if (pType === 'WEEKLY' && task.targetDate) {
+      const matchMW = task.targetDate.match(/^(\d{4})-(\d{2})-W(\d+)$/);
+      if (matchMW) {
+        setTaskWeekYear(parseInt(matchMW[1], 10));
+        setTaskWeekMonth(parseInt(matchMW[2], 10));
+        setTaskWeekNum(parseInt(matchMW[3], 10));
+      } else if (task.targetDate.includes('-W')) {
+        const [y, w] = task.targetDate.split('-W');
+        setTaskWeekYear(parseInt(y, 10) || currYear);
+        const wNum = parseInt(w, 10) || 1;
+        const approxMonth = Math.min(12, Math.max(1, Math.ceil(wNum / 4.3)));
+        setTaskWeekMonth(approxMonth);
+        setTaskWeekNum(Math.min(5, Math.max(1, wNum % 4 || 1)));
+      } else {
+        setTaskWeekYear(currYear);
+        setTaskWeekMonth(currMonth);
+        setTaskWeekNum(1);
+      }
+    } else {
+      setTaskWeekYear(currYear);
+      setTaskWeekMonth(currMonth);
+      setTaskWeekNum(1);
+    }
+
+    // Parse Monthly state
+    if (pType === 'MONTHLY' && task.targetDate && task.targetDate.includes('-')) {
+      const parts = task.targetDate.split('-');
+      setTaskMonthYear(parseInt(parts[0], 10) || currYear);
+      setTaskMonthVal(parseInt(parts[1], 10) || currMonth);
+    } else {
+      setTaskMonthYear(currYear);
+      setTaskMonthVal(currMonth);
+    }
+
+    // Parse Yearly state
+    if (pType === 'YEARLY' && task.targetDate) {
+      setTaskYearVal(parseInt(task.targetDate, 10) || currYear);
+    } else {
+      setTaskYearVal(currYear);
+    }
+
     setTaskStatus(task.status);
     setTaskNotes(task.notes || '');
     setTaskParentId(task.parentTaskId || '');
@@ -448,8 +720,8 @@ export default function StaffTasksTab({
 
   const handleSaveTaskSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!taskTitle || !taskTargetDate) {
-      alert('Judul Kegiatan & Target Periode wajib diisi!');
+    if (!taskTitle.trim()) {
+      alert('Judul Kegiatan wajib diisi!');
       return;
     }
 
@@ -482,15 +754,64 @@ export default function StaffTasksTab({
       return candidate;
     };
 
+    const todayStr = new Date().toISOString().substring(0, 10);
+    let finalTargetDate = '';
+    let finalStartDate: string | undefined = undefined;
+    let finalEndDate: string | undefined = undefined;
+    let finalTime: string | undefined = undefined;
+    let finalScheduleMode: StaffTask['scheduleMode'] = undefined;
+
+    if (taskPeriodType === 'ONE_TIME_ACTIVITY') {
+      finalScheduleMode = taskScheduleMode;
+      finalStartDate = taskStartDate || todayStr;
+      finalEndDate = taskScheduleMode === 'Range' ? (taskEndDate || finalStartDate) : finalStartDate;
+      finalTime = taskTime || '08:00';
+      finalTargetDate = finalStartDate;
+    } else if (taskPeriodType === 'DAILY') {
+      finalScheduleMode = taskScheduleMode;
+      if (taskScheduleMode === 'Today') {
+        finalStartDate = todayStr;
+        finalEndDate = todayStr;
+      } else if (taskScheduleMode === 'SpecificDate') {
+        finalStartDate = taskStartDate || todayStr;
+        finalEndDate = taskStartDate || todayStr;
+      } else {
+        finalStartDate = taskStartDate || todayStr;
+        finalEndDate = taskEndDate || finalStartDate;
+      }
+      finalTime = taskTime || '08:00';
+      finalTargetDate = finalStartDate;
+    } else if (taskPeriodType === 'WEEKLY') {
+      finalTargetDate = `${taskWeekYear}-${String(taskWeekMonth).padStart(2, '0')}-W${taskWeekNum}`;
+      const startDay = (taskWeekNum - 1) * 7 + 1;
+      const lastDayOfMonth = new Date(taskWeekYear, taskWeekMonth, 0).getDate();
+      const endDay = Math.min(taskWeekNum * 7, lastDayOfMonth);
+      finalStartDate = `${taskWeekYear}-${String(taskWeekMonth).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
+      finalEndDate = `${taskWeekYear}-${String(taskWeekMonth).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+    } else if (taskPeriodType === 'MONTHLY') {
+      finalTargetDate = `${taskMonthYear}-${String(taskMonthVal).padStart(2, '0')}`;
+      finalStartDate = `${taskMonthYear}-${String(taskMonthVal).padStart(2, '0')}-01`;
+      const lastDay = new Date(taskMonthYear, taskMonthVal, 0).getDate();
+      finalEndDate = `${taskMonthYear}-${String(taskMonthVal).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    } else if (taskPeriodType === 'YEARLY') {
+      finalTargetDate = `${taskYearVal}`;
+      finalStartDate = `${taskYearVal}-01-01`;
+      finalEndDate = `${taskYearVal}-12-31`;
+    }
+
     const taskPayload: StaffTask = {
       id: editingTask ? editingTask.id : generateStaffTaskId(staffTasks),
       staffNik: taskStaffNik,
       staffName,
-      title: taskTitle,
+      title: taskTitle.trim(),
       periodType: taskPeriodType,
-      targetDate: taskTargetDate,
+      targetDate: finalTargetDate,
+      scheduleMode: finalScheduleMode,
+      startDate: finalStartDate,
+      endDate: finalEndDate,
+      time: finalTime,
       status: taskStatus,
-      notes: taskNotes,
+      notes: taskNotes.trim() || undefined,
       attachmentUrl: uploadedFile?.id || undefined,
       attachmentName: uploadedFile?.name || undefined,
       externalLink: taskExternalLink.trim() || undefined,
@@ -586,8 +907,51 @@ export default function StaffTasksTab({
     }
   };
 
-  // Filtered staffs based on search
+  // Filter matching functions
+  const matchesStaffFilter = (t: StaffTask) => {
+    if (filterStaffNik === 'ALL') return true;
+    if (t.staffNik === filterStaffNik) return true;
+    const targetStaff = staffs.find(s => s.nik === filterStaffNik);
+    if (targetStaff && t.staffName && t.staffName.toLowerCase() === targetStaff.name.toLowerCase()) return true;
+    if (t.staffName && t.staffName === filterStaffNik) return true;
+    return false;
+  };
+
+  const matchesPeriodFilter = (t: StaffTask) => {
+    if (filterPeriodType === 'ALL') return true;
+    return normalizePeriodType(t.periodType) === filterPeriodType;
+  };
+
+  const matchesStatusFilter = (t: StaffTask) => {
+    if (filterStatus === 'ALL') return true;
+    return t.status === filterStatus;
+  };
+
+  const matchesSearchFilter = (t: StaffTask) => {
+    if (!staffSearch.trim()) return true;
+    const q = staffSearch.toLowerCase();
+    const mStaff = (t.staffName || '').toLowerCase().includes(q) || (t.staffNik || '').toLowerCase().includes(q);
+    const mTitle = (t.title || '').toLowerCase().includes(q);
+    const mNotes = (t.notes || '').toLowerCase().includes(q);
+    return mStaff || mTitle || mNotes;
+  };
+
+  const isAnyFilterActive = staffSearch.trim() !== '' || filterStaffNik !== 'ALL' || filterPeriodType !== 'ALL' || filterStatus !== 'ALL';
+
+  const handleResetFilters = () => {
+    setStaffSearch('');
+    setFilterStaffNik('ALL');
+    setFilterPeriodType('ALL');
+    setFilterStatus('ALL');
+  };
+
+  const distinctStaffNamesFromTasks = Array.from(new Set(staffTasks.map(t => t.staffName).filter(Boolean)))
+    .filter(name => !staffs.some(s => s.name === name));
+
+  // Filtered staffs based on search and staff filter
   const filteredStaffs = staffs.filter(s => {
+    if (filterStaffNik !== 'ALL' && s.nik !== filterStaffNik) return false;
+    if (!staffSearch.trim()) return true;
     return s.name.toLowerCase().includes(staffSearch.toLowerCase()) ||
       (s.position || '').toLowerCase().includes(staffSearch.toLowerCase()) ||
       s.nik.includes(staffSearch);
@@ -712,15 +1076,15 @@ export default function StaffTasksTab({
 
       {subTab === 'tasks' && !selectedStaff && (
         <div className="space-y-5">
-
+          {/* Monthly Metric Overview Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-xs flex items-center gap-3">
               <div className="p-2.5 bg-slate-100 rounded text-slate-700">
                 <ClipboardList className="w-4 h-4" />
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">Total Bulan Ini</span>
-                <span className="text-base font-bold text-slate-900 font-mono">{totalTasksThisMonth}</span>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">Total Kegiatan</span>
+                <span className="text-base font-bold text-slate-900 font-mono">{staffTasks.length}</span>
               </div>
             </div>
 
@@ -729,8 +1093,10 @@ export default function StaffTasksTab({
                 <CheckCircle2 className="w-4 h-4" />
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">Selesai Bulan Ini</span>
-                <span className="text-base font-bold text-emerald-800 font-mono">{completedTasksThisMonth}</span>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">Selesai</span>
+                <span className="text-base font-bold text-emerald-800 font-mono">
+                  {staffTasks.filter(t => t.status === 'Selesai').length}
+                </span>
               </div>
             </div>
 
@@ -740,7 +1106,9 @@ export default function StaffTasksTab({
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">Dalam Proses</span>
-                <span className="text-base font-bold text-amber-800 font-mono">{inProgressTasksThisMonth}</span>
+                <span className="text-base font-bold text-amber-800 font-mono">
+                  {staffTasks.filter(t => t.status === 'Dalam Proses').length}
+                </span>
               </div>
             </div>
 
@@ -749,104 +1117,486 @@ export default function StaffTasksTab({
                 <AlertCircle className="w-4 h-4" />
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">Tertunda/Pending</span>
-                <span className="text-base font-bold text-rose-800 font-mono">{pendingTasksThisMonth}</span>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">Belum / Tertunda</span>
+                <span className="text-base font-bold text-rose-800 font-mono">
+                  {staffTasks.filter(t => t.status === 'Belum Mulai' || t.status === 'Tertunda').length}
+                </span>
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col md:flex-row gap-3 items-center justify-between">
-            <div className="relative w-full md:max-w-xs">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Cari berdasarkan nama staf/NIK..."
-                value={staffSearch}
-                onChange={(e) => setStaffSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded text-xs bg-white text-slate-800 focus:outline-none focus:border-[#0c2340]"
-              />
-            </div>
-
-            <div className="flex gap-2 shrink-0">
-              <button
-                onClick={() => handleOpenAddTask()}
-                className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" /> Entri Kegiatan Staf
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredStaffs.length === 0 ? (
-              <div className="col-span-full bg-white p-12 text-center text-slate-500 rounded-lg border border-slate-200">
-                <Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                Tidak ada data staf yang sesuai pencarian.
-              </div>
-            ) : (
-              filteredStaffs.map((st) => {
-                const myMonthlyTasks = staffTasks.filter(t => {
-                  if (t.staffNik !== st.nik) return false;
-                  const tMonth = getMonthFromTargetDate(t.targetDate);
-                  const tYear = getYearFromTargetDate(t.targetDate);
-                  return tMonth === currentMonth && tYear === currentYear;
-                });
-
-                const completed = myMonthlyTasks.filter(t => t.status === 'Selesai').length;
-                const total = myMonthlyTasks.length;
-                const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-                return (
-                  <div key={st.nik} className="bg-white rounded-lg border border-slate-200 shadow-xs hover:border-slate-300 transition-colors p-4 flex flex-col justify-between space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded bg-[#0c2340] text-white flex items-center justify-center font-bold uppercase shrink-0 text-xs font-mono">
-                          {st.name.substring(0, 2)}
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-slate-900 text-xs leading-tight">{st.name}</h3>
-                          <span className="text-[10px] text-slate-500 font-mono block mt-0.5">{st.nik}</span>
-                          <span className="text-[10px] text-slate-700 font-semibold block mt-0.5">{st.position || 'Staf Pelaksana'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between items-center text-[10px]">
-                        <span className="text-slate-500 font-semibold uppercase tracking-wider">Progres ({MONTHS_IN_INDONESIAN[currentMonth - 1].label})</span>
-                        {total > 0 ? (
-                          <span className="font-bold text-slate-800">{completed} / {total} Selesai ({percent}%)</span>
-                        ) : (
-                          <span className="text-slate-400 italic">Tidak ada kegiatan</span>
-                        )}
-                      </div>
-
-                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200">
-                        <div
-                          className={`h-full rounded-full transition-all duration-300 ${total > 0 ? 'bg-[#0c2340]' : 'bg-slate-200'
-                            }`}
-                          style={{ width: `${total > 0 ? percent : 0}%` }}
-                        ></div>
-                      </div>
-                    </div>
-
+          {/* Control Bar: View Switcher, Filter by Staff, Period, Status, Search & Action */}
+          <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs space-y-3">
+            <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
+              {/* View Switcher Tabs */}
+              <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 shrink-0">
+                {[
+                  { mode: 'staff', label: 'Per Staf', icon: Users },
+                  { mode: 'kanban', label: 'Papan Status', icon: Kanban },
+                  { mode: 'timeline', label: 'Timeline & Agenda', icon: CalendarDays }
+                ].map((v) => {
+                  const Icon = v.icon;
+                  return (
                     <button
-                      onClick={() => {
-                        setSelectedStaff(st);
-                        setTaskMonthFilter('Semua');
-                        setTaskYearFilter('Semua');
-                      }}
-                      className="w-full py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-300 text-slate-700 font-semibold text-xs rounded flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                      key={v.mode}
+                      onClick={() => setTaskViewMode(v.mode as any)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${taskViewMode === v.mode
+                        ? 'bg-white text-[#0c2340] shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                        }`}
                     >
-                      Lihat Rincian Kerja <ChevronRight className="w-3.5 h-3.5" />
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{v.label}</span>
                     </button>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
+
+              {/* Action Button */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleOpenAddTask()}
+                  className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer w-full sm:w-auto"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Entri Kegiatan Staf
+                </button>
+              </div>
+            </div>
+
+            {/* Filter Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-2 border-t border-slate-100">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Cari staf, judul, catatan..."
+                  value={staffSearch}
+                  onChange={(e) => setStaffSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded text-xs bg-white text-slate-800 focus:outline-none focus:border-[#0c2340]"
+                />
+              </div>
+
+              <div>
+                <select
+                  value={filterStaffNik}
+                  onChange={(e) => setFilterStaffNik(e.target.value)}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-800 outline-none cursor-pointer"
+                >
+                  <option value="ALL">Semua Staf Pelaksana</option>
+                  {staffs.map(s => (
+                    <option key={s.nik} value={s.nik}>{s.name} ({s.nik})</option>
+                  ))}
+                  {distinctStaffNamesFromTasks.map(extraName => (
+                    <option key={extraName} value={extraName}>{extraName}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <select
+                  value={filterPeriodType}
+                  onChange={(e) => setFilterPeriodType(e.target.value)}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-800 outline-none cursor-pointer"
+                >
+                  <option value="ALL">Semua Jenis Periode</option>
+                  <option value="ONE_TIME_ACTIVITY">⚡ Kegiatan Khusus (Insidental)</option>
+                  <option value="DAILY">📅 Tugas Harian</option>
+                  <option value="WEEKLY">🗓️ Target Mingguan</option>
+                  <option value="MONTHLY">📆 Program Bulanan</option>
+                  <option value="YEARLY">🎯 Target Tahunan</option>
+                </select>
+              </div>
+
+              <div>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-800 outline-none cursor-pointer"
+                >
+                  <option value="ALL">Semua Status Kegiatan</option>
+                  <option value="Belum Mulai">⚪ Belum Mulai</option>
+                  <option value="Dalam Proses">🟡 Dalam Proses</option>
+                  <option value="Selesai">🟢 Selesai</option>
+                  <option value="Tertunda">🔴 Tertunda</option>
+                </select>
+              </div>
+            </div>
+
+            {isAnyFilterActive && (
+              <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 text-slate-600">
+                <span className="text-[11px] text-slate-500">
+                  🔍 Filter aktif sedang diterapkan
+                </span>
+                <button
+                  onClick={handleResetFilters}
+                  className="text-xs text-rose-600 hover:text-rose-800 font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" /> Reset Semua Filter
+                </button>
+              </div>
             )}
           </div>
+
+          {/* VIEW 1: STAFF GRID */}
+          {taskViewMode === 'staff' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredStaffs.length === 0 ? (
+                <div className="col-span-full bg-white p-12 text-center text-slate-500 rounded-lg border border-slate-200">
+                  <Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                  Tidak ada data staf yang sesuai pencarian.
+                </div>
+              ) : (
+                filteredStaffs.map((st) => {
+                  const myTasks = staffTasks.filter(t => {
+                    const matchesThis = t.staffNik === st.nik || (t.staffName && t.staffName.toLowerCase() === st.name.toLowerCase());
+                    if (!matchesThis) return false;
+                    if (!matchesPeriodFilter(t)) return false;
+                    if (!matchesStatusFilter(t)) return false;
+                    if (!matchesSearchFilter(t)) return false;
+                    return true;
+                  });
+                  const completed = myTasks.filter(t => t.status === 'Selesai').length;
+                  const total = myTasks.length;
+                  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+                  const inProgress = myTasks.filter(t => t.status === 'Dalam Proses').length;
+                  const pending = myTasks.filter(t => t.status === 'Belum Mulai' || t.status === 'Tertunda').length;
+
+                  return (
+                    <div key={st.nik} className="bg-white rounded-lg border border-slate-200 shadow-xs hover:border-slate-300 transition-colors p-4 flex flex-col justify-between space-y-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded bg-[#0c2340] text-white flex items-center justify-center font-bold uppercase shrink-0 text-xs font-mono shadow-xs">
+                            {st.name.substring(0, 2)}
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-slate-900 text-xs leading-tight">{st.name}</h3>
+                            <span className="text-[10px] text-slate-500 font-mono block mt-0.5">NIK: {st.nik}</span>
+                            <span className="text-[10px] text-slate-700 font-semibold block mt-0.5">{st.position || 'Staf Pelaksana'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-1.5 py-1 text-center bg-slate-50 rounded p-2 border border-slate-100">
+                        <div>
+                          <span className="text-[9px] uppercase text-slate-400 font-semibold block">Dalam Proses</span>
+                          <span className="font-bold text-amber-800 text-xs">{inProgress}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] uppercase text-slate-400 font-semibold block">Belum / Tunda</span>
+                          <span className="font-bold text-rose-800 text-xs">{pending}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] uppercase text-slate-400 font-semibold block">Selesai</span>
+                          <span className="font-bold text-emerald-800 text-xs">{completed}</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className="text-slate-500 font-semibold uppercase tracking-wider">Pencapaian Total</span>
+                          {total > 0 ? (
+                            <span className="font-bold text-slate-800">{completed} / {total} ({percent}%)</span>
+                          ) : (
+                            <span className="text-slate-400 italic">Belum ada kegiatan</span>
+                          )}
+                        </div>
+
+                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${total > 0 ? 'bg-[#0c2340]' : 'bg-slate-200'}`}
+                            style={{ width: `${total > 0 ? percent : 0}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setSelectedStaff(st);
+                          setTaskMonthFilter('Semua');
+                          setTaskYearFilter('Semua');
+                        }}
+                        className="w-full py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-300 text-slate-700 font-semibold text-xs rounded flex items-center justify-center gap-1 transition-colors cursor-pointer shadow-xs"
+                      >
+                        Lihat & Kelola Program Kerja <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {/* VIEW 2: KANBAN BOARD */}
+          {taskViewMode === 'kanban' && (
+            <div className="space-y-3">
+              {filterStatus !== 'ALL' && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-900 text-xs px-3.5 py-2 rounded-lg flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <span>🔍</span>
+                    <span>Menampilkan fokus kolom status: <strong>{filterStatus}</strong></span>
+                  </span>
+                  <button
+                    onClick={() => setFilterStatus('ALL')}
+                    className="text-xs text-amber-800 hover:text-amber-950 font-semibold underline cursor-pointer"
+                  >
+                    Tampilkan Semua Kolom Status
+                  </button>
+                </div>
+              )}
+
+              <div className={`grid grid-cols-1 ${filterStatus === 'ALL' ? 'md:grid-cols-2 lg:grid-cols-4' : 'max-w-xl mx-auto'} gap-4 items-start`}>
+                {[
+                  { status: 'Belum Mulai', title: 'Belum Mulai', color: 'border-slate-300 bg-slate-100 text-slate-800', dot: 'bg-slate-400' },
+                  { status: 'Dalam Proses', title: 'Dalam Proses', color: 'border-amber-300 bg-amber-50 text-amber-800', dot: 'bg-amber-500' },
+                  { status: 'Selesai', title: 'Selesai', color: 'border-emerald-300 bg-emerald-50 text-emerald-800', dot: 'bg-emerald-500' },
+                  { status: 'Tertunda', title: 'Tertunda / Pending', color: 'border-rose-300 bg-rose-50 text-rose-800', dot: 'bg-rose-500' }
+                ]
+                  .filter(col => filterStatus === 'ALL' || col.status === filterStatus)
+                  .map((col) => {
+                    const colTasks = staffTasks.filter(t => {
+                      if (t.status !== col.status) return false;
+                      if (!matchesStaffFilter(t)) return false;
+                      if (!matchesPeriodFilter(t)) return false;
+                      if (!matchesSearchFilter(t)) return false;
+                      return true;
+                    });
+
+                    return (
+                      <div key={col.status} className="bg-slate-50/80 rounded-lg border border-slate-200 p-3 space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2.5 h-2.5 rounded-full ${col.dot}`}></span>
+                            <h4 className="font-bold text-xs text-slate-800">{col.title}</h4>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${col.color}`}>
+                            {colTasks.length}
+                          </span>
+                        </div>
+
+                        <div className="space-y-3 max-h-[calc(100vh-16rem)] overflow-y-auto pr-1">
+                          {colTasks.length === 0 ? (
+                            <div className="p-6 text-center text-slate-400 text-xs italic bg-white rounded-lg border border-dashed border-slate-200">
+                              Tidak ada kegiatan
+                            </div>
+                          ) : (
+                            colTasks.map((task) => {
+                              const pInfo = formatTaskPeriodBadge(task);
+                              const isOwnTask = matchedCurrentStaff && task.staffNik === matchedCurrentStaff.nik;
+                              const canModify = isSuperAdmin || isOwnTask;
+
+                              return (
+                                <div
+                                  key={task.id}
+                                  className="bg-white p-3.5 rounded-lg border border-slate-200 hover:border-slate-300 shadow-xs space-y-2.5 transition-all"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className={`px-2 py-0.5 rounded text-[9px] font-semibold uppercase border flex items-center gap-1 ${pInfo.badge}`}>
+                                      <span>{pInfo.icon}</span>
+                                      <span>{pInfo.label}</span>
+                                    </span>
+                                    <span className="text-[10px] text-slate-500 font-mono">
+                                      {task.staffName}
+                                    </span>
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <h5 className="font-bold text-slate-900 text-xs leading-snug">{task.title}</h5>
+                                    <p className="text-[10px] text-slate-600 font-medium">
+                                      {pInfo.dateRangeText}
+                                    </p>
+                                    {task.notes && (
+                                      <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed">
+                                        {task.notes}
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  {/* Quick Status Action Buttons */}
+                                  <div className="pt-2 border-t border-slate-100 flex flex-wrap gap-1 items-center justify-between">
+                                    <div className="flex flex-wrap gap-1">
+                                      {task.status !== 'Dalam Proses' && (
+                                        <button
+                                          onClick={() => handleQuickUpdateStatus(task, 'Dalam Proses')}
+                                          className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors cursor-pointer"
+                                          title="Ubah status ke Dalam Proses"
+                                        >
+                                          ▶️ Proses
+                                        </button>
+                                      )}
+                                      {task.status !== 'Selesai' && (
+                                        <button
+                                          onClick={() => handleQuickUpdateStatus(task, 'Selesai')}
+                                          className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition-colors cursor-pointer"
+                                          title="Tandai Selesai"
+                                        >
+                                          ✅ Selesai
+                                        </button>
+                                      )}
+                                      {task.status !== 'Tertunda' && task.status !== 'Selesai' && (
+                                        <button
+                                          onClick={() => handleQuickUpdateStatus(task, 'Tertunda')}
+                                          className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 transition-colors cursor-pointer"
+                                          title="Tandai Tertunda"
+                                        >
+                                          ⏸️ Tunda
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    {canModify && (
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          onClick={() => handleOpenEditTask(task)}
+                                          className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors cursor-pointer"
+                                          title="Edit Kegiatan"
+                                        >
+                                          <Edit className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteTaskClick(task)}
+                                          className="p-1 hover:bg-rose-50 rounded text-rose-700 transition-colors cursor-pointer"
+                                          title="Hapus Kegiatan"
+                                        >
+                                          <Trash className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* VIEW 3: TIMELINE & AGENDA */}
+          {taskViewMode === 'timeline' && (
+            <div className="bg-white rounded-lg border border-slate-200 shadow-xs divide-y divide-slate-100">
+              {staffTasks
+                .filter(t => {
+                  if (!matchesStaffFilter(t)) return false;
+                  if (!matchesPeriodFilter(t)) return false;
+                  if (!matchesStatusFilter(t)) return false;
+                  if (!matchesSearchFilter(t)) return false;
+                  return true;
+                }).length === 0 ? (
+                <div className="p-12 text-center text-slate-400 text-xs italic">
+                  Tidak ada program kerja staf yang sesuai dengan kriteria filter saat ini.
+                </div>
+              ) : (
+                staffTasks
+                  .filter(t => {
+                    if (!matchesStaffFilter(t)) return false;
+                    if (!matchesPeriodFilter(t)) return false;
+                    if (!matchesStatusFilter(t)) return false;
+                    if (!matchesSearchFilter(t)) return false;
+                    return true;
+                  })
+                  .sort((a, b) => (b.targetDate || '').localeCompare(a.targetDate || ''))
+                  .map((task) => {
+                    const pInfo = formatTaskPeriodBadge(task);
+                    const isOwnTask = matchedCurrentStaff && task.staffNik === matchedCurrentStaff.nik;
+                    const canModify = isSuperAdmin || isOwnTask;
+
+                    return (
+                      <div key={task.id} className="p-4 hover:bg-slate-50/70 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div className="space-y-1.5 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-semibold uppercase border flex items-center gap-1 ${pInfo.badge}`}>
+                              <span>{pInfo.icon}</span>
+                              <span>{pInfo.label}</span>
+                            </span>
+
+                            <span className="text-[10px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                              👤 {task.staffName}
+                            </span>
+
+                            <span className="text-[10px] font-mono text-slate-600">
+                              {pInfo.dateRangeText}
+                            </span>
+                          </div>
+
+                          <h4 className="font-bold text-slate-900 text-xs">{task.title}</h4>
+                          {task.notes && (
+                            <p className="text-[11px] text-slate-600 leading-relaxed max-w-2xl">{task.notes}</p>
+                          )}
+
+                          <div className="flex flex-wrap gap-2 pt-0.5 text-[10px]">
+                            {task.attachmentUrl && task.attachmentName && (
+                              <a
+                                href={`/api/documents/download/${task.attachmentUrl}?token=${getSessionUserToken()}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[#0c2340] hover:underline font-semibold bg-slate-100 border border-slate-200 px-2 py-0.5 rounded"
+                              >
+                                <Paperclip className="w-3 h-3" /> {task.attachmentName}
+                              </a>
+                            )}
+                            {task.externalLink && (
+                              <a
+                                href={task.externalLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-emerald-800 hover:underline font-semibold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded"
+                              >
+                                <ExternalLink className="w-3 h-3" /> Link Lampiran
+                              </a>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* Status Switcher */}
+                          <select
+                            value={task.status}
+                            onChange={(e) => handleQuickUpdateStatus(task, e.target.value as any)}
+                            className={`px-2.5 py-1 rounded text-xs font-semibold border outline-none cursor-pointer ${task.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' :
+                              task.status === 'Dalam Proses' ? 'bg-amber-50 text-amber-800 border-amber-300' :
+                                task.status === 'Tertunda' ? 'bg-rose-50 text-rose-800 border-rose-300' :
+                                  'bg-slate-100 text-slate-800 border-slate-300'
+                              }`}
+                          >
+                            <option value="Belum Mulai">⚪ Belum Mulai</option>
+                            <option value="Dalam Proses">🟡 Dalam Proses</option>
+                            <option value="Selesai">🟢 Selesai</option>
+                            <option value="Tertunda">🔴 Tertunda</option>
+                          </select>
+
+                          {canModify && (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleOpenEditTask(task)}
+                                className="p-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded transition-colors cursor-pointer"
+                                title="Edit Kegiatan"
+                              >
+                                <Edit className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTaskClick(task)}
+                                className="p-1.5 bg-white border border-rose-300 hover:bg-rose-50 text-rose-700 rounded transition-colors cursor-pointer"
+                                title="Hapus Kegiatan"
+                              >
+                                <Trash className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+              )}
+            </div>
+          )}
         </div>
       )}
+
+
 
       {subTab === 'tasks' && selectedStaff && (
         <div className="space-y-5">
@@ -885,7 +1635,6 @@ export default function StaffTasksTab({
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
-
             <div className="lg:col-span-2 space-y-4">
               <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4">
                 <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
@@ -903,6 +1652,7 @@ export default function StaffTasksTab({
                       const isOwnTask = matchedCurrentStaff && task.staffNik === matchedCurrentStaff.nik;
                       const canModify = isSuperAdmin || isOwnTask;
                       const parentTask = staffTasks.find(x => x.id === task.parentTaskId);
+                      const pInfo = formatTaskPeriodBadge(task);
 
                       const getBorderClass = (st: StaffTask['status']) => {
                         switch (st) {
@@ -917,25 +1667,30 @@ export default function StaffTasksTab({
                         <div key={task.id} className={`p-4 rounded-lg border border-slate-200 space-y-2.5 relative hover:border-slate-300 transition-colors ${getBorderClass(task.status)}`}>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
-                              <span className={`px-2 py-0.5 rounded font-semibold text-[9px] uppercase border ${task.periodType === 'Weekly' ? 'bg-slate-100 text-slate-700 border-slate-200' :
-                                  task.periodType === 'Monthly' ? 'bg-slate-100 text-slate-700 border-slate-200' :
-                                    'bg-slate-100 text-slate-700 border-slate-200'
-                                }`}>
-                                {task.periodType === 'Weekly' ? 'Mingguan' :
-                                  task.periodType === 'Monthly' ? 'Bulanan' : 'Tahunan'}
+                              <span className={`px-2 py-0.5 rounded font-semibold text-[9px] uppercase border flex items-center gap-1 ${pInfo.badge}`}>
+                                <span>{pInfo.icon}</span>
+                                <span>{pInfo.label}</span>
                               </span>
                               <span className="text-[10px] text-slate-600 font-mono font-semibold">
-                                {task.targetDate}
+                                {pInfo.dateRangeText}
                               </span>
                             </div>
 
-                            <span className={`px-2 py-0.5 rounded text-[9px] font-semibold uppercase border ${task.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                            {/* Status Quick Switcher Dropdown */}
+                            <select
+                              value={task.status}
+                              onChange={(e) => handleQuickUpdateStatus(task, e.target.value as any)}
+                              className={`px-2 py-0.5 rounded text-[10px] font-semibold border outline-none cursor-pointer ${task.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
                                 task.status === 'Dalam Proses' ? 'bg-amber-50 text-amber-800 border-amber-200' :
                                   task.status === 'Tertunda' ? 'bg-rose-50 text-rose-800 border-rose-200' :
                                     'bg-slate-100 text-slate-800 border-slate-200'
-                              }`}>
-                              {task.status}
-                            </span>
+                                }`}
+                            >
+                              <option value="Belum Mulai">⚪ Belum Mulai</option>
+                              <option value="Dalam Proses">🟡 Dalam Proses</option>
+                              <option value="Selesai">🟢 Selesai</option>
+                              <option value="Tertunda">🔴 Tertunda</option>
+                            </select>
                           </div>
 
                           <div className="space-y-0.5">
@@ -1051,11 +1806,12 @@ export default function StaffTasksTab({
                     archivedTasks.map(task => {
                       const isOwnTask = matchedCurrentStaff && task.staffNik === matchedCurrentStaff.nik;
                       const canModify = isSuperAdmin || isOwnTask;
+                      const pInfo = formatTaskPeriodBadge(task);
 
                       return (
                         <div key={task.id} className="bg-emerald-50/30 p-3.5 rounded-lg border-l-4 border-emerald-600 border-r border-y border-emerald-200 shadow-xs space-y-1.5 relative">
                           <div className="flex items-center justify-between text-[10px]">
-                            <span className="font-semibold text-slate-600 font-mono">{task.targetDate}</span>
+                            <span className="font-semibold text-slate-600 font-mono">{pInfo.dateRangeText}</span>
                             <span className="font-semibold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded border border-emerald-200">Arsip Selesai</span>
                           </div>
 
@@ -1108,7 +1864,6 @@ export default function StaffTasksTab({
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       )}
@@ -1368,53 +2123,442 @@ export default function StaffTasksTab({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">Jenis Periode</label>
-                  <select
-                    value={taskPeriodType}
-                    onChange={(e) => {
-                      setTaskPeriodType(e.target.value as any);
-                      setTaskTargetDate('');
-                    }}
-                    className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none bg-white text-slate-800 cursor-pointer"
-                  >
-                    <option value="Weekly">Mingguan</option>
-                    <option value="Monthly">Bulanan</option>
-                    <option value="Yearly">Tahunan</option>
-                  </select>
+              {/* Segmented Period Type Picker */}
+              <div className="space-y-1.5">
+                <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">
+                  Pilih Jenis Periode Kegiatan
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                  {[
+                    { type: 'ONE_TIME_ACTIVITY', label: 'Kegiatan Khusus', icon: '⚡', desc: 'Insidental / Event' },
+                    { type: 'DAILY', label: 'Tugas Harian', icon: '📅', desc: 'Rutinitas harian' },
+                    { type: 'WEEKLY', label: 'Mingguan', icon: '🗓️', desc: 'Target per pekan' },
+                    { type: 'MONTHLY', label: 'Bulanan', icon: '📆', desc: 'Program bulanan' },
+                    { type: 'YEARLY', label: 'Tahunan', icon: '🎯', desc: 'Target tahunan' }
+                  ].map((p) => (
+                    <button
+                      key={p.type}
+                      type="button"
+                      onClick={() => {
+                        const nextType = p.type as StaffTask['periodType'];
+                        setTaskPeriodType(nextType);
+                        const currTodayStr = new Date().toISOString().substring(0, 10);
+
+                        if (nextType === 'ONE_TIME_ACTIVITY') {
+                          setTaskScheduleMode('SpecificDate');
+                          setTaskStartDate(currTodayStr);
+                          setTaskEndDate(currTodayStr);
+                          setTaskTime('08:00');
+                          setTaskTargetDate(currTodayStr);
+                        } else if (nextType === 'DAILY') {
+                          setTaskScheduleMode('Today');
+                          setTaskStartDate(currTodayStr);
+                          setTaskEndDate(currTodayStr);
+                          setTaskTime('08:00');
+                          setTaskTargetDate(currTodayStr);
+                        } else if (nextType === 'WEEKLY') {
+                          setTaskTargetDate(`${taskWeekYear}-${String(taskWeekMonth).padStart(2, '0')}-W${taskWeekNum}`);
+                        } else if (nextType === 'MONTHLY') {
+                          setTaskTargetDate(`${taskMonthYear}-${String(taskMonthVal).padStart(2, '0')}`);
+                        } else if (nextType === 'YEARLY') {
+                          setTaskTargetDate(`${taskYearVal}`);
+                        }
+                      }}
+                      className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex flex-col justify-between ${taskPeriodType === p.type
+                        ? 'border-[#0c2340] bg-[#0c2340] text-white shadow-sm ring-1 ring-[#0c2340]'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-[11px]">
+                        <span>{p.icon}</span>
+                        <span>{p.label}</span>
+                      </div>
+                      <span className={`text-[9px] mt-0.5 ${taskPeriodType === p.type ? 'text-slate-300' : 'text-slate-400'}`}>
+                        {p.desc}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Dynamic Date & Period Configuration */}
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-700 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-[#0c2340]" />
+                    {taskPeriodType === 'ONE_TIME_ACTIVITY' && 'Pengaturan Waktu Kegiatan Khusus'}
+                    {taskPeriodType === 'DAILY' && 'Pengaturan Jadwal Harian'}
+                    {taskPeriodType === 'WEEKLY' && 'Pilih Bulan & Pekan Target'}
+                    {taskPeriodType === 'MONTHLY' && 'Pilih Bulan & Tahun Pelaksanaan'}
+                    {taskPeriodType === 'YEARLY' && 'Pilih Tahun Program'}
+                  </label>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">Target Periode</label>
-                  {taskPeriodType === 'Weekly' ? (
-                    <input
-                      type="week"
-                      value={taskTargetDate}
-                      onChange={(e) => setTaskTargetDate(e.target.value)}
-                      className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none bg-white text-slate-800 font-mono"
-                      required
-                    />
-                  ) : taskPeriodType === 'Monthly' ? (
-                    <input
-                      type="month"
-                      value={taskTargetDate}
-                      onChange={(e) => setTaskTargetDate(e.target.value)}
-                      className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none bg-white text-slate-800 font-mono"
-                      required
-                    />
-                  ) : (
-                    <input
-                      type="number"
-                      placeholder="e.g. 2026"
-                      min={2020}
-                      max={2050}
-                      value={taskTargetDate}
-                      onChange={(e) => setTaskTargetDate(e.target.value)}
-                      className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs outline-none bg-white text-slate-800 font-mono"
-                      required
-                    />
-                  )}
+                {/* 1. ONE_TIME_ACTIVITY Picker */}
+                {taskPeriodType === 'ONE_TIME_ACTIVITY' && (
+                  <div className="space-y-2.5">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {[
+                        { mode: 'SpecificDate', label: '📌 Satu Hari Pelaksanaan' },
+                        { mode: 'Range', label: '↔️ Rentang Tanggal (Mulai - Selesai)' }
+                      ].map((opt) => (
+                        <button
+                          key={opt.mode}
+                          type="button"
+                          onClick={() => {
+                            setTaskScheduleMode(opt.mode as any);
+                            if (opt.mode === 'SpecificDate') {
+                              setTaskEndDate(taskStartDate);
+                            }
+                          }}
+                          className={`py-1.5 px-2 rounded text-[10px] font-semibold border transition-all cursor-pointer ${taskScheduleMode === opt.mode
+                            ? 'bg-[#0c2340] text-white border-[#0c2340]'
+                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                            }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {taskScheduleMode === 'Range' ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-semibold uppercase text-slate-500 block">Tanggal Mulai</label>
+                          <input
+                            type="date"
+                            value={taskStartDate}
+                            onChange={(e) => {
+                              setTaskStartDate(e.target.value);
+                              setTaskTargetDate(e.target.value);
+                              if (taskEndDate < e.target.value) {
+                                setTaskEndDate(e.target.value);
+                              }
+                            }}
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs bg-white text-slate-800 font-mono"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-semibold uppercase text-slate-500 block">Tanggal Selesai</label>
+                          <input
+                            type="date"
+                            value={taskEndDate}
+                            min={taskStartDate}
+                            onChange={(e) => setTaskEndDate(e.target.value)}
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs bg-white text-slate-800 font-mono"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-semibold uppercase text-slate-500 block">Jam Mulai</label>
+                          <input
+                            type="time"
+                            value={taskTime}
+                            onChange={(e) => setTaskTime(e.target.value)}
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs bg-white text-slate-800 font-mono"
+                            required
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-semibold uppercase text-slate-500 block">Tanggal Pelaksanaan</label>
+                          <input
+                            type="date"
+                            value={taskStartDate}
+                            onChange={(e) => {
+                              setTaskStartDate(e.target.value);
+                              setTaskEndDate(e.target.value);
+                              setTaskTargetDate(e.target.value);
+                            }}
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs bg-white text-slate-800 font-mono"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-semibold uppercase text-slate-500 block">Jam Pelaksanaan</label>
+                          <input
+                            type="time"
+                            value={taskTime}
+                            onChange={(e) => setTaskTime(e.target.value)}
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs bg-white text-slate-800 font-mono"
+                            required
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 2. DAILY Picker */}
+                {taskPeriodType === 'DAILY' && (
+                  <div className="space-y-2.5">
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[
+                        { mode: 'Today', label: '☀️ Hari Ini' },
+                        { mode: 'SpecificDate', label: '📌 Pilih Tanggal' },
+                        { mode: 'Range', label: '↔️ Rentang Hari' }
+                      ].map((opt) => (
+                        <button
+                          key={opt.mode}
+                          type="button"
+                          onClick={() => {
+                            setTaskScheduleMode(opt.mode as any);
+                            const currToday = new Date().toISOString().substring(0, 10);
+                            if (opt.mode === 'Today') {
+                              setTaskStartDate(currToday);
+                              setTaskEndDate(currToday);
+                              setTaskTargetDate(currToday);
+                            }
+                          }}
+                          className={`py-1.5 px-2 rounded text-[10px] font-semibold border transition-all cursor-pointer ${taskScheduleMode === opt.mode
+                            ? 'bg-[#0c2340] text-white border-[#0c2340]'
+                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                            }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {taskScheduleMode === 'Range' ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-semibold uppercase text-slate-500 block">Mulai Tanggal</label>
+                          <input
+                            type="date"
+                            value={taskStartDate}
+                            onChange={(e) => {
+                              setTaskStartDate(e.target.value);
+                              setTaskTargetDate(e.target.value);
+                            }}
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs bg-white text-slate-800 font-mono"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-semibold uppercase text-slate-500 block">Sampai Tanggal</label>
+                          <input
+                            type="date"
+                            value={taskEndDate}
+                            min={taskStartDate}
+                            onChange={(e) => setTaskEndDate(e.target.value)}
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs bg-white text-slate-800 font-mono"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-semibold uppercase text-slate-500 block">Jam Kegiatan</label>
+                          <input
+                            type="time"
+                            value={taskTime}
+                            onChange={(e) => setTaskTime(e.target.value)}
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs bg-white text-slate-800 font-mono"
+                            required
+                          />
+                        </div>
+                      </div>
+                    ) : taskScheduleMode === 'SpecificDate' ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-semibold uppercase text-slate-500 block">Pilih Tanggal</label>
+                          <input
+                            type="date"
+                            value={taskStartDate}
+                            onChange={(e) => {
+                              setTaskStartDate(e.target.value);
+                              setTaskEndDate(e.target.value);
+                              setTaskTargetDate(e.target.value);
+                            }}
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs bg-white text-slate-800 font-mono"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-semibold uppercase text-slate-500 block">Jam Kegiatan</label>
+                          <input
+                            type="time"
+                            value={taskTime}
+                            onChange={(e) => setTaskTime(e.target.value)}
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs bg-white text-slate-800 font-mono"
+                            required
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between bg-white p-2.5 rounded border border-slate-200 text-xs">
+                        <span className="font-semibold text-slate-700">
+                          Hari ini: {formatIndonesianDateFull(new Date().toISOString().substring(0, 10))}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-slate-500 font-semibold">Jam:</span>
+                          <input
+                            type="time"
+                            value={taskTime}
+                            onChange={(e) => setTaskTime(e.target.value)}
+                            className="border border-slate-300 rounded px-2 py-1 text-xs bg-white text-slate-800 font-mono"
+                            required
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 3. WEEKLY Picker */}
+                {taskPeriodType === 'WEEKLY' && (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-semibold uppercase text-slate-500 block">Tahun</label>
+                        <select
+                          value={taskWeekYear}
+                          onChange={(e) => {
+                            const y = parseInt(e.target.value, 10);
+                            setTaskWeekYear(y);
+                            setTaskTargetDate(`${y}-${String(taskWeekMonth).padStart(2, '0')}-W${taskWeekNum}`);
+                          }}
+                          className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs bg-white text-slate-800 font-medium cursor-pointer"
+                        >
+                          {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map(y => (
+                            <option key={y} value={y}>{y}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-semibold uppercase text-slate-500 block">Bulan</label>
+                        <select
+                          value={taskWeekMonth}
+                          onChange={(e) => {
+                            const m = parseInt(e.target.value, 10);
+                            setTaskWeekMonth(m);
+                            setTaskTargetDate(`${taskWeekYear}-${String(m).padStart(2, '0')}-W${taskWeekNum}`);
+                          }}
+                          className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs bg-white text-slate-800 font-medium cursor-pointer"
+                        >
+                          {MONTHS_IN_INDONESIAN.map(m => (
+                            <option key={m.val} value={m.val}>{m.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-semibold uppercase text-slate-500 block">Pekan Ke</label>
+                        <select
+                          value={taskWeekNum}
+                          onChange={(e) => {
+                            const w = parseInt(e.target.value, 10);
+                            setTaskWeekNum(w);
+                            setTaskTargetDate(`${taskWeekYear}-${String(taskWeekMonth).padStart(2, '0')}-W${w}`);
+                          }}
+                          className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs bg-white text-slate-800 font-medium cursor-pointer"
+                        >
+                          <option value={1}>Pekan 1 (Tgl 1 - 7)</option>
+                          <option value={2}>Pekan 2 (Tgl 8 - 14)</option>
+                          <option value={3}>Pekan 3 (Tgl 15 - 21)</option>
+                          <option value={4}>Pekan 4 (Tgl 22 - 28)</option>
+                          <option value={5}>Pekan 5 (Tgl 29 - Akhir)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. MONTHLY Picker */}
+                {taskPeriodType === 'MONTHLY' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-semibold uppercase text-slate-500 block">Bulan Target</label>
+                      <select
+                        value={taskMonthVal}
+                        onChange={(e) => {
+                          const m = parseInt(e.target.value, 10);
+                          setTaskMonthVal(m);
+                          setTaskTargetDate(`${taskMonthYear}-${String(m).padStart(2, '0')}`);
+                        }}
+                        className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-800 font-medium cursor-pointer"
+                      >
+                        {MONTHS_IN_INDONESIAN.map(m => (
+                          <option key={m.val} value={m.val}>{m.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-semibold uppercase text-slate-500 block">Tahun</label>
+                      <select
+                        value={taskMonthYear}
+                        onChange={(e) => {
+                          const y = parseInt(e.target.value, 10);
+                          setTaskMonthYear(y);
+                          setTaskTargetDate(`${y}-${String(taskMonthVal).padStart(2, '0')}`);
+                        }}
+                        className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-800 font-medium cursor-pointer"
+                      >
+                        {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map(y => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. YEARLY Picker */}
+                {taskPeriodType === 'YEARLY' && (
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-semibold uppercase text-slate-500 block">Tahun Program</label>
+                    <select
+                      value={taskYearVal}
+                      onChange={(e) => {
+                        const y = parseInt(e.target.value, 10);
+                        setTaskYearVal(y);
+                        setTaskTargetDate(`${y}`);
+                      }}
+                      className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-800 font-medium cursor-pointer"
+                    >
+                      {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map(y => (
+                        <option key={y} value={y}>Tahun {y}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Live Formatted Summary Preview Box */}
+                <div className="mt-2 p-2.5 rounded-lg bg-white border border-slate-200 flex items-start gap-2 shadow-xs">
+                  <div className="p-1.5 rounded bg-slate-100 text-[#0c2340] shrink-0 mt-0.5">
+                    <Zap className="w-3.5 h-3.5 text-amber-500" />
+                  </div>
+                  <div>
+                    <span className="text-[9px] uppercase tracking-wider font-bold text-slate-400 block">
+                      Ringkasan Target Jadwal Terpilih
+                    </span>
+                    <span className="text-xs font-bold text-slate-800 block mt-0.5">
+                      {taskPeriodType === 'ONE_TIME_ACTIVITY' && (
+                        taskScheduleMode === 'Range'
+                          ? `⚡ Kegiatan Khusus: ${formatIndonesianDateShort(taskStartDate)} s/d ${formatIndonesianDateShort(taskEndDate)} • Pukul ${taskTime} WIB`
+                          : `⚡ Kegiatan Khusus: ${formatIndonesianDateFull(taskStartDate)} • Pukul ${taskTime} WIB`
+                      )}
+                      {taskPeriodType === 'DAILY' && (
+                        taskScheduleMode === 'Range'
+                          ? `📅 Tugas Harian: ${formatIndonesianDateShort(taskStartDate)} s/d ${formatIndonesianDateShort(taskEndDate)} • Pukul ${taskTime} WIB`
+                          : taskScheduleMode === 'Today'
+                            ? `📅 Tugas Harian: Hari ini (${formatIndonesianDateFull(new Date().toISOString().substring(0, 10))}) • Pukul ${taskTime} WIB`
+                            : `📅 Tugas Harian: ${formatIndonesianDateFull(taskStartDate)} • Pukul ${taskTime} WIB`
+                      )}
+                      {taskPeriodType === 'WEEKLY' && (
+                        `🗓️ Target Mingguan: Pekan ke-${taskWeekNum} (${(taskWeekNum - 1) * 7 + 1} - ${Math.min(taskWeekNum * 7, 31)} ${MONTHS_IN_INDONESIAN[taskWeekMonth - 1]?.label} ${taskWeekYear})`
+                      )}
+                      {taskPeriodType === 'MONTHLY' && (
+                        `📆 Target Bulanan: Bulan ${MONTHS_IN_INDONESIAN[taskMonthVal - 1]?.label} ${taskMonthYear}`
+                      )}
+                      {taskPeriodType === 'YEARLY' && (
+                        `🎯 Target Tahunan: Tahun ${taskYearVal}`
+                      )}
+                    </span>
+                  </div>
                 </div>
               </div>
 

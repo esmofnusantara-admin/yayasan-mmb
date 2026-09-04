@@ -184,15 +184,15 @@ export default function PayrollTab({
     }
   };
 
-  // Period / Cycle Selector State (Default to current active cycle)
-  const initialActiveCycle = useMemo(() => getCurrentActiveCycle(targetPayrollDay), [targetPayrollDay]);
-  const [selectedPeriodYear, setSelectedPeriodYear] = useState<number>(initialActiveCycle.year);
-  const [selectedPeriodMonth, setSelectedPeriodMonth] = useState<number>(initialActiveCycle.month);
+  // Period / Cycle Selector State (Default to current active calendar month)
+  const today = new Date();
+  const currentCalendarYear = today.getFullYear();
+  const currentCalendarMonth = today.getMonth(); // 0-indexed
+
+  const [selectedPeriodYear, setSelectedPeriodYear] = useState<number>(currentCalendarYear);
+  const [selectedPeriodMonth, setSelectedPeriodMonth] = useState<number>(currentCalendarMonth);
 
   const selectedPeriodStr = `${selectedPeriodYear}-${String(selectedPeriodMonth + 1).padStart(2, '0')}`;
-  const cutoffPeriodInfo = useMemo(() => {
-    return getCutoffPeriodRange(selectedPeriodYear, selectedPeriodMonth, targetPayrollDay);
-  }, [selectedPeriodYear, selectedPeriodMonth, targetPayrollDay]);
 
   const handlePrevMonth = () => {
     if (selectedPeriodMonth === 0) {
@@ -213,9 +213,9 @@ export default function PayrollTab({
   };
 
   const handleResetToCurrentCycle = () => {
-    const cycle = getCurrentActiveCycle(targetPayrollDay);
-    setSelectedPeriodYear(cycle.year);
-    setSelectedPeriodMonth(cycle.month);
+    const now = new Date();
+    setSelectedPeriodYear(now.getFullYear());
+    setSelectedPeriodMonth(now.getMonth());
   };
 
   // Derive cumulative paid amounts dynamically from the Transactions single-source-of-truth ledger
@@ -226,18 +226,17 @@ export default function PayrollTab({
         s,
         selectedPeriodYear,
         selectedPeriodMonth,
-        transactions,
-        targetPayrollDay
+        transactions
       );
     });
     return map;
-  }, [staffs, selectedPeriodYear, selectedPeriodMonth, transactions, targetPayrollDay]);
+  }, [staffs, selectedPeriodYear, selectedPeriodMonth, transactions]);
 
   // Automated Payroll Rollover & Arrears Engine
   useEffect(() => {
     const checkAndRollover = async () => {
-      const activeCycle = getCurrentActiveCycle(targetPayrollDay);
-      const activeDueMonth = `${activeCycle.year}-${String(activeCycle.month + 1).padStart(2, '0')}`;
+      const now = new Date();
+      const activeDueMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       const updates: Staff[] = [];
 
       for (const s of staffs) {
@@ -259,11 +258,11 @@ export default function PayrollTab({
         // the active due month (e.g. was recorded in '2026-08', now active '2026-09')
         if (lastMonth < activeDueMonth) {
           const [prevYStr, prevMStr] = lastMonth.split('-');
-          const prevYear = parseInt(prevYStr, 10) || activeCycle.year;
-          const prevMonth = (parseInt(prevMStr, 10) - 1) >= 0 ? parseInt(prevMStr, 10) - 1 : activeCycle.month;
+          const prevYear = parseInt(prevYStr, 10) || now.getFullYear();
+          const prevMonth = (parseInt(prevMStr, 10) - 1) >= 0 ? parseInt(prevMStr, 10) - 1 : now.getMonth();
 
           // Cross-reference transaction ledger to get exact historical disbursements for that cycle!
-          const actualPaidFromLedger = getStaffPaidAmountInPeriod(s, prevYear, prevMonth, transactions, targetPayrollDay);
+          const actualPaidFromLedger = getStaffPaidAmountInPeriod(s, prevYear, prevMonth, transactions);
           const baseTHP = getStaffNetSalary(s);
           const totalExpectedDue = baseTHP + (s.lastMonthUnpaid || 0);
           const outstandingDeficit = Math.max(0, totalExpectedDue - actualPaidFromLedger);
@@ -298,7 +297,7 @@ export default function PayrollTab({
     if (staffs && staffs.length > 0) {
       checkAndRollover();
     }
-  }, [staffs, targetPayrollDay, transactions]);
+  }, [staffs, transactions]);
 
   // Helper to get total THP due (including carried-over arrears/debt)
   const getStaffTotalTHPWithArrears = (s: Staff) => {
@@ -338,9 +337,8 @@ export default function PayrollTab({
         if (t.payrollMonth) {
           return t.payrollMonth === selectedPeriodStr;
         }
-        const txDate = t.date || t.transaction_date;
-        if (!txDate) return false;
-        return isDateInCutoffPeriod(txDate, selectedPeriodYear, selectedPeriodMonth, targetPayrollDay);
+        const txDate = t.date || t.transaction_date || '';
+        return txDate.startsWith(selectedPeriodStr);
       })
       .map(t => {
         let termLabel = 'Termin';
@@ -822,8 +820,14 @@ export default function PayrollTab({
             <h3 className="font-bold text-slate-900 text-sm">
               Periode Penggajian: {INDO_MONTHS[selectedPeriodMonth]} {selectedPeriodYear}
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Rentang Siklus Cut-Off: <span className="font-semibold text-slate-700">{cutoffPeriodInfo.formattedRange}</span>
+            <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+              <span>Jadwal Gajian: <strong className="text-slate-700">Tanggal {targetPayrollDay} {INDO_MONTHS[selectedPeriodMonth]} {selectedPeriodYear}</strong></span>
+              <span>&bull;</span>
+              {selectedPeriodMonth === currentCalendarMonth && selectedPeriodYear === currentCalendarYear ? (
+                <span className="text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">Periode Berjalan (Aktif)</span>
+              ) : (
+                <span className="text-slate-600 font-medium bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">Arsip Periode</span>
+              )}
             </p>
           </div>
         </div>
@@ -870,12 +874,12 @@ export default function PayrollTab({
             </button>
           </div>
 
-          {(selectedPeriodYear !== initialActiveCycle.year || selectedPeriodMonth !== initialActiveCycle.month) && (
+          {(selectedPeriodYear !== currentCalendarYear || selectedPeriodMonth !== currentCalendarMonth) && (
             <button
               onClick={handleResetToCurrentCycle}
-              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-semibold cursor-pointer transition-colors"
+              className="px-2.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold cursor-pointer transition-colors shadow-xs"
             >
-              Bulan Berjalan
+              Kembali ke Bulan Berjalan
             </button>
           )}
         </div>

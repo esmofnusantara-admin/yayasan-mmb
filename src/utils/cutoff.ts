@@ -241,9 +241,8 @@ export function getStaffPaidAmountInPeriod(
     if (t.payrollMonth) {
       return t.payrollMonth === targetMonthStr;
     }
-    const txDate = t.date || t.transaction_date;
-    if (!txDate) return false;
-    return isDateInCutoffPeriod(txDate, targetYear, targetMonth, cutoffDay);
+    const txDate = t.date || t.transaction_date || '';
+    return txDate.startsWith(targetMonthStr);
   });
 
   for (const t of periodTxs) {

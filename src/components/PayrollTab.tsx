@@ -529,6 +529,7 @@ export default function PayrollTab({
   const currentSystemBalance = totalIncome - totalExpense;
 
   const isBalanceSufficient = currentSystemBalance >= remainingUnpaidSalary;
+  const cashDeficit = Math.max(0, remainingUnpaidSalary - currentSystemBalance);
 
   const handlePayCustomTermin = async () => {
     if (selectedStaffsForPay.length === 0) {
@@ -953,18 +954,23 @@ export default function PayrollTab({
             <strong className="text-base text-slate-900 font-bold block">
               Rp {totalNetPaid.toLocaleString('id-ID')}
             </strong>
-            <div className="mt-1 flex items-center">
+            <div className="mt-1 flex items-center justify-between text-xs">
               {totalNetPaid >= totalNetPayout ? (
                 <span className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">
                   Lunas 100%
                 </span>
               ) : totalNetPaid > 0 ? (
                 <span className="bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded">
-                  Termin Aktif
+                  Termin ({Math.round((totalNetPaid / (totalNetPayout || 1)) * 100)}%)
                 </span>
               ) : (
                 <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded">
-                  Belum Bayar
+                  Belum Bayar (0%)
+                </span>
+              )}
+              {remainingUnpaidSalary > 0 && (
+                <span className="text-[11px] text-slate-500 font-medium">
+                  Sisa: Rp {remainingUnpaidSalary.toLocaleString('id-ID')}
                 </span>
               )}
             </div>
@@ -989,8 +995,8 @@ export default function PayrollTab({
                   ✓ Saldo Kas Mencukupi
                 </span>
               ) : (
-                <span className="text-xs font-semibold text-rose-700 flex items-center gap-1">
-                  Kurang: Rp {remainingUnpaidSalary.toLocaleString('id-ID')}
+                <span className="text-xs font-semibold text-rose-700 flex items-center gap-1" title="Kekurangan saldo kas untuk mencukupi seluruh sisa beban gaji periode ini">
+                  Defisit Kas: Rp {cashDeficit.toLocaleString('id-ID')}
                 </span>
               )}
             </div>

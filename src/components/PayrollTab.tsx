@@ -179,20 +179,11 @@ export default function PayrollTab({
     const checkAndRollover = async () => {
       let updatedAny = false;
       
-      // Determine active target payroll cycle month
+      // Determine active target payroll cycle month (Format 'YYYY-MM', e.g. '2026-09')
       const today = new Date();
       const currYear = today.getFullYear();
       const currMonth = today.getMonth(); // 0-indexed
-      let activeDueMonth = '';
-      
-      if (today.getDate() >= targetPayrollDay) {
-        // Current calendar month's payroll is now active / due
-        activeDueMonth = `${currYear}-${String(currMonth + 1).padStart(2, '0')}`;
-      } else {
-        // We haven't reached the cutoff day yet, so the active due cycle is the previous calendar month
-        const prev = new Date(currYear, currMonth - 1, 1);
-        activeDueMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
-      }
+      const activeDueMonth = `${currYear}-${String(currMonth + 1).padStart(2, '0')}`;
 
       for (const s of staffs) {
         const lastMonth = s.lastPayrollMonth || '';
@@ -203,14 +194,16 @@ export default function PayrollTab({
           await onUpdateStaff({
             ...s,
             lastPayrollMonth: activeDueMonth,
-            lastMonthUnpaid: s.lastMonthUnpaid || 0
+            lastMonthUnpaid: s.lastMonthUnpaid || 0,
+            paidAmount: s.paidAmount || 0
           });
           updatedAny = true;
           continue;
         }
 
         // 2. Rollover condition: If the staff's last recorded cycle month is older than
-        // the active due month, we carry forward any unpaid salary to "lastMonthUnpaid" (utang/kekurangan)
+        // the active due month (e.g. was paid in August '2026-08', now in September '2026-09'),
+        // we carry forward any unpaid salary to "lastMonthUnpaid" (utang/kekurangan) and reset paidAmount to 0
         if (lastMonth < activeDueMonth) {
           const baseTHP = getStaffNetSalary(s);
           const totalExpectedDue = baseTHP + (s.lastMonthUnpaid || 0);
@@ -220,7 +213,7 @@ export default function PayrollTab({
           await onUpdateStaff({
             ...s,
             lastMonthUnpaid: outstandingDeficit,
-            paidAmount: 0, // Reset currents month's paid count for the new cycle
+            paidAmount: 0, // Reset current month's paid count for the new cycle
             lastPayrollMonth: activeDueMonth
           });
           updatedAny = true;
@@ -229,7 +222,7 @@ export default function PayrollTab({
 
       if (updatedAny && onLogAudit) {
         await onLogAudit(
-          `[Sistem Otomatis Payroll] Melakukan rollover kewajiban sisa kekurangan gaji ke utang/kekurangan bulan lalu secara otomatis karena telah melewati target cutoff tanggal ${targetPayrollDay}.`,
+          `[Sistem Otomatis Payroll] Memulai periode payroll baru (${activeDueMonth}) dan melakukan rollover sisa kewajiban gaji sebelumnya.`,
           'Payroll & Gaji'
         );
       }
@@ -689,12 +682,21 @@ export default function PayrollTab({
         </div>
         
         {canModifyPayroll && (
-          <button 
-            onClick={handleSubmitCollectivePayroll}
-            className="px-4 py-2 bg-[#881337] hover:bg-[#9f1239] text-white font-semibold rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
-          >
-            <Wallet className="w-4 h-4 text-white" /> Ajukan Anggaran Payroll Kolektif
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleResetPayments}
+              className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-semibold rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
+              title="Mulai periode penggajian baru atau setel ulang progres pembayaran"
+            >
+              <RefreshCw className="w-4 h-4 text-slate-600" /> Buka Periode Baru
+            </button>
+            <button 
+              onClick={handleSubmitCollectivePayroll}
+              className="px-4 py-2 bg-[#881337] hover:bg-[#9f1239] text-white font-semibold rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
+            >
+              <Wallet className="w-4 h-4 text-white" /> Ajukan Anggaran Payroll Kolektif
+            </button>
+          </div>
         )}
       </div>
 

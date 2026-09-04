@@ -135,6 +135,13 @@ export interface MaterialInfo {
   uploadedAt?: string;
 }
 
+export interface StaffPaymentBreakdown {
+  nik: string;
+  name: string;
+  amount: number;
+  termin?: string;
+}
+
 export interface Transaction {
   id: string;
   transaction_code?: string;
@@ -159,6 +166,10 @@ export interface Transaction {
   status?: 'Draft' | 'Pending Approval' | 'Approved' | 'Rejected';
   allocationObjective?: string;
   deleted?: boolean;
+
+  // Payroll transaction metadata
+  payrollMonth?: string;
+  staffBreakdown?: StaffPaymentBreakdown[];
 }
 
 export interface FinancialCategory {

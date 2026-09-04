@@ -8,30 +8,39 @@ import {
   Plus, 
   Search, 
   Trash, 
-  Trash2,
-  Settings,
+  Trash2, 
+  Settings, 
   Wallet, 
   Printer, 
-  Lock,
-  PlusCircle,
-  Coins,
-  ChevronRight,
-  Calculator,
-  User,
-  X,
-  FileSpreadsheet,
-  Download,
-  Calendar,
-  RefreshCw,
-  CheckCircle2,
-  AlertCircle
+  Lock, 
+  PlusCircle, 
+  Coins, 
+  ChevronLeft,
+  ChevronRight, 
+  Calculator, 
+  User, 
+  X, 
+  FileSpreadsheet, 
+  Download, 
+  Calendar, 
+  RefreshCw, 
+  CheckCircle2, 
+  AlertCircle 
 } from 'lucide-react';
 import { Staff, CustomPayrollField, ApprovalRequest, StaffSalary, SalaryComponent, InstitutionalProfile } from '../types';
 import { exportToCSV, exportSlipToPDF } from '../utils/export';
+import { 
+  INDO_MONTHS, 
+  getStaffPaidAmountInPeriod, 
+  getCurrentActiveCycle, 
+  isDateInCutoffPeriod, 
+  getCutoffPeriodRange 
+} from '../utils/cutoff';
 
 interface PayrollTabProps {
   staffs: Staff[];
   onUpdateStaff: (s: Staff) => void;
+  onBatchUpdateStaff?: (staffList: Staff[]) => Promise<void>;
   currentRole: string;
   onPostApproval: (app: ApprovalRequest) => void;
   transactions: any[];
@@ -58,6 +67,7 @@ const DEFAULT_PUBLIC_FIELDS = [
 export default function PayrollTab({
   staffs,
   onUpdateStaff,
+  onBatchUpdateStaff,
   currentRole,
   onPostApproval,
   transactions,
@@ -174,16 +184,61 @@ export default function PayrollTab({
     }
   };
 
+  // Period / Cycle Selector State (Default to current active cycle)
+  const initialActiveCycle = useMemo(() => getCurrentActiveCycle(targetPayrollDay), [targetPayrollDay]);
+  const [selectedPeriodYear, setSelectedPeriodYear] = useState<number>(initialActiveCycle.year);
+  const [selectedPeriodMonth, setSelectedPeriodMonth] = useState<number>(initialActiveCycle.month);
+
+  const selectedPeriodStr = `${selectedPeriodYear}-${String(selectedPeriodMonth + 1).padStart(2, '0')}`;
+  const cutoffPeriodInfo = useMemo(() => {
+    return getCutoffPeriodRange(selectedPeriodYear, selectedPeriodMonth, targetPayrollDay);
+  }, [selectedPeriodYear, selectedPeriodMonth, targetPayrollDay]);
+
+  const handlePrevMonth = () => {
+    if (selectedPeriodMonth === 0) {
+      setSelectedPeriodMonth(11);
+      setSelectedPeriodYear(prev => prev - 1);
+    } else {
+      setSelectedPeriodMonth(prev => prev - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (selectedPeriodMonth === 11) {
+      setSelectedPeriodMonth(0);
+      setSelectedPeriodYear(prev => prev + 1);
+    } else {
+      setSelectedPeriodMonth(prev => prev + 1);
+    }
+  };
+
+  const handleResetToCurrentCycle = () => {
+    const cycle = getCurrentActiveCycle(targetPayrollDay);
+    setSelectedPeriodYear(cycle.year);
+    setSelectedPeriodMonth(cycle.month);
+  };
+
+  // Derive cumulative paid amounts dynamically from the Transactions single-source-of-truth ledger
+  const staffPaidAmounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    staffs.forEach(s => {
+      map[s.nik] = getStaffPaidAmountInPeriod(
+        s,
+        selectedPeriodYear,
+        selectedPeriodMonth,
+        transactions,
+        targetPayrollDay
+      );
+    });
+    return map;
+  }, [staffs, selectedPeriodYear, selectedPeriodMonth, transactions, targetPayrollDay]);
+
   // Automated Payroll Rollover & Arrears Engine
   useEffect(() => {
     const checkAndRollover = async () => {
-      let updatedAny = false;
-      
-      // Determine active target payroll cycle month (Format 'YYYY-MM', e.g. '2026-09')
-      const today = new Date();
-      const currYear = today.getFullYear();
-      const currMonth = today.getMonth(); // 0-indexed
-      const activeDueMonth = `${currYear}-${String(currMonth + 1).padStart(2, '0')}`;
+      const activeCycle = getCurrentActiveCycle(targetPayrollDay);
+      const activeDueMonth = `${activeCycle.year}-${String(activeCycle.month + 1).padStart(2, '0')}`;
+      const updates: Staff[] = [];
 
       for (const s of staffs) {
         const lastMonth = s.lastPayrollMonth || '';
@@ -191,56 +246,59 @@ export default function PayrollTab({
         // 1. Initial configuration: If staff does not have a past payroll month record yet,
         // align them with the active cycle month so they don't get artificial arrears.
         if (!lastMonth) {
-          await onUpdateStaff({
+          updates.push({
             ...s,
             lastPayrollMonth: activeDueMonth,
             lastMonthUnpaid: s.lastMonthUnpaid || 0,
             paidAmount: s.paidAmount || 0
           });
-          updatedAny = true;
           continue;
         }
 
         // 2. Rollover condition: If the staff's last recorded cycle month is older than
-        // the active due month (e.g. was paid in August '2026-08', now in September '2026-09'),
-        // we carry forward any unpaid salary to "lastMonthUnpaid" (utang/kekurangan) and reset paidAmount to 0
+        // the active due month (e.g. was recorded in '2026-08', now active '2026-09')
         if (lastMonth < activeDueMonth) {
+          const [prevYStr, prevMStr] = lastMonth.split('-');
+          const prevYear = parseInt(prevYStr, 10) || activeCycle.year;
+          const prevMonth = (parseInt(prevMStr, 10) - 1) >= 0 ? parseInt(prevMStr, 10) - 1 : activeCycle.month;
+
+          // Cross-reference transaction ledger to get exact historical disbursements for that cycle!
+          const actualPaidFromLedger = getStaffPaidAmountInPeriod(s, prevYear, prevMonth, transactions, targetPayrollDay);
           const baseTHP = getStaffNetSalary(s);
           const totalExpectedDue = baseTHP + (s.lastMonthUnpaid || 0);
-          const actualPaid = s.paidAmount || 0;
-          const outstandingDeficit = Math.max(0, totalExpectedDue - actualPaid);
+          const outstandingDeficit = Math.max(0, totalExpectedDue - actualPaidFromLedger);
 
-          await onUpdateStaff({
+          updates.push({
             ...s,
             lastMonthUnpaid: outstandingDeficit,
-            paidAmount: 0, // Reset current month's paid count for the new cycle
+            paidAmount: 0, // Reset for the new cycle
             lastPayrollMonth: activeDueMonth
           });
-          updatedAny = true;
         }
       }
 
-      if (updatedAny && onLogAudit) {
-        await onLogAudit(
-          `[Sistem Otomatis Payroll] Memulai periode payroll baru (${activeDueMonth}) dan melakukan rollover sisa kewajiban gaji sebelumnya.`,
-          'Payroll & Gaji'
-        );
+      if (updates.length > 0) {
+        if (onBatchUpdateStaff) {
+          await onBatchUpdateStaff(updates);
+        } else {
+          for (const u of updates) {
+            await onUpdateStaff(u);
+          }
+        }
+
+        if (onLogAudit) {
+          await onLogAudit(
+            `[Sistem Otomatis Payroll] Memulai periode payroll baru (${activeDueMonth}) dan melakukan rollover sisa kewajiban gaji sebelumnya.`,
+            'Payroll & Gaji'
+          );
+        }
       }
     };
 
     if (staffs && staffs.length > 0) {
       checkAndRollover();
     }
-  }, [staffs, targetPayrollDay]);
-
-  // Derive cumulative paid amounts directly from Firestore staffs data mapping
-  const staffPaidAmounts = useMemo(() => {
-    const map: Record<string, number> = {};
-    staffs.forEach(s => {
-      map[s.nik] = s.paidAmount || 0;
-    });
-    return map;
-  }, [staffs]);
+  }, [staffs, targetPayrollDay, transactions]);
 
   // Helper to get total THP due (including carried-over arrears/debt)
   const getStaffTotalTHPWithArrears = (s: Staff) => {
@@ -250,8 +308,6 @@ export default function PayrollTab({
   // Automatic tracking of 'Salary Debt' (Kekurangan Gaji) if payment date has passed
   const getStaffSalaryDebt = (s: Staff) => {
     const today = new Date();
-    // Payment date is targetPayrollDay of the current calendar month.
-    // If we've reached or passed that day, payment date has passed.
     const isPaymentDatePassed = today.getDate() >= targetPayrollDay;
     
     const thp = getStaffNetSalary(s);
@@ -265,34 +321,45 @@ export default function PayrollTab({
     }
   };
 
-  // Derive payroll logs directly from live global Firestore Transactions ledger!
+  // Derive payroll logs directly for the selected period from global Transactions ledger
   const paymentLogs = useMemo(() => {
     return transactions
-      .filter(t => (
-        t.id?.startsWith('TX-PAY-') || 
-        t.category === 'Penggajian Staff' || 
-        t.category === 'Payroll Staff & BPJS' || 
-        t.source === 'payroll' || 
-        t.reference_type === 'payroll'
-      ) && (t.status === undefined || t.status === 'Approved'))
+      .filter(t => {
+        if (t.deleted) return false;
+        if (t.status && t.status !== 'Approved') return false;
+
+        const isPayroll = t.id?.startsWith('TX-PAY-') || 
+          t.category === 'Penggajian Staff' || 
+          t.category === 'Payroll Staff & BPJS' || 
+          t.source === 'payroll' || 
+          t.reference_type === 'payroll';
+        if (!isPayroll) return false;
+
+        if (t.payrollMonth) {
+          return t.payrollMonth === selectedPeriodStr;
+        }
+        const txDate = t.date || t.transaction_date;
+        if (!txDate) return false;
+        return isDateInCutoffPeriod(txDate, selectedPeriodYear, selectedPeriodMonth, targetPayrollDay);
+      })
       .map(t => {
         let termLabel = 'Termin';
-        if (t.description.includes('Lunas 100%') || t.description.includes('Periode') || t.description.includes('Gaji')) {
+        if (t.description?.includes('Lunas 100%') || t.description?.includes('Periode') || t.description?.includes('Gaji')) {
           termLabel = 'Lunas 100%';
-        } else if (t.description.includes('Termin')) {
+        } else if (t.description?.includes('Termin')) {
           const match = t.description.match(/Termin \(([^)]+)\)/);
           if (match) termLabel = `Termin (${match[1]})`;
         }
         return {
           id: t.id,
-          date: t.date,
+          date: t.date || t.transaction_date || '',
           term: termLabel,
           amount: t.amount,
           description: t.description
         };
       })
       .sort((a, b) => b.id.localeCompare(a.id)); // Newest first
-  }, [transactions]);
+  }, [transactions, selectedPeriodStr, selectedPeriodYear, selectedPeriodMonth, targetPayrollDay]);
 
   // States for dynamic custom payment builder form in the tab
   const [selectedStaffsForPay, setSelectedStaffsForPay] = useState<string[]>([]);
@@ -516,36 +583,76 @@ export default function PayrollTab({
     }
 
     const termLabelOfPayment = payMode === 'full' ? 'Lunas 100%' : `Termin (${payPercentValue}%)`;
-    // Record dynamic transaction entry
     const txId = `TX-PAY-${Date.now()}`;
+    const staffBreakdownList: any[] = [];
+    selectedStaffsForPay.forEach(nik => {
+      const s = staffs.find(x => x.nik === nik);
+      if (!s) return;
+      const thp = getStaffNetSalary(s);
+      const thpTotal = thp + (s.lastMonthUnpaid || 0);
+      const alreadyPaid = staffPaidAmounts[nik] || 0;
+      const unpaid = Math.max(0, thpTotal - alreadyPaid);
+      if (unpaid <= 0) return;
+
+      let payAmount = 0;
+      if (payMode === 'percent') {
+        const calculateAmount = Math.round(thpTotal * (payPercentValue / 100));
+        payAmount = Math.min(unpaid, calculateAmount);
+      } else if (payMode === 'full') {
+        payAmount = unpaid;
+      } else if (payMode === 'custom') {
+        payAmount = Math.min(unpaid, customNominalValue);
+      }
+
+      if (payAmount > 0) {
+        staffBreakdownList.push({
+          nik: s.nik,
+          name: s.name,
+          amount: payAmount,
+          termin: termLabelOfPayment
+        });
+      }
+    });
+
     const newTx = {
       id: txId,
       date: new Date().toISOString().split('T')[0],
       category: 'Penggajian Staff',
-      description: `[Pencairan Gaji] Pembayaran Gaji - ${termLabelOfPayment} untuk ${paymentDetailsList.length} karyawan. Rincian: ${paymentDetailsList.join(', ')}`,
+      description: `[Pencairan Gaji] Pembayaran Gaji - ${termLabelOfPayment} untuk ${paymentDetailsList.length} karyawan. Periode ${INDO_MONTHS[selectedPeriodMonth]} ${selectedPeriodYear}. Rincian: ${paymentDetailsList.join(', ')}`,
       amount: totalDisbursed,
-      type: 'Expense' as 'Expense',
+      type: 'Expense' as const,
       source: 'payroll' as const,
       reference_type: 'payroll',
+      payrollMonth: selectedPeriodStr,
+      staffBreakdown: staffBreakdownList,
       category_id: 'Penggajian Staff',
       sourceOrRecipient: `${paymentDetailsList.length} Orang Staff`,
-      status: 'Approved' as 'Approved',
+      status: 'Approved' as const,
       approvedBy: `${currentRole} Operator`
     };
 
     try {
       await onAddTransaction(newTx);
       
-      // Update each staff document in Firestore with their new cumulative paid amount
+      const staffUpdates: Staff[] = [];
       for (const nik of selectedStaffsForPay) {
         const s = staffs.find(x => x.nik === nik);
         if (!s) continue;
         const nextPaid = updatedPaidMap[nik];
-        if (nextPaid !== undefined && nextPaid !== (s.paidAmount || 0)) {
-          await onUpdateStaff({
+        if (nextPaid !== undefined) {
+          staffUpdates.push({
             ...s,
-            paidAmount: nextPaid
+            paidAmount: nextPaid,
+            lastPayrollMonth: selectedPeriodStr
           });
+        }
+      }
+
+      if (onBatchUpdateStaff) {
+        await onBatchUpdateStaff(staffUpdates);
+      } else {
+        for (const st of staffUpdates) {
+          await onUpdateStaff(st);
         }
       }
 
@@ -560,15 +667,19 @@ export default function PayrollTab({
 
   const executeResetPayments = async () => {
     try {
-      const resetTargets = staffs.filter(s => s.paidAmount && s.paidAmount > 0);
-      for (const s of staffs) {
-        if (s.paidAmount && s.paidAmount > 0) {
-          await onUpdateStaff({
-            ...s,
-            paidAmount: 0
-          });
+      const resetTargets = staffs.map(s => ({
+        ...s,
+        paidAmount: 0
+      }));
+
+      if (onBatchUpdateStaff) {
+        await onBatchUpdateStaff(resetTargets);
+      } else {
+        for (const s of resetTargets) {
+          await onUpdateStaff(s);
         }
       }
+
       if (onLogAudit) {
         await onLogAudit(
           `Menyetel Ulang Rekapitulasi Pembayaran Gaji & Termin Bulanan Karyawan (Pengurangan Seluruh Cicilan Terbayar ke 0%)`,
@@ -577,6 +688,7 @@ export default function PayrollTab({
           ''
         );
       }
+      setShowResetConfirm(false);
       alert('Rekapitulasi pembayaran gaji berhasil disetel ulang ke 0%!');
     } catch (err) {
       console.error(err);
@@ -698,6 +810,75 @@ export default function PayrollTab({
             </button>
           </div>
         )}
+      </div>
+
+      {/* Month & Year Period Navigator */}
+      <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-3">
+          <div className="bg-[#0c2340] text-white p-2 rounded-lg">
+            <Calendar className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm">
+              Periode Penggajian: {INDO_MONTHS[selectedPeriodMonth]} {selectedPeriodYear}
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Rentang Siklus Cut-Off: <span className="font-semibold text-slate-700">{cutoffPeriodInfo.formattedRange}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Quick Month Control Navigator */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 p-1 rounded">
+            <button
+              onClick={handlePrevMonth}
+              className="p-1 border border-slate-300 rounded bg-white hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
+              title="Bulan Sebelumnya"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <div className="flex gap-1">
+              <select
+                value={selectedPeriodMonth}
+                onChange={(e) => setSelectedPeriodMonth(Number(e.target.value))}
+                className="text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded px-2 py-1 outline-none focus:border-[#0c2340]"
+              >
+                {INDO_MONTHS.map((m, idx) => (
+                  <option key={idx} value={idx}>{m}</option>
+                ))}
+              </select>
+
+              <select
+                value={selectedPeriodYear}
+                onChange={(e) => setSelectedPeriodYear(Number(e.target.value))}
+                className="text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded px-2 py-1 outline-none focus:border-[#0c2340]"
+              >
+                {[2025, 2026, 2027, 2028].map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              onClick={handleNextMonth}
+              className="p-1 border border-slate-300 rounded bg-white hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
+              title="Bulan Berikutnya"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {(selectedPeriodYear !== initialActiveCycle.year || selectedPeriodMonth !== initialActiveCycle.month) && (
+            <button
+              onClick={handleResetToCurrentCycle}
+              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-semibold cursor-pointer transition-colors"
+            >
+              Bulan Berjalan
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Financial aggregate metrics dashboard */}
@@ -1733,10 +1914,7 @@ export default function PayrollTab({
               </button>
               <button
                 type="button"
-                onClick={async () => {
-                  setShowResetConfirm(false);
-                  // fallback reset
-                }}
+                onClick={executeResetPayments}
                 className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors"
               >
                 Ya, Setel Ulang Gaji

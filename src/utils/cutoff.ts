@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { InstitutionalProfile } from '../types';
+import { InstitutionalProfile, Staff, Transaction } from '../types';
 
 export const INDO_MONTHS = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -201,3 +201,99 @@ export function getNextPayrollDate(cutoffDay = 7, refDate = new Date()): string 
 
   return `${actualDay} ${INDO_MONTHS[payMonth]} ${payYear}`;
 }
+
+/**
+ * Escapes regex special characters
+ */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Robustly calculates the total amount paid to a staff member in a specific period (Year & 0-indexed Month).
+ * Evaluates both structured transaction `staffBreakdown` and parses legacy transaction descriptions (e.g. "Name (+Rp 2.920.785 -> Sisa: ...)").
+ * Acts as the immutable single source of truth based on the transactions ledger.
+ */
+export function getStaffPaidAmountInPeriod(
+  staff: Staff,
+  targetYear: number,
+  targetMonth: number, // 0-indexed
+  transactions: Transaction[] = [],
+  cutoffDay = 7
+): number {
+  if (!staff || !transactions || transactions.length === 0) return 0;
+
+  const targetMonthStr = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}`;
+  let totalPaid = 0;
+
+  // Filter approved payroll transactions in this period
+  const periodTxs = transactions.filter(t => {
+    if (t.deleted) return false;
+    if (t.status && t.status !== 'Approved') return false;
+
+    const isPayroll = t.id?.startsWith('TX-PAY-') ||
+      t.category === 'Penggajian Staff' ||
+      t.category === 'Payroll Staff & BPJS' ||
+      t.source === 'payroll' ||
+      t.reference_type === 'payroll';
+    if (!isPayroll) return false;
+
+    if (t.payrollMonth) {
+      return t.payrollMonth === targetMonthStr;
+    }
+    const txDate = t.date || t.transaction_date;
+    if (!txDate) return false;
+    return isDateInCutoffPeriod(txDate, targetYear, targetMonth, cutoffDay);
+  });
+
+  for (const t of periodTxs) {
+    // 1. Check structured staffBreakdown
+    if (Array.isArray(t.staffBreakdown) && t.staffBreakdown.length > 0) {
+      const match = t.staffBreakdown.find(p =>
+        (p.nik && staff.nik && p.nik.toLowerCase().trim() === staff.nik.toLowerCase().trim()) ||
+        (p.name && staff.name && p.name.toLowerCase().trim() === staff.name.toLowerCase().trim())
+      );
+      if (match && typeof match.amount === 'number') {
+        totalPaid += match.amount;
+        continue;
+      }
+    }
+
+    // 2. Parse description text for legacy or unstructured entries
+    const desc = t.description || '';
+    if (desc) {
+      const escapedName = staff.name ? escapeRegex(staff.name.trim()) : '';
+      const escapedNik = staff.nik ? escapeRegex(staff.nik.trim()) : '';
+      
+      const searchTerms = [escapedName, escapedNik].filter(Boolean).join('|');
+      if (searchTerms) {
+        const pattern = new RegExp(
+          `(?:${searchTerms})\\s*\\(\\+Rp\\s*([\\d.,]+)`,
+          'i'
+        );
+        const match = desc.match(pattern);
+        if (match && match[1]) {
+          const cleanedStr = match[1].replace(/\./g, '').replace(/,/g, '');
+          const nominal = parseInt(cleanedStr, 10);
+          if (!isNaN(nominal) && nominal > 0) {
+            totalPaid += nominal;
+            continue;
+          }
+        }
+      }
+
+      // If description matches staff name and indicates single employee disbursement
+      if (staff.name && desc.toLowerCase().includes(staff.name.toLowerCase()) && t.amount > 0 && desc.includes('untuk 1 karyawan')) {
+        totalPaid += t.amount;
+      }
+    }
+  }
+
+  // Fallback: If this period matches the staff's current active cycle and staff has paidAmount recorded directly
+  if (staff.lastPayrollMonth === targetMonthStr && (staff.paidAmount || 0) > totalPaid) {
+    return staff.paidAmount || 0;
+  }
+
+  return totalPaid;
+}
+

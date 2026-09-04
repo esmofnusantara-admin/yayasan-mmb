@@ -1941,7 +1941,9 @@ if (!res.ok) {
 
   const handleUpdateStaff = async (s: Staff) => {
     try {
+      const existing = staffs.find(x => x.nik === s.nik || (s.id && x.id === s.id));
       const payload = {
+        ...(existing || {}),
         ...s,
         updatedAt: new Date().toISOString(),
         deleted: false
@@ -1952,7 +1954,29 @@ if (!res.ok) {
         body: JSON.stringify(payload)
       });
       await logAudit(`Melakukan Perubahan Kontrak Kerja Kepegawaian NIK: ${s.nik}`, 'Staf & HR');
-      loadCollection('staff', INITIAL_STAFF, setStaffs);
+      await loadCollection('staff', INITIAL_STAFF, setStaffs);
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
+  const handleBatchUpdateStaff = async (staffList: Staff[]) => {
+    try {
+      for (const s of staffList) {
+        const existing = staffs.find(x => x.nik === s.nik || (s.id && x.id === s.id));
+        const payload = {
+          ...(existing || {}),
+          ...s,
+          updatedAt: new Date().toISOString(),
+          deleted: false
+        };
+        await fetch(`/api/data/staff/${s.nik}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+      await loadCollection('staff', INITIAL_STAFF, setStaffs);
     } catch (e: any) {
       console.error(e);
     }
@@ -3010,6 +3034,7 @@ if (!res.ok) {
               <PayrollTab 
                 staffs={staffs}
                 onUpdateStaff={handleUpdateStaff}
+                onBatchUpdateStaff={handleBatchUpdateStaff}
                 currentRole={currentRole}
                 onPostApproval={handlePostApproval}
                 transactions={transactions}

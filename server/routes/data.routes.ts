@@ -78,6 +78,14 @@ router.post('/:colName/:id', authenticateToken, checkCollectionPermission, async
   const payload = req.body;
   try {
     const cleaned = cleanObjectForFirestore(payload);
+    if (colName === 'staff') {
+      const existing = await dbDriver.getDoc(colName, id);
+      if (existing) {
+        await dbDriver.setDoc(colName, id, { ...existing, ...cleaned });
+        res.json({ success: true });
+        return;
+      }
+    }
     await dbDriver.setDoc(colName, id, cleaned);
     res.json({ success: true });
   } catch (error: any) {

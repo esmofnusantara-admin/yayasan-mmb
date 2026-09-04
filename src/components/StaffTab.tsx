@@ -204,6 +204,7 @@ export default function StaffTab({
     }
 
     const compiled: Staff = {
+      ...(editingStaff || {}),
       nik: sNik,
       name: sName,
       phone: sPhone,
@@ -229,7 +230,11 @@ export default function StaffTab({
       bpjsDeduction: editingStaff ? editingStaff.bpjsDeduction : 100000,
       kasbonDeduction: editingStaff ? editingStaff.kasbonDeduction : 0,
       otherDeduction: editingStaff ? editingStaff.otherDeduction : 0,
-      customFields: editingStaff ? editingStaff.customFields || [] : []
+      customFields: editingStaff ? editingStaff.customFields || [] : [],
+      // Preserve critical payroll and period history tracking fields
+      paidAmount: editingStaff ? editingStaff.paidAmount : 0,
+      lastPayrollMonth: editingStaff ? editingStaff.lastPayrollMonth : undefined,
+      lastMonthUnpaid: editingStaff ? editingStaff.lastMonthUnpaid : 0
     };
 
     if (editingStaff) {

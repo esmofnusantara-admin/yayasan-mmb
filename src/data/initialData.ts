@@ -141,6 +141,16 @@ export const INITIAL_PROFILE: InstitutionalProfile = {
     "Kelompok Doa",
     "Komunitas Khusus"
   ],
+  salaryComponents: [
+    { id: 'allowancePosition', name: 'Tunjangan Jabatan', type: 'allowance', amount: 0 },
+    { id: 'allowanceHousing', name: 'Tunjangan Perumahan', type: 'allowance', amount: 0 },
+    { id: 'allowanceTransport', name: 'Tunjangan Transport', type: 'allowance', amount: 0 },
+    { id: 'allowanceComm', name: 'Tunjangan Komunikasi', type: 'allowance', amount: 0 },
+    { id: 'bpjsAllowance', name: 'Premi BPJS Allowance', type: 'allowance', amount: 0 },
+    { id: 'taxDeduction', name: 'Pajak PPH21 Bruto', type: 'deduction', amount: 0 },
+    { id: 'bpjsDeduction', name: 'Iuran BPJS Karyawan', type: 'deduction', amount: 0 },
+    { id: 'kasbonDeduction', name: 'Kasbon / Angsuran', type: 'deduction', amount: 0 }
+  ]
 };
 
 export const INITIAL_MEMBERS: Member[] = [

@@ -53,15 +53,15 @@ interface PayrollTabProps {
   onUpdateProfile?: (p: InstitutionalProfile) => void;
 }
 
-const DEFAULT_PUBLIC_FIELDS = [
-  { id: 'allowancePosition', name: 'Tunjangan Jabatan', type: 'allowance', property: 'allowancePosition' },
-  { id: 'allowanceHousing', name: 'Tunjangan Perumahan', type: 'allowance', property: 'allowanceHousing' },
-  { id: 'allowanceTransport', name: 'Tunjangan Transport', type: 'allowance', property: 'allowanceTransport' },
-  { id: 'allowanceComm', name: 'Tunjangan Komunikasi', type: 'allowance', property: 'allowanceComm' },
-  { id: 'bpjsAllowance', name: 'Premi BPJS Allowance', type: 'allowance', property: 'bpjsAllowance' },
-  { id: 'taxDeduction', name: 'Pajak PPH21 Bruto', type: 'deduction', property: 'taxDeduction' },
-  { id: 'bpjsDeduction', name: 'Iuran BPJS Karyawan', type: 'deduction', property: 'bpjsDeduction' },
-  { id: 'kasbonDeduction', name: 'Kasbon / Angsuran', type: 'deduction', property: 'kasbonDeduction' },
+export const DEFAULT_MASTER_SALARY_COMPONENTS: SalaryComponent[] = [
+  { id: 'allowancePosition', name: 'Tunjangan Jabatan', type: 'allowance', amount: 0 },
+  { id: 'allowanceHousing', name: 'Tunjangan Perumahan', type: 'allowance', amount: 0 },
+  { id: 'allowanceTransport', name: 'Tunjangan Transport', type: 'allowance', amount: 0 },
+  { id: 'allowanceComm', name: 'Tunjangan Komunikasi', type: 'allowance', amount: 0 },
+  { id: 'bpjsAllowance', name: 'Premi BPJS Allowance', type: 'allowance', amount: 0 },
+  { id: 'taxDeduction', name: 'Pajak PPH21 Bruto', type: 'deduction', amount: 0 },
+  { id: 'bpjsDeduction', name: 'Iuran BPJS Karyawan', type: 'deduction', amount: 0 },
+  { id: 'kasbonDeduction', name: 'Kasbon / Angsuran', type: 'deduction', amount: 0 },
 ];
 
 export default function PayrollTab({
@@ -90,7 +90,7 @@ export default function PayrollTab({
         // ignore
       }
     }
-    return DEFAULT_PUBLIC_FIELDS;
+    return DEFAULT_MASTER_SALARY_COMPONENTS;
   });
 
   const savePublicFields = (newFields: any[]) => {
@@ -98,24 +98,48 @@ export default function PayrollTab({
     localStorage.setItem('siad_public_payroll_fields', JSON.stringify(newFields));
   };
 
-  // Helper to retrieve salary configuration from the salaries collection, or fallback to default
+  // Master salary components from profile variable system
+  const masterSalaryComponents = useMemo<SalaryComponent[]>(() => {
+    if (profile?.salaryComponents && profile.salaryComponents.length > 0) {
+      return profile.salaryComponents;
+    }
+    return DEFAULT_MASTER_SALARY_COMPONENTS;
+  }, [profile?.salaryComponents]);
+
+  // Helper to retrieve salary configuration from the salaries collection, ensuring all master components are included
   const getStaffSalaryConfig = (nik: string, baseFromStaff: number): StaffSalary => {
     const found = salaries.find(sal => sal.id === nik);
-    if (found) {
-      return found;
-    }
+    const existingComponents = found ? [...found.components] : [];
+    
+    const existingMap = new Map<string, SalaryComponent>();
+    existingComponents.forEach(c => {
+      existingMap.set(c.id, c);
+      existingMap.set(c.name.toLowerCase().trim(), c);
+    });
+
+    // 1. Mandatory Master Components: guaranteed to be present for all staff
+    const mergedMasterComps: SalaryComponent[] = masterSalaryComponents.map(m => {
+      const match = existingMap.get(m.id) || existingMap.get(m.name.toLowerCase().trim());
+      return {
+        id: m.id,
+        name: m.name,
+        type: m.type,
+        amount: match ? match.amount : (m.amount || 0)
+      };
+    });
+
+    const masterIdSet = new Set(masterSalaryComponents.map(m => m.id));
+    const masterNameSet = new Set(masterSalaryComponents.map(m => m.name.toLowerCase().trim()));
+
+    // 2. Custom Manual Components: individual components not in the master variable list
+    const customComps = existingComponents.filter(c => 
+      !masterIdSet.has(c.id) && !masterNameSet.has(c.name.toLowerCase().trim())
+    );
+
     return {
       id: nik,
-      salaryBase: baseFromStaff,
-      components: [
-        { id: 'allowancePosition', name: 'Tunjangan Jabatan', amount: 0, type: 'allowance' },
-        { id: 'allowanceHousing', name: 'Tunjangan Perumahan', amount: 0, type: 'allowance' },
-        { id: 'allowanceTransport', name: 'Tunjangan Transport', amount: 0, type: 'allowance' },
-        { id: 'allowanceComm', name: 'Tunjangan Komunikasi', amount: 0, type: 'allowance' },
-        { id: 'bpjsAllowance', name: 'Premi BPJS Allowance', amount: 0, type: 'allowance' },
-        { id: 'taxDeduction', name: 'Pajak PPH21 Bruto', amount: 0, type: 'deduction' },
-        { id: 'bpjsDeduction', name: 'Iuran BPJS Karyawan', amount: 0, type: 'deduction' }
-      ]
+      salaryBase: found ? found.salaryBase : baseFromStaff,
+      components: [...mergedMasterComps, ...customComps]
     };
   };
 
@@ -1564,35 +1588,54 @@ export default function PayrollTab({
                         <p className="text-xs text-slate-500 italic py-2 text-center bg-white rounded border border-slate-200">Tidak ada tunjangan aktif</p>
                       ) : (
                         <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                          {editingSalary.components.filter(c => c.type === 'allowance').map(field => (
-                            <div key={field.id} className="bg-white p-2.5 rounded border border-slate-200 flex flex-col gap-1.5">
-                              <div className="flex justify-between items-center">
-                                <span className="font-semibold text-slate-800 text-xs">{field.name}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveCustomField(field.id)}
-                                  className="text-xs text-rose-700 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-2 py-0.5 rounded transition-colors font-semibold flex items-center gap-0.5 cursor-pointer border border-rose-200"
-                                >
-                                  <Trash2 className="w-3 h-3" /> Hapus
-                                </button>
+                          {editingSalary.components.filter(c => c.type === 'allowance').map(field => {
+                            const isMaster = masterSalaryComponents.some(m => m.id === field.id || m.name.toLowerCase().trim() === field.name.toLowerCase().trim());
+                            return (
+                              <div key={field.id} className="bg-white p-2.5 rounded border border-slate-200 flex flex-col gap-1.5 shadow-2xs">
+                                <div className="flex justify-between items-center">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-semibold text-slate-800 text-xs">{field.name}</span>
+                                    {isMaster ? (
+                                      <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200 flex items-center gap-0.5" title="Item wajib dari Master Variabel Sistem">
+                                        <Lock className="w-2.5 h-2.5 text-slate-400" /> Master
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.2 rounded border border-sky-200">
+                                        Kustom
+                                      </span>
+                                    )}
+                                  </div>
+                                  {!isMaster ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveCustomField(field.id)}
+                                      className="text-xs text-rose-700 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-2 py-0.5 rounded transition-colors font-semibold flex items-center gap-0.5 cursor-pointer border border-rose-200"
+                                      title="Hapus komponen manual ini"
+                                    >
+                                      <Trash2 className="w-3 h-3" /> Hapus
+                                    </button>
+                                  ) : (
+                                    <span className="text-[10px] text-slate-400 italic">Item Wajib</span>
+                                  )}
+                                </div>
+                                <div className="relative">
+                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs">Rp</span>
+                                  <input 
+                                    type="number" 
+                                    value={field.amount || ''}
+                                    onChange={(e) => {
+                                      const val = Number(e.target.value);
+                                      const updatedComps = editingSalary.components.map(c => 
+                                        c.id === field.id ? { ...c, amount: val } : c
+                                      );
+                                      setEditingSalary({ ...editingSalary, components: updatedComps });
+                                    }}
+                                    className="w-full border border-slate-300 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] outline-none rounded pl-8 pr-3 py-1 font-semibold text-slate-800 text-xs text-right bg-white"
+                                  />
+                                </div>
                               </div>
-                              <div className="relative">
-                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs">Rp</span>
-                                <input 
-                                  type="number" 
-                                  value={field.amount || ''}
-                                  onChange={(e) => {
-                                    const val = Number(e.target.value);
-                                    const updatedComps = editingSalary.components.map(c => 
-                                      c.id === field.id ? { ...c, amount: val } : c
-                                    );
-                                    setEditingSalary({ ...editingSalary, components: updatedComps });
-                                  }}
-                                  className="w-full border border-slate-300 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] outline-none rounded pl-8 pr-3 py-1 font-semibold text-slate-800 text-xs text-right bg-white"
-                                />
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -1611,35 +1654,54 @@ export default function PayrollTab({
                       <p className="text-xs text-slate-500 italic py-2 text-center bg-white rounded border border-slate-200">Tidak ada potongan aktif</p>
                     ) : (
                       <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1">
-                        {editingSalary.components.filter(c => c.type === 'deduction').map(field => (
-                          <div key={field.id} className="bg-white p-2.5 rounded border border-slate-200 flex flex-col gap-1.5">
-                            <div className="flex justify-between items-center">
-                              <span className="font-semibold text-slate-800 text-xs">{field.name}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveCustomField(field.id)}
-                                className="text-xs text-rose-700 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-2 py-0.5 rounded transition-colors font-semibold flex items-center gap-0.5 cursor-pointer border border-rose-200"
-                              >
-                                <Trash2 className="w-3 h-3" /> Hapus
-                              </button>
+                        {editingSalary.components.filter(c => c.type === 'deduction').map(field => {
+                          const isMaster = masterSalaryComponents.some(m => m.id === field.id || m.name.toLowerCase().trim() === field.name.toLowerCase().trim());
+                          return (
+                            <div key={field.id} className="bg-white p-2.5 rounded border border-slate-200 flex flex-col gap-1.5 shadow-2xs">
+                              <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-semibold text-slate-800 text-xs">{field.name}</span>
+                                  {isMaster ? (
+                                    <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200 flex items-center gap-0.5" title="Item wajib dari Master Variabel Sistem">
+                                      <Lock className="w-2.5 h-2.5 text-slate-400" /> Master
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.2 rounded border border-sky-200">
+                                      Kustom
+                                    </span>
+                                  )}
+                                </div>
+                                {!isMaster ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveCustomField(field.id)}
+                                    className="text-xs text-rose-700 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-2 py-0.5 rounded transition-colors font-semibold flex items-center gap-0.5 cursor-pointer border border-rose-200"
+                                    title="Hapus komponen manual ini"
+                                  >
+                                    <Trash2 className="w-3 h-3" /> Hapus
+                                  </button>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 italic">Item Wajib</span>
+                                )}
+                              </div>
+                              <div className="relative">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs">Rp</span>
+                                <input 
+                                  type="number" 
+                                  value={field.amount || ''}
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value);
+                                    const updatedComps = editingSalary.components.map(c => 
+                                      c.id === field.id ? { ...c, amount: val } : c
+                                    );
+                                    setEditingSalary({ ...editingSalary, components: updatedComps });
+                                  }}
+                                  className="w-full border border-slate-300 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] outline-none rounded pl-8 pr-3 py-1 font-semibold text-rose-800 text-xs text-right bg-white"
+                                />
+                              </div>
                             </div>
-                            <div className="relative">
-                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs">Rp</span>
-                              <input 
-                                type="number" 
-                                value={field.amount || ''}
-                                onChange={(e) => {
-                                  const val = Number(e.target.value);
-                                  const updatedComps = editingSalary.components.map(c => 
-                                    c.id === field.id ? { ...c, amount: val } : c
-                                  );
-                                  setEditingSalary({ ...editingSalary, components: updatedComps });
-                                }}
-                                className="w-full border border-slate-300 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] outline-none rounded pl-8 pr-3 py-1 font-semibold text-rose-800 text-xs text-right bg-white"
-                              />
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>

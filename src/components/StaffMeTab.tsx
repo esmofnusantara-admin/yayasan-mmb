@@ -115,58 +115,46 @@ export default function StaffMeTab({ currentUser, staffs, salaries = [], profile
     }).format(amount);
   };
 
-  // Calculations
-  const config = salaries.find(sal => sal.id === currentStaff.nik);
+  // Master salary components from profile variable system
+  const masterSalaryComponents = profile?.salaryComponents && profile.salaryComponents.length > 0 
+    ? profile.salaryComponents 
+    : DEFAULT_PUBLIC_FIELDS.map(f => ({ id: f.id, name: f.name, type: f.type as 'allowance' | 'deduction', amount: 0 }));
 
-  const salaryBase = config ? config.salaryBase : (currentStaff?.salaryBase || 0);
+  const rawConfig = salaries.find(sal => sal.id === currentStaff.nik);
+  const salaryBase = rawConfig ? rawConfig.salaryBase : (currentStaff?.salaryBase || 0);
 
-  let allowances = [];
-  let deductions = [];
+  const existingComponents = rawConfig ? [...rawConfig.components] : [];
+  const existingMap = new Map<string, { id: string; name: string; amount: number; type: 'allowance' | 'deduction' }>();
+  existingComponents.forEach(c => {
+    existingMap.set(c.id, c);
+    existingMap.set(c.name.toLowerCase().trim(), c);
+  });
 
-  if (config) {
-    // If we have a custom slip/payroll configuration from the salaries collection (edited by Admin/Ketua/Bendahara)
-    allowances = config.components
-      .filter(c => c.type === 'allowance')
-      .map(c => ({ name: c.name, amount: c.amount }));
-    
-    deductions = config.components
-      .filter(c => c.type === 'deduction')
-      .map(c => ({ name: c.name, amount: c.amount }));
-  } else {
-    // Standard profile fallback
-    allowances = [
-      { name: 'Tunjangan Jabatan', amount: currentStaff?.allowancePosition || 0 },
-      { name: 'Tunjangan Perumahan', amount: currentStaff?.allowanceHousing || 0 },
-      { name: 'Tunjangan Transportasi', amount: currentStaff?.allowanceTransport || 0 },
-      { name: 'Tunjangan Komunikasi', amount: currentStaff?.allowanceComm || 0 },
-      { name: 'BPJS Di tanggung Yayasan', amount: currentStaff?.bpjsAllowance || 0 },
-      { name: 'Bonus Tambahan', amount: currentStaff?.bonus || 0 },
-      { name: 'Tunjangan Hari Raya (THR)', amount: currentStaff?.thr || 0 }
-    ];
+  const mergedMasterComps = masterSalaryComponents.map(m => {
+    const match = existingMap.get(m.id) || existingMap.get(m.name.toLowerCase().trim());
+    return {
+      id: m.id,
+      name: m.name,
+      type: m.type,
+      amount: match ? match.amount : (m.amount || 0)
+    };
+  });
 
-    if (currentStaff?.customFields) {
-      currentStaff.customFields.forEach(f => {
-        if (f.type === 'allowance') {
-          allowances.push({ name: f.name, amount: f.amount });
-        }
-      });
-    }
+  const masterIdSet = new Set(masterSalaryComponents.map(m => m.id));
+  const masterNameSet = new Set(masterSalaryComponents.map(m => m.name.toLowerCase().trim()));
+  const customComps = existingComponents.filter(c => 
+    !masterIdSet.has(c.id) && !masterNameSet.has(c.name.toLowerCase().trim())
+  );
 
-    deductions = [
-      { name: 'Potongan PPh 21 (Pajak)', amount: currentStaff?.taxDeduction || 0 },
-      { name: 'Potongan BPJS Ketenagakerjaan/Kesehatan', amount: currentStaff?.bpjsDeduction || 0 },
-      { name: 'Potongan Kasbon / Pinjaman', amount: currentStaff?.kasbonDeduction || 0 },
-      { name: 'Potongan Lain-lain', amount: currentStaff?.otherDeduction || 0 }
-    ];
+  const allComponents = [...mergedMasterComps, ...customComps];
 
-    if (currentStaff?.customFields) {
-      currentStaff.customFields.forEach(f => {
-        if (f.type === 'deduction') {
-          deductions.push({ name: f.name, amount: f.amount });
-        }
-      });
-    }
-  }
+  const allowances = allComponents
+    .filter(c => c.type === 'allowance')
+    .map(c => ({ name: c.name, amount: c.amount }));
+
+  const deductions = allComponents
+    .filter(c => c.type === 'deduction')
+    .map(c => ({ name: c.name, amount: c.amount }));
 
   const totalAllowances = allowances.reduce((sum, item) => sum + item.amount, 0);
   const totalDeductions = deductions.reduce((sum, item) => sum + item.amount, 0);
@@ -346,19 +334,10 @@ export default function StaffMeTab({ currentUser, staffs, salaries = [], profile
                     exportSlipToPDF(
                       currentStaff, 
                       publicFields, 
-                      config ? config : {
+                      {
                         id: currentStaff.nik,
-                        salaryBase: currentStaff.salaryBase || 0,
-                        components: [
-                          { id: 'allowancePosition', name: 'Tunjangan Jabatan', amount: currentStaff?.allowancePosition || 0, type: 'allowance' },
-                          { id: 'allowanceHousing', name: 'Tunjangan Perumahan', amount: currentStaff?.allowanceHousing || 0, type: 'allowance' },
-                          { id: 'allowanceTransport', name: 'Tunjangan Transport', amount: currentStaff?.allowanceTransport || 0, type: 'allowance' },
-                          { id: 'allowanceComm', name: 'Tunjangan Komunikasi', amount: currentStaff?.allowanceComm || 0, type: 'allowance' },
-                          { id: 'bpjsAllowance', name: 'Premi BPJS Allowance', amount: currentStaff?.bpjsAllowance || 0, type: 'allowance' },
-                          { id: 'taxDeduction', name: 'Pajak PPH21 Bruto', amount: currentStaff?.taxDeduction || 0, type: 'deduction' },
-                          { id: 'bpjsDeduction', name: 'Iuran BPJS Karyawan', amount: currentStaff?.bpjsDeduction || 0, type: 'deduction' },
-                          { id: 'kasbonDeduction', name: 'Kasbon / Angsuran', amount: currentStaff?.kasbonDeduction || 0, type: 'deduction' }
-                        ]
+                        salaryBase: salaryBase,
+                        components: allComponents
                       },
                       profile,
                       currentStaff.paidAmount || 0,

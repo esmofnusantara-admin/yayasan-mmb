@@ -45,10 +45,22 @@ import {
   Users,
   HeartHandshake,
   Briefcase,
-  CreditCard
+  CreditCard,
+  Coins
 } from 'lucide-react';
-import { InstitutionalProfile, AuditLog } from '../types';
+import { InstitutionalProfile, AuditLog, SalaryComponent } from '../types';
 import { getCutoffPeriodRange, INDO_MONTHS } from '../utils/cutoff';
+
+export const DEFAULT_MASTER_SALARY_COMPONENTS: SalaryComponent[] = [
+  { id: 'allowancePosition', name: 'Tunjangan Jabatan', type: 'allowance', amount: 0 },
+  { id: 'allowanceHousing', name: 'Tunjangan Perumahan', type: 'allowance', amount: 0 },
+  { id: 'allowanceTransport', name: 'Tunjangan Transport', type: 'allowance', amount: 0 },
+  { id: 'allowanceComm', name: 'Tunjangan Komunikasi', type: 'allowance', amount: 0 },
+  { id: 'bpjsAllowance', name: 'Premi BPJS Allowance', type: 'allowance', amount: 0 },
+  { id: 'taxDeduction', name: 'Pajak PPH21 Bruto', type: 'deduction', amount: 0 },
+  { id: 'bpjsDeduction', name: 'Iuran BPJS Karyawan', type: 'deduction', amount: 0 },
+  { id: 'kasbonDeduction', name: 'Kasbon / Angsuran', type: 'deduction', amount: 0 }
+];
 
 interface SystemTabProps {
   profile: InstitutionalProfile;
@@ -515,6 +527,7 @@ export default function SystemTab({
     "Kelompok Doa",
     "Komunitas Khusus"
   ]);
+  const [salaryComponents, setSalaryComponents] = useState<SalaryComponent[]>(profile.salaryComponents && profile.salaryComponents.length > 0 ? profile.salaryComponents : DEFAULT_MASTER_SALARY_COMPONENTS);
 
   // Temporary single input text fields for adding items
   const [newRegion, setNewRegion] = useState('');
@@ -537,6 +550,9 @@ export default function SystemTab({
   const [newPaymentMethod, setNewPaymentMethod] = useState('');
   const [newMeetingCategory, setNewMeetingCategory] = useState('');
   const [newGroupType, setNewGroupType] = useState('');
+  const [newSalaryCompName, setNewSalaryCompName] = useState('');
+  const [newSalaryCompType, setNewSalaryCompType] = useState<'allowance' | 'deduction'>('allowance');
+  const [newSalaryCompAmount, setNewSalaryCompAmount] = useState<number>(0);
 
   const lastSyncedProfileRef = React.useRef<any>(null);
 
@@ -589,7 +605,8 @@ export default function SystemTab({
         JSON.stringify(donationFrequencies) === JSON.stringify(last.donationFrequencies || []) &&
         JSON.stringify(paymentMethods) === JSON.stringify(last.paymentMethods || []) &&
         JSON.stringify(meetingCategories) === JSON.stringify(last.meetingCategories || []) &&
-        JSON.stringify(groupTypes) === JSON.stringify(last.groupTypes || []);
+        JSON.stringify(groupTypes) === JSON.stringify(last.groupTypes || []) &&
+        JSON.stringify(salaryComponents) === JSON.stringify(last.salaryComponents || DEFAULT_MASTER_SALARY_COMPONENTS);
     }
 
     // Check if the current local state matches the incoming profile prop (e.g. after a successful save)
@@ -635,7 +652,8 @@ export default function SystemTab({
       JSON.stringify(donationFrequencies) === JSON.stringify(profile.donationFrequencies || []) &&
       JSON.stringify(paymentMethods) === JSON.stringify(profile.paymentMethods || []) &&
       JSON.stringify(meetingCategories) === JSON.stringify(profile.meetingCategories || []) &&
-      JSON.stringify(groupTypes) === JSON.stringify(profile.groupTypes || []);
+      JSON.stringify(groupTypes) === JSON.stringify(profile.groupTypes || []) &&
+      JSON.stringify(salaryComponents) === JSON.stringify(profile.salaryComponents || DEFAULT_MASTER_SALARY_COMPONENTS);
 
     if (isFirstLoad || isSameAsLastSynced) {
       setName(profile.name);
@@ -754,12 +772,41 @@ export default function SystemTab({
         "Kelompok Doa",
         "Komunitas Khusus"
       ]);
+      setSalaryComponents(profile.salaryComponents && profile.salaryComponents.length > 0 ? profile.salaryComponents : DEFAULT_MASTER_SALARY_COMPONENTS);
       
       lastSyncedProfileRef.current = profile;
     } else if (matchesCurrentProfileProp) {
       lastSyncedProfileRef.current = profile;
     }
   }, [profile]);
+
+  const handleAddMasterSalaryComp = () => {
+    if (!newSalaryCompName.trim()) {
+      alert('Nama item gaji wajib diisi!');
+      return;
+    }
+    const exists = salaryComponents.some(c => c.name.toLowerCase() === newSalaryCompName.trim().toLowerCase());
+    if (exists) {
+      alert(`Item gaji "${newSalaryCompName.trim()}" sudah ada dalam daftar master variabel!`);
+      return;
+    }
+    const newComp: SalaryComponent = {
+      id: `MASTER-${Date.now()}`,
+      name: newSalaryCompName.trim(),
+      type: newSalaryCompType,
+      amount: Number(newSalaryCompAmount) || 0
+    };
+    setSalaryComponents(prev => [...prev, newComp]);
+    setNewSalaryCompName('');
+    setNewSalaryCompAmount(0);
+  };
+
+  const handleRemoveMasterSalaryComp = (id: string, name: string) => {
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus item master "${name}" dari Variabel Sistem?\n\nCatatan: Item ini tidak lagi otomatis menjadi item wajib di slip gaji staf.`)) {
+      return;
+    }
+    setSalaryComponents(prev => prev.filter(c => c.id !== id));
+  };
 
   // Operators & Checklist Database States
   const [operators, setOperators] = useState<any[]>([]);
@@ -933,7 +980,8 @@ export default function SystemTab({
       donationFrequencies,
       paymentMethods,
       meetingCategories,
-      groupTypes
+      groupTypes,
+      salaryComponents
     };
     onUpdateProfile(updated);
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -4071,7 +4119,7 @@ export default function SystemTab({
                       }}
                     />
                     <button 
-                      type="button"
+                      type="button" 
                       onClick={() => {
                         if (newMeetingCategory.trim() && !meetingCategories.includes(newMeetingCategory.trim())) {
                           setMeetingCategories(prev => [...prev, newMeetingCategory.trim()]);
@@ -4082,6 +4130,116 @@ export default function SystemTab({
                     >
                       +
                     </button>
+                  </div>
+                </div>
+
+                {/* Master Item Gaji (Tunjangan & Potongan Wajib) */}
+                <div className="md:col-span-2 border border-slate-200 p-4 rounded-lg bg-white flex flex-col justify-between space-y-4 shadow-2xs">
+                  <div>
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2">
+                      <div>
+                        <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                          <Coins className="w-4 h-4 text-emerald-600" />
+                          Master Item Gaji (Tunjangan & Potongan Standar / Wajib) ({salaryComponents.length})
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Semua item yang terdaftar di sini adalah <strong>komponen standar wajib</strong> yang otomatis tersedia di seluruh staf dan <strong>tidak dapat dihapus</strong> pada formulir gaji individu staf. Komponen insidental/khusus staf tertentu tetap dapat ditambahkan manual di menu Payroll.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-3">
+                      {/* Allowances List */}
+                      <div className="bg-emerald-50/50 border border-emerald-200/70 rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between border-b border-emerald-200/70 pb-1.5">
+                          <span className="font-bold text-emerald-900 text-xs flex items-center gap-1">
+                            ➕ Tunjangan / Tambahan Standar ({salaryComponents.filter(c => c.type === 'allowance').length})
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1">
+                          {salaryComponents.filter(c => c.type === 'allowance').map((comp) => (
+                            <span key={comp.id} className="inline-flex items-center gap-1 bg-white text-emerald-950 px-2.5 py-1 rounded text-xs font-semibold border border-emerald-300 shadow-2xs">
+                              {comp.name}
+                              <button 
+                                type="button"
+                                onClick={() => handleRemoveMasterSalaryComp(comp.id, comp.name)}
+                                className="hover:text-rose-700 font-bold ml-1 text-xs cursor-pointer focus:outline-none"
+                                title="Hapus dari master variabel"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Deductions List */}
+                      <div className="bg-rose-50/50 border border-rose-200/70 rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between border-b border-rose-200/70 pb-1.5">
+                          <span className="font-bold text-rose-900 text-xs flex items-center gap-1">
+                            ➖ Potongan / Kewajiban Standar ({salaryComponents.filter(c => c.type === 'deduction').length})
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1">
+                          {salaryComponents.filter(c => c.type === 'deduction').map((comp) => (
+                            <span key={comp.id} className="inline-flex items-center gap-1 bg-white text-rose-950 px-2.5 py-1 rounded text-xs font-semibold border border-rose-300 shadow-2xs">
+                              {comp.name}
+                              <button 
+                                type="button"
+                                onClick={() => handleRemoveMasterSalaryComp(comp.id, comp.name)}
+                                className="hover:text-rose-700 font-bold ml-1 text-xs cursor-pointer focus:outline-none"
+                                title="Hapus dari master variabel"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Add New Master Component Form */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2.5">
+                    <span className="font-bold text-slate-800 text-xs block">
+                      + Tambah Item Gaji Baru ke Master Variabel:
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                      <div className="sm:col-span-6">
+                        <input 
+                          type="text"
+                          value={newSalaryCompName}
+                          onChange={(e) => setNewSalaryCompName(e.target.value)}
+                          placeholder="Nama item (misal: Tunjangan Anak, Potongan Koperasi)"
+                          className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddMasterSalaryComp();
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="sm:col-span-4">
+                        <select 
+                          value={newSalaryCompType}
+                          onChange={(e) => setNewSalaryCompType(e.target.value as any)}
+                          className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
+                        >
+                          <option value="allowance">Tunjangan / Tambahan (+)</option>
+                          <option value="deduction">Potongan / Kewajiban (-)</option>
+                        </select>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <button 
+                          type="button"
+                          onClick={handleAddMasterSalaryComp}
+                          className="w-full py-1 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded font-bold text-xs cursor-pointer transition-colors"
+                        >
+                          + Tambah
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

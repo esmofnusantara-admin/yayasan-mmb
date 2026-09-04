@@ -413,6 +413,7 @@ export interface InstitutionalProfile {
   paymentMethods?: string[];
   meetingCategories?: string[];
   groupTypes?: string[];
+  salaryComponents?: SalaryComponent[];
 }
 
 export interface AuditLog {

@@ -165,7 +165,7 @@ export default function PartnersTab({
 
   // Commitment
   const [pAmount, setPAmount] = useState<number>(500000);
-  const [pFreq, setPFreq] = useState<'Bulanan' | 'Tahunan' | 'Satu Kali'>('Bulanan');
+  const [pFreq, setPFreq] = useState<string>('Bulanan');
   const [pStartDate, setPStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [pEndDate, setPEndDate] = useState('2027-12-31');
   const [pDonationDay, setPDonationDay] = useState<number>(10);
@@ -2392,12 +2392,22 @@ export default function PartnersTab({
                   <label className="text-slate-700 font-semibold block mb-1">Frekuensi Pembayaran :</label>
                   <select
                     value={pFreq}
-                    onChange={(e) => setPFreq(e.target.value as any)}
+                    onChange={(e) => setPFreq(e.target.value)}
                     className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   >
-                    <option value="Bulanan">Setiap Bulan (Recurring)</option>
-                    <option value="Tahunan">Setiap Tahun (Annually)</option>
-                    <option value="Satu Kali">Satu Kali Saja (One-time)</option>
+                    {(profile?.donationFrequencies || [
+                      "Bulanan",
+                      "Tahunan",
+                      "Satu Kali",
+                      "Sekali / Insidental",
+                      "Triwulan (3 Bulan)",
+                      "Semester (6 Bulan)"
+                    ]).map((freq, idx) => (
+                      <option key={idx} value={freq}>{freq}</option>
+                    ))}
+                    {pFreq && !(profile?.donationFrequencies || []).includes(pFreq) && !["Bulanan", "Tahunan", "Satu Kali"].includes(pFreq) && (
+                      <option value={pFreq}>{pFreq}</option>
+                    )}
                   </select>
                 </div>
                 <div>

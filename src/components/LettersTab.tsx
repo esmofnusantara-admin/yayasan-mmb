@@ -271,9 +271,34 @@ export default function LettersTab({
     setReadingInwardLetter(null);
   };
 
+  // Available Dynamic Dropdown Options
+  const availableLetterTypes = (profile?.letterClassifications && profile.letterClassifications.length > 0)
+    ? profile.letterClassifications
+    : [
+        'Surat Keputusan (SK)',
+        'Surat Tugas Pengutusan',
+        'Surat Keterangan Aktif',
+        'Surat Pengantar Relasi',
+        'Peminjaman Aula/Akomodasi',
+        'Surat Permohonan Biaya/Sponsor'
+      ];
+
+  const availableDocCategories = (profile?.documentCategories && profile.documentCategories.length > 0)
+    ? profile.documentCategories
+    : [
+        'Konstitusi Organisasi',
+        'SOP Keuangan',
+        'Legalitas Kelembagaan',
+        'Perpajakan & Legalitas',
+        'Akademik & Kemitraan',
+        'Laporan Keuangan',
+        'MoU & Kerjasama',
+        'Lain-lain'
+      ];
+
   // Form states: Surat Keluar Compose
   const [isFormOutOpen, setIsFormOutOpen] = useState(false);
-  const [outType, setOutType] = useState<'SK' | 'Surat Tugas' | 'Surat Keterangan' | 'Surat Relasi' | 'Surat Peminjaman' | 'Surat Permohonan'>('SK');
+  const [outType, setOutType] = useState<string>(availableLetterTypes[0] || 'Surat Keputusan (SK)');
   const [outRecipient, setOutRecipient] = useState('');
   const [outSubject, setOutSubject] = useState('');
   const [outContent, setOutContent] = useState('');
@@ -409,7 +434,7 @@ export default function LettersTab({
     const roman = getRomanMonth(currentMonth);
 
     let maxSerial = 0;
-    outwardLetters.filter(l => l.templateType === typeCode).forEach(l => {
+    outwardLetters.filter(l => l.templateType === typeCode || (l.letterNumber && l.letterNumber.includes(`/${typeCode}/`))).forEach(l => {
       if (l.letterNumber) {
         const parts = l.letterNumber.split('/');
         const num = parseInt(parts[0], 10);
@@ -423,11 +448,17 @@ export default function LettersTab({
 
     // type abbreviations
     let abbrev = 'SK';
-    if (typeCode === 'Surat Tugas') abbrev = 'Surat-Tugas';
-    else if (typeCode === 'Surat Keterangan') abbrev = 'Ket';
-    else if (typeCode === 'Surat Relasi') abbrev = 'Relasi';
-    else if (typeCode === 'Surat Peminjaman') abbrev = 'Peminjaman';
-    else if (typeCode === 'Surat Permohonan') abbrev = 'Permohonan';
+    const lower = (typeCode || '').toLowerCase();
+    if (lower.includes('sk') || lower.includes('keputusan')) abbrev = 'SK';
+    else if (lower.includes('tugas')) abbrev = 'Surat-Tugas';
+    else if (lower.includes('keterangan')) abbrev = 'Ket';
+    else if (lower.includes('relasi') || lower.includes('pengantar')) abbrev = 'Relasi';
+    else if (lower.includes('peminjaman')) abbrev = 'Peminjaman';
+    else if (lower.includes('permohonan') || lower.includes('sponsor')) abbrev = 'Permohonan';
+    else {
+      const sanitized = typeCode.replace(/^Surat\s+/i, '').replace(/[^a-zA-Z0-9]/g, '-').toUpperCase().slice(0, 12);
+      abbrev = sanitized || 'SURAT';
+    }
 
     return `${serial}/${abbrev}/MMB/${roman}/${currentYear}`;
   };
@@ -1064,12 +1095,12 @@ export default function LettersTab({
                   onChange={(e) => setNewDocCategory(e.target.value)}
                   className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                 >
-                  <option value="Konstitusi Organisasi">Konstitusi Organisasi</option>
-                  <option value="SOP Keuangan">SOP Keuangan</option>
-                  <option value="Legalitas Kelembagaan">Legalitas Kelembagaan</option>
-                  <option value="Perpajakan & Legalitas">Perpajakan & Legalitas</option>
-                  <option value="Akademik & Kemitraan">Akademik & Kemitraan</option>
-                  <option value="Lain-lain">Lain-lain</option>
+                  {availableDocCategories.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                  {newDocCategory && !availableDocCategories.includes(newDocCategory) && (
+                    <option value={newDocCategory}>{newDocCategory}</option>
+                  )}
                 </select>
               </div>
 
@@ -1620,15 +1651,15 @@ export default function LettersTab({
                     <label className="text-slate-700 block mb-1 font-semibold">Klasifikasi Surat Template :</label>
                     <select
                       value={outType}
-                      onChange={(e) => setOutType(e.target.value as any)}
+                      onChange={(e) => setOutType(e.target.value)}
                       className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     >
-                      <option value="SK">Surat Keputusan (SK)</option>
-                      <option value="Surat Tugas">Surat Tugas Pengutusan</option>
-                      <option value="Surat Keterangan">Surat Keterangan Aktif</option>
-                      <option value="Surat Relasi">Surat Pengantar Relasi</option>
-                      <option value="Surat Peminjaman">Peminjaman Aula/Akomodasi</option>
-                      <option value="Surat Permohonan">Surat Permohonan Biaya/Sponsor</option>
+                      {availableLetterTypes.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                      {outType && !availableLetterTypes.includes(outType) && (
+                        <option value={outType}>{outType}</option>
+                      )}
                     </select>
                   </div>
                   <div>

@@ -186,7 +186,7 @@ export interface Partner {
   
   // Commitment Details
   commitmentAmount: number;
-  frequency: 'Bulanan' | 'Tahunan' | 'Satu Kali';
+  frequency: 'Bulanan' | 'Tahunan' | 'Satu Kali' | string;
   startDate: string;
   endDate?: string;
   donationDay?: number;
@@ -255,7 +255,7 @@ export interface Staff {
   address: string;
   position: string; // Jabatan
   division: string; // Divisi
-  status: 'Tetap' | 'Kontrak' | 'Magang' | 'Resigned';
+  status: 'Tetap' | 'Kontrak' | 'Magang' | 'Resigned' | string;
   joinedDate: string;
   contractEndDate?: string;
   birthDate?: string;
@@ -307,7 +307,7 @@ export interface LetterInward {
 export interface LetterOutward {
   id: string;
   letterNumber: string; // Auto-generate like 001/SK/MMB/VI/2026
-  templateType: 'SK' | 'Surat Tugas' | 'Surat Keterangan' | 'Surat Relasi' | 'Surat Peminjaman' | 'Surat Permohonan';
+  templateType: 'SK' | 'Surat Tugas' | 'Surat Keterangan' | 'Surat Relasi' | 'Surat Peminjaman' | 'Surat Permohonan' | string;
   recipient: string;
   subject: string;
   date: string;
@@ -328,6 +328,11 @@ export interface LetterOutward {
   stampSize?: number;
   signPlaceDate?: string;
   additionalSignatures?: Array<{ id: string; nodeId: string; title: string; name: string }>;
+  attachmentUrl?: string;
+  externalLink?: string;
+  createdAt?: string;
+  createdBy?: string;
+  deleted?: boolean;
 }
 
 export interface OrgDocument {
@@ -385,6 +390,18 @@ export interface InstitutionalProfile {
   signatureSecretaryUrl?: string;
   signatureTreasurerUrl?: string;
   customSignatures?: Array<{ id: string; nodeId: string; title: string; name: string; signatureUrl: string }>;
+  
+  // Extended dynamic dropdown lists
+  letterClassifications?: string[];
+  documentCategories?: string[];
+  educationLevels?: string[];
+  employmentStatuses?: string[];
+  staffDepartments?: string[];
+  activityCategories?: string[];
+  donationFrequencies?: string[];
+  paymentMethods?: string[];
+  meetingCategories?: string[];
+  groupTypes?: string[];
 }
 
 export interface AuditLog {

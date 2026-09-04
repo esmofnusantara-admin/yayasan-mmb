@@ -59,6 +59,88 @@ export const INITIAL_PROFILE: InstitutionalProfile = {
   signatureChairmanUrl: '',
   signatureSecretaryUrl: '',
   signatureTreasurerUrl: '',
+  letterClassifications: [
+    "Surat Keputusan (SK)",
+    "Surat Tugas Pengutusan",
+    "Surat Keterangan Aktif",
+    "Surat Pengantar Relasi",
+    "Peminjaman Aula/Akomodasi",
+    "Surat Permohonan Biaya/Sponsor"
+  ],
+  documentCategories: [
+    "Legalitas & Akta",
+    "Laporan Keuangan",
+    "Surat Masuk",
+    "Surat Keluar",
+    "MoU & Kerjasama",
+    "Sertifikat & Piagam",
+    "Lainnya"
+  ],
+  educationLevels: [
+    "SD / Sederajat",
+    "SMP / Sederajat",
+    "SMA / SMK / Sederajat",
+    "Diploma (D1-D4)",
+    "Sarjana (S1)",
+    "Magister (S2)",
+    "Doktor (S3)",
+    "Lainnya"
+  ],
+  employmentStatuses: [
+    "Staf Tetap (Penuh Waktu)",
+    "Staf Kontrak",
+    "Staf Paruh Waktu (Part-Time)",
+    "Magang (Internship)",
+    "Volunteer / Relawan"
+  ],
+  staffDepartments: [
+    "Eksekutif / Pimpinan",
+    "Sekretariat & Administrasi",
+    "Keuangan & Akuntansi",
+    "Pelayanan Lapangan & Misi",
+    "Media & IT",
+    "Fundraising & Kemitraan",
+    "Logistik & Operasional"
+  ],
+  activityCategories: [
+    "Ibadah & Doa Bersama",
+    "Pelatihan & Seminar",
+    "Retreat & Camp",
+    "Kepanitiaan & Rapat",
+    "Aksi Sosial & Pelayanan Masyarakat",
+    "Outreach & Misi Penginjilan",
+    "Acara Internal Yayasan"
+  ],
+  donationFrequencies: [
+    "Bulanan",
+    "Sekali / Insidental",
+    "Triwulan (3 Bulan)",
+    "Semester (6 Bulan)",
+    "Tahunan"
+  ],
+  paymentMethods: [
+    "Transfer Bank",
+    "Tunai / Cash Fisik",
+    "QRIS / E-Wallet",
+    "Cek / Giro",
+    "Debit Card"
+  ],
+  meetingCategories: [
+    "Rapat Pleno Yayasan",
+    "Rapat Koordinasi Mingguan",
+    "Rapat Divisi / Departemen",
+    "Evaluasi Bulanan",
+    "Rapat Anggaran & Finansial",
+    "Rapat Darurat / Khusus"
+  ],
+  groupTypes: [
+    "Kelompok Tumbuh Bersama (KTB)",
+    "Kelompok Pemuridan Siswa",
+    "Kelompok Pemuridan Mahasiswa",
+    "Komunitas Alumni",
+    "Kelompok Doa",
+    "Komunitas Khusus"
+  ],
 };
 
 export const INITIAL_MEMBERS: Member[] = [

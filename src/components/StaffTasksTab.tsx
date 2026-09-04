@@ -2715,12 +2715,25 @@ export default function StaffTasksTab({
                 <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">Topik / Judul Rapat</label>
                 <input
                   type="text"
-                  placeholder="Misal: Rapat Koordinasi Mingguan"
+                  list="meeting-categories-list"
+                  placeholder="Pilih kategori atau ketik topik rapat..."
                   value={meetingTitle}
                   onChange={(e) => setMeetingTitle(e.target.value)}
                   className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs outline-none bg-white text-slate-800"
                   required
                 />
+                <datalist id="meeting-categories-list">
+                  {(profile?.meetingCategories || [
+                    "Rapat Pleno Yayasan",
+                    "Rapat Koordinasi Mingguan",
+                    "Rapat Divisi / Departemen",
+                    "Evaluasi Bulanan",
+                    "Rapat Anggaran & Finansial",
+                    "Rapat Darurat / Khusus"
+                  ]).map((cat, idx) => (
+                    <option key={idx} value={cat} />
+                  ))}
+                </datalist>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

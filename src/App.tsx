@@ -3002,6 +3002,7 @@ if (!res.ok) {
                 onUpdateStaff={handleUpdateStaff}
                 onDeleteStaff={handleDeleteStaff}
                 currentRole={currentRole}
+                profile={profile}
               />
             )}
 

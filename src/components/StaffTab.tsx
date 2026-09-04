@@ -17,7 +17,7 @@ import {
   Briefcase,
   Download
 } from 'lucide-react';
-import { Staff } from '../types';
+import { Staff, InstitutionalProfile } from '../types';
 import { exportToCSV } from '../utils/export';
 
 interface StaffTabProps {
@@ -26,6 +26,7 @@ interface StaffTabProps {
   onUpdateStaff: (s: Staff) => void;
   onDeleteStaff: (nik: string) => void;
   currentRole: string;
+  profile?: InstitutionalProfile;
 }
 
 export default function StaffTab({
@@ -34,9 +35,18 @@ export default function StaffTab({
   onUpdateStaff,
   onDeleteStaff,
   currentRole,
+  profile,
 }: StaffTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(staffs[0] || null);
+
+  const availableDivisions = (profile?.staffDepartments && profile.staffDepartments.length > 0)
+    ? profile.staffDepartments
+    : ["Pelayanan Wilayah", "Fundraising & Mitra", "Sekretariat", "Keuangan & Audit"];
+
+  const availableStatuses = (profile?.employmentStatuses && profile.employmentStatuses.length > 0)
+    ? profile.employmentStatuses
+    : ["Tetap", "Kontrak", "Magang", "Resigned"];
 
   // Form registration states
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -49,8 +59,8 @@ export default function StaffTab({
   const [sEmail, setSEmail] = useState('');
   const [sAddress, setSAddress] = useState('');
   const [sPosition, setSPosition] = useState('');
-  const [sDivision, setSDivision] = useState('Pelayanan Wilayah');
-  const [sStatus, setSStatus] = useState<'Tetap' | 'Kontrak' | 'Magang' | 'Resigned'>('Tetap');
+  const [sDivision, setSDivision] = useState(availableDivisions[0] || 'Pelayanan Wilayah');
+  const [sStatus, setSStatus] = useState<string>(availableStatuses[0] || 'Tetap');
   const [sContractEndDate, setSContractEndDate] = useState('');
   const [sBirthPlace, setSBirthPlace] = useState('');
   const [sBirthDate, setSBirthDate] = useState('');
@@ -636,10 +646,12 @@ export default function StaffTab({
                       onChange={(e) => setSDivision(e.target.value)}
                       className="w-full border border-slate-300 rounded px-2 py-1.5 bg-white text-slate-800 focus:outline-none focus:border-[#0c2340]"
                     >
-                      <option value="Pelayanan Wilayah">Pelayanan Wilayah</option>
-                      <option value="Fundraising & Mitra">Fundraising & Mitra</option>
-                      <option value="Sekretariat">Sekretariat & Dokumen</option>
-                      <option value="Keuangan & Audit">Keuangan & Audit</option>
+                      {availableDivisions.map((div) => (
+                        <option key={div} value={div}>{div}</option>
+                      ))}
+                      {sDivision && !availableDivisions.includes(sDivision) && (
+                        <option value={sDivision}>{sDivision}</option>
+                      )}
                     </select>
                   </div>
 
@@ -662,16 +674,18 @@ export default function StaffTab({
                       onChange={(e) => {
                         const val = e.target.value as any;
                         setSStatus(val);
-                        if (val === 'Tetap') {
+                        if (val === 'Tetap' || val.toLowerCase().includes('tetap')) {
                           setSContractEndDate('');
                         }
                       }}
                       className="w-full border border-slate-300 rounded px-2 py-1.5 bg-white text-slate-800 focus:outline-none focus:border-[#0c2340]"
                     >
-                      <option value="Tetap">Karyawan Tetap</option>
-                      <option value="Kontrak">Kontrak Jangka Panjang</option>
-                      <option value="Magang">Magang / Volunteer</option>
-                      <option value="Resigned">Mundur / Resigned</option>
+                      {availableStatuses.map((st) => (
+                        <option key={st} value={st}>{st}</option>
+                      ))}
+                      {sStatus && !availableStatuses.includes(sStatus) && (
+                        <option value={sStatus}>{sStatus}</option>
+                      )}
                     </select>
                   </div>
 

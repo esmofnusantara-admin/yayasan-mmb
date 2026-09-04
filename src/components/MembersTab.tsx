@@ -2297,11 +2297,26 @@ export default function MembersTab({
                     <label className="text-slate-700 font-semibold block mb-1">Pendidikan (Sekolah / Kampus) :</label>
                     <input
                       type="text"
+                      list="education-levels-list"
                       value={education}
                       onChange={(e) => setEducation(e.target.value)}
-                      placeholder="S1 Teknik Informatika - UGM"
+                      placeholder="Pilih jenjang atau ketik nama sekolah/kampus..."
                       className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
+                    <datalist id="education-levels-list">
+                      {(profile?.educationLevels || [
+                        "SD / Sederajat",
+                        "SMP / Sederajat",
+                        "SMA / SMK / Sederajat",
+                        "Diploma (D1-D4)",
+                        "Sarjana (S1)",
+                        "Magister (S2)",
+                        "Doktor (S3)",
+                        "Lainnya"
+                      ]).map((lvl, idx) => (
+                        <option key={idx} value={lvl} />
+                      ))}
+                    </datalist>
                   </div>
                   <div>
                     <label className="text-slate-700 font-semibold block mb-1">Pekerjaan :</label>
@@ -2501,11 +2516,15 @@ export default function MembersTab({
                       onChange={(e) => setStatusKeaktifan(e.target.value as any)}
                       className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none font-medium"
                     >
-                      <option value="Penjangkauan">Penjangkauan (Sebelum Dimuridkan)</option>
-                      <option value="Aktif">Aktif (Dimuridkan)</option>
-                      <option value="Pasif">Pasif (Sudah Dimuridkan / Belum Aktif)</option>
-                      <option value="Cuti">Cuti Pelayanan</option>
-                      <option value="Pindah">Pindah Wilayah / Selesai</option>
+                      {(profile?.memberKeaktifanStatuses || [
+                        "Penjangkauan",
+                        "Aktif",
+                        "Pasif",
+                        "Cuti",
+                        "Pindah"
+                      ]).map((st, idx) => (
+                        <option key={idx} value={st}>{st}</option>
+                      ))}
                     </select>
                   </div>
                 </div>

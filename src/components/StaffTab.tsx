@@ -82,7 +82,7 @@ export default function StaffTab({
   const calculateDurationOfService = (joinedDateStr?: string) => {
     if (!joinedDateStr) return '0 Hari';
     const joined = new Date(joinedDateStr);
-    const today = new Date('2026-06-10'); // Unified system date or current context date
+    const today = new Date();
 
     let years = today.getFullYear() - joined.getFullYear();
     let months = today.getMonth() - joined.getMonth();
@@ -110,7 +110,7 @@ export default function StaffTab({
   const getExpirationStatus = (dateStr?: string) => {
     if (!dateStr) return { color: 'text-slate-400', label: 'Selamanya (Tetap)', badgeClass: 'bg-emerald-50 text-emerald-700' };
     const targetDate = new Date(dateStr);
-    const today = new Date('2026-06-10');
+    const today = new Date();
     today.setHours(0, 0, 0, 0);
     targetDate.setHours(0, 0, 0, 0);
 
@@ -529,7 +529,7 @@ export default function StaffTab({
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const cur = selectedStaff.contractEndDate ? new Date(selectedStaff.contractEndDate) : new Date('2026-06-10');
+                                  const cur = selectedStaff.contractEndDate ? new Date(selectedStaff.contractEndDate) : new Date();
                                   cur.setFullYear(cur.getFullYear() + 1);
                                   setRehireDate(cur.toISOString().split('T')[0]);
                                   setIsRehireOpen(true);

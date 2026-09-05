@@ -86,6 +86,8 @@ export interface PrayerRequest {
   request: string;
   date: string;
   status: 'Pending' | 'Didoakan' | 'Terjawab';
+  answeredDate?: string;
+  answerNotes?: string;
 }
 
 export interface FollowUpLog {

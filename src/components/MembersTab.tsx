@@ -45,7 +45,7 @@ interface MembersTabProps {
   onAddPrayerRequest: (p: PrayerRequest) => void;
   onUpdatePrayerRequest?: (p: PrayerRequest) => void;
   onDeletePrayerRequest?: (id: string) => void;
-  onUpdatePrayerStatus: (id: string, status: 'Pending' | 'Didoakan' | 'Terjawab') => void;
+  onUpdatePrayerStatus: (id: string, status: 'Pending' | 'Didoakan' | 'Terjawab', answeredDate?: string, answerNotes?: string) => void;
   followUps: FollowUpLog[];
   onAddFollowUp: (fu: FollowUpLog) => void;
   onUpdateFollowUp?: (fu: FollowUpLog) => void;
@@ -140,8 +140,15 @@ export default function MembersTab({
   const [prayerMemberId, setPrayerMemberId] = useState('');
   const [prayerDate, setPrayerDate] = useState(new Date().toISOString().split('T')[0]);
   const [prayerStatus, setPrayerStatus] = useState<'Pending' | 'Didoakan' | 'Terjawab'>('Pending');
+  const [prayerAnsweredDate, setPrayerAnsweredDate] = useState(new Date().toISOString().split('T')[0]);
+  const [prayerAnswerNotes, setPrayerAnswerNotes] = useState('');
   const [prayerSearchQuery, setPrayerSearchQuery] = useState('');
   const [expandedPrayerMemberIds, setExpandedPrayerMemberIds] = useState<string[]>([]);
+
+  // Modal State for Answering Prayer
+  const [answeringPrayer, setAnsweringPrayer] = useState<PrayerRequest | null>(null);
+  const [modalAnsweredDate, setModalAnsweredDate] = useState(new Date().toISOString().split('T')[0]);
+  const [modalAnswerNotes, setModalAnswerNotes] = useState('');
 
   // Sub-tab States: Adding / Editing follow up
   const [editingFollowUp, setEditingFollowUp] = useState<FollowUpLog | null>(null);
@@ -462,6 +469,8 @@ export default function MembersTab({
     setPrayerContent(p.request);
     setPrayerDate(p.date || new Date().toISOString().split('T')[0]);
     setPrayerStatus(p.status || 'Pending');
+    setPrayerAnsweredDate(p.answeredDate || new Date().toISOString().split('T')[0]);
+    setPrayerAnswerNotes(p.answerNotes || '');
     if (!expandedPrayerMemberIds.includes(p.memberId)) {
       setExpandedPrayerMemberIds(prev => [...prev, p.memberId]);
     }
@@ -474,6 +483,32 @@ export default function MembersTab({
     setPrayerContent('');
     setPrayerDate(new Date().toISOString().split('T')[0]);
     setPrayerStatus('Pending');
+    setPrayerAnsweredDate(new Date().toISOString().split('T')[0]);
+    setPrayerAnswerNotes('');
+  };
+
+  const handleOpenAnswerModal = (p: PrayerRequest) => {
+    setAnsweringPrayer(p);
+    setModalAnsweredDate(p.answeredDate || new Date().toISOString().split('T')[0]);
+    setModalAnswerNotes(p.answerNotes || '');
+  };
+
+  const handleCloseAnswerModal = () => {
+    setAnsweringPrayer(null);
+    setModalAnsweredDate(new Date().toISOString().split('T')[0]);
+    setModalAnswerNotes('');
+  };
+
+  const handleSaveAnswerModal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!answeringPrayer) return;
+    onUpdatePrayerStatus(answeringPrayer.id, 'Terjawab', modalAnsweredDate, modalAnswerNotes);
+    if (editingPrayer?.id === answeringPrayer.id) {
+      setPrayerStatus('Terjawab');
+      setPrayerAnsweredDate(modalAnsweredDate);
+      setPrayerAnswerNotes(modalAnswerNotes);
+    }
+    handleCloseAnswerModal();
   };
 
   const handleSavePrayerForm = (e: React.FormEvent) => {
@@ -492,7 +527,9 @@ export default function MembersTab({
           title: prayerTitle,
           request: prayerContent,
           date: prayerDate,
-          status: prayerStatus
+          status: prayerStatus,
+          answeredDate: prayerStatus === 'Terjawab' ? prayerAnsweredDate : undefined,
+          answerNotes: prayerStatus === 'Terjawab' ? prayerAnswerNotes : undefined
         });
       }
       handleCancelEditPrayer();
@@ -505,7 +542,9 @@ export default function MembersTab({
         title: prayerTitle,
         request: prayerContent,
         date: prayerDate,
-        status: prayerStatus
+        status: prayerStatus,
+        answeredDate: prayerStatus === 'Terjawab' ? prayerAnsweredDate : undefined,
+        answerNotes: prayerStatus === 'Terjawab' ? prayerAnswerNotes : undefined
       };
       onAddPrayerRequest(newPrayer);
       handleCancelEditPrayer();
@@ -1543,6 +1582,41 @@ export default function MembersTab({
                                     "{p.request}"
                                   </p>
 
+                                  {/* Detail Jawaban Doa */}
+                                  {p.status === 'Terjawab' && (
+                                    <div className="bg-emerald-50/80 border border-emerald-200 rounded-lg p-3 space-y-1.5">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-1.5 text-emerald-900 font-bold text-[11px]">
+                                          <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                                          <span>Puji Tuhan, Doa Terjawab!</span>
+                                          {p.answeredDate && (
+                                            <span className="text-[10px] font-normal text-emerald-700 bg-emerald-100/70 px-1.5 py-0.5 rounded">
+                                              Tgl: {p.answeredDate}
+                                            </span>
+                                          )}
+                                        </div>
+                                        {isEditable && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenAnswerModal(p)}
+                                            className="text-[10px] text-emerald-700 hover:text-emerald-900 hover:underline font-semibold cursor-pointer flex items-center gap-0.5"
+                                          >
+                                            <Edit className="w-2.5 h-2.5" /> {p.answerNotes ? 'Edit Catatan' : '+ Catat Jawaban'}
+                                          </button>
+                                        )}
+                                      </div>
+                                      {p.answerNotes ? (
+                                        <p className="text-xs text-slate-800 bg-white/90 p-2.5 rounded border border-emerald-100 leading-relaxed font-medium">
+                                          {p.answerNotes}
+                                        </p>
+                                      ) : (
+                                        <p className="text-[11px] text-emerald-700/80 italic">
+                                          (Belum ada catatan kesaksian jawaban doa)
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+
                                   {isEditable && (
                                     <div className="flex gap-1.5 justify-end pt-1 flex-wrap items-center">
                                       <span className="text-[11px] text-slate-500">Ubah Status:</span>
@@ -1563,11 +1637,12 @@ export default function MembersTab({
                                         Sedang Didoakan
                                       </button>
                                       <button
-                                        onClick={() => onUpdatePrayerStatus(p.id, 'Terjawab')}
-                                        className={`px-2 py-0.5 rounded text-[10px] font-medium cursor-pointer transition-colors border ${
+                                        onClick={() => handleOpenAnswerModal(p)}
+                                        className={`px-2 py-0.5 rounded text-[10px] font-medium cursor-pointer transition-colors border flex items-center gap-1 ${
                                           p.status === 'Terjawab' ? 'bg-emerald-100 text-emerald-800 border-emerald-400 font-bold' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
                                         }`}
                                       >
+                                        <Sparkles className="w-3 h-3" />
                                         Puji Tuhan, Terjawab!
                                       </button>
                                     </div>
@@ -1633,6 +1708,72 @@ export default function MembersTab({
                             <p className="text-xs text-slate-700 italic leading-relaxed py-2 pl-3 border-l-2 border-amber-300 bg-slate-50/50 rounded-r">
                               "{p.request}"
                             </p>
+
+                            {/* Detail Jawaban Doa */}
+                            {p.status === 'Terjawab' && (
+                              <div className="bg-emerald-50/80 border border-emerald-200 rounded-lg p-3 space-y-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-1.5 text-emerald-900 font-bold text-[11px]">
+                                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span>Puji Tuhan, Doa Terjawab!</span>
+                                    {p.answeredDate && (
+                                      <span className="text-[10px] font-normal text-emerald-700 bg-emerald-100/70 px-1.5 py-0.5 rounded">
+                                        Tgl: {p.answeredDate}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {isEditable && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenAnswerModal(p)}
+                                      className="text-[10px] text-emerald-700 hover:text-emerald-900 hover:underline font-semibold cursor-pointer flex items-center gap-0.5"
+                                    >
+                                      <Edit className="w-2.5 h-2.5" /> {p.answerNotes ? 'Edit Catatan' : '+ Catat Jawaban'}
+                                    </button>
+                                  )}
+                                </div>
+                                {p.answerNotes ? (
+                                  <p className="text-xs text-slate-800 bg-white/90 p-2.5 rounded border border-emerald-100 leading-relaxed font-medium">
+                                    {p.answerNotes}
+                                  </p>
+                                ) : (
+                                  <p className="text-[11px] text-emerald-700/80 italic">
+                                    (Belum ada catatan kesaksian jawaban doa)
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            {isEditable && (
+                              <div className="flex gap-1.5 justify-end pt-1 flex-wrap items-center">
+                                <span className="text-[11px] text-slate-500">Ubah Status:</span>
+                                <button
+                                  onClick={() => onUpdatePrayerStatus(p.id, 'Pending')}
+                                  className={`px-2 py-0.5 rounded text-[10px] font-medium cursor-pointer transition-colors border ${
+                                    p.status === 'Pending' ? 'bg-slate-200 text-slate-800 border-slate-400 font-bold' : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-300'
+                                  }`}
+                                >
+                                  Pending
+                                </button>
+                                <button
+                                  onClick={() => onUpdatePrayerStatus(p.id, 'Didoakan')}
+                                  className={`px-2 py-0.5 rounded text-[10px] font-medium cursor-pointer transition-colors border ${
+                                    p.status === 'Didoakan' ? 'bg-blue-100 text-blue-800 border-blue-400 font-bold' : 'bg-white hover:bg-blue-50 text-blue-700 border-blue-200'
+                                  }`}
+                                >
+                                  Sedang Didoakan
+                                </button>
+                                <button
+                                  onClick={() => handleOpenAnswerModal(p)}
+                                  className={`px-2 py-0.5 rounded text-[10px] font-medium cursor-pointer transition-colors border flex items-center gap-1 ${
+                                    p.status === 'Terjawab' ? 'bg-emerald-100 text-emerald-800 border-emerald-400 font-bold' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
+                                  }`}
+                                >
+                                  <Sparkles className="w-3 h-3" />
+                                  Puji Tuhan, Terjawab!
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1713,18 +1854,48 @@ export default function MembersTab({
                   />
                 </div>
 
-                {editingPrayer && (
-                  <div>
-                    <label className="text-slate-700 font-semibold block mb-1">Status Pokok Doa :</label>
-                    <select
-                      value={prayerStatus}
-                      onChange={(e) => setPrayerStatus(e.target.value as any)}
-                      className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
-                    >
-                      <option value="Pending">Pending (Baru)</option>
-                      <option value="Didoakan">Didoakan (Sedang Berjalan)</option>
-                      <option value="Terjawab">Terjawab (Selesai/Puji Tuhan)</option>
-                    </select>
+                <div>
+                  <label className="text-slate-700 font-semibold block mb-1">Status Pokok Doa :</label>
+                  <select
+                    value={prayerStatus}
+                    onChange={(e) => setPrayerStatus(e.target.value as any)}
+                    className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                  >
+                    <option value="Pending">Pending (Baru)</option>
+                    <option value="Didoakan">Didoakan (Sedang Berjalan)</option>
+                    <option value="Terjawab">Terjawab (Selesai/Puji Tuhan)</option>
+                  </select>
+                </div>
+
+                {prayerStatus === 'Terjawab' && (
+                  <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-lg space-y-3">
+                    <div className="flex items-center gap-1.5 text-emerald-900 font-bold text-xs">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Detail Jawaban Doa & Kesaksian</span>
+                    </div>
+
+                    <div>
+                      <label className="text-slate-700 font-semibold block mb-1">Tanggal Jawaban Doa :</label>
+                      <input
+                        type="date"
+                        value={prayerAnsweredDate}
+                        onChange={(e) => setPrayerAnsweredDate(e.target.value)}
+                        className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none"
+                        required={prayerStatus === 'Terjawab'}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-slate-700 font-semibold block mb-1">Catatan Kesaksian / Jawaban :</label>
+                      <textarea
+                        rows={3}
+                        placeholder="Tuliskan bagaimana Tuhan menjawab doa ini, kesaksian syukur, atau catatan tindak lanjut..."
+                        value={prayerAnswerNotes}
+                        onChange={(e) => setPrayerAnswerNotes(e.target.value)}
+                        className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none leading-relaxed"
+                        required={prayerStatus === 'Terjawab'}
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -2549,6 +2720,75 @@ export default function MembersTab({
 
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Catat Jawaban Doa & Kesaksian */}
+      {answeringPrayer && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-5 py-4 bg-[#0c2340] text-white flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-emerald-400" />
+                <h3 className="font-bold text-sm sm:text-base">Catat Jawaban Doa & Kesaksian</h3>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseAnswerModal}
+                className="p-1 hover:bg-slate-700/60 rounded-full transition-colors cursor-pointer text-slate-300 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAnswerModal} className="p-5 space-y-4 text-xs">
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <p className="text-[11px] text-slate-500 font-semibold mb-0.5">Pemohon: <span className="text-slate-800 font-bold">{answeringPrayer.memberName || 'Anggota'}</span></p>
+                <p className="text-xs font-bold text-slate-800 mb-1">{answeringPrayer.title}</p>
+                <p className="text-[11px] text-slate-600 italic leading-relaxed">"{answeringPrayer.request}"</p>
+              </div>
+
+              <div>
+                <label className="text-slate-700 font-semibold block mb-1">Tanggal Doa Terjawab :</label>
+                <input
+                  type="date"
+                  value={modalAnsweredDate}
+                  onChange={(e) => setModalAnsweredDate(e.target.value)}
+                  className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-700 font-semibold block mb-1">Catatan Detail Jawaban Doa / Kesaksian Syukur :</label>
+                <textarea
+                  rows={4}
+                  placeholder="Tuliskan bagaimana Tuhan menjawab doa ini, mukjizat/pertolongan-Nya, atau catatan kesaksian syukur..."
+                  value={modalAnswerNotes}
+                  onChange={(e) => setModalAnswerNotes(e.target.value)}
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none leading-relaxed"
+                  required
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={handleCloseAnswerModal}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Simpan Jawaban Doa
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

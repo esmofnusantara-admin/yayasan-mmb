@@ -173,8 +173,11 @@ router.patch('/:memberId/prayer-requests/:prid/status', authenticateToken, async
   const { userName, userRole } = auditFromReq(req);
   try {
     const { memberId, prid } = req.params;
-    const { status } = req.body;
-    await dbDriver.updateDoc('prayer_requests', prid, { status, updatedAt: new Date().toISOString() });
+    const { status, answeredDate, answerNotes } = req.body;
+    const updatePayload: any = { status, updatedAt: new Date().toISOString() };
+    if (answeredDate !== undefined) updatePayload.answeredDate = answeredDate;
+    if (answerNotes !== undefined) updatePayload.answerNotes = answerNotes;
+    await dbDriver.updateDoc('prayer_requests', prid, updatePayload);
     await writeAuditLog({ userName, userRole, action: `Update Status Doa ID: ${prid} → ${status} (Anggota: ${memberId})`, module: 'Anggota' });
     res.json({ success: true });
   } catch (err: any) {

@@ -970,12 +970,21 @@ export default function App() {
     }
   };
 
-  const handleUpdatePrayerStatus = async (id: string, status: 'Pending' | 'Didoakan' | 'Terjawab') => {
+  const handleUpdatePrayerStatus = async (
+    id: string,
+    status: 'Pending' | 'Didoakan' | 'Terjawab',
+    answeredDate?: string,
+    answerNotes?: string
+  ) => {
     try {
-      const payload = {
+      const payload: any = {
         status,
         updatedAt: new Date().toISOString()
       };
+      if (status === 'Terjawab') {
+        if (answeredDate) payload.answeredDate = answeredDate;
+        if (answerNotes !== undefined) payload.answerNotes = answerNotes;
+      }
       await fetch(`/api/data/prayer_requests/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

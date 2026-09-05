@@ -356,7 +356,9 @@ export const INITIAL_PRAYER_REQUESTS: PrayerRequest[] = [
     title: 'Kesehatan Orang Tua',
     request: 'Ibunda sedang menjalani perawatan pasca operasi batu empedu di Surabaya. Doakan kelancaran pemulihan fisik.',
     date: '2026-06-03',
-    status: 'Terjawab'
+    status: 'Terjawab',
+    answeredDate: '2026-06-12',
+    answerNotes: 'Puji Tuhan! Operasi berjalan sukses, proses pemulihan sangat cepat dan ibunda sudah diperbolehkan pulang dari RS dengan kondisi sehat stabil.'
   },
   {
     id: 'PRAY-03',

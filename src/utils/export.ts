@@ -2454,22 +2454,36 @@ export function exportMemberGrowthReportToPDF(
     y += 8;
   } else {
     memberPrayers.forEach((p, idx) => {
-      checkAddPage(18);
-      doc.setFillColor(245, 247, 250);
-      doc.roundedRect(15, y, 180, 14, 1.5, 1.5, 'FD');
+      const isAnswered = p.status === 'Terjawab';
+      const hasAnswerNotes = isAnswered && !!p.answerNotes;
+      const boxHeight = hasAnswerNotes ? 20 : 14;
+
+      checkAddPage(boxHeight + 4);
+      doc.setFillColor(isAnswered ? 240 : 245, isAnswered ? 253 : 247, isAnswered ? 244 : 250);
+      doc.setDrawColor(isAnswered ? 167 : 226, isAnswered ? 243 : 232, isAnswered ? 208 : 240);
+      doc.roundedRect(15, y, 180, boxHeight, 1.5, 1.5, 'FD');
 
       doc.setFont('Helvetica', 'bold');
       doc.setFontSize(8);
-      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text(`${idx + 1}. ${p.title} (${p.date}) - Status: ${p.status}`, 18, y + 5);
+      doc.setTextColor(isAnswered ? 6 : primaryColor[0], isAnswered ? 95 : primaryColor[1], isAnswered ? 70 : primaryColor[2]);
+      const answeredStr = isAnswered ? ` [Terjawab${p.answeredDate ? `: ${p.answeredDate}` : ''}]` : ` - Status: ${p.status}`;
+      doc.text(`${idx + 1}. ${p.title} (${p.date})${answeredStr}`, 18, y + 5);
 
       doc.setFont('Helvetica', 'italic');
       doc.setFontSize(7.5);
       doc.setTextColor(textDark[0], textDark[1], textDark[2]);
       const reqSplit = doc.splitTextToSize(`"${p.request}"`, 172);
-      doc.text(reqSplit.slice(0, 1), 18, y + 10);
+      doc.text(reqSplit.slice(0, 1), 18, y + 9.5);
 
-      y += 16;
+      if (hasAnswerNotes) {
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(6, 95, 70);
+        const ansSplit = doc.splitTextToSize(`Jawaban/Kesaksian: ${p.answerNotes}`, 172);
+        doc.text(ansSplit.slice(0, 1), 18, y + 15);
+      }
+
+      y += boxHeight + 2;
     });
   }
 

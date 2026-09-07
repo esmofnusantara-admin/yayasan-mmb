@@ -51,3 +51,4 @@ export async function runMorningTaskDigestNow() {
   console.log('[CronScheduler] Manual trigger of daily morning task digest initiated.');
   return await sendDailyMorningTaskDigest();
 }
+

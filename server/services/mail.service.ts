@@ -648,7 +648,7 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
  * Mengirimkan pesan pengumuman / broadcast kustom ke daftar penerima.
  */
 export async function sendCustomBroadcastEmail(params: {
-  recipients: string[];
+  recipients: any[];
   subject: string;
   category?: string;
   message: string;
@@ -661,8 +661,9 @@ export async function sendCustomBroadcastEmail(params: {
   const bibleVerse = getRandomBibleVerse();
   const htmlMessage = message.replace(/\n/g, '<br/>');
 
-  for (const recipient of recipients) {
-    if (!recipient || !recipient.includes('@')) continue;
+  for (const item of recipients) {
+    const recipientEmail = typeof item === 'string' ? item.trim() : (item?.email ? String(item.email).trim() : '');
+    if (!recipientEmail || !recipientEmail.includes('@')) continue;
 
     const html = `
       <!DOCTYPE html>
@@ -733,17 +734,17 @@ export async function sendCustomBroadcastEmail(params: {
     `;
 
     const res = await sendMail({
-      to: recipient,
+      to: recipientEmail,
       subject: `📢 [${category}] ${subject} — Yayasan MMB`,
       html,
     });
 
     if (res.success) {
       result.totalSent++;
-      result.details.push({ email: recipient, status: 'sent' });
+      result.details.push({ email: recipientEmail, status: 'sent' });
     } else {
       result.errors++;
-      result.details.push({ email: recipient, status: 'failed', error: res.message });
+      result.details.push({ email: recipientEmail, status: 'failed', error: res.message });
     }
   }
 
@@ -762,14 +763,17 @@ export async function sendCustomBroadcastEmail(params: {
  */
 export async function sendSalarySlipEmail(params: {
   staff: any;
-  salaryConfig: any;
-  salaryBreakdown: any;
-  month: string;
+  salaryConfig?: any;
+  salaryBreakdown?: any;
+  month?: string;
+  periodStr?: string;
   paidAmount: number;
   treasurerName?: string;
   senderName?: string;
 }): Promise<{ sent: boolean; message: string }> {
-  const { staff, salaryConfig, salaryBreakdown, month, paidAmount, treasurerName = 'Bendahara Yayasan', senderName = 'Bendahara' } = params;
+  const { staff, paidAmount, treasurerName = 'Bendahara Yayasan', senderName = 'Bendahara' } = params;
+  const month = params.periodStr || params.month || new Date().toISOString().substring(0, 7);
+  const salaryConfig = params.salaryConfig || { salaryBase: staff.salaryBase || 0, components: staff.components || [] };
 
   try {
     const config = await getSmtpConfig();
@@ -782,14 +786,15 @@ export async function sendSalarySlipEmail(params: {
       return { sent: false, message: `Staf ${staff.name} belum memiliki alamat email yang valid di data kepegawaian.` };
     }
 
-    const grossSalary = Number(salaryBreakdown?.grossSalary || 0);
-    const totalDeduction = Number(salaryBreakdown?.totalDeduction || 0);
-    const netSalary = Number(salaryBreakdown?.netSalary || 0);
-    const unpaidSisa = Math.max(0, netSalary - paidAmount);
-
-    // List allowances & deductions
+    const salaryBase = Number(salaryConfig.salaryBase || staff.salaryBase || 0);
     const allowances = (salaryConfig?.components || []).filter((c: any) => c.type === 'allowance' && Number(c.amount) > 0);
     const deductions = (salaryConfig?.components || []).filter((c: any) => c.type === 'deduction' && Number(c.amount) > 0);
+
+    const totalAllowance = allowances.reduce((acc: number, c: any) => acc + Number(c.amount || 0), 0);
+    const totalDeduction = deductions.reduce((acc: number, c: any) => acc + Number(c.amount || 0), 0);
+    const grossSalary = salaryBase + totalAllowance;
+    const netSalary = grossSalary - totalDeduction + Number(staff.lastMonthUnpaid || 0);
+    const unpaidSisa = Math.max(0, netSalary - paidAmount);
 
     const allowanceRows = allowances.map((a: any) => `
       <tr>

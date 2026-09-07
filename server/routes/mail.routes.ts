@@ -170,31 +170,28 @@ mailRouter.post('/broadcast', authenticateToken, async (req: any, res: Response)
 // POST /api/mail/send-slip - Kirim slip gaji ke staf tertentu
 mailRouter.post('/send-slip', authenticateToken, async (req: any, res: Response) => {
   const role = req.user?.role;
-  const isAuthorized = role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Pembina Yayasan' || role === 'Bendahara';
+  const isAuthorized = role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Pembina Yayasan' || role === 'Bendahara' || role === 'Staff';
   if (!isAuthorized) {
     return res.status(403).json({ success: false, message: 'Hak akses terbatas untuk mengirim slip gaji.' });
   }
 
-  const { staffNik, month, paidAmount, treasurerName, salaryConfig, salaryBreakdown } = req.body;
+  const { staffNik, staff: reqStaff, month, periodStr, paidAmount, treasurerName, salaryConfig, salaryBreakdown } = req.body;
   const { userName } = auditFromReq(req);
 
-  if (!staffNik) {
-    return res.status(400).json({ success: false, message: 'NIK staf wajib disertakan.' });
-  }
-
   try {
-    const staff = await dbDriver.getDoc('staff', staffNik);
+    let staff = reqStaff;
+    if (!staff && staffNik) {
+      staff = await dbDriver.getDoc('staff', staffNik);
+    }
     if (!staff || staff.deleted) {
       return res.status(404).json({ success: false, message: 'Data staf tidak ditemukan.' });
     }
-
-    const profile = await dbDriver.getDoc('profiles', 'PROF-01');
 
     const result = await sendSalarySlipEmail({
       staff,
       salaryConfig,
       salaryBreakdown,
-      month: month || new Date().toISOString().substring(0, 7),
+      month: periodStr || month || new Date().toISOString().substring(0, 7),
       paidAmount: Number(paidAmount || 0),
       treasurerName: treasurerName || 'Bendahara Yayasan',
       senderName: userName,

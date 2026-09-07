@@ -957,17 +957,25 @@ export default function StaffTasksTab({
       s.nik.includes(staffSearch);
   });
 
+  const getTaskMonth = (t: StaffTask): number => {
+    return getMonthFromTargetDate(t.targetDate || t.startDate || t.createdAt || '');
+  };
+
+  const getTaskYear = (t: StaffTask): number => {
+    return getYearFromTargetDate(t.targetDate || t.startDate || t.createdAt || '');
+  };
+
   // Split tasks for selected staff member:
   // 1. Ongoing Tasks: Not Completed OR (Completed AND target date is in current month)
-  // 2. Archived Tasks: Completed AND target date is in previous months
+  // 2. Archived Tasks: All Completed tasks, filterable by Year and Month
   const allSelectedStaffTasks = selectedStaff
     ? staffTasks.filter(t => t.staffNik === selectedStaff.nik)
     : [];
 
   const ongoingTasks = allSelectedStaffTasks.filter(t => {
     const isCompleted = t.status === 'Selesai';
-    const tMonth = getMonthFromTargetDate(t.targetDate);
-    const tYear = getYearFromTargetDate(t.targetDate);
+    const tMonth = getTaskMonth(t);
+    const tYear = getTaskYear(t);
     const isCurrentMonth = tMonth === currentMonth && tYear === currentYear;
 
     return !isCompleted || isCurrentMonth;
@@ -975,16 +983,14 @@ export default function StaffTasksTab({
 
   const archivedTasks = allSelectedStaffTasks.filter(t => {
     const isCompleted = t.status === 'Selesai';
-    const tMonth = getMonthFromTargetDate(t.targetDate);
-    const tYear = getYearFromTargetDate(t.targetDate);
-    const isCurrentMonth = tMonth === currentMonth && tYear === currentYear;
+    if (!isCompleted) return false;
 
-    // Must be completed, and NOT in current month
-    if (!isCompleted || isCurrentMonth) return false;
+    const tMonth = getTaskMonth(t);
+    const tYear = getTaskYear(t);
 
     // Apply archive filters
-    const matchesMonth = taskMonthFilter === 'Semua' || tMonth === parseInt(taskMonthFilter);
-    const matchesYear = taskYearFilter === 'Semua' || tYear === parseInt(taskYearFilter);
+    const matchesMonth = taskMonthFilter === 'Semua' || tMonth === parseInt(taskMonthFilter, 10);
+    const matchesYear = taskYearFilter === 'Semua' || tYear === parseInt(taskYearFilter, 10);
 
     return matchesMonth && matchesYear;
   });
@@ -1002,28 +1008,29 @@ export default function StaffTasksTab({
   });
 
   // Unique years of archived tasks for filter
-  const uniqueArchivedYears = Array.from(new Set(
-    allSelectedStaffTasks
-      .filter(t => t.status === 'Selesai' && !(getMonthFromTargetDate(t.targetDate) === currentMonth && getYearFromTargetDate(t.targetDate) === currentYear))
-      .map(t => getYearFromTargetDate(t.targetDate))
+  const uniqueArchivedYears = Array.from(new Set([
+    currentYear,
+    ...allSelectedStaffTasks
+      .filter(t => t.status === 'Selesai')
+      .map(t => getTaskYear(t))
       .filter(y => y > 0)
-  )).sort((a, b) => b - a);
+  ])).sort((a, b) => b - a);
 
   // Overall statistics for all tasks (for monthly dashboard summary card fills)
   const totalTasksThisMonth = staffTasks.filter(t => {
-    return getMonthFromTargetDate(t.targetDate) === currentMonth && getYearFromTargetDate(t.targetDate) === currentYear;
+    return getTaskMonth(t) === currentMonth && getTaskYear(t) === currentYear;
   }).length;
 
   const completedTasksThisMonth = staffTasks.filter(t => {
-    return t.status === 'Selesai' && getMonthFromTargetDate(t.targetDate) === currentMonth && getYearFromTargetDate(t.targetDate) === currentYear;
+    return t.status === 'Selesai' && getTaskMonth(t) === currentMonth && getTaskYear(t) === currentYear;
   }).length;
 
   const inProgressTasksThisMonth = staffTasks.filter(t => {
-    return t.status === 'Dalam Proses' && getMonthFromTargetDate(t.targetDate) === currentMonth && getYearFromTargetDate(t.targetDate) === currentYear;
+    return t.status === 'Dalam Proses' && getTaskMonth(t) === currentMonth && getTaskYear(t) === currentYear;
   }).length;
 
   const pendingTasksThisMonth = staffTasks.filter(t => {
-    return (t.status === 'Belum Mulai' || t.status === 'Tertunda') && getMonthFromTargetDate(t.targetDate) === currentMonth && getYearFromTargetDate(t.targetDate) === currentYear;
+    return (t.status === 'Belum Mulai' || t.status === 'Tertunda') && getTaskMonth(t) === currentMonth && getTaskYear(t) === currentYear;
   }).length;
 
   return (
@@ -1774,10 +1781,8 @@ export default function StaffTasksTab({
                       className="w-full border border-slate-300 rounded p-1 text-xs bg-white text-slate-800 outline-none cursor-pointer"
                     >
                       <option value="Semua">Semua</option>
-                      <option value="2026">2026</option>
-                      <option value="2027">2027</option>
-                      {uniqueArchivedYears.filter(y => y !== 2026 && y !== 2027).map(y => (
-                        <option key={y} value={y}>{y}</option>
+                      {uniqueArchivedYears.map(y => (
+                        <option key={y} value={String(y)}>{y}</option>
                       ))}
                     </select>
                   </div>

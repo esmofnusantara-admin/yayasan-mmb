@@ -17,6 +17,7 @@ import { activitiesRouter } from './routes/activities.routes';
 import { staffTasksRouter } from './routes/staff-tasks.routes';
 import { mailRouter } from './routes/mail.routes';
 import { seedAllInitialData } from './services/seed.service';
+import { initCronScheduler } from './services/cron.service';
 
 const PORT = 3000;
 
@@ -46,6 +47,9 @@ app.use('/api/mail', mailRouter);
 async function startServer() {
   // Seed semua data awal dari BE (bukan dari FE)
   await seedAllInitialData();
+
+  // Inisialisasi background cron scheduler pengingat tugas pagi 07:00 WIB
+  initCronScheduler();
 
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

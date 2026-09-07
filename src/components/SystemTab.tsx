@@ -574,6 +574,24 @@ export default function SystemTab({
   const [isTestingSmtp, setIsTestingSmtp] = useState<boolean>(false);
   const [smtpTestResult, setSmtpTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  // Broadcast & Message Center states
+  const [broadcastRecipientType, setBroadcastRecipientType] = useState<'all' | 'specific' | 'manual'>('all');
+  const [broadcastSelectedStaffEmail, setBroadcastSelectedStaffEmail] = useState<string>('');
+  const [broadcastManualEmail, setBroadcastManualEmail] = useState<string>('');
+  const [broadcastCategory, setBroadcastCategory] = useState<string>('PENGUMUMAN');
+  const [broadcastSubject, setBroadcastSubject] = useState<string>('');
+  const [broadcastMessage, setBroadcastMessage] = useState<string>('');
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState<boolean>(false);
+  const [broadcastResult, setBroadcastResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  // Morning reminder test trigger state
+  const [isTriggeringMorningDigest, setIsTriggeringMorningDigest] = useState<boolean>(false);
+  const [morningDigestResult, setMorningDigestResult] = useState<{ success: boolean; message: string; summary?: any } | null>(null);
+
+  // Staff list for recipient selection
+  const [allStaffList, setAllStaffList] = useState<any[]>([]);
+  const [isFetchingStaffList, setIsFetchingStaffList] = useState<boolean>(false);
+
   const lastSyncedProfileRef = React.useRef<any>(null);
 
   useEffect(() => {
@@ -916,8 +934,32 @@ export default function SystemTab({
     }
   };
 
+  const fetchAllStaff = async () => {
+    setIsFetchingStaffList(true);
+    try {
+      const res = await fetch('/api/data/staff');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const activeStaffs = data.filter((s: any) => !s.deleted && s.email);
+          setAllStaffList(activeStaffs);
+          if (activeStaffs.length > 0) {
+            setBroadcastSelectedStaffEmail(prev => prev || activeStaffs[0].email);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch staff list:', err);
+    } finally {
+      setIsFetchingStaffList(false);
+    }
+  };
+
   useEffect(() => {
     fetchOperators();
+    if (activeSubView === 'email') {
+      fetchAllStaff();
+    }
   }, [activeSubView]);
 
   const handleRotateImage = (
@@ -1170,6 +1212,90 @@ export default function SystemTab({
       setSmtpTestResult({ success: false, message: `Gagal mengirim email pengujian: ${err.message}` });
     } finally {
       setIsTestingSmtp(false);
+    }
+  };
+
+  const handleSendBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastSubject.trim()) {
+      alert('Subjek pesan broadcast tidak boleh kosong!');
+      return;
+    }
+    if (!broadcastMessage.trim()) {
+      alert('Isi pesan broadcast tidak boleh kosong!');
+      return;
+    }
+
+    let recipients: { email: string; name: string }[] = [];
+    if (broadcastRecipientType === 'all') {
+      recipients = allStaffList.map(s => ({ email: s.email.trim(), name: s.name.trim() }));
+      if (recipients.length === 0) {
+        alert('Tidak ada data staf aktif dengan alamat email terdaftar.');
+        return;
+      }
+    } else if (broadcastRecipientType === 'specific') {
+      const target = allStaffList.find(s => s.email.toLowerCase().trim() === broadcastSelectedStaffEmail.toLowerCase().trim());
+      if (!target) {
+        alert('Silakan pilih staf penerima pesan.');
+        return;
+      }
+      recipients = [{ email: target.email.trim(), name: target.name.trim() }];
+    } else {
+      if (!broadcastManualEmail.trim() || !broadcastManualEmail.includes('@')) {
+        alert('Silakan masukkan alamat email penerima yang valid.');
+        return;
+      }
+      recipients = [{ email: broadcastManualEmail.trim(), name: broadcastManualEmail.split('@')[0] }];
+    }
+
+    if (!window.confirm(`Kirim broadcast "${broadcastSubject}" ke ${recipients.length} penerima via email?`)) {
+      return;
+    }
+
+    setIsSendingBroadcast(true);
+    setBroadcastResult(null);
+    try {
+      const res = await fetch('/api/mail/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipients,
+          subject: broadcastSubject,
+          message: broadcastMessage,
+          category: broadcastCategory,
+          senderName: profile.name || 'Yayasan Murid Muda Bermisi (MMB)'
+        })
+      });
+      const data = await res.json();
+      setBroadcastResult(data);
+      if (data.success) {
+        setBroadcastSubject('');
+        setBroadcastMessage('');
+      }
+    } catch (err: any) {
+      setBroadcastResult({ success: false, message: `Gagal mengirim email broadcast: ${err.message}` });
+    } finally {
+      setIsSendingBroadcast(false);
+    }
+  };
+
+  const handleTriggerMorningDigest = async () => {
+    if (!window.confirm('Jalankan pengiriman Rekap & Reminder Program Kerja Pagi (07:00 WIB) ke seluruh staf sekarang?')) {
+      return;
+    }
+    setIsTriggeringMorningDigest(true);
+    setMorningDigestResult(null);
+    try {
+      const res = await fetch('/api/mail/morning-digest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      setMorningDigestResult(data);
+    } catch (err: any) {
+      setMorningDigestResult({ success: false, message: `Gagal menjalankan simulasi reminder pagi: ${err.message}` });
+    } finally {
+      setIsTriggeringMorningDigest(false);
     }
   };
 
@@ -4935,6 +5061,253 @@ export default function SystemTab({
               </div>
             )}
           </div>
+
+          {/* CARD 2: REMINDER & REKAP PROGRAM KERJA PAGI (CRON 07:00 WIB) */}
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200">
+              <div>
+                <h4 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-slate-700" /> Pengingat Otomatis Program Kerja Pagi (Pukul 07:00 WIB)
+                </h4>
+                <p className="text-slate-500 text-xs mt-0.5">
+                  Scheduler cron server berjalan otomatis setiap hari pukul <strong>07:00 WIB</strong> untuk memeriksa agenda staf:
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleTriggerMorningDigest}
+                disabled={isTriggeringMorningDigest}
+                className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer shrink-0"
+              >
+                <Send className="w-3.5 h-3.5" /> {isTriggeringMorningDigest ? 'Sedang Memproses...' : 'Uji / Kirim Reminder Pagi Sekarang'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[11px] text-slate-700">
+              <div className="bg-white p-3 rounded border border-slate-200 space-y-1">
+                <span className="font-bold text-amber-800 block flex items-center gap-1">
+                  ⚠️ Jika Belum Ada Program Kerja
+                </span>
+                <p className="text-slate-600 leading-relaxed">
+                  Email pengingat ramah akan dikirimkan kepada staf agar segera menginput rencana & program kerja hari ini di portal staf.
+                </p>
+              </div>
+              <div className="bg-white p-3 rounded border border-slate-200 space-y-1">
+                <span className="font-bold text-emerald-800 block flex items-center gap-1">
+                  📋 Jika Ada Program Kerja Hari Ini
+                </span>
+                <p className="text-slate-600 leading-relaxed">
+                  Email berisi daftar agenda tugas hari ini + status deadline tugas yang harus diselesaikan akan dikirimkan sebagai checklist kerja.
+                </p>
+              </div>
+              <div className="bg-white p-3 rounded border border-slate-200 space-y-1">
+                <span className="font-bold text-blue-800 block flex items-center gap-1">
+                  📖 Ayat Alkitab Penyemangat
+                </span>
+                <p className="text-slate-600 leading-relaxed">
+                  Setiap email dilengkapi kutipan firman Tuhan motivasional acak untuk memberikan semangat dalam melayani institusi yayasan.
+                </p>
+              </div>
+            </div>
+
+            {/* HASIL SIMULASI REMINDER */}
+            {morningDigestResult && (
+              <div className={`p-3 rounded-lg border text-xs flex items-start gap-2 ${
+                morningDigestResult.success
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  : 'bg-rose-50 border-rose-200 text-rose-900'
+              }`}>
+                {morningDigestResult.success ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                )}
+                <div className="flex-1">
+                  <strong className="block">{morningDigestResult.success ? 'Hasil Reminder Pagi:' : 'Gagal Menjalankan Reminder:'}</strong>
+                  <p className="mt-0.5 text-[11px] leading-relaxed">{morningDigestResult.message}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* CARD 3: PUSAT PESAN & BROADCAST EMAIL STAF */}
+          <form onSubmit={handleSendBroadcast} className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-4">
+            <div className="pb-2 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h4 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-slate-700" /> Pusat Pesan & Broadcast Email Staf
+                </h4>
+                <p className="text-slate-500 text-xs mt-0.5">
+                  Kirim pengumuman resmi, instruksi tugas khusus, atau pesan internal yayasan kepada seluruh staf atau individu tertentu.
+                </p>
+              </div>
+              <span className="text-[11px] text-slate-500 font-medium">
+                {allStaffList.length} Staf Terdaftar dengan Email
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {/* TARGET PENERIMA */}
+              <div>
+                <label className="text-slate-700 block mb-1.5 font-bold text-xs">Pilih Target Penerima Email :</label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <label className={`p-2.5 rounded border text-xs cursor-pointer flex items-center gap-2 transition-colors ${
+                    broadcastRecipientType === 'all'
+                      ? 'bg-blue-50/70 border-blue-300 text-blue-950 font-bold'
+                      : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="broadcastTarget"
+                      value="all"
+                      checked={broadcastRecipientType === 'all'}
+                      onChange={() => setBroadcastRecipientType('all')}
+                      className="text-[#0c2340] cursor-pointer"
+                    />
+                    <span>Seluruh Staf Aktif ({allStaffList.length} orang)</span>
+                  </label>
+
+                  <label className={`p-2.5 rounded border text-xs cursor-pointer flex items-center gap-2 transition-colors ${
+                    broadcastRecipientType === 'specific'
+                      ? 'bg-blue-50/70 border-blue-300 text-blue-950 font-bold'
+                      : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="broadcastTarget"
+                      value="specific"
+                      checked={broadcastRecipientType === 'specific'}
+                      onChange={() => setBroadcastRecipientType('specific')}
+                      className="text-[#0c2340] cursor-pointer"
+                    />
+                    <span>Pilih Staf Tertentu</span>
+                  </label>
+
+                  <label className={`p-2.5 rounded border text-xs cursor-pointer flex items-center gap-2 transition-colors ${
+                    broadcastRecipientType === 'manual'
+                      ? 'bg-blue-50/70 border-blue-300 text-blue-950 font-bold'
+                      : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="broadcastTarget"
+                      value="manual"
+                      checked={broadcastRecipientType === 'manual'}
+                      onChange={() => setBroadcastRecipientType('manual')}
+                      className="text-[#0c2340] cursor-pointer"
+                    />
+                    <span>Ketik Alamat Email Manual</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* JIKA PILIH STAF TERTENTU */}
+              {broadcastRecipientType === 'specific' && (
+                <div>
+                  <label className="text-slate-700 block mb-1 font-semibold text-xs">Pilih Staf Penerima :</label>
+                  <select
+                    value={broadcastSelectedStaffEmail}
+                    onChange={(e) => setBroadcastSelectedStaffEmail(e.target.value)}
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-900 bg-white text-xs focus:outline-none focus:border-[#0c2340]"
+                  >
+                    {allStaffList.map((stf) => (
+                      <option key={stf.nik} value={stf.email}>
+                        {stf.name} ({stf.email}) — {stf.position}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* JIKA PILIH MANUAL EMAIL */}
+              {broadcastRecipientType === 'manual' && (
+                <div>
+                  <label className="text-slate-700 block mb-1 font-semibold text-xs">Alamat Email Penerima :</label>
+                  <input
+                    type="email"
+                    value={broadcastManualEmail}
+                    onChange={(e) => setBroadcastManualEmail(e.target.value)}
+                    placeholder="contoh: anggota@esm.or.id atau rekan@gmail.com"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-900 bg-white text-xs focus:outline-none focus:border-[#0c2340]"
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-slate-700 block mb-1 font-semibold text-xs">Kategori Pesan :</label>
+                  <select
+                    value={broadcastCategory}
+                    onChange={(e) => setBroadcastCategory(e.target.value)}
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-900 bg-white text-xs focus:outline-none focus:border-[#0c2340]"
+                  >
+                    <option value="PENGUMUMAN">📢 Pengumuman Resmi</option>
+                    <option value="RAPAT">👥 Undangan / Agenda Rapat</option>
+                    <option value="TUGAS">📋 Penugasan / Program Khusus</option>
+                    <option value="PENTING">🚨 Informasi Penting & Mendesak</option>
+                    <option value="UMUM">✉️ Informasi Umum</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-slate-700 block mb-1 font-semibold text-xs">Subjek Email :</label>
+                  <input
+                    type="text"
+                    value={broadcastSubject}
+                    onChange={(e) => setBroadcastSubject(e.target.value)}
+                    placeholder="Contoh: Rapat Koordinasi Program Pelayanan & Evaluasi Bulan Ini"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-900 bg-white text-xs focus:outline-none focus:border-[#0c2340]"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-700 block mb-1 font-semibold text-xs">Isi Pesan Email :</label>
+                <textarea
+                  rows={5}
+                  value={broadcastMessage}
+                  onChange={(e) => setBroadcastMessage(e.target.value)}
+                  placeholder="Tuliskan isi pesan atau pengumuman di sini. Baris baru akan tersusun rapi secara otomatis..."
+                  className="w-full border border-slate-300 rounded p-3 text-slate-900 bg-white text-xs focus:outline-none focus:border-[#0c2340] leading-relaxed"
+                  required
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                <p className="text-[11px] text-slate-500">
+                  Email broadcast otomatis dikirimkan dengan template resmi berlogo yayasan dan kutipan firman Tuhan penutup.
+                </p>
+                <button
+                  type="submit"
+                  disabled={isSendingBroadcast}
+                  className="px-5 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer shrink-0"
+                >
+                  <Send className="w-3.5 h-3.5" /> {isSendingBroadcast ? 'Mengirim Broadcast...' : 'Kirim Pesan Broadcast via Email'}
+                </button>
+              </div>
+
+              {/* HASIL BROADCAST */}
+              {broadcastResult && (
+                <div className={`p-3 rounded-lg border text-xs flex items-start gap-2 ${
+                  broadcastResult.success
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    : 'bg-rose-50 border-rose-200 text-rose-900'
+                }`}>
+                  {broadcastResult.success ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1">
+                    <strong className="block">{broadcastResult.success ? 'Berhasil Terkirim!' : 'Gagal Mengirim Broadcast:'}</strong>
+                    <p className="mt-0.5 text-[11px] leading-relaxed">{broadcastResult.message}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </form>
         </div>
       )}
 

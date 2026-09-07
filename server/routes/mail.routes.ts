@@ -6,6 +6,9 @@ import {
   verifySmtpConnection,
   sendTestEmail,
   sendStaffTaskNotificationEmail,
+  sendDailyMorningTaskDigest,
+  sendCustomBroadcastEmail,
+  sendSalarySlipEmail,
   SmtpConfig,
 } from '../services/mail.service';
 import { auditFromReq, writeAuditLog } from '../utils/audit.util';
@@ -99,6 +102,108 @@ mailRouter.post('/notify-task/:taskId', authenticateToken, async (req: any, res:
       res.json({ success: true, message: `Notifikasi email untuk task "${task.title}" berhasil dikirim.` });
     } else {
       res.status(400).json({ success: false, message: result.reason || 'Gagal mengirim email notifikasi.' });
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/mail/morning-digest - Uji / pemicu manual digest pengingat tugas pagi 07:00 WIB
+mailRouter.post('/morning-digest', authenticateToken, async (req: any, res: Response) => {
+  const role = req.user?.role;
+  const isSuperAdmin = role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Pembina Yayasan';
+  if (!isSuperAdmin) {
+    return res.status(403).json({ success: false, message: 'Hak akses terbatas.' });
+  }
+
+  try {
+    const result = await sendDailyMorningTaskDigest();
+    res.json({
+      success: true,
+      message: `Digest pagi berhasil diproses. ${result.totalSent} email terkirim, ${result.errors} gagal.`,
+      result,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/mail/broadcast - Kirim pesan / pengumuman broadcast manual ke staf / email tertentu
+mailRouter.post('/broadcast', authenticateToken, async (req: any, res: Response) => {
+  const role = req.user?.role;
+  const isAuthorized = role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Pembina Yayasan' || role === 'Sekretaris' || role === 'Bendahara';
+  if (!isAuthorized) {
+    return res.status(403).json({ success: false, message: 'Hak akses terbatas untuk mengirim pesan broadcast.' });
+  }
+
+  const { recipients, subject, category, message, attachmentUrl } = req.body;
+  const { userName } = auditFromReq(req);
+
+  if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+    return res.status(400).json({ success: false, message: 'Pilih setidaknya satu alamat email penerima.' });
+  }
+
+  if (!subject || !message) {
+    return res.status(400).json({ success: false, message: 'Subjek dan isi pesan wajib diisi.' });
+  }
+
+  try {
+    const result = await sendCustomBroadcastEmail({
+      recipients,
+      subject,
+      category,
+      message,
+      attachmentUrl,
+      senderName: userName,
+    });
+
+    res.json({
+      success: true,
+      message: `Pesan broadcast berhasil dikirim ke ${result.totalSent} penerima (${result.errors} gagal).`,
+      result,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/mail/send-slip - Kirim slip gaji ke staf tertentu
+mailRouter.post('/send-slip', authenticateToken, async (req: any, res: Response) => {
+  const role = req.user?.role;
+  const isAuthorized = role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Pembina Yayasan' || role === 'Bendahara';
+  if (!isAuthorized) {
+    return res.status(403).json({ success: false, message: 'Hak akses terbatas untuk mengirim slip gaji.' });
+  }
+
+  const { staffNik, month, paidAmount, treasurerName, salaryConfig, salaryBreakdown } = req.body;
+  const { userName } = auditFromReq(req);
+
+  if (!staffNik) {
+    return res.status(400).json({ success: false, message: 'NIK staf wajib disertakan.' });
+  }
+
+  try {
+    const staff = await dbDriver.getDoc('staff', staffNik);
+    if (!staff || staff.deleted) {
+      return res.status(404).json({ success: false, message: 'Data staf tidak ditemukan.' });
+    }
+
+    const profile = await dbDriver.getDoc('profiles', 'PROF-01');
+
+    const result = await sendSalarySlipEmail({
+      staff,
+      salaryConfig,
+      salaryBreakdown,
+      month: month || new Date().toISOString().substring(0, 7),
+      paidAmount: Number(paidAmount || 0),
+      treasurerName: treasurerName || 'Bendahara Yayasan',
+      senderName: userName,
+    });
+
+    if (result.sent) {
+      res.json({ success: true, message: result.message });
+    } else {
+      res.status(400).json({ success: false, message: result.message });
     }
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });

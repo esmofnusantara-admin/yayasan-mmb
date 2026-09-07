@@ -25,7 +25,9 @@ import {
   Calendar, 
   RefreshCw, 
   CheckCircle2, 
-  AlertCircle 
+  AlertCircle,
+  Mail,
+  Send
 } from 'lucide-react';
 import { Staff, CustomPayrollField, ApprovalRequest, StaffSalary, SalaryComponent, InstitutionalProfile } from '../types';
 import { exportToCSV, exportSlipToPDF } from '../utils/export';
@@ -255,6 +257,74 @@ export default function PayrollTab({
     });
     return map;
   }, [staffs, selectedPeriodYear, selectedPeriodMonth, transactions]);
+
+  // Salary slip email sender state & handler
+  const [isSendingSlipEmail, setIsSendingSlipEmail] = useState<Record<string, boolean>>({});
+
+  const handleSendSalarySlipEmail = async (stf: Staff) => {
+    if (!stf.email || !stf.email.includes('@')) {
+      alert(`Staf ${stf.name} (NIK: ${stf.nik}) belum memiliki alamat email yang valid di data kepegawaian. Silakan isi alamat email staf terlebih dahulu.`);
+      return;
+    }
+
+    const bendaharaNode = structures.find(s => s.id === 'bendahara');
+    let treasurerName = '';
+    if (bendaharaNode && !bendaharaNode.deleted && bendaharaNode.name?.trim()) {
+      treasurerName = bendaharaNode.name;
+    } else {
+      const treasurerStaff = staffs.find(s => s.position?.toLowerCase().includes('bendahara') || s.email?.toLowerCase().includes('bendahara'));
+      if (treasurerStaff?.name?.trim()) {
+        treasurerName = treasurerStaff.name;
+      } else if (bendaharaNode && bendaharaNode.deleted) {
+        treasurerName = 'BENDAHARA YAYASAN';
+      } else {
+        treasurerName = 'Ibu Ruth Sitorus, S.E.';
+      }
+    }
+
+    const monthName = INDO_MONTHS[selectedPeriodMonth] || 'Bulan Ini';
+    const periodStr = `${monthName} ${selectedPeriodYear}`;
+    const salConfig = getStaffSalaryConfig(stf.nik, stf.salaryBase);
+    const paidSum = staffPaidAmounts[stf.nik] || 0;
+
+    if (!window.confirm(`Kirimkan Dokumen Slip Gaji Elektronik periode ${periodStr} ke email ${stf.name} (${stf.email})?`)) {
+      return;
+    }
+
+    setIsSendingSlipEmail(prev => ({ ...prev, [stf.nik]: true }));
+    try {
+      const res = await fetch('/api/mail/send-slip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          staff: {
+            nik: stf.nik,
+            name: stf.name,
+            email: stf.email,
+            position: stf.position,
+            division: stf.division,
+            status: stf.status,
+            salaryBase: salConfig.salaryBase,
+            components: salConfig.components,
+            lastMonthUnpaid: stf.lastMonthUnpaid || 0
+          },
+          periodStr,
+          paidAmount: paidSum,
+          treasurerName
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Sukses: Slip Gaji periode ${periodStr} berhasil dikirimkan ke email ${stf.email}.`);
+      } else {
+        alert(`Gagal mengirim slip gaji: ${data.message || data.error}`);
+      }
+    } catch (err: any) {
+      alert(`Kesalahan jaringan saat mengirim slip gaji: ${err.message}`);
+    } finally {
+      setIsSendingSlipEmail(prev => ({ ...prev, [stf.nik]: false }));
+    }
+  };
 
   // Automated Payroll Rollover & Arrears Engine
   useEffect(() => {
@@ -1526,6 +1596,14 @@ export default function PayrollTab({
                         >
                           <Printer className="w-3.5 h-3.5" /> Slip Gaji
                         </button>
+                        <button 
+                          onClick={() => handleSendSalarySlipEmail(stf)}
+                          disabled={isSendingSlipEmail[stf.nik]}
+                          className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-xs font-semibold cursor-pointer flex items-center gap-1 shadow-xs transition-colors disabled:opacity-50"
+                          title="Kirim slip gaji elektronik langsung ke email staf"
+                        >
+                          <Mail className="w-3.5 h-3.5" /> {isSendingSlipEmail[stf.nik] ? 'Mengirim...' : 'Kirim Email'}
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1958,9 +2036,17 @@ export default function PayrollTab({
                     treasurerName
                   );
                 }}
-                className="px-5 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
+                className="px-4 py-2 border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-semibold rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
               >
-                <Printer className="w-4 h-4 text-white" /> Unduh Dokumen PDF
+                <Printer className="w-3.5 h-3.5 text-slate-600" /> Unduh Dokumen PDF
+              </button>
+              <button 
+                type="button"
+                onClick={() => handleSendSalarySlipEmail(activeSlipStaff)}
+                disabled={isSendingSlipEmail[activeSlipStaff.nik]}
+                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors disabled:opacity-50"
+              >
+                <Mail className="w-3.5 h-3.5 text-white" /> {isSendingSlipEmail[activeSlipStaff.nik] ? 'Mengirim Slip...' : 'Kirim Slip ke Email'}
               </button>
             </div>
 

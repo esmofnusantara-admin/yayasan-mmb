@@ -40,7 +40,8 @@ import {
   Check,
   Zap,
   Tag,
-  ArrowRight
+  ArrowRight,
+  Mail
 } from 'lucide-react';
 import { StaffTask, StaffMeeting, Staff, Member, MemberNote, SmallGroup, InstitutionalProfile } from '../types';
 
@@ -885,6 +886,40 @@ export default function StaffTasksTab({
     setEditingMeeting(null);
   };
 
+  const [sendingEmailTaskId, setSendingEmailTaskId] = useState<string | null>(null);
+
+  const handleNotifyEmailClick = async (task: StaffTask) => {
+    const matchedStaff = staffs.find(s => (task.staffNik && s.nik === task.staffNik) || (task.staffName && s.name.toLowerCase() === task.staffName.toLowerCase()));
+    const targetEmail = matchedStaff?.email || '';
+
+    if (!window.confirm(`Kirim notifikasi email penugasan "${task.title}" ke ${task.staffName}${targetEmail ? ` (${targetEmail})` : ''}?`)) {
+      return;
+    }
+
+    setSendingEmailTaskId(task.id);
+    try {
+      const token = getSessionUserToken();
+      const res = await fetch(`/api/mail/notify-task/${task.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ email: targetEmail })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`✅ Sukses: ${data.message || 'Email notifikasi berhasil dikirim ke staf.'}`);
+      } else {
+        alert(`⚠️ Perhatian: ${data.message || 'Gagal mengirim email notifikasi. Pastikan SMTP sudah diaktifkan di menu Profil Sistem.'}`);
+      }
+    } catch (err: any) {
+      alert(`Kesalahan jaringan: ${err.message}`);
+    } finally {
+      setSendingEmailTaskId(null);
+    }
+  };
+
   const handleDeleteTaskClick = async (task: StaffTask) => {
     if (!isSuperAdmin && matchedCurrentStaff && task.staffNik !== matchedCurrentStaff.nik) {
       alert('Akses Ditolak: Anda hanya diizinkan menghapus program kerja Anda sendiri.');
@@ -1454,6 +1489,14 @@ export default function StaffTasksTab({
                                     {canModify && (
                                       <div className="flex items-center gap-1">
                                         <button
+                                          onClick={() => handleNotifyEmailClick(task)}
+                                          disabled={sendingEmailTaskId === task.id}
+                                          className="p-1 hover:bg-blue-50 rounded text-blue-700 transition-colors cursor-pointer disabled:opacity-50"
+                                          title="Kirim Notifikasi Email ke Staf"
+                                        >
+                                          <Mail className="w-3 h-3" />
+                                        </button>
+                                        <button
                                           onClick={() => handleOpenEditTask(task)}
                                           className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors cursor-pointer"
                                           title="Edit Kegiatan"
@@ -1577,6 +1620,14 @@ export default function StaffTasksTab({
 
                           {canModify && (
                             <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleNotifyEmailClick(task)}
+                                disabled={sendingEmailTaskId === task.id}
+                                className="p-1.5 bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 rounded transition-colors cursor-pointer disabled:opacity-50"
+                                title="Kirim Notifikasi Email ke Staf"
+                              >
+                                <Mail className="w-3 h-3" />
+                              </button>
                               <button
                                 onClick={() => handleOpenEditTask(task)}
                                 className="p-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded transition-colors cursor-pointer"
@@ -1742,6 +1793,14 @@ export default function StaffTasksTab({
 
                           {canModify && (
                             <div className="flex justify-end items-center gap-1.5 pt-2 border-t border-slate-200">
+                              <button
+                                onClick={() => handleNotifyEmailClick(task)}
+                                disabled={sendingEmailTaskId === task.id}
+                                className="px-2 py-0.5 bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 rounded text-[10px] font-semibold flex items-center gap-0.5 cursor-pointer shadow-xs transition-colors disabled:opacity-50"
+                                title="Kirim Notifikasi Email ke Staf"
+                              >
+                                <Mail className="w-3 h-3 text-blue-600" /> Notif Email
+                              </button>
                               <button
                                 onClick={() => handleOpenEditTask(task)}
                                 className="px-2 py-0.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-[10px] font-semibold flex items-center gap-0.5 cursor-pointer shadow-xs transition-colors"

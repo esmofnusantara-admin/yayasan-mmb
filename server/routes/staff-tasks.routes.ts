@@ -4,6 +4,7 @@ import { authenticateToken } from './auth.routes';
 import { cleanObjectForFirestore } from '../services/transaction-sync.service';
 import { generateStaffTaskId, generateStaffMeetingId } from '../utils/id-generator';
 import { writeAuditLog, auditFromReq } from '../utils/audit.util';
+import { sendStaffTaskNotificationEmail } from '../services/mail.service';
 
 const router = Router();
 
@@ -45,7 +46,40 @@ router.post('/', authenticateToken, async (req: any, res: Response) => {
     });
     await dbDriver.setDoc('staff_tasks', id, task);
     await writeAuditLog({ userName, userRole, action: `Tambah Task Staff: ${task.title} (${id}) — ${task.staffName}`, module: 'Program & Rapat Staf' });
+
+    // Kirim notifikasi email ke staf secara background (asinkron)
+    sendStaffTaskNotificationEmail(task, undefined, userName).catch(err => {
+      console.error('[StaffTasks] Background mail notification failed:', err);
+    });
+
     res.json({ success: true, id, task });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Endpoint untuk mengirim / mengirim ulang notifikasi email secara manual
+router.post('/:id/notify', authenticateToken, async (req: any, res: Response) => {
+  const role = req.user?.role;
+  const features = req.user?.features || [];
+  const isSuperAdmin = role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Pembina Yayasan' || role === 'Pengawas Yayasan';
+  const hasAccess = features.includes('staff_tasks');
+  if (!isSuperAdmin && !hasAccess) {
+    return res.status(403).json({ success: false, message: 'Hak akses terbatas.' });
+  }
+  const { userName } = auditFromReq(req);
+  try {
+    const { id } = req.params;
+    const task = await dbDriver.getDoc('staff_tasks', id);
+    if (!task || task.deleted) {
+      return res.status(404).json({ success: false, message: 'Penugasan staf tidak ditemukan.' });
+    }
+    const result = await sendStaffTaskNotificationEmail(task, req.body.email, userName);
+    if (result.sent) {
+      res.json({ success: true, message: `Email notifikasi penugasan berhasil dikirim ke staf.` });
+    } else {
+      res.status(400).json({ success: false, message: result.reason || 'Gagal mengirim email notifikasi penugasan.' });
+    }
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

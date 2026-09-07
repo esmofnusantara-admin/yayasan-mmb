@@ -15,6 +15,7 @@ import { smallGroupsRouter } from './routes/small-groups.routes';
 import { approvalsRouter } from './routes/approvals.routes';
 import { activitiesRouter } from './routes/activities.routes';
 import { staffTasksRouter } from './routes/staff-tasks.routes';
+import { mailRouter } from './routes/mail.routes';
 import { seedAllInitialData } from './services/seed.service';
 
 const PORT = 3000;
@@ -39,6 +40,7 @@ app.use('/api/small-groups', smallGroupsRouter);
 app.use('/api/approvals', approvalsRouter);
 app.use('/api/activities', activitiesRouter);
 app.use('/api/staff-tasks', staffTasksRouter);
+app.use('/api/mail', mailRouter);
 
 // Initialize server engine and register static assets handlers
 async function startServer() {

@@ -416,6 +416,16 @@ export interface InstitutionalProfile {
   meetingCategories?: string[];
   groupTypes?: string[];
   salaryComponents?: SalaryComponent[];
+
+  // SMTP Email Notification Configuration
+  smtpEnabled?: boolean;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpSecure?: boolean;
+  smtpUser?: string;
+  smtpPass?: string;
+  smtpFrom?: string;
+  smtpNotifyStaffTasks?: boolean;
 }
 
 export interface AuditLog {

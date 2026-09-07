@@ -46,7 +46,13 @@ import {
   HeartHandshake,
   Briefcase,
   CreditCard,
-  Coins
+  Coins,
+  Mail,
+  Send,
+  Server,
+  Key,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { InstitutionalProfile, AuditLog, SalaryComponent } from '../types';
 import { getCutoffPeriodRange, INDO_MONTHS } from '../utils/cutoff';
@@ -77,7 +83,7 @@ export default function SystemTab({
   currentRole,
   onReloadStructures,
 }: SystemTabProps) {
-  const [activeSubView, setActiveSubView] = useState<'profile' | 'structure' | 'operators' | 'audit' | 'variables'>('profile');
+  const [activeSubView, setActiveSubView] = useState<'profile' | 'structure' | 'operators' | 'audit' | 'variables' | 'email'>('profile');
   const [activeNodeId, setActiveNodeId] = useState<string>('ketua');
   
   // Dynamic Organizational Structure State
@@ -554,6 +560,20 @@ export default function SystemTab({
   const [newSalaryCompType, setNewSalaryCompType] = useState<'allowance' | 'deduction'>('allowance');
   const [newSalaryCompAmount, setNewSalaryCompAmount] = useState<number>(0);
 
+  // SMTP Configuration State
+  const [smtpEnabled, setSmtpEnabled] = useState<boolean>(profile.smtpEnabled ?? false);
+  const [smtpHost, setSmtpHost] = useState<string>(profile.smtpHost || 'smtp.gmail.com');
+  const [smtpPort, setSmtpPort] = useState<number>(profile.smtpPort || 465);
+  const [smtpSecure, setSmtpSecure] = useState<boolean>(profile.smtpSecure !== undefined ? profile.smtpSecure : true);
+  const [smtpUser, setSmtpUser] = useState<string>(profile.smtpUser || '');
+  const [smtpPass, setSmtpPass] = useState<string>(profile.smtpPass || '');
+  const [smtpFrom, setSmtpFrom] = useState<string>(profile.smtpFrom || '');
+  const [smtpNotifyStaffTasks, setSmtpNotifyStaffTasks] = useState<boolean>(profile.smtpNotifyStaffTasks !== undefined ? profile.smtpNotifyStaffTasks : true);
+  const [showSmtpPass, setShowSmtpPass] = useState<boolean>(false);
+  const [testEmailRecipient, setTestEmailRecipient] = useState<string>(profile.email || '');
+  const [isTestingSmtp, setIsTestingSmtp] = useState<boolean>(false);
+  const [smtpTestResult, setSmtpTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
   const lastSyncedProfileRef = React.useRef<any>(null);
 
   useEffect(() => {
@@ -606,7 +626,15 @@ export default function SystemTab({
         JSON.stringify(paymentMethods) === JSON.stringify(last.paymentMethods || []) &&
         JSON.stringify(meetingCategories) === JSON.stringify(last.meetingCategories || []) &&
         JSON.stringify(groupTypes) === JSON.stringify(last.groupTypes || []) &&
-        JSON.stringify(salaryComponents) === JSON.stringify(last.salaryComponents || DEFAULT_MASTER_SALARY_COMPONENTS);
+        JSON.stringify(salaryComponents) === JSON.stringify(last.salaryComponents || DEFAULT_MASTER_SALARY_COMPONENTS) &&
+        smtpEnabled === (last.smtpEnabled ?? false) &&
+        smtpHost === (last.smtpHost || 'smtp.gmail.com') &&
+        smtpPort === (last.smtpPort || 465) &&
+        smtpSecure === (last.smtpSecure !== undefined ? last.smtpSecure : true) &&
+        smtpUser === (last.smtpUser || '') &&
+        smtpPass === (last.smtpPass || '') &&
+        smtpFrom === (last.smtpFrom || '') &&
+        smtpNotifyStaffTasks === (last.smtpNotifyStaffTasks !== undefined ? last.smtpNotifyStaffTasks : true);
     }
 
     // Check if the current local state matches the incoming profile prop (e.g. after a successful save)
@@ -653,7 +681,15 @@ export default function SystemTab({
       JSON.stringify(paymentMethods) === JSON.stringify(profile.paymentMethods || []) &&
       JSON.stringify(meetingCategories) === JSON.stringify(profile.meetingCategories || []) &&
       JSON.stringify(groupTypes) === JSON.stringify(profile.groupTypes || []) &&
-      JSON.stringify(salaryComponents) === JSON.stringify(profile.salaryComponents || DEFAULT_MASTER_SALARY_COMPONENTS);
+      JSON.stringify(salaryComponents) === JSON.stringify(profile.salaryComponents || DEFAULT_MASTER_SALARY_COMPONENTS) &&
+      smtpEnabled === (profile.smtpEnabled ?? false) &&
+      smtpHost === (profile.smtpHost || 'smtp.gmail.com') &&
+      smtpPort === (profile.smtpPort || 465) &&
+      smtpSecure === (profile.smtpSecure !== undefined ? profile.smtpSecure : true) &&
+      smtpUser === (profile.smtpUser || '') &&
+      smtpPass === (profile.smtpPass || '') &&
+      smtpFrom === (profile.smtpFrom || '') &&
+      smtpNotifyStaffTasks === (profile.smtpNotifyStaffTasks !== undefined ? profile.smtpNotifyStaffTasks : true);
 
     if (isFirstLoad || isSameAsLastSynced) {
       setName(profile.name);
@@ -773,6 +809,19 @@ export default function SystemTab({
         "Komunitas Khusus"
       ]);
       setSalaryComponents(profile.salaryComponents && profile.salaryComponents.length > 0 ? profile.salaryComponents : DEFAULT_MASTER_SALARY_COMPONENTS);
+
+      // SMTP values sync
+      setSmtpEnabled(profile.smtpEnabled ?? false);
+      setSmtpHost(profile.smtpHost || 'smtp.gmail.com');
+      setSmtpPort(profile.smtpPort || 465);
+      setSmtpSecure(profile.smtpSecure !== undefined ? profile.smtpSecure : true);
+      setSmtpUser(profile.smtpUser || '');
+      setSmtpPass(profile.smtpPass || '');
+      setSmtpFrom(profile.smtpFrom || '');
+      setSmtpNotifyStaffTasks(profile.smtpNotifyStaffTasks !== undefined ? profile.smtpNotifyStaffTasks : true);
+      if (!testEmailRecipient) {
+        setTestEmailRecipient(profile.email || '');
+      }
       
       lastSyncedProfileRef.current = profile;
     } else if (matchesCurrentProfileProp) {
@@ -929,6 +978,14 @@ export default function SystemTab({
       customSignatures,
       logoUrl,
       cutoffDay,
+      smtpEnabled,
+      smtpHost,
+      smtpPort,
+      smtpSecure,
+      smtpUser,
+      smtpPass,
+      smtpFrom,
+      smtpNotifyStaffTasks,
     };
     onUpdateProfile(updated);
     setIsSignatureDirty(false);
@@ -981,13 +1038,139 @@ export default function SystemTab({
       paymentMethods,
       meetingCategories,
       groupTypes,
-      salaryComponents
+      salaryComponents,
+      smtpEnabled,
+      smtpHost,
+      smtpPort,
+      smtpSecure,
+      smtpUser,
+      smtpPass,
+      smtpFrom,
+      smtpNotifyStaffTasks,
     };
     onUpdateProfile(updated);
     if (typeof window !== 'undefined' && window.localStorage) {
       window.localStorage.setItem('esm_target_payroll_day', String(cutoffDay));
     }
     alert('Sukses: Konfigurasi variabel kustom, siklus cut-off, dan utilitas judul berhasil diperbarui & disimpan!');
+  };
+
+  const handleSaveSmtpSettings = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (currentRole !== 'Super Admin' && currentRole !== 'Ketua Yayasan' && currentRole !== 'Pembina Yayasan') {
+      alert('Akses Terbatas: Hanya Super Admin / Ketua / Pembina Yayasan yang berhak memodifikasi konfigurasi SMTP.');
+      return;
+    }
+    const updated: InstitutionalProfile = {
+      ...profile,
+      name,
+      address,
+      phone,
+      email,
+      website,
+      npwp,
+      legalReg: skLegal,
+      kopTitle,
+      kopMotto,
+      signatureUrl,
+      stampUrl,
+      signatureChairmanUrl,
+      signatureSecretaryUrl,
+      signatureTreasurerUrl,
+      customSignatures,
+      logoUrl,
+      systemTitle,
+      dashboardTitle,
+      regions,
+      materialCategories,
+      incomeAllocations,
+      meetingDays,
+      memberKeaktifanStatuses,
+      memberComponents,
+      partnerStatuses,
+      partnerTypes,
+      donationChannels,
+      cutoffDay,
+      letterClassifications,
+      documentCategories,
+      educationLevels,
+      employmentStatuses,
+      staffDepartments,
+      activityCategories,
+      donationFrequencies,
+      paymentMethods,
+      meetingCategories,
+      groupTypes,
+      salaryComponents,
+      smtpEnabled,
+      smtpHost,
+      smtpPort,
+      smtpSecure,
+      smtpUser,
+      smtpPass,
+      smtpFrom,
+      smtpNotifyStaffTasks,
+    };
+    onUpdateProfile(updated);
+    alert('Sukses: Pengaturan Integrasi Email SMTP berhasil disimpan!');
+  };
+
+  const handleTestSmtpPing = async () => {
+    setIsTestingSmtp(true);
+    setSmtpTestResult(null);
+    try {
+      const res = await fetch('/api/mail/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          host: smtpHost,
+          port: Number(smtpPort),
+          secure: smtpSecure,
+          user: smtpUser,
+          pass: smtpPass,
+        })
+      });
+      const data = await res.json();
+      setSmtpTestResult(data);
+    } catch (err: any) {
+      setSmtpTestResult({ success: false, message: `Kesalahan jaringan saat menguji koneksi: ${err.message}` });
+    } finally {
+      setIsTestingSmtp(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    if (!testEmailRecipient || !testEmailRecipient.includes('@')) {
+      alert('Silakan masukkan alamat email tujuan pengujian yang valid.');
+      return;
+    }
+    setIsTestingSmtp(true);
+    setSmtpTestResult(null);
+    try {
+      const res = await fetch('/api/mail/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          toEmail: testEmailRecipient,
+          config: {
+            enabled: true,
+            host: smtpHost,
+            port: Number(smtpPort),
+            secure: smtpSecure,
+            user: smtpUser,
+            pass: smtpPass,
+            from: smtpFrom,
+            notifyStaffTasks: smtpNotifyStaffTasks
+          }
+        })
+      });
+      const data = await res.json();
+      setSmtpTestResult(data);
+    } catch (err: any) {
+      setSmtpTestResult({ success: false, message: `Gagal mengirim email pengujian: ${err.message}` });
+    } finally {
+      setIsTestingSmtp(false);
+    }
   };
 
   const handleCreateOperator = async (e: React.FormEvent) => {
@@ -1426,6 +1609,18 @@ export default function SystemTab({
           title="Konfigurasi Dapatkan dropdown dinamis & ubah judul sistem"
         >
           <Sliders className="w-3.5 h-3.5" /> Variabel & Utilitas Judul
+        </button>
+        <button 
+          onClick={() => setActiveSubView('email')}
+          className={`px-3.5 py-2 rounded text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-colors ${
+            activeSubView === 'email' ? 'bg-[#0c2340] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
+          }`}
+          title="Konfigurasi pengiriman email SMTP dan notifikasi staf"
+        >
+          <Mail className="w-3.5 h-3.5" /> Integrasi Email (SMTP)
+          {smtpEnabled && (
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" title="SMTP Aktif"></span>
+          )}
         </button>
         <button 
           onClick={() => setActiveSubView('audit')}
@@ -4446,6 +4641,300 @@ export default function SystemTab({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* SUBVIEW 6: SMTP EMAIL CONFIGURATION */}
+      {activeSubView === 'email' && (
+        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-6 text-xs text-left">
+          <div className="pb-3 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                <Mail className="w-4 h-4 text-slate-700" /> Integrasi & Pengaturan Email SMTP (Zero-Cost / Gratis)
+              </h3>
+              <p className="text-slate-500 text-xs mt-0.5">
+                Kirim notifikasi otomatis penugasan & program kerja ke email staf menggunakan akun Gmail atau SMTP Domain Yayasan tanpa biaya langganan API berbayar.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                smtpEnabled ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${smtpEnabled ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                {smtpEnabled ? 'Layanan SMTP Aktif' : 'Layanan SMTP Nonaktif'}
+              </span>
+            </div>
+          </div>
+
+          <form onSubmit={handleSaveSmtpSettings} className="space-y-6">
+            {/* SAKELAR AKTIVASI & PRESET CEPAT */}
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                <div>
+                  <label className="text-slate-900 font-bold text-xs flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={smtpEnabled}
+                      onChange={(e) => setSmtpEnabled(e.target.checked)}
+                      className="w-4 h-4 text-[#0c2340] rounded border-slate-300 focus:ring-0 cursor-pointer"
+                    />
+                    Aktifkan Pengiriman Email Notifikasi Sistem
+                  </label>
+                  <p className="text-slate-500 text-[11px] ml-6 mt-0.5">
+                    Jika dicentang, sistem akan mengirimkan email secara otomatis sesuai aturan penugasan staf.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] text-slate-500 font-medium">Preset Cepat:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSmtpHost('smtp.gmail.com');
+                      setSmtpPort(465);
+                      setSmtpSecure(true);
+                      if (!smtpFrom && smtpUser) {
+                        setSmtpFrom(`"Yayasan MMB" <${smtpUser}>`);
+                      }
+                    }}
+                    className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded text-[11px] font-medium text-slate-700 transition-colors shadow-xs"
+                  >
+                    Gmail (SSL: 465)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSmtpHost('smtp.gmail.com');
+                      setSmtpPort(587);
+                      setSmtpSecure(false);
+                      if (!smtpFrom && smtpUser) {
+                        setSmtpFrom(`"Yayasan MMB" <${smtpUser}>`);
+                      }
+                    }}
+                    className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded text-[11px] font-medium text-slate-700 transition-colors shadow-xs"
+                  >
+                    Gmail (TLS: 587)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSmtpHost('mail.muridmudabermisi.or.id');
+                      setSmtpPort(465);
+                      setSmtpSecure(true);
+                    }}
+                    className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded text-[11px] font-medium text-slate-700 transition-colors shadow-xs"
+                  >
+                    Custom Domain (465)
+                  </button>
+                </div>
+              </div>
+
+              {/* GRID PARAMETER SMTP */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-1">
+                <div className="sm:col-span-2 md:col-span-1">
+                  <label className="text-slate-700 block mb-1 font-bold text-xs flex items-center gap-1">
+                    <Server className="w-3.5 h-3.5 text-slate-600" /> Host SMTP Server :
+                  </label>
+                  <input
+                    type="text"
+                    value={smtpHost}
+                    onChange={(e) => setSmtpHost(e.target.value)}
+                    placeholder="Contoh: smtp.gmail.com"
+                    className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-slate-900 bg-white font-mono text-xs focus:outline-none focus:border-[#0c2340]"
+                    required
+                  />
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">Gunakan <code className="bg-slate-200 px-1 py-0.5 rounded">smtp.gmail.com</code> untuk Google Mail</span>
+                </div>
+
+                <div>
+                  <label className="text-slate-700 block mb-1 font-bold text-xs">Port Server :</label>
+                  <input
+                    type="number"
+                    value={smtpPort}
+                    onChange={(e) => {
+                      const p = Number(e.target.value);
+                      setSmtpPort(p);
+                      if (p === 465) setSmtpSecure(true);
+                      if (p === 587) setSmtpSecure(false);
+                    }}
+                    placeholder="465 atau 587"
+                    className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-slate-900 bg-white font-mono text-xs focus:outline-none focus:border-[#0c2340]"
+                    required
+                  />
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">465 (SSL) atau 587 (STARTTLS)</span>
+                </div>
+
+                <div>
+                  <label className="text-slate-700 block mb-1 font-bold text-xs">Protokol Keamanan :</label>
+                  <select
+                    value={smtpSecure ? 'ssl' : 'tls'}
+                    onChange={(e) => setSmtpSecure(e.target.value === 'ssl')}
+                    className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-slate-900 bg-white text-xs focus:outline-none focus:border-[#0c2340]"
+                  >
+                    <option value="ssl">SSL / TLS Aman (Direkomendasikan - Port 465)</option>
+                    <option value="tls">STARTTLS / Non-SSL (Port 587 / 25)</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2 md:col-span-1">
+                  <label className="text-slate-700 block mb-1 font-bold text-xs flex items-center gap-1">
+                    <Mail className="w-3.5 h-3.5 text-slate-600" /> Username / Email SMTP :
+                  </label>
+                  <input
+                    type="text"
+                    value={smtpUser}
+                    onChange={(e) => setSmtpUser(e.target.value)}
+                    placeholder="Contoh: yayasan.mmb@gmail.com"
+                    className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-slate-900 bg-white text-xs focus:outline-none focus:border-[#0c2340]"
+                    required
+                  />
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">Alamat email akun pengirim</span>
+                </div>
+
+                <div className="sm:col-span-2 md:col-span-1">
+                  <label className="text-slate-700 block mb-1 font-bold text-xs flex items-center gap-1">
+                    <Key className="w-3.5 h-3.5 text-slate-600" /> Password / App Password :
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showSmtpPass ? 'text' : 'password'}
+                      value={smtpPass}
+                      onChange={(e) => setSmtpPass(e.target.value)}
+                      placeholder="Password Aplikasi (16 karakter)"
+                      className="w-full border border-slate-300 rounded px-2.5 py-1.5 pr-8 text-slate-900 bg-white font-mono text-xs focus:outline-none focus:border-[#0c2340]"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSmtpPass(!showSmtpPass)}
+                      className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+                    >
+                      {showSmtpPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5 text-slate-400" />}
+                    </button>
+                  </div>
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">Gunakan App Password Google jika menggunakan Gmail</span>
+                </div>
+
+                <div className="sm:col-span-2 md:col-span-1">
+                  <label className="text-slate-700 block mb-1 font-bold text-xs">Header Pengirim ("From") :</label>
+                  <input
+                    type="text"
+                    value={smtpFrom}
+                    onChange={(e) => setSmtpFrom(e.target.value)}
+                    placeholder='"Yayasan MMB" <info@muridmudabermisi.or.id>'
+                    className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-slate-900 bg-white text-xs focus:outline-none focus:border-[#0c2340]"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">Format: "Nama Yayasan" &lt;email&gt;</span>
+                </div>
+              </div>
+
+              {/* ATURAN NOTIFIKASI */}
+              <div className="pt-3 border-t border-slate-200">
+                <h4 className="font-bold text-slate-900 text-xs mb-2 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#0c2340] block"></span>
+                  Pilihan Notifikasi Otomatis
+                </h4>
+                <label className="text-slate-700 font-semibold text-xs flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={smtpNotifyStaffTasks}
+                    onChange={(e) => setSmtpNotifyStaffTasks(e.target.checked)}
+                    className="w-4 h-4 text-[#0c2340] rounded border-slate-300 focus:ring-0 cursor-pointer"
+                  />
+                  📋 Kirim Notifikasi Email Otomatis saat Penugasan & Program Kerja Staf Ditambahkan
+                </label>
+                <p className="text-slate-500 text-[11px] ml-6 mt-0.5">
+                  Setiap kali pengurus menambahkan program kerja / tugas staf baru, email berisi detail tugas, jadwal, dan tautan lampiran akan dikirimkan otomatis ke staf terkait.
+                </p>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs cursor-pointer transition-colors shadow-xs flex items-center gap-1.5"
+                >
+                  <Check className="w-3.5 h-3.5" /> Simpan Konfigurasi SMTP
+                </button>
+              </div>
+            </div>
+          </form>
+
+          {/* PANDUAN PRAKTIS GMAIL APP PASSWORD */}
+          <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-lg text-xs space-y-2 text-amber-950">
+            <h4 className="font-bold text-amber-900 flex items-center gap-1.5">
+              💡 Panduan Singkat Menggunakan Gmail (Gratis & Bebas Biaya):
+            </h4>
+            <ol className="list-decimal list-inside space-y-1 text-slate-700 text-[11px] leading-relaxed">
+              <li>Pastikan akun Google Anda telah mengaktifkan <strong>Verifikasi 2 Langkah (2-Step Verification)</strong>.</li>
+              <li>Buka halaman Google Account: <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-blue-700 underline font-semibold">myaccount.google.com/apppasswords</a>.</li>
+              <li>Beri nama aplikasi, misalnya <strong>"Yayasan MMB ERP"</strong>, lalu klik <strong>Create / Buat</strong>.</li>
+              <li>Google akan menampilkan <strong>16 karakter sandi aplikasi</strong> (contoh: <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">abcd efgh ijkl mnop</code>).</li>
+              <li>Salin dan tempel 16 karakter tersebut (tanpa spasi) ke kolom <strong>Password / App Password</strong> di atas, lalu simpan.</li>
+            </ol>
+          </div>
+
+          {/* DIAGNOSTIC & TEST EMAIL SENDER */}
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-4">
+            <div className="pb-2 border-b border-slate-200">
+              <h4 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                <Send className="w-3.5 h-3.5 text-slate-700" /> Uji Coba Koneksi & Pengiriman Email Tes
+              </h4>
+              <p className="text-slate-500 text-xs mt-0.5">
+                Lakukan pengujian langsung untuk memastikan server mail dapat mengirim email ke kotak masuk (inbox) Anda.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="flex-1">
+                <label className="text-slate-700 block mb-1 font-semibold text-xs">Email Penerima Uji Coba :</label>
+                <input
+                  type="email"
+                  value={testEmailRecipient}
+                  onChange={(e) => setTestEmailRecipient(e.target.value)}
+                  placeholder="nama@gmail.com"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 text-slate-900 bg-white text-xs focus:outline-none focus:border-[#0c2340]"
+                />
+              </div>
+
+              <div className="flex items-end gap-2 pt-2 sm:pt-4">
+                <button
+                  type="button"
+                  onClick={handleTestSmtpPing}
+                  disabled={isTestingSmtp}
+                  className="px-3.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold rounded text-xs transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                >
+                  <Server className="w-3.5 h-3.5" /> {isTestingSmtp ? 'Menguji...' : 'Uji Koneksi (Ping)'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendTestEmail}
+                  disabled={isTestingSmtp}
+                  className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" /> {isTestingSmtp ? 'Mengirim...' : 'Kirim Email Tes'}
+                </button>
+              </div>
+            </div>
+
+            {/* HASIL DIAGNOSTIK */}
+            {smtpTestResult && (
+              <div className={`p-3 rounded-lg border text-xs flex items-start gap-2 ${
+                smtpTestResult.success
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  : 'bg-rose-50 border-rose-200 text-rose-900'
+              }`}>
+                {smtpTestResult.success ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                )}
+                <div>
+                  <strong className="block">{smtpTestResult.success ? 'Berhasil!' : 'Gagal:'}</strong>
+                  <p className="mt-0.5 text-[11px] leading-relaxed">{smtpTestResult.message}</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

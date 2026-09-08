@@ -97,6 +97,8 @@ export default function SystemTab({
   const [editSub, setEditSub] = useState('');
   const [editOrder, setEditOrder] = useState<number>(100);
   const [editParentId, setEditParentId] = useState<string>('');
+  const [editEmail, setEditEmail] = useState<string>('');
+  const [editPhone, setEditPhone] = useState<string>('');
 
   // Add custom node states
   const [isAddingNode, setIsAddingNode] = useState(false);
@@ -106,6 +108,8 @@ export default function SystemTab({
   const [newNodeSub, setNewNodeSub] = useState('');
   const [newNodeOrder, setNewNodeOrder] = useState<number>(100);
   const [newNodeParentId, setNewNodeParentId] = useState<string>('');
+  const [newNodeEmail, setNewNodeEmail] = useState<string>('');
+  const [newNodePhone, setNewNodePhone] = useState<string>('');
 
   // View mode and scale for org chart
   const [structureViewMode, setStructureViewMode] = useState<'chart' | 'hierarchy'>('chart');
@@ -128,7 +132,9 @@ export default function SystemTab({
             .filter(d => !d.deleted)
             .map(item => ({
               ...item,
-              name: item.name || ''
+              name: item.name || '',
+              email: item.email || '',
+              phone: item.phone || ''
             }));
 
           // Sort by the order parameter
@@ -175,6 +181,8 @@ export default function SystemTab({
         title: editTitle,
         name: editName,
         sub: editSub,
+        email: editEmail.trim(),
+        phone: editPhone.trim(),
         order: Number(editOrder) || 100,
         parentId: editParentId ? editParentId : null,
         deleted: false
@@ -230,6 +238,8 @@ export default function SystemTab({
         title: newNodeTitle,
         name: newNodeName,
         sub: newNodeSub,
+        email: newNodeEmail.trim(),
+        phone: newNodePhone.trim(),
         order: Number(newNodeOrder) || 100,
         parentId: newNodeParentId ? newNodeParentId : null,
         deleted: false
@@ -250,6 +260,8 @@ export default function SystemTab({
         setNewNodeTitle('');
         setNewNodeName('');
         setNewNodeSub('');
+        setNewNodeEmail('');
+        setNewNodePhone('');
         setNewNodeOrder(100);
         setNewNodeParentId('');
         setActiveNodeId(cleanId);
@@ -320,6 +332,8 @@ export default function SystemTab({
       setEditName(activeNode.name || '');
       setEditTitle(activeNode.title || '');
       setEditSub(activeNode.sub || '');
+      setEditEmail(activeNode.email || '');
+      setEditPhone(activeNode.phone || '');
       setEditOrder(typeof activeNode.order === 'number' ? activeNode.order : 100);
       setEditParentId(activeNode.parentId || '');
     }
@@ -910,7 +924,7 @@ export default function SystemTab({
     { id: 'finance', label: 'Keuangan & Kas' },
     { id: 'reports', label: 'Pusat Laporan & Ekspor' },
     { id: 'partners', label: 'Mitra & CRM' },
-    { id: 'staff', label: 'Database Staf' },
+    { id: 'staff', label: 'Database Staf & Pengurus' },
     { id: 'payroll', label: 'Payroll & Slip Gaji' },
     { id: 'letters', label: 'Surat & Dokumen' },
     { id: 'approvals', label: 'Approval Center' },
@@ -2789,6 +2803,31 @@ export default function SystemTab({
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-slate-700 font-semibold mb-1 block text-xs">
+                      Email Resmi Pengurus <span className="text-amber-600 font-normal">(Menerima Notifikasi Pagi 07:00 WIB)</span> :
+                    </label>
+                    <input
+                      type="email"
+                      value={newNodeEmail}
+                      onChange={(e) => setNewNodeEmail(e.target.value)}
+                      placeholder="pengurus@muridmudabermisi.or.id"
+                      className="w-full bg-slate-50 border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340] focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-700 font-semibold mb-1 block text-xs">No. Telepon / WhatsApp :</label>
+                    <input
+                      type="text"
+                      value={newNodePhone}
+                      onChange={(e) => setNewNodePhone(e.target.value)}
+                      placeholder="081234567890"
+                      className="w-full bg-slate-50 border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340] focus:bg-white"
+                    />
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
                   <div className="sm:col-span-6">
                     <label className="text-slate-700 font-semibold mb-1 block text-xs">Atasan Langsung / Induk Jabatan :</label>
@@ -2978,7 +3017,7 @@ export default function SystemTab({
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
                     <div>
                       <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Gelar Jabatan</span>
                       <h4 className="text-xs font-bold text-slate-900">{activeNode.title}</h4>
@@ -2986,6 +3025,18 @@ export default function SystemTab({
                     <div>
                       <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Nama Pejabat/Pengurus</span>
                       <h4 className="text-xs font-bold text-slate-900">{activeNode.name || '(Belum Ditentukan)'}</h4>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Email & Notifikasi</span>
+                      <h4 className="text-xs font-semibold text-slate-800 flex items-center gap-1">
+                        {activeNode.email ? (
+                          <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded text-[11px] font-mono border border-emerald-200 truncate">
+                            {activeNode.email}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 italic text-[11px]">Belum didaftarkan</span>
+                        )}
+                      </h4>
                     </div>
                     <div>
                       <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Divisi Bawahan Langsung</span>
@@ -3042,6 +3093,32 @@ export default function SystemTab({
                             className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
                             placeholder="Contoh: Divisi Keuangan"
                             required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-slate-600 font-semibold block">
+                            Email Resmi Pengurus <span className="text-amber-600 font-normal">(Menerima Notifikasi Pagi 07:00 WIB)</span> :
+                          </label>
+                          <input 
+                            type="email" 
+                            value={editEmail}
+                            onChange={(e) => setEditEmail(e.target.value)}
+                            className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
+                            placeholder="pengurus@muridmudabermisi.or.id"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-slate-600 font-semibold block">No. Telepon / WhatsApp :</label>
+                          <input 
+                            type="text" 
+                            value={editPhone}
+                            onChange={(e) => setEditPhone(e.target.value)}
+                            className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
+                            placeholder="081234567890"
                           />
                         </div>
                       </div>

@@ -1920,16 +1920,24 @@ if (!res.ok) {
       });
 
       // Automatically register user/operator account
+      const isPengurus = s.category === 'Pengurus' || ['pembina', 'pengawas', 'ketua', 'sekretaris', 'bendahara', 'direksi', 'pengurus'].some(k => (s.position || '').toLowerCase().includes(k));
       const cleanEmail = s.email?.trim() || `${s.nik.toLowerCase().trim()}@esm.or.id`;
       const cleanPhone = s.phone?.trim() || '0812345678';
+      const userRole = isPengurus
+        ? (s.position || 'Ketua Yayasan')
+        : 'Staff';
+      const userFeatures = isPengurus
+        ? ['dashboard', 'members', 'small_groups', 'finance', 'reports', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_tasks']
+        : ['dashboard', 'members', 'small_groups', 'staff_tasks'];
+
       const userPayload = {
         name: s.name,
         email: cleanEmail.toLowerCase(),
         phone: cleanPhone,
         password: 'staff123', // Default starter password
-        role: 'Staff',
+        role: userRole,
         approved: true, // Auto-approved because added by Super Admin/Operator directly
-        features: ['dashboard', 'members', 'small_groups'],
+        features: userFeatures,
         deleted: false,
         createdAt: new Date().toISOString(),
         createdBy: `${currentRole} Operator`
@@ -1941,7 +1949,7 @@ if (!res.ok) {
         body: JSON.stringify(userPayload)
       });
 
-      await logAudit(`Menggunakan Penerimaan Karyawan Baru NIK: ${s.nik} & Auto-Registrasi Akun Operator Staff: ${cleanEmail}`, 'Staf & HR');
+      await logAudit(`Menggunakan Penerimaan ${isPengurus ? 'Pengurus' : 'Karyawan'} Baru ID/NIK: ${s.nik} & Auto-Registrasi Akun Operator: ${cleanEmail}`, isPengurus ? 'Pengurus & Organisasi' : 'Staf & HR');
       loadCollection('staff', INITIAL_STAFF, setStaffs);
     } catch (e: any) {
       console.error(e);
@@ -2785,7 +2793,7 @@ if (!res.ok) {
                     activeTab === 'staff' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
                 >
-                  <UserSquare2 className="w-4 h-4 shrink-0" /> Database Staf
+                  <Users className="w-4 h-4 shrink-0" /> Staf & Pengurus
                 </button>
               )}
 
@@ -3036,6 +3044,7 @@ if (!res.ok) {
                 onDeleteStaff={handleDeleteStaff}
                 currentRole={currentRole}
                 profile={profile}
+                structures={structures}
               />
             )}
 

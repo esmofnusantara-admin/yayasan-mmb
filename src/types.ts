@@ -238,6 +238,8 @@ export interface StructureNode {
   order?: number;
   parentId?: string | null;
   level?: number;
+  email?: string;
+  phone?: string;
   deleted?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -261,16 +263,21 @@ export interface PublicField {
 
 export interface Staff {
   id?: string;
-  nik: string; // e.g. NIK-1002
+  nik: string; // e.g. NIK-1002 or PENG-1001
+  category?: 'Staf' | 'Pengurus' | string; // Kategori: Staf atau Pengurus
   name: string;
   phone: string;
   email: string;
   address: string;
   position: string; // Jabatan
-  division: string; // Divisi
-  status: 'Tetap' | 'Kontrak' | 'Magang' | 'Resigned' | string;
+  division: string; // Divisi / Bidang
+  status: 'Tetap' | 'Kontrak' | 'Magang' | 'Resigned' | 'Pengurus Aktif' | 'Demisioner' | 'Masa Bakti' | string;
   joinedDate: string;
   contractEndDate?: string;
+  periodStart?: string; // Masa bakti pengurus (awal)
+  periodEnd?: string;   // Masa bakti pengurus (akhir)
+  skNumber?: string;    // Nomor SK Pengangkatan
+  notes?: string;
   birthDate?: string;
   birthPlace?: string;
   

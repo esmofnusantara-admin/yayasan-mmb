@@ -86,7 +86,7 @@ router.post('/', authenticateToken, async (req: any, res: Response) => {
     return res.status(403).json({ success: false, message: 'Hak akses terbatas.' });
   }
   try {
-    const nik = await generateStaffNik();
+    const nik = req.body.nik?.trim() || await generateStaffNik();
     const staff = cleanObjectForFirestore({
       ...req.body, nik,
       createdBy: userName,
@@ -94,7 +94,7 @@ router.post('/', authenticateToken, async (req: any, res: Response) => {
       deleted: false,
     });
     await dbDriver.setDoc('staff', nik, staff);
-    await writeAuditLog({ userName, userRole, action: `Tambah Staff Baru NIK: ${nik} — ${staff.name}`, module: 'Kepegawaian', afterValue: JSON.stringify(staff) });
+    await writeAuditLog({ userName, userRole, action: `Tambah ${staff.category === 'Pengurus' ? 'Pengurus' : 'Staff'} Baru ID: ${nik} — ${staff.name}`, module: 'Kepegawaian', afterValue: JSON.stringify(staff) });
     res.json({ success: true, nik, staff });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });

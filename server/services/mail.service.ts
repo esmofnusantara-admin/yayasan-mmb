@@ -313,28 +313,56 @@ export async function sendStaffTaskNotificationEmail(
       return { sent: false, reason: 'Task notifications disabled' };
     }
 
-    // Cari alamat email staf
+    // Cari alamat email staf atau pengurus
     let targetEmail = explicitEmail?.trim();
-    let staffName = task.staffName || 'Staf Yayasan MMB';
+    let staffName = task.staffName || 'Staf / Pengurus Yayasan MMB';
 
     if (!targetEmail) {
       const allStaff = await dbDriver.getDocs('staff');
-      const matched = allStaff.find(
+      const matchedStaff = allStaff.find(
         (s: any) =>
           !s.deleted &&
           ((task.staffNik && s.nik === task.staffNik) ||
             (task.staffName && s.name?.toLowerCase().trim() === task.staffName?.toLowerCase().trim()))
       );
 
-      if (matched && matched.email) {
-        targetEmail = matched.email.trim();
-        staffName = matched.name || staffName;
+      if (matchedStaff && matchedStaff.email) {
+        targetEmail = matchedStaff.email.trim();
+        staffName = matchedStaff.name || staffName;
+      } else {
+        // Cari di data struktur organisasi
+        const allStructures = await dbDriver.getDocs('structures');
+        const matchedStructure = allStructures.find(
+          (s: any) =>
+            !s.deleted &&
+            ((task.staffNik && s.id === task.staffNik) ||
+              (task.staffName && s.name?.toLowerCase().trim() === task.staffName?.toLowerCase().trim()) ||
+              (task.staffName && s.title?.toLowerCase().trim() === task.staffName?.toLowerCase().trim()))
+        );
+
+        if (matchedStructure && matchedStructure.email) {
+          targetEmail = matchedStructure.email.trim();
+          staffName = matchedStructure.name || matchedStructure.title || staffName;
+        } else {
+          // Cari di data pengguna / users
+          const allUsers = await dbDriver.getDocs('users');
+          const matchedUser = allUsers.find(
+            (u: any) =>
+              !u.deleted &&
+              ((task.staffName && u.name?.toLowerCase().trim() === task.staffName?.toLowerCase().trim()) ||
+                (task.staffName && u.email?.toLowerCase().trim() === task.staffName?.toLowerCase().trim()))
+          );
+          if (matchedUser && matchedUser.email) {
+            targetEmail = matchedUser.email.trim();
+            staffName = matchedUser.name || staffName;
+          }
+        }
       }
     }
 
     if (!targetEmail || !targetEmail.includes('@')) {
-      console.warn(`[MailService] No valid email found for staff ${task.staffName} (${task.staffNik}). Notification not sent.`);
-      return { sent: false, reason: 'No valid staff email address found' };
+      console.warn(`[MailService] No valid email found for recipient ${task.staffName} (${task.staffNik}). Notification not sent.`);
+      return { sent: false, reason: 'No valid email address found' };
     }
 
     const periodFormatted = formatPeriodLabel(task.periodType, task.targetDate);
@@ -378,7 +406,7 @@ export async function sendStaffTaskNotificationEmail(
           <div class="header">
             <h1>Yayasan Murid Muda Bermisi</h1>
             <p>Yayasan MMB — ESM Management System</p>
-            <div class="badge">📋 Program Kerja Staf</div>
+            <div class="badge">📋 Penugasan & Program Kerja</div>
           </div>
           <div class="content">
             <p>Yth. <strong>${staffName}</strong>,</p>
@@ -388,7 +416,7 @@ export async function sendStaffTaskNotificationEmail(
               <div class="task-title">📌 ${task.title}</div>
               <table class="info-table">
                 <tr>
-                  <td class="info-label">Nama Staf / NIK</td>
+                  <td class="info-label">Nama Staf / Pengurus</td>
                   <td class="info-val">${staffName} ${task.staffNik ? `(${task.staffNik})` : ''}</td>
                 </tr>
                 <tr>
@@ -447,7 +475,7 @@ export async function sendStaffTaskNotificationEmail(
 
     const res = await sendMail({
       to: targetEmail,
-      subject: `📋 [Program Kerja Staf] ${task.title} — Yayasan MMB`,
+      subject: `📋 [Penugasan & Program Kerja] ${task.title} — Yayasan MMB`,
       html,
     });
 
@@ -456,7 +484,7 @@ export async function sendStaffTaskNotificationEmail(
       await writeAuditLog({
         userName: assignerName || 'System Mailer',
         userRole: 'System',
-        action: `Kirim Notifikasi Email Program Kerja Staf: "${task.title}" ke ${targetEmail}`,
+        action: `Kirim Notifikasi Email Program Kerja: "${task.title}" ke ${targetEmail}`,
         module: 'Program & Rapat Staf',
       });
       return { sent: true };
@@ -471,7 +499,7 @@ export async function sendStaffTaskNotificationEmail(
 }
 
 /**
- * Mengirimkan ringkasan harian (Daily Morning Digest) jam 07:00 pagi ke seluruh staf.
+ * Mengirimkan ringkasan harian (Daily Morning Digest) jam 07:00 pagi ke seluruh Staf & Pengurus Yayasan.
  */
 export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number; errors: number; details: any[] }> {
   const result = { totalSent: 0, errors: 0, details: [] as any[] };
@@ -482,26 +510,96 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
       return result;
     }
 
-    const allStaff = (await dbDriver.getDocs('staff')).filter((s: any) => !s.deleted && s.email && s.email.includes('@'));
+    const allStaff = await dbDriver.getDocs('staff');
+    const allStructures = await dbDriver.getDocs('structures');
+    const allUsers = await dbDriver.getDocs('users');
     const allTasks = (await dbDriver.getDocs('staff_tasks')).filter((t: any) => !t.deleted);
+
+    // Build unified de-duplicated recipient list for Morning Digest (Staf & Pengurus)
+    const recipientsMap = new Map<string, {
+      name: string;
+      email: string;
+      roleOrTitle: string;
+      isPengurus: boolean;
+      nikOrId: string;
+      structureNodeId?: string;
+    }>();
+
+    // 1. Ambil dari database Staff & Pengurus
+    for (const s of allStaff) {
+      if (s.deleted || !s.email || !s.email.includes('@')) continue;
+      const cleanEmail = s.email.toLowerCase().trim();
+      const pos = (s.position || '').toLowerCase();
+      const isPengurus = s.category === 'Pengurus' ||
+        ['pembina', 'pengawas', 'ketua', 'sekretaris', 'bendahara', 'direksi', 'pengurus', 'wakil ketua'].some(k => pos.includes(k));
+
+      recipientsMap.set(cleanEmail, {
+        name: s.name || 'Rekan Pelayanan MMB',
+        email: cleanEmail,
+        roleOrTitle: s.position || (isPengurus ? 'Pengurus Yayasan' : 'Staf Yayasan'),
+        isPengurus,
+        nikOrId: s.nik || s.id || ''
+      });
+    }
+
+    // 2. Ambil dari struktur organisasi yang memiliki email terdaftar
+    for (const str of allStructures) {
+      if (str.deleted || !str.email || !str.email.includes('@')) continue;
+      const cleanEmail = str.email.toLowerCase().trim();
+      const existing = recipientsMap.get(cleanEmail);
+      recipientsMap.set(cleanEmail, {
+        name: str.name || str.title || existing?.name || 'Pengurus Yayasan',
+        email: cleanEmail,
+        roleOrTitle: str.title || existing?.roleOrTitle || 'Pengurus Yayasan',
+        isPengurus: true,
+        nikOrId: str.id,
+        structureNodeId: str.id
+      });
+    }
+
+    // 3. Ambil dari akun pengguna / operator yang memiliki email
+    for (const u of allUsers) {
+      if (u.deleted || !u.email || !u.email.includes('@')) continue;
+      const cleanEmail = u.email.toLowerCase().trim();
+      if (!recipientsMap.has(cleanEmail)) {
+        const isPengurus = u.role !== 'Staff' && u.role !== 'Volunteer';
+        recipientsMap.set(cleanEmail, {
+          name: u.name || cleanEmail,
+          email: cleanEmail,
+          roleOrTitle: u.role || (isPengurus ? 'Pengurus Yayasan' : 'Staf Yayasan'),
+          isPengurus,
+          nikOrId: u.id || ''
+        });
+      }
+    }
+
+    const recipients = Array.from(recipientsMap.values());
+    console.log(`[MorningDigest] Preparing morning reminder for ${recipients.length} recipients (Staf & Pengurus)...`);
 
     // Ambil tanggal hari ini format YYYY-MM-DD (WIB / Asia/Jakarta)
     const nowWib = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
     const todayStr = nowWib.toISOString().substring(0, 10);
     const dateFormatted = nowWib.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-    for (const stf of allStaff) {
-      const targetEmail = stf.email.trim();
-      const staffName = stf.name || 'Staf Yayasan MMB';
+    for (const recipient of recipients) {
+      const targetEmail = recipient.email;
+      const recipientName = recipient.name;
+      const isPengurus = recipient.isPengurus;
 
-      // Cari tugas yang relevan untuk staf ini hari ini
-      const staffTasks = allTasks.filter((t: any) =>
-        (t.staffNik && t.staffNik === stf.nik) ||
-        (t.staffName && t.staffName.toLowerCase().trim() === stf.name?.toLowerCase().trim())
-      );
+      // Cari tugas yang relevan untuk penerima ini hari ini
+      const personTasks = allTasks.filter((t: any) => {
+        const nikMatch = recipient.nikOrId && t.staffNik && String(t.staffNik).toLowerCase().trim() === String(recipient.nikOrId).toLowerCase().trim();
+        const nameMatch = recipient.name && t.staffName && t.staffName.toLowerCase().trim() === recipient.name.toLowerCase().trim();
+        const titleMatch = recipient.roleOrTitle && t.staffName && t.staffName.toLowerCase().trim() === recipient.roleOrTitle.toLowerCase().trim();
+        const nodeMatch = recipient.structureNodeId && (
+          (t.staffNik && String(t.staffNik).toLowerCase().trim() === recipient.structureNodeId.toLowerCase().trim()) ||
+          (t.staffName && t.staffName.toLowerCase().trim() === recipient.structureNodeId.toLowerCase().trim())
+        );
+        return nikMatch || nameMatch || titleMatch || nodeMatch;
+      });
 
       // Tugas hari ini / belum selesai
-      const todayTasks = staffTasks.filter((t: any) => {
+      const todayTasks = personTasks.filter((t: any) => {
         if (t.status === 'Selesai') return false;
         if (t.targetDate === todayStr) return true;
         if (t.startDate && t.endDate && todayStr >= t.startDate && todayStr <= t.endDate) return true;
@@ -510,7 +608,7 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
       });
 
       // Tugas deadline hari ini
-      const deadlineTodayTasks = staffTasks.filter((t: any) => {
+      const deadlineTodayTasks = personTasks.filter((t: any) => {
         return t.status !== 'Selesai' && (t.endDate === todayStr || t.targetDate === todayStr);
       });
 
@@ -518,19 +616,33 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
       let emailContentHtml = '';
 
       if (todayTasks.length === 0) {
-        // Staf BELUM punya program kerja hari ini
-        emailContentHtml = `
-          <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin: 16px 0;">
-            <div style="font-weight: bold; color: #92400e; font-size: 14px; margin-bottom: 6px;">
-              📌 Belum Ada Rencana Kerja yang Terdaftar untuk Hari Ini
+        if (isPengurus) {
+          // Pengurus belum ada agenda khusus di sistem hari ini
+          emailContentHtml = `
+            <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin: 16px 0;">
+              <div style="font-weight: bold; color: #0c2340; font-size: 14px; margin-bottom: 6px;">
+                🏛️ Agenda Kepengurusan & Perencanaan Pelayanan
+              </div>
+              <p style="margin: 0; color: #334155; font-size: 13px; line-height: 1.6;">
+                Mari awali hari dengan merencanakan agenda kepengurusan, koordinasi divisi, evaluasi pelayanan, dan pemantauan program kerja yayasan. Anda dapat meninjau dan mengelola agenda melalui portal Yayasan MMB.
+              </p>
             </div>
-            <p style="margin: 0; color: #78350f; font-size: 13px;">
-              Mari awali hari dengan merencanakan aktivitas pelayanan dan program kerja Anda. Silakan input program kerja harian Anda melalui aplikasi Yayasan MMB.
-            </p>
-          </div>
-        `;
+          `;
+        } else {
+          // Staf BELUM punya program kerja hari ini
+          emailContentHtml = `
+            <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin: 16px 0;">
+              <div style="font-weight: bold; color: #92400e; font-size: 14px; margin-bottom: 6px;">
+                📌 Belum Ada Rencana Kerja yang Terdaftar untuk Hari Ini
+              </div>
+              <p style="margin: 0; color: #78350f; font-size: 13px;">
+                Mari awali hari dengan merencanakan aktivitas pelayanan dan program kerja Anda. Silakan input program kerja harian Anda melalui aplikasi Yayasan MMB.
+              </p>
+            </div>
+          `;
+        }
       } else {
-        // Staf MEMILIKI program kerja hari ini
+        // MEMILIKI program kerja hari ini
         const rowsHtml = todayTasks.map((t: any, idx: number) => {
           const isDeadline = deadlineTodayTasks.some(d => d.id === t.id);
           return `
@@ -550,7 +662,7 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
         emailContentHtml = `
           <div style="margin: 18px 0;">
             <div style="font-weight: bold; color: #0c2340; font-size: 14px; margin-bottom: 8px;">
-              📋 Agenda & Program Kerja Anda Hari Ini (${todayTasks.length} Tugas):
+              📋 Agenda & Program Kerja Anda Hari Ini (${todayTasks.length} Agenda):
             </div>
             <table style="width: 100%; border-collapse: collapse; font-size: 13px; background: #f8fafc; border-radius: 6px; overflow: hidden;">
               <thead>
@@ -567,6 +679,14 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
           </div>
         `;
       }
+
+      const salutationGreeting = isPengurus
+        ? `Selamat Pagi, Bapak/Ibu <strong>${recipientName}</strong> (${recipient.roleOrTitle})!`
+        : `Selamat Pagi, <strong>${recipientName}</strong> (${recipient.roleOrTitle})!`;
+
+      const openingBlessing = isPengurus
+        ? `Semoga hikmat, damai sejahtera, dan sukacita Tuhan senantiasa menyertai kepemimpinan serta pelayanan Anda dalam mengayomi Yayasan Murid Muda Bermisi pada hari ini, <strong>${dateFormatted}</strong>.`
+        : `Semoga damai sejahtera dan sukacita Tuhan menyertai aktivitas pelayanan Anda pada hari ini, <strong>${dateFormatted}</strong>.`;
 
       const html = `
         <!DOCTYPE html>
@@ -593,11 +713,11 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
             <div class="header">
               <h1>Yayasan Murid Muda Bermisi</h1>
               <p>Yayasan MMB — ESM Management System</p>
-              <div class="badge">☀️ Pengingat Program Kerja Pagi</div>
+              <div class="badge">☀️ Pengingat Agenda Pagi</div>
             </div>
             <div class="content">
-              <p>Selamat Pagi, <strong>${staffName}</strong>!</p>
-              <p>Semoga damai sejahtera dan sukacita Tuhan menyertai aktivitas pelayanan Anda pada hari ini, <strong>${dateFormatted}</strong>.</p>
+              <p>${salutationGreeting}</p>
+              <p>${openingBlessing}</p>
 
               ${emailContentHtml}
 
@@ -608,7 +728,7 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
 
               <div class="btn-container">
                 <a href="https://prod.yayasan-mmb.web.id/#/staff-tasks" class="btn-primary" target="_blank">
-                  Buka Portal Program Kerja Staf &rarr;
+                  Buka Portal Agenda & Program Kerja &rarr;
                 </a>
               </div>
             </div>
@@ -629,10 +749,10 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
 
       if (sendRes.success) {
         result.totalSent++;
-        result.details.push({ staffName, email: targetEmail, status: 'sent' });
+        result.details.push({ recipientName, email: targetEmail, role: recipient.roleOrTitle, status: 'sent' });
       } else {
         result.errors++;
-        result.details.push({ staffName, email: targetEmail, status: 'failed', error: sendRes.message });
+        result.details.push({ recipientName, email: targetEmail, role: recipient.roleOrTitle, status: 'failed', error: sendRes.message });
       }
     }
 

@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { dbDriver } from '../db/driver';
-import { seedUsersIfEmpty, seedStructuresIfEmpty, seedAllInitialData } from '../services/seed.service';
+import { seedUsersIfEmpty, seedStructuresIfEmpty, seedAllInitialData, syncStructuresToPengurus } from '../services/seed.service';
 import { authenticateToken } from './auth.routes';
 import { cleanObjectForFirestore } from '../services/transaction-sync.service';
 import { writeAuditLog, auditFromReq } from '../utils/audit.util';
@@ -59,6 +59,7 @@ router.post('/structures', authenticateToken, async (req: any, res: Response) =>
     const id = req.body.id || `node-${Date.now()}`;
     const node = cleanObjectForFirestore({ ...req.body, id, createdBy: userName, createdAt: new Date().toISOString(), deleted: false });
     await dbDriver.setDoc('structures', id, node);
+    await syncStructuresToPengurus();
     await writeAuditLog({ userName, userRole, action: `Tambah Node Struktur: ${node.title} — ${node.name}`, module: 'Sistem' });
     res.json({ success: true, id, node });
   } catch (err: any) {
@@ -77,6 +78,7 @@ router.put('/structures/:id', authenticateToken, async (req: any, res: Response)
     const old = await dbDriver.getDoc('structures', id);
     const updated = cleanObjectForFirestore({ ...old, ...req.body, id, updatedBy: userName, updatedAt: new Date().toISOString() });
     await dbDriver.setDoc('structures', id, updated);
+    await syncStructuresToPengurus();
     await writeAuditLog({ userName, userRole, action: `Update Node Struktur: ${updated.title} — ${updated.name}`, module: 'Sistem' });
     res.json({ success: true, node: updated });
   } catch (err: any) {
@@ -93,6 +95,7 @@ router.delete('/structures/:id', authenticateToken, async (req: any, res: Respon
   try {
     const { id } = req.params;
     await dbDriver.updateDoc('structures', id, { deleted: true, deletedAt: new Date().toISOString(), deletedBy: userName });
+    await syncStructuresToPengurus();
     await writeAuditLog({ userName, userRole, action: `Hapus Node Struktur ID: ${id}`, module: 'Sistem' });
     res.json({ success: true });
   } catch (err: any) {

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { 
   Building2, 
   Users, 
@@ -394,6 +394,38 @@ export default function App() {
   const [structures, setStructures] = useState<any[]>([]);
   const [isSystemSeeded, setIsSystemSeeded] = useState<boolean | null>(null);
 
+  // Dynamic unified pengurus list: combines registered pengurus and active structure nodes seamlessly
+  const displayPengurus = useMemo(() => {
+    const list = [...pengurus];
+    const existingNiks = new Set(list.map(p => p.nik?.toLowerCase().trim()));
+    const existingNames = new Set(list.map(p => p.name?.toLowerCase().trim()));
+
+    for (const node of structures) {
+      if (node.deleted || !node.name) continue;
+      const cleanName = node.name.toLowerCase().trim();
+      if (cleanName.includes('pemilik pelayanan') || cleanName.includes('allah tritunggal')) continue;
+
+      const nodeNik = `PENG-${String(node.id).toUpperCase()}`;
+      if (!existingNames.has(cleanName) && !existingNiks.has(nodeNik.toLowerCase())) {
+        list.push({
+          nik: nodeNik,
+          name: node.name,
+          category: 'Pengurus',
+          position: node.title || 'Pengurus Yayasan',
+          division: node.sub || 'Pengurus Harian Yayasan',
+          status: 'Pengurus Aktif',
+          phone: node.phone || '0812345678',
+          email: node.email || `${String(node.id).toLowerCase()}@esm.or.id`,
+          address: 'Kantor Yayasan MMB',
+          joinedDate: new Date().toISOString().split('T')[0]
+        } as Staff);
+        existingNames.add(cleanName);
+        existingNiks.add(nodeNik.toLowerCase());
+      }
+    }
+    return list;
+  }, [pengurus, structures]);
+
   // Dynamic document title and favicon sync based on organization profile
   useEffect(() => {
     document.title = profile.systemTitle && profile.systemTitle !== 'Yayasan MMB' 
@@ -571,6 +603,8 @@ export default function App() {
           name: item.name || ''
         }));
         setStructures(sanitized);
+        // Refresh pengurus collection to sync with latest structures
+        loadCollection('pengurus', INITIAL_PENGURUS, setPengurus);
       }
     } catch (e: any) {
       if (e?.message?.includes('401') || e?.message?.includes('unauthorized') || e?.message?.includes('Otentikasi')) {
@@ -3180,7 +3214,7 @@ if (!res.ok) {
             {activeTab === 'staff' && (
               <StaffTab 
                 staffs={staffs}
-                pengurusList={pengurus}
+                pengurusList={displayPengurus}
                 onAddStaff={handleAddStaff}
                 onUpdateStaff={handleUpdateStaff}
                 onDeleteStaff={handleDeleteStaff}
@@ -3234,7 +3268,7 @@ if (!res.ok) {
                 idPrefix={{ task: 'FY', meeting: 'FM' }}
                 staffTasks={foundationTasks}
                 staffMeetings={foundationMeetings}
-                staffs={pengurus}
+                staffs={displayPengurus}
                 members={members}
                 notes={notes}
                 smallGroups={smallGroups}

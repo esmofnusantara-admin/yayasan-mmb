@@ -272,11 +272,79 @@ export async function seedPengurusIfEmpty() {
   }
 }
 
+// Sinkronisasi dinamis seluruh struktur organisasi ke tabel pengurus yayasan
+export async function syncStructuresToPengurus() {
+  try {
+    const rawStructures = await dbDriver.getDocs('structures');
+    const existingPengurus = await dbDriver.getDocs('pengurus');
+
+    for (const node of rawStructures) {
+      if (!node.name) continue;
+      const cleanName = String(node.name).toLowerCase().trim();
+      if (cleanName.includes('pemilik pelayanan') || cleanName.includes('allah tritunggal')) continue;
+
+      const nodeNik = `PENG-${String(node.id).toUpperCase()}`;
+      // Cari apakah sudah ada di pengurus berdasarkan structureNodeId, nik, atau nama
+      const matched = existingPengurus.find((p: any) => 
+        (p.structureNodeId && p.structureNodeId === node.id) ||
+        (p.nik && p.nik.toLowerCase() === nodeNik.toLowerCase()) ||
+        (p.name && String(p.name).toLowerCase().trim() === cleanName)
+      );
+
+      if (node.deleted) {
+        // Jika di struktur dihapus, tandai juga deleted di pengurus
+        if (matched && !matched.deleted) {
+          await dbDriver.updateDoc('pengurus', matched.nik, {
+            deleted: true,
+            deletedAt: new Date().toISOString()
+          });
+        }
+      } else {
+        // Node aktif di struktur
+        if (matched) {
+          // Update jabatan/nama jika ada perubahan
+          if (matched.position !== node.title || matched.name !== node.name || matched.deleted) {
+            await dbDriver.updateDoc('pengurus', matched.nik, {
+              name: node.name,
+              position: node.title || matched.position,
+              division: node.sub || matched.division || 'Pengurus Harian Yayasan',
+              structureNodeId: node.id,
+              deleted: false
+            });
+          }
+        } else {
+          // Belum ada -> otomatis buat pengurus baru
+          const newDoc = {
+            nik: nodeNik,
+            name: node.name,
+            category: 'Pengurus',
+            position: node.title || 'Pengurus Yayasan',
+            division: node.sub || 'Pengurus Harian Yayasan',
+            status: 'Pengurus Aktif',
+            phone: node.phone || '0812345678',
+            email: node.email || `${String(node.id).toLowerCase()}@esm.or.id`,
+            address: 'Kantor Yayasan MMB',
+            joinedDate: new Date().toISOString().split('T')[0],
+            structureNodeId: node.id,
+            deleted: false,
+            createdAt: new Date().toISOString(),
+            createdBy: 'System Structure Auto-Sync'
+          };
+          await dbDriver.setDoc('pengurus', nodeNik, newDoc);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Sync] Failed to sync structures to pengurus:', err);
+  }
+}
+
 // Master seed: panggil semua seed functions sekaligus
 export async function seedAllInitialData() {
   await seedUsersIfEmpty();
   await seedStructuresIfEmpty();
   await seedPengurusIfEmpty();
+  await syncStructuresToPengurus();
   await seedProfileIfEmpty();
   await seedCategoriesIfEmpty();
 

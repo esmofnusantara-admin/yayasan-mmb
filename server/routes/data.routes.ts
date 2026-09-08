@@ -5,6 +5,7 @@ import { dbDriver } from '../db/driver';
 import { authenticateToken, checkCollectionPermission } from './auth.routes';
 import { cleanObjectForFirestore, syncTransactionSubcollections } from '../services/transaction-sync.service';
 import { sendStaffTaskNotificationEmail } from '../services/mail.service';
+import { syncStructuresToPengurus } from '../services/seed.service';
 
 const router = Router();
 
@@ -13,6 +14,9 @@ router.get('/:colName', authenticateToken, checkCollectionPermission, async (req
   const { colName } = req.params;
   const includeDeleted = req.query.includeDeleted === 'true';
   try {
+    if (colName === 'pengurus') {
+      await syncStructuresToPengurus();
+    }
     let dataItems = await dbDriver.getDocs(colName);
 
     if (colName === 'staff') {

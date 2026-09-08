@@ -513,7 +513,8 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
     const allStaff = await dbDriver.getDocs('staff');
     const allStructures = await dbDriver.getDocs('structures');
     const allUsers = await dbDriver.getDocs('users');
-    const allTasks = (await dbDriver.getDocs('staff_tasks')).filter((t: any) => !t.deleted);
+    const allStaffTasks = (await dbDriver.getDocs('staff_tasks')).filter((t: any) => !t.deleted);
+    const allFoundationTasks = (await dbDriver.getDocs('foundation_tasks')).filter((t: any) => !t.deleted);
 
     // Build unified de-duplicated recipient list for Morning Digest (Staf & Pengurus)
     const recipientsMap = new Map<string, {
@@ -586,8 +587,9 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
       const recipientName = recipient.name;
       const isPengurus = recipient.isPengurus;
 
-      // Cari tugas yang relevan untuk penerima ini hari ini
-      const personTasks = allTasks.filter((t: any) => {
+      // Cari tugas yang relevan untuk penerima ini hari ini (Pengurus dari foundation_tasks, Staf dari staff_tasks)
+      const relevantPool = isPengurus ? [...allFoundationTasks, ...allStaffTasks] : allStaffTasks;
+      const personTasks = relevantPool.filter((t: any) => {
         const nikMatch = recipient.nikOrId && t.staffNik && String(t.staffNik).toLowerCase().trim() === String(recipient.nikOrId).toLowerCase().trim();
         const nameMatch = recipient.name && t.staffName && t.staffName.toLowerCase().trim() === recipient.name.toLowerCase().trim();
         const titleMatch = recipient.roleOrTitle && t.staffName && t.staffName.toLowerCase().trim() === recipient.roleOrTitle.toLowerCase().trim();
@@ -727,8 +729,8 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
               </div>
 
               <div class="btn-container">
-                <a href="https://prod.yayasan-mmb.web.id/#/staff-tasks" class="btn-primary" target="_blank">
-                  Buka Portal Agenda & Program Kerja &rarr;
+                <a href="${isPengurus ? 'https://prod.yayasan-mmb.web.id/#/foundation-tasks' : 'https://prod.yayasan-mmb.web.id/#/staff-tasks'}" class="btn-primary" target="_blank">
+                  ${isPengurus ? 'Buka Portal Program & Rapat Yayasan &rarr;' : 'Buka Portal Program & Rapat Staf &rarr;'}
                 </a>
               </div>
             </div>

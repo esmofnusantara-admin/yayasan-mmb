@@ -44,8 +44,11 @@ import {
   Mail
 } from 'lucide-react';
 import { StaffTask, StaffMeeting, Staff, Member, MemberNote, SmallGroup, InstitutionalProfile } from '../types';
+import { isPengurusMember } from './StaffTab';
 
 interface StaffTasksTabProps {
+  targetScope?: 'staff' | 'foundation';
+  idPrefix?: { task: string; meeting: string };
   staffTasks: StaffTask[];
   staffMeetings: StaffMeeting[];
   staffs: Staff[];
@@ -277,6 +280,8 @@ const MAX_DIRECT_UPLOAD_MB = 1;
 const MAX_DIRECT_UPLOAD_BYTES = MAX_DIRECT_UPLOAD_MB * 1024 * 1024;
 
 export default function StaffTasksTab({
+  targetScope = 'staff',
+  idPrefix,
   staffTasks,
   staffMeetings,
   staffs,
@@ -293,6 +298,15 @@ export default function StaffTasksTab({
   onUpdateMember,
   onAddMemberNote
 }: StaffTasksTabProps) {
+  const isFoundationScope = targetScope === 'foundation';
+  const taskPrefix = idPrefix?.task || (isFoundationScope ? 'FY' : 'ST');
+  const meetingPrefix = idPrefix?.meeting || (isFoundationScope ? 'FM' : 'SM');
+
+  // Filter staff list according to scope (Foundation: Pengurus vs Staff: Staf Pelaksana)
+  const scopedStaffs = isFoundationScope
+    ? (staffs.filter(s => isPengurusMember(s)).length > 0 ? staffs.filter(s => isPengurusMember(s)) : staffs)
+    : (staffs.filter(s => !isPengurusMember(s)).length > 0 ? staffs.filter(s => !isPengurusMember(s)) : staffs);
+
   const [subTab, setSubTab] = useState<'tasks' | 'meetings' | 'structure'>('tasks');
 
   // Tracking View Mode: 'staff' (Grid Staf) | 'kanban' (Papan Kanban) | 'timeline' (Timeline / Agenda)
@@ -516,7 +530,7 @@ export default function StaffTasksTab({
   const handleOpenAddTask = (staffNik?: string) => {
     setEditingTask(null);
     setTaskTitle('');
-    setTaskStaffNik(staffNik || matchedCurrentStaff?.nik || staffs[0]?.nik || '');
+    setTaskStaffNik(staffNik || (matchedCurrentStaff && scopedStaffs.some(s => s.nik === matchedCurrentStaff.nik) ? matchedCurrentStaff.nik : scopedStaffs[0]?.nik || staffs[0]?.nik || ''));
     setTaskPeriodType('ONE_TIME_ACTIVITY');
 
     const today = new Date();
@@ -747,10 +761,10 @@ export default function StaffTasksTab({
         }
       });
       let nextSeq = maxSeq + 1;
-      let candidate = `ST-${currentYear}-${String(nextSeq).padStart(5, '0')}`;
+      let candidate = `${taskPrefix}-${currentYear}-${String(nextSeq).padStart(5, '0')}`;
       while (existingTasks.some(t => t.id === candidate)) {
         nextSeq++;
-        candidate = `ST-${currentYear}-${String(nextSeq).padStart(5, '0')}`;
+        candidate = `${taskPrefix}-${currentYear}-${String(nextSeq).padStart(5, '0')}`;
       }
       return candidate;
     };
@@ -857,10 +871,10 @@ export default function StaffTasksTab({
         }
       });
       let nextSeq = maxSeq + 1;
-      let candidate = `SM-${currentYear}-${String(nextSeq).padStart(5, '0')}`;
+      let candidate = `${meetingPrefix}-${currentYear}-${String(nextSeq).padStart(5, '0')}`;
       while (existingMeetings.some(m => m.id === candidate)) {
         nextSeq++;
-        candidate = `SM-${currentYear}-${String(nextSeq).padStart(5, '0')}`;
+        candidate = `${meetingPrefix}-${currentYear}-${String(nextSeq).padStart(5, '0')}`;
       }
       return candidate;
     };
@@ -981,10 +995,10 @@ export default function StaffTasksTab({
   };
 
   const distinctStaffNamesFromTasks = Array.from(new Set(staffTasks.map(t => t.staffName).filter(Boolean)))
-    .filter(name => !staffs.some(s => s.name === name));
+    .filter(name => !scopedStaffs.some(s => s.name === name));
 
   // Filtered staffs based on search and staff filter
-  const filteredStaffs = staffs.filter(s => {
+  const filteredStaffs = scopedStaffs.filter(s => {
     if (filterStaffNik !== 'ALL' && s.nik !== filterStaffNik) return false;
     if (!staffSearch.trim()) return true;
     return s.name.toLowerCase().includes(staffSearch.toLowerCase()) ||
@@ -1075,11 +1089,21 @@ export default function StaffTasksTab({
           <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-slate-800/80 rounded border border-slate-700">
-                <ClipboardList className="w-5 h-5 text-slate-200" />
+                {isFoundationScope ? (
+                  <ShieldCheck className="w-5 h-5 text-amber-400" />
+                ) : (
+                  <ClipboardList className="w-5 h-5 text-slate-200" />
+                )}
               </div>
               <div>
-                <h1 className="text-xl font-bold tracking-tight">Program & Rapat Staf</h1>
-                <p className="text-xs text-slate-300 mt-0.5">Halaman pemantauan program kerja bulanan, penugasan berlanjut, dan arsip notulensi rapat</p>
+                <h1 className="text-xl font-bold tracking-tight">
+                  {isFoundationScope ? 'Program & Rapat Yayasan' : 'Program & Rapat Staf'}
+                </h1>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  {isFoundationScope 
+                    ? 'Agenda Dewan Pembina, Dewan Pengawas, Pengurus Inti & Notulensi Rapat Pleno Yayasan' 
+                    : 'Halaman pemantauan program kerja bulanan, penugasan berlanjut, dan arsip notulensi rapat'}
+                </p>
               </div>
             </div>
 
@@ -1091,7 +1115,7 @@ export default function StaffTasksTab({
                     : 'text-slate-300 hover:text-white'
                   }`}
               >
-                <ClipboardList className="w-3.5 h-3.5" /> Program Kerja Staf
+                <ClipboardList className="w-3.5 h-3.5" /> {isFoundationScope ? 'Program Kerja Yayasan' : 'Program Kerja Staf'}
               </button>
               <button
                 onClick={() => setSubTab('meetings')}
@@ -1100,7 +1124,7 @@ export default function StaffTasksTab({
                     : 'text-slate-300 hover:text-white'
                   }`}
               >
-                <Users className="w-3.5 h-3.5" /> Dokumentasi Rapat
+                <Users className="w-3.5 h-3.5" /> {isFoundationScope ? 'Dokumentasi Rapat Yayasan' : 'Dokumentasi Rapat Staf'}
               </button>
               <button
                 onClick={() => setSubTab('structure')}
@@ -1200,7 +1224,7 @@ export default function StaffTasksTab({
                   onClick={() => handleOpenAddTask()}
                   className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer w-full sm:w-auto"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Entri Kegiatan Staf
+                  <Plus className="w-3.5 h-3.5" /> {isFoundationScope ? 'Entri Agenda Yayasan' : 'Entri Kegiatan Staf'}
                 </button>
               </div>
             </div>
@@ -1211,7 +1235,7 @@ export default function StaffTasksTab({
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
-                  placeholder="Cari staf, judul, catatan..."
+                  placeholder={isFoundationScope ? "Cari pengurus, agenda, catatan..." : "Cari staf, judul, catatan..."}
                   value={staffSearch}
                   onChange={(e) => setStaffSearch(e.target.value)}
                   className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded text-xs bg-white text-slate-800 focus:outline-none focus:border-[#0c2340]"
@@ -1224,8 +1248,8 @@ export default function StaffTasksTab({
                   onChange={(e) => setFilterStaffNik(e.target.value)}
                   className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-800 outline-none cursor-pointer"
                 >
-                  <option value="ALL">Semua Staf Pelaksana</option>
-                  {staffs.map(s => (
+                  <option value="ALL">{isFoundationScope ? 'Semua Pengurus Yayasan' : 'Semua Staf Pelaksana'}</option>
+                  {scopedStaffs.map(s => (
                     <option key={s.nik} value={s.nik}>{s.name} ({s.nik})</option>
                   ))}
                   {distinctStaffNamesFromTasks.map(extraName => (
@@ -1285,7 +1309,7 @@ export default function StaffTasksTab({
               {filteredStaffs.length === 0 ? (
                 <div className="col-span-full bg-white p-12 text-center text-slate-500 rounded-lg border border-slate-200">
                   <Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                  Tidak ada data staf yang sesuai pencarian.
+                  Tidak ada data {isFoundationScope ? 'pengurus' : 'staf'} yang sesuai pencarian.
                 </div>
               ) : (
                 filteredStaffs.map((st) => {
@@ -1984,7 +2008,7 @@ export default function StaffTasksTab({
             {filteredMeetings.length === 0 ? (
               <div className="col-span-full bg-white p-12 text-center text-slate-500 rounded-lg border border-slate-200">
                 <Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                Belum ada dokumentasi rapat staf yang terdaftar.
+                Belum ada dokumentasi rapat {isFoundationScope ? 'yayasan' : 'staf'} yang terdaftar.
               </div>
             ) : (
               filteredMeetings.map((meet) => (
@@ -2159,7 +2183,11 @@ export default function StaffTasksTab({
             <div className="bg-[#0c2340] p-4 text-white flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-slate-300" />
-                <h3 className="font-bold text-xs">{editingTask ? 'Ubah Rencana Program Kerja' : 'Entri Kegiatan Kerja Baru'}</h3>
+                <h3 className="font-bold text-xs">
+                  {editingTask 
+                    ? (isFoundationScope ? 'Ubah Agenda & Proker Yayasan' : 'Ubah Rencana Program Kerja Staf') 
+                    : (isFoundationScope ? 'Entri Agenda & Proker Yayasan Baru' : 'Entri Kegiatan Kerja Staf Baru')}
+                </h3>
               </div>
               <button
                 onClick={() => { setIsTaskModalOpen(false); setEditingTask(null); }}
@@ -2171,7 +2199,9 @@ export default function StaffTasksTab({
 
             <form onSubmit={handleSaveTaskSubmit} className="p-4 space-y-3.5 text-xs overflow-y-auto flex-1">
               <div className="space-y-1">
-                <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">Staf Pelaksana</label>
+                <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">
+                  {isFoundationScope ? 'Penanggung Jawab / Pengurus' : 'Staf Pelaksana'}
+                </label>
                 <select
                   disabled={!isSuperAdmin}
                   value={taskStaffNik}
@@ -2181,8 +2211,8 @@ export default function StaffTasksTab({
                   }}
                   className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs outline-none bg-white text-slate-800 disabled:bg-slate-100 disabled:text-slate-500 cursor-pointer"
                 >
-                  {staffs.map(s => (
-                    <option key={s.nik} value={s.nik}>{s.name} ({s.position})</option>
+                  {scopedStaffs.map(s => (
+                    <option key={s.nik} value={s.nik}>{s.name} ({s.position || (isFoundationScope ? 'Pengurus' : 'Staf')})</option>
                   ))}
                 </select>
               </div>
@@ -2764,7 +2794,11 @@ export default function StaffTasksTab({
             <div className="bg-[#0c2340] p-4 text-white flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-slate-300" />
-                <h3 className="font-bold text-xs">{editingMeeting ? 'Ubah Notulensi Rapat Staf' : 'Pencatatan Rapat Staf Baru'}</h3>
+                <h3 className="font-bold text-xs">
+                  {editingMeeting 
+                    ? (isFoundationScope ? 'Ubah Notulensi Rapat Yayasan' : 'Ubah Notulensi Rapat Staf') 
+                    : (isFoundationScope ? 'Pencatatan Rapat Yayasan Baru' : 'Pencatatan Rapat Staf Baru')}
+                </h3>
               </div>
               <button
                 onClick={() => { setIsMeetingModalOpen(false); setEditingMeeting(null); }}
@@ -2780,21 +2814,28 @@ export default function StaffTasksTab({
                 <input
                   type="text"
                   list="meeting-categories-list"
-                  placeholder="Pilih kategori atau ketik topik rapat..."
+                  placeholder={isFoundationScope ? "Pilih kategori rapat yayasan atau ketik topik..." : "Pilih kategori atau ketik topik rapat..."}
                   value={meetingTitle}
                   onChange={(e) => setMeetingTitle(e.target.value)}
                   className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs outline-none bg-white text-slate-800"
                   required
                 />
                 <datalist id="meeting-categories-list">
-                  {(profile?.meetingCategories || [
+                  {(isFoundationScope ? [
                     "Rapat Pleno Yayasan",
-                    "Rapat Koordinasi Mingguan",
+                    "Rapat Dewan Pembina",
+                    "Rapat Dewan Pengawas",
+                    "Rapat Koordinasi Pengurus Inti",
+                    "Rapat Kerja Tahunan (Raker)",
+                    "Evaluasi & Laporan Tahunan Yayasan"
+                  ] : (profile?.meetingCategories || [
+                    "Rapat Koordinasi Mingguan Tim Staf",
+                    "Evaluasi Program Kerja Bulanan",
+                    "Briefing Operasional Pelayanan",
                     "Rapat Divisi / Departemen",
-                    "Evaluasi Bulanan",
                     "Rapat Anggaran & Finansial",
-                    "Rapat Darurat / Khusus"
-                  ]).map((cat, idx) => (
+                    "Rapat Evaluasi Kegiatan & Acara"
+                  ])).map((cat, idx) => (
                     <option key={idx} value={cat} />
                   ))}
                 </datalist>
@@ -2837,9 +2878,11 @@ export default function StaffTasksTab({
               </div>
 
               <div className="space-y-1">
-                <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">Daftar Hadir Staf ({meetingAttendees.length} Terpilih)</label>
+                <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">
+                  Daftar Hadir {isFoundationScope ? 'Pengurus / Peserta' : 'Staf'} ({meetingAttendees.length} Terpilih)
+                </label>
                 <div className="border border-slate-200 rounded p-2.5 bg-slate-50 max-h-32 overflow-y-auto grid grid-cols-2 gap-1.5">
-                  {staffs.map(s => {
+                  {scopedStaffs.map(s => {
                     const isChecked = meetingAttendees.includes(s.name);
                     return (
                       <label key={s.nik} className="flex items-center gap-1.5 p-1 hover:bg-white rounded transition-colors cursor-pointer text-[11px] font-medium text-slate-700">

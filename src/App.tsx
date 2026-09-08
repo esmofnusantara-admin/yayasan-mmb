@@ -21,6 +21,7 @@ import {
   FilePieChart,
   Calendar,
   ClipboardList,
+  ShieldCheck,
   Lock,
   Eye,
   EyeOff,
@@ -114,6 +115,7 @@ const TAB_TO_HASH: Record<string, string> = {
   kegiatan: 'kegiatan',
   partners: 'partners',
   staff: 'staff',
+  foundation_tasks: 'foundation-tasks',
   staff_tasks: 'staff-tasks',
   payroll: 'payroll',
   letters: 'letters',
@@ -133,6 +135,8 @@ const HASH_TO_TAB: Record<string, string> = {
   activities: 'kegiatan',
   partners: 'partners',
   staff: 'staff',
+  'foundation-tasks': 'foundation_tasks',
+  foundation_tasks: 'foundation_tasks',
   'staff-tasks': 'staff_tasks',
   staff_tasks: 'staff_tasks',
   payroll: 'payroll',
@@ -258,17 +262,17 @@ export default function App() {
     }
 
     // Explicitly deny restricted administrative areas for Staff and Volunteer roles
-    if ((currentUser.role === 'Staff' || currentUser.role === 'Volunteer') && (feature === 'finance' || feature === 'reports' || feature === 'staff' || feature === 'payroll' || feature === 'approvals' || feature === 'system')) {
+    if ((currentUser.role === 'Staff' || currentUser.role === 'Volunteer') && (feature === 'finance' || feature === 'reports' || feature === 'staff' || feature === 'payroll' || feature === 'approvals' || feature === 'system' || feature === 'foundation_tasks')) {
       return false;
     }
 
     const defaultFeaturesMap: Record<string, string[]> = {
-      'Super Admin': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports', 'kegiatan', 'staff_tasks'],
-      'Pembina Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports', 'kegiatan', 'staff_tasks'],
-      'Pengawas Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'letters', 'system', 'staff_profile', 'reports', 'kegiatan', 'staff_tasks'],
-      'Ketua Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports', 'kegiatan', 'staff_tasks'],
-      'Bendahara': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'staff_profile', 'reports', 'kegiatan', 'staff_tasks'],
-      'Sekretaris': ['dashboard', 'members', 'small_groups', 'staff', 'letters', 'system', 'staff_profile', 'reports', 'kegiatan', 'staff_tasks'],
+      'Super Admin': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports', 'kegiatan', 'foundation_tasks', 'staff_tasks'],
+      'Pembina Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports', 'kegiatan', 'foundation_tasks', 'staff_tasks'],
+      'Pengawas Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'letters', 'system', 'staff_profile', 'reports', 'kegiatan', 'foundation_tasks', 'staff_tasks'],
+      'Ketua Yayasan': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_profile', 'reports', 'kegiatan', 'foundation_tasks', 'staff_tasks'],
+      'Bendahara': ['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'staff_profile', 'reports', 'kegiatan', 'foundation_tasks', 'staff_tasks'],
+      'Sekretaris': ['dashboard', 'members', 'small_groups', 'staff', 'letters', 'system', 'staff_profile', 'reports', 'kegiatan', 'foundation_tasks', 'staff_tasks'],
       'Koordinator Wilayah': ['dashboard', 'members', 'small_groups', 'partners', 'kegiatan', 'staff_profile', 'staff_tasks'],
       'Staff': ['dashboard', 'members', 'small_groups', 'partners', 'staff_profile', 'kegiatan', 'staff_tasks'],
       'Volunteer': ['dashboard', 'members', 'small_groups', 'kegiatan', 'staff_profile', 'staff_tasks']
@@ -383,6 +387,8 @@ export default function App() {
   const [activityTransactions, setActivityTransactions] = useState<ActivityTransaction[]>([]);
   const [staffTasks, setStaffTasks] = useState<StaffTask[]>([]);
   const [staffMeetings, setStaffMeetings] = useState<StaffMeeting[]>([]);
+  const [foundationTasks, setFoundationTasks] = useState<StaffTask[]>([]);
+  const [foundationMeetings, setFoundationMeetings] = useState<StaffMeeting[]>([]);
   const [structures, setStructures] = useState<any[]>([]);
   const [isSystemSeeded, setIsSystemSeeded] = useState<boolean | null>(null);
 
@@ -581,6 +587,7 @@ export default function App() {
     kegiatan: ['activities', 'activity_transactions', 'activity_rundowns', 'activity_preparations', 'transactions'],
     partners: ['partners', 'donations'],
     staff: ['staff'],
+    foundation_tasks: ['foundation_tasks', 'foundation_meetings', 'staff'],
     staff_tasks: ['staff_tasks', 'staff_meetings', 'staff'],
     payroll: ['staff', 'transactions', 'salaries'],
     letters: ['inward_letters', 'outward_letters', 'documents'],
@@ -643,6 +650,10 @@ export default function App() {
         return loadCollection('activity_preparations', [], setActivityPreparations);
       case 'activity_transactions':
         return loadCollection('activity_transactions', [], setActivityTransactions);
+      case 'foundation_tasks':
+        return loadCollection('foundation_tasks', [], setFoundationTasks);
+      case 'foundation_meetings':
+        return loadCollection('foundation_meetings', [], setFoundationMeetings);
       case 'staff_tasks':
         return loadCollection('staff_tasks', [], setStaffTasks);
       case 'staff_meetings':
@@ -1927,7 +1938,7 @@ if (!res.ok) {
         ? (s.position || 'Ketua Yayasan')
         : 'Staff';
       const userFeatures = isPengurus
-        ? ['dashboard', 'members', 'small_groups', 'finance', 'reports', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'staff_tasks']
+        ? ['dashboard', 'members', 'small_groups', 'finance', 'reports', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'system', 'foundation_tasks', 'staff_tasks']
         : ['dashboard', 'members', 'small_groups', 'staff_tasks'];
 
       const userPayload = {
@@ -2402,6 +2413,102 @@ if (!res.ok) {
     }
   };
 
+  const handleSaveFoundationTask = async (task: StaffTask) => {
+    try {
+      setFoundationTasks(prev => {
+        const idx = prev.findIndex(x => x.id === task.id);
+        if (idx > -1) {
+          const next = [...prev];
+          next[idx] = task;
+          return next;
+        }
+        return [...prev, task];
+      });
+
+      const isEdit = foundationTasks.some(x => x.id === task.id);
+      const res = await fetch(`/api/data/foundation_tasks/${task.id}`, {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(task)
+      });
+      if (!res.ok) {
+        throw new Error('Gagal menyimpan program kerja yayasan ke server');
+      }
+      await logAudit(`${isEdit ? 'Mengubah' : 'Menambah'} Program Kerja Yayasan: ${task.title}`, 'Kepegawaian');
+      await loadCollection('foundation_tasks', [], setFoundationTasks);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menyimpan kegiatan yayasan: ${e.message}`);
+      await loadCollection('foundation_tasks', [], setFoundationTasks);
+    }
+  };
+
+  const handleDeleteFoundationTask = async (id: string, title: string) => {
+    try {
+      setFoundationTasks(prev => prev.filter(x => x.id !== id));
+      const res = await fetch(`/api/data/foundation_tasks/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        throw new Error('Gagal menghapus kegiatan yayasan dari server');
+      }
+      await logAudit(`Menghapus Program Kerja Yayasan: ${title}`, 'Kepegawaian');
+      await loadCollection('foundation_tasks', [], setFoundationTasks);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menghapus kegiatan yayasan: ${e.message}`);
+      await loadCollection('foundation_tasks', [], setFoundationTasks);
+    }
+  };
+
+  const handleSaveFoundationMeeting = async (meeting: StaffMeeting) => {
+    try {
+      setFoundationMeetings(prev => {
+        const idx = prev.findIndex(x => x.id === meeting.id);
+        if (idx > -1) {
+          const next = [...prev];
+          next[idx] = meeting;
+          return next;
+        }
+        return [...prev, meeting];
+      });
+
+      const isEdit = foundationMeetings.some(x => x.id === meeting.id);
+      const res = await fetch(`/api/data/foundation_meetings/${meeting.id}`, {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(meeting)
+      });
+      if (!res.ok) {
+        throw new Error('Gagal menyimpan notulensi rapat yayasan ke server');
+      }
+      await logAudit(`${isEdit ? 'Mengubah' : 'Menambah'} Dokumentasi Rapat Yayasan: ${meeting.title}`, 'Kepegawaian');
+      await loadCollection('foundation_meetings', [], setFoundationMeetings);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menyimpan log rapat yayasan: ${e.message}`);
+      await loadCollection('foundation_meetings', [], setFoundationMeetings);
+    }
+  };
+
+  const handleDeleteFoundationMeeting = async (id: string, title: string) => {
+    try {
+      setFoundationMeetings(prev => prev.filter(x => x.id !== id));
+      const res = await fetch(`/api/data/foundation_meetings/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        throw new Error('Gagal menghapus log rapat yayasan dari server');
+      }
+      await logAudit(`Menghapus Dokumentasi Rapat Yayasan: ${title}`, 'Kepegawaian');
+      await loadCollection('foundation_meetings', [], setFoundationMeetings);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menghapus log rapat yayasan: ${e.message}`);
+      await loadCollection('foundation_meetings', [], setFoundationMeetings);
+    }
+  };
+
   // Post Approval handler to wire HR collective payrolls
   const handlePostApproval = async (app: ApprovalRequest) => {
     try {
@@ -2771,7 +2878,7 @@ if (!res.ok) {
                 </button>
               )}
 
-              {(hasFeatureAccess('partners') || hasFeatureAccess('staff') || hasFeatureAccess('payroll') || hasFeatureAccess('letters') || hasFeatureAccess('approvals') || hasFeatureAccess('reports') || hasFeatureAccess('staff_tasks')) && (
+              {(hasFeatureAccess('partners') || hasFeatureAccess('staff') || hasFeatureAccess('foundation_tasks') || hasFeatureAccess('staff_tasks') || hasFeatureAccess('payroll') || hasFeatureAccess('letters') || hasFeatureAccess('approvals') || hasFeatureAccess('reports')) && (
                 <span className="text-[11px] uppercase font-bold tracking-wider text-slate-400 block pt-3.5 pb-1 px-2.5">Administrasi</span>
               )}
 
@@ -2797,6 +2904,17 @@ if (!res.ok) {
                 </button>
               )}
 
+              {hasFeatureAccess('foundation_tasks') && (
+                <button 
+                  onClick={() => navigateTab('foundation_tasks')}
+                  className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                    activeTab === 'foundation_tasks' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4 shrink-0 text-amber-500" /> Program & Rapat Yayasan
+                </button>
+              )}
+
               {hasFeatureAccess('staff_tasks') && (
                 <button 
                   onClick={() => navigateTab('staff_tasks')}
@@ -2804,7 +2922,7 @@ if (!res.ok) {
                     activeTab === 'staff_tasks' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                   }`}
                 >
-                  <ClipboardList className="w-4 h-4 shrink-0" /> Program & Rapat
+                  <ClipboardList className="w-4 h-4 shrink-0" /> Program & Rapat Staf
                 </button>
               )}
 
@@ -3086,8 +3204,32 @@ if (!res.ok) {
               />
             )}
 
+            {activeTab === 'foundation_tasks' && (
+              <StaffTasksTab 
+                targetScope="foundation"
+                idPrefix={{ task: 'FY', meeting: 'FM' }}
+                staffTasks={foundationTasks}
+                staffMeetings={foundationMeetings}
+                staffs={staffs}
+                members={members}
+                notes={notes}
+                smallGroups={smallGroups}
+                currentUser={currentUser}
+                currentRole={currentRole}
+                profile={profile}
+                onSaveTask={handleSaveFoundationTask}
+                onDeleteTask={handleDeleteFoundationTask}
+                onSaveMeeting={handleSaveFoundationMeeting}
+                onDeleteMeeting={handleDeleteFoundationMeeting}
+                onUpdateMember={handleUpdateMember}
+                onAddMemberNote={handleAddMemberNote}
+              />
+            )}
+
             {activeTab === 'staff_tasks' && (
               <StaffTasksTab 
+                targetScope="staff"
+                idPrefix={{ task: 'ST', meeting: 'SM' }}
                 staffTasks={staffTasks}
                 staffMeetings={staffMeetings}
                 staffs={staffs}

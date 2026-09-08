@@ -89,10 +89,10 @@ router.post('/:colName/:id', authenticateToken, checkCollectionPermission, async
     }
     await dbDriver.setDoc(colName, id, cleaned);
 
-    if (colName === 'staff_tasks') {
+    if (colName === 'staff_tasks' || colName === 'foundation_tasks') {
       const user = (req as any).user;
       sendStaffTaskNotificationEmail(cleaned, undefined, user?.name).catch(err => {
-        console.error('[DataRoutes] Background task email notification failed:', err);
+        console.error(`[DataRoutes] Background ${colName} email notification failed:`, err);
       });
     }
 

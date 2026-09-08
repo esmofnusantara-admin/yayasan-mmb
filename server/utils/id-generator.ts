@@ -174,6 +174,18 @@ export async function generateStaffMeetingId(): Promise<string> {
   return `SM-${year()}-${pad(seq)}`;
 }
 
+/** Foundation Task (Agenda & Program Kerja Yayasan) */
+export async function generateFoundationTaskId(): Promise<string> {
+  const seq = await nextSeq(`foundation_task_${year()}`);
+  return `FY-${year()}-${pad(seq)}`;
+}
+
+/** Foundation Meeting (Rapat Pleno & Kepengurusan Yayasan) */
+export async function generateFoundationMeetingId(): Promise<string> {
+  const seq = await nextSeq(`foundation_meeting_${year()}`);
+  return `FM-${year()}-${pad(seq)}`;
+}
+
 /** Dokumen organisasi */
 export async function generateDocumentId(): Promise<string> {
   const seq = await nextSeq(`doc_${year()}`);

@@ -929,6 +929,7 @@ export default function SystemTab({
     { id: 'letters', label: 'Surat & Dokumen' },
     { id: 'approvals', label: 'Approval Center' },
     { id: 'system', label: 'Profil & Audit Log (System)' },
+    { id: 'foundation_tasks', label: 'Program & Rapat Yayasan (Pembina, Pengawas & Pengurus)' },
     { id: 'staff_tasks', label: 'Program & Rapat Staf' }
   ];
 
@@ -3478,11 +3479,11 @@ export default function SystemTab({
                       if (role === 'Pembina Yayasan' || role === 'Super Admin' || role === 'Ketua Yayasan') {
                         setNewOpFeatures(ALL_FEATURES.map(f => f.id));
                       } else if (role === 'Pengawas Yayasan') {
-                        setNewOpFeatures(['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'letters', 'system', 'reports', 'staff_tasks']);
+                        setNewOpFeatures(['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'letters', 'system', 'reports', 'foundation_tasks', 'staff_tasks']);
                       } else if (role === 'Bendahara') {
-                        setNewOpFeatures(['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'reports', 'staff_tasks']);
+                        setNewOpFeatures(['dashboard', 'members', 'small_groups', 'finance', 'partners', 'staff', 'payroll', 'letters', 'approvals', 'reports', 'foundation_tasks', 'staff_tasks']);
                       } else if (role === 'Sekretaris') {
-                        setNewOpFeatures(['dashboard', 'members', 'small_groups', 'staff', 'letters', 'system', 'reports', 'staff_tasks']);
+                        setNewOpFeatures(['dashboard', 'members', 'small_groups', 'staff', 'letters', 'system', 'reports', 'foundation_tasks', 'staff_tasks']);
                       } else if (role === 'Volunteer') {
                         setNewOpFeatures(['dashboard', 'members', 'small_groups', 'staff_tasks']);
                       } else {

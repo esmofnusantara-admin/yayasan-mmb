@@ -88,7 +88,16 @@ export const checkCollectionPermission = (req: any, res: Response, next: NextFun
     }
   }
 
-  // 3. Staff Tasks & Meetings access (Requires 'staff_tasks' feature, or Super Admin/Pembina/Ketua Yayasan role)
+  // 3. Foundation Tasks & Meetings access (Strictly restricted to Leadership roles or explicit 'foundation_tasks' feature)
+  if (colName === 'foundation_tasks' || colName === 'foundation_meetings') {
+    const isLeadership = role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Pembina Yayasan' || role === 'Pengawas Yayasan' || role === 'Bendahara' || role === 'Sekretaris';
+    const hasAccess = Array.isArray(user.features) && user.features.includes('foundation_tasks');
+    if (!isLeadership && !hasAccess) {
+      return res.status(403).json({ success: false, message: 'Hak Akses Terbatas: Anda tidak memiliki wewenang untuk mengakses modul Program & Rapat Yayasan.' });
+    }
+  }
+
+  // 4. Staff Tasks & Meetings access (Requires 'staff_tasks' feature, or Super Admin/Pembina/Ketua Yayasan role)
   if (colName === 'staff_tasks' || colName === 'staff_meetings') {
     const isSuperAdmin = role === 'Super Admin' || role === 'Ketua Yayasan' || role === 'Pembina Yayasan' || role === 'Pengawas Yayasan';
     const hasAccess = Array.isArray(user.features) && user.features.includes('staff_tasks');

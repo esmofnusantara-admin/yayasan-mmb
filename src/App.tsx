@@ -394,37 +394,7 @@ export default function App() {
   const [structures, setStructures] = useState<any[]>([]);
   const [isSystemSeeded, setIsSystemSeeded] = useState<boolean | null>(null);
 
-  // Dynamic unified pengurus list: combines registered pengurus and active structure nodes seamlessly
-  const displayPengurus = useMemo(() => {
-    const list = [...pengurus];
-    const existingNiks = new Set(list.map(p => p.nik?.toLowerCase().trim()));
-    const existingNames = new Set(list.map(p => p.name?.toLowerCase().trim()));
 
-    for (const node of structures) {
-      if (node.deleted || !node.name) continue;
-      const cleanName = node.name.toLowerCase().trim();
-      if (cleanName.includes('pemilik pelayanan') || cleanName.includes('allah tritunggal')) continue;
-
-      const nodeNik = `PENG-${String(node.id).toUpperCase()}`;
-      if (!existingNames.has(cleanName) && !existingNiks.has(nodeNik.toLowerCase())) {
-        list.push({
-          nik: nodeNik,
-          name: node.name,
-          category: 'Pengurus',
-          position: node.title || 'Pengurus Yayasan',
-          division: node.sub || 'Pengurus Harian Yayasan',
-          status: 'Pengurus Aktif',
-          phone: node.phone || '0812345678',
-          email: node.email || `${String(node.id).toLowerCase()}@esm.or.id`,
-          address: 'Kantor Yayasan MMB',
-          joinedDate: new Date().toISOString().split('T')[0]
-        } as Staff);
-        existingNames.add(cleanName);
-        existingNiks.add(nodeNik.toLowerCase());
-      }
-    }
-    return list;
-  }, [pengurus, structures]);
 
   // Dynamic document title and favicon sync based on organization profile
   useEffect(() => {
@@ -603,8 +573,6 @@ export default function App() {
           name: item.name || ''
         }));
         setStructures(sanitized);
-        // Refresh pengurus collection to sync with latest structures
-        loadCollection('pengurus', INITIAL_PENGURUS, setPengurus);
       }
     } catch (e: any) {
       if (e?.message?.includes('401') || e?.message?.includes('unauthorized') || e?.message?.includes('Otentikasi')) {
@@ -623,7 +591,7 @@ export default function App() {
     kegiatan: ['activities', 'activity_transactions', 'activity_rundowns', 'activity_preparations', 'transactions'],
     partners: ['partners', 'donations'],
     staff: ['staff', 'pengurus'],
-    foundation_tasks: ['foundation_tasks', 'foundation_meetings', 'pengurus'],
+    foundation_tasks: ['foundation_tasks', 'foundation_meetings', 'pengurus', 'staff'],
     staff_tasks: ['staff_tasks', 'staff_meetings', 'staff'],
     payroll: ['staff', 'transactions', 'salaries'],
     letters: ['inward_letters', 'outward_letters', 'documents'],
@@ -2095,9 +2063,9 @@ if (!res.ok) {
       return;
     }
 
-    const staffToDelete = staffs.find(s => s.nik === nik);
+    const staffToDelete = staffs.find(s => s.nik === nik) || pengurus.find(p => p.nik === nik);
     if (!staffToDelete) {
-      alert('Kesalahan: Data staf tidak ditemukan.');
+      alert('Kesalahan: Data staf atau pengurus tidak ditemukan.');
       return;
     }
 
@@ -3214,7 +3182,7 @@ if (!res.ok) {
             {activeTab === 'staff' && (
               <StaffTab 
                 staffs={staffs}
-                pengurusList={displayPengurus}
+                pengurusList={pengurus}
                 onAddStaff={handleAddStaff}
                 onUpdateStaff={handleUpdateStaff}
                 onDeleteStaff={handleDeleteStaff}
@@ -3268,7 +3236,8 @@ if (!res.ok) {
                 idPrefix={{ task: 'FY', meeting: 'FM' }}
                 staffTasks={foundationTasks}
                 staffMeetings={foundationMeetings}
-                staffs={displayPengurus}
+                staffs={pengurus}
+                allStaffs={staffs}
                 members={members}
                 notes={notes}
                 smallGroups={smallGroups}

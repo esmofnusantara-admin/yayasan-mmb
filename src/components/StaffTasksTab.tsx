@@ -52,6 +52,7 @@ interface StaffTasksTabProps {
   staffTasks: StaffTask[];
   staffMeetings: StaffMeeting[];
   staffs: Staff[];
+  allStaffs?: Staff[];
   members?: Member[];
   notes?: MemberNote[];
   smallGroups?: SmallGroup[];
@@ -285,6 +286,7 @@ export default function StaffTasksTab({
   staffTasks,
   staffMeetings,
   staffs,
+  allStaffs,
   members = [],
   notes = [],
   smallGroups = [],
@@ -306,6 +308,11 @@ export default function StaffTasksTab({
   const scopedStaffs = isFoundationScope
     ? (staffs.some(s => isPengurusMember(s)) ? staffs.filter(s => isPengurusMember(s)) : staffs)
     : staffs.filter(s => !isPengurusMember(s));
+
+  // List of operational staffs (karyawan/staf pelaksana)
+  const operationalStaffList = (allStaffs && allStaffs.length > 0)
+    ? allStaffs.filter(s => !isPengurusMember(s))
+    : (isFoundationScope ? [] : staffs.filter(s => !isPengurusMember(s)));
 
   const [subTab, setSubTab] = useState<'tasks' | 'meetings' | 'structure'>('tasks');
 
@@ -335,6 +342,7 @@ export default function StaffTasksTab({
   const [meetingSearch, setMeetingSearch] = useState('');
   const [meetingStartDate, setMeetingStartDate] = useState('');
   const [meetingEndDate, setMeetingEndDate] = useState('');
+  const [attendeeSearch, setAttendeeSearch] = useState('');
 
   // Selected meeting for details modal
   const [viewingMeeting, setViewingMeeting] = useState<StaffMeeting | null>(null);
@@ -656,10 +664,11 @@ export default function StaffTasksTab({
     setMeetingDate(new Date().toISOString().substring(0, 10));
     setMeetingLocation('Kantor Yayasan MMB');
     setMeetingLeaderName(currentUser?.name || '');
-    setMeetingAttendees(staffs.map(s => s.name)); // Default to checking all staff members
+    setMeetingAttendees(scopedStaffs.map(s => s.name)); // Default to checking all scoped pengurus / staff
     setMeetingNotes('');
     setMeetingExternalLink('');
     setUploadedFile(null);
+    setAttendeeSearch('');
     setIsMeetingModalOpen(true);
   };
 
@@ -669,7 +678,7 @@ export default function StaffTasksTab({
     setMeetingDate(meet.date);
     setMeetingLocation(meet.location);
     setMeetingLeaderName(meet.leaderName);
-    setMeetingAttendees(meet.attendees);
+    setMeetingAttendees(meet.attendees || []);
     setMeetingNotes(meet.notes);
     setMeetingExternalLink(meet.externalLink || '');
     if (meet.attachmentUrl && meet.attachmentName) {
@@ -677,6 +686,7 @@ export default function StaffTasksTab({
     } else {
       setUploadedFile(null);
     }
+    setAttendeeSearch('');
     setIsMeetingModalOpen(true);
   };
 
@@ -2130,12 +2140,27 @@ export default function StaffTasksTab({
 
               <div className="space-y-1">
                 <span className="text-[10px] text-slate-500 uppercase font-semibold block">Daftar Kehadiran ({viewingMeeting.attendees.length} Orang)</span>
-                <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto bg-slate-50 p-2 rounded border border-slate-200">
-                  {viewingMeeting.attendees.map((att, i) => (
-                    <span key={i} className="bg-white border border-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px] font-medium">
-                      {att}
-                    </span>
-                  ))}
+                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto bg-slate-50 p-2.5 rounded border border-slate-200">
+                  {viewingMeeting.attendees.map((att, i) => {
+                    const isStaffAtt = operationalStaffList.some(s => s.name.toLowerCase().trim() === att.toLowerCase().trim());
+                    return (
+                      <span
+                        key={i}
+                        className={`border px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 shadow-2xs ${
+                          isStaffAtt 
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                            : 'bg-white border-slate-200 text-slate-800'
+                        }`}
+                      >
+                        {att}
+                        {isStaffAtt ? (
+                          <span className="text-[8px] bg-emerald-200 text-emerald-800 px-1 rounded font-bold">Staf</span>
+                        ) : isFoundationScope ? (
+                          <span className="text-[8px] bg-blue-100 text-blue-800 px-1 rounded font-semibold">Pengurus</span>
+                        ) : null}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -2885,31 +2910,161 @@ export default function StaffTasksTab({
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">
-                  Daftar Hadir {isFoundationScope ? 'Pengurus / Peserta' : 'Staf'} ({meetingAttendees.length} Terpilih)
-                </label>
-                <div className="border border-slate-200 rounded p-2.5 bg-slate-50 max-h-32 overflow-y-auto grid grid-cols-2 gap-1.5">
-                  {scopedStaffs.map(s => {
-                    const isChecked = meetingAttendees.includes(s.name);
-                    return (
-                      <label key={s.nik} className="flex items-center gap-1.5 p-1 hover:bg-white rounded transition-colors cursor-pointer text-[11px] font-medium text-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {
-                            if (isChecked) {
-                              setMeetingAttendees(prev => prev.filter(x => x !== s.name));
-                            } else {
-                              setMeetingAttendees(prev => [...prev, s.name]);
-                            }
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">
+                    Daftar Hadir {isFoundationScope ? 'Pengurus & Peserta' : 'Staf'} ({meetingAttendees.length} Terpilih)
+                  </label>
+                  <div className="flex items-center gap-1.5 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allP = scopedStaffs.map(s => s.name);
+                        setMeetingAttendees(prev => Array.from(new Set([...prev, ...allP])));
+                      }}
+                      className="text-[#0c2340] hover:underline font-semibold cursor-pointer"
+                    >
+                      + Semua Pengurus
+                    </button>
+                    {isFoundationScope && operationalStaffList.length > 0 && (
+                      <>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allS = operationalStaffList.map(s => s.name);
+                            setMeetingAttendees(prev => Array.from(new Set([...prev, ...allS])));
                           }}
-                          className="rounded text-[#0c2340] focus:ring-[#0c2340] cursor-pointer"
-                        />
-                        <span className="truncate">{s.name}</span>
-                      </label>
-                    );
-                  })}
+                          className="text-emerald-700 hover:underline font-semibold cursor-pointer"
+                        >
+                          + Semua Staf
+                        </button>
+                      </>
+                    )}
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setMeetingAttendees([])}
+                      className="text-rose-600 hover:underline font-semibold cursor-pointer"
+                    >
+                      Kosongkan
+                    </button>
+                  </div>
+                </div>
+
+                {/* Container Daftar Hadir */}
+                <div className="border border-slate-200 rounded-lg p-2.5 bg-slate-50 space-y-3">
+                  {/* Search box for attendees */}
+                  {(scopedStaffs.length > 6 || operationalStaffList.length > 0) && (
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Cari nama pengurus atau staf peserta..."
+                        value={attendeeSearch}
+                        onChange={(e) => setAttendeeSearch(e.target.value)}
+                        className="w-full pl-8 pr-2.5 py-1 text-xs border border-slate-300 rounded bg-white text-slate-800 outline-none focus:border-[#0c2340]"
+                      />
+                    </div>
+                  )}
+
+                  {/* Section 1: Pengurus Yayasan / Staf */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-[#0c2340] uppercase tracking-wider flex items-center gap-1">
+                        🏛️ {isFoundationScope ? 'Pengurus Yayasan (Dewan Pembina, Pengawas, & Pengurus Inti)' : 'Daftar Staf'}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {scopedStaffs.filter(s => meetingAttendees.includes(s.name)).length} / {scopedStaffs.length}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-36 overflow-y-auto pr-1">
+                      {scopedStaffs
+                        .filter(s => !attendeeSearch || s.name.toLowerCase().includes(attendeeSearch.toLowerCase()) || (s.position || '').toLowerCase().includes(attendeeSearch.toLowerCase()))
+                        .map(s => {
+                          const isChecked = meetingAttendees.includes(s.name);
+                          return (
+                            <label
+                              key={s.nik}
+                              className={`flex items-center justify-between gap-1.5 p-1.5 rounded transition-colors cursor-pointer text-[11px] border ${isChecked
+                                ? 'bg-blue-50/80 border-blue-200 text-blue-900 font-semibold'
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {
+                                    if (isChecked) {
+                                      setMeetingAttendees(prev => prev.filter(x => x !== s.name));
+                                    } else {
+                                      setMeetingAttendees(prev => [...prev, s.name]);
+                                    }
+                                  }}
+                                  className="rounded text-[#0c2340] focus:ring-[#0c2340] cursor-pointer shrink-0"
+                                />
+                                <span className="truncate">{s.name}</span>
+                              </div>
+                              <span className="text-[9px] text-slate-400 font-normal truncate max-w-[70px] shrink-0">
+                                {s.position}
+                              </span>
+                            </label>
+                          );
+                        })}
+                    </div>
+                  </div>
+
+                  {/* Section 2: Staf Pelaksana yang Diundang (khusus targetScope foundation) */}
+                  {isFoundationScope && operationalStaffList.length > 0 && (
+                    <div className="space-y-1.5 pt-2.5 border-t border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1">
+                          👥 Staf Pelaksana (Diundang / Hadir)
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {operationalStaffList.filter(s => meetingAttendees.includes(s.name)).length} / {operationalStaffList.length}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-36 overflow-y-auto pr-1">
+                        {operationalStaffList
+                          .filter(s => !attendeeSearch || s.name.toLowerCase().includes(attendeeSearch.toLowerCase()) || (s.position || '').toLowerCase().includes(attendeeSearch.toLowerCase()))
+                          .map(s => {
+                            const isChecked = meetingAttendees.includes(s.name);
+                            return (
+                              <label
+                                key={s.nik}
+                                className={`flex items-center justify-between gap-1.5 p-1.5 rounded transition-colors cursor-pointer text-[11px] border ${isChecked
+                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-semibold'
+                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                                }`}
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => {
+                                      if (isChecked) {
+                                        setMeetingAttendees(prev => prev.filter(x => x !== s.name));
+                                      } else {
+                                        setMeetingAttendees(prev => [...prev, s.name]);
+                                      }
+                                    }}
+                                    className="rounded text-emerald-600 focus:ring-emerald-600 cursor-pointer shrink-0"
+                                  />
+                                  <span className="truncate">{s.name}</span>
+                                </div>
+                                <span className="text-[9px] text-emerald-600 font-normal truncate max-w-[70px] shrink-0">
+                                  {s.position}
+                                </span>
+                              </label>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -288,12 +288,13 @@ export async function syncStructuresToPengurus() {
       const matched = existingPengurus.find((p: any) => 
         (p.structureNodeId && p.structureNodeId === node.id) ||
         (p.nik && p.nik.toLowerCase() === nodeNik.toLowerCase()) ||
-        (p.name && String(p.name).toLowerCase().trim() === cleanName)
+        (!p.structureNodeId && p.name && String(p.name).toLowerCase().trim() === cleanName)
       );
 
       if (node.deleted) {
-        // Jika di struktur dihapus, tandai juga deleted di pengurus
-        if (matched && !matched.deleted) {
+        // Hanya tandai deleted jika tidak ada node struktur aktif lain dengan orang/nama yang sama
+        const hasActiveOtherNode = rawStructures.some((s: any) => !s.deleted && s.id !== node.id && s.name && String(s.name).toLowerCase().trim() === cleanName);
+        if (matched && !matched.deleted && !hasActiveOtherNode) {
           await dbDriver.updateDoc('pengurus', matched.nik, {
             deleted: true,
             deletedAt: new Date().toISOString()
@@ -302,16 +303,14 @@ export async function syncStructuresToPengurus() {
       } else {
         // Node aktif di struktur
         if (matched) {
-          // Update jabatan/nama jika ada perubahan
-          if (matched.position !== node.title || matched.name !== node.name || matched.deleted) {
-            await dbDriver.updateDoc('pengurus', matched.nik, {
-              name: node.name,
-              position: node.title || matched.position,
-              division: node.sub || matched.division || 'Pengurus Harian Yayasan',
-              structureNodeId: node.id,
-              deleted: false
-            });
-          }
+          // Update jabatan/nama dan pastikan aktif
+          await dbDriver.updateDoc('pengurus', matched.nik, {
+            name: node.name,
+            position: node.title || matched.position,
+            division: node.sub || matched.division || 'Pengurus Harian Yayasan',
+            structureNodeId: node.id,
+            deleted: false
+          });
         } else {
           // Belum ada -> otomatis buat pengurus baru
           const newDoc = {

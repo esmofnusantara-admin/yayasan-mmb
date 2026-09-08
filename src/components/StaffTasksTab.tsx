@@ -305,14 +305,15 @@ export default function StaffTasksTab({
   const meetingPrefix = idPrefix?.meeting || (isFoundationScope ? 'FM' : 'SM');
 
   // Filter staff list according to scope (Foundation: Pengurus vs Staff: Staf Pelaksana)
+  // When targetScope is 'foundation', staffs prop is already the dedicated Pengurus database collection
   const scopedStaffs = isFoundationScope
-    ? (staffs.some(s => isPengurusMember(s)) ? staffs.filter(s => isPengurusMember(s)) : staffs)
-    : staffs.filter(s => !isPengurusMember(s));
+    ? staffs
+    : staffs.filter(s => !isPengurusMember(s) && s.category !== 'Pengurus');
 
   // List of operational staffs (karyawan/staf pelaksana)
   const operationalStaffList = (allStaffs && allStaffs.length > 0)
-    ? allStaffs.filter(s => !isPengurusMember(s))
-    : (isFoundationScope ? [] : staffs.filter(s => !isPengurusMember(s)));
+    ? allStaffs.filter(s => !isPengurusMember(s) && s.category !== 'Pengurus')
+    : (isFoundationScope ? [] : staffs.filter(s => !isPengurusMember(s) && s.category !== 'Pengurus'));
 
   const [subTab, setSubTab] = useState<'tasks' | 'meetings' | 'structure'>('tasks');
 
@@ -1010,8 +1011,10 @@ export default function StaffTasksTab({
     setFilterStatus('ALL');
   };
 
-  const distinctStaffNamesFromTasks = Array.from(new Set(staffTasks.map(t => t.staffName).filter(Boolean)))
-    .filter(name => !scopedStaffs.some(s => s.name === name));
+  const distinctStaffNamesFromTasks = isFoundationScope
+    ? []
+    : Array.from(new Set(staffTasks.map(t => t.staffName).filter(Boolean)))
+        .filter(name => !scopedStaffs.some(s => s.name === name));
 
   // Filtered staffs based on search and staff filter
   const filteredStaffs = scopedStaffs.filter(s => {

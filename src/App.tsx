@@ -597,7 +597,7 @@ export default function App() {
     letters: ['inward_letters', 'outward_letters', 'documents'],
     reports: ['members', 'transactions', 'partners', 'small_groups', 'meeting_logs', 'staff', 'salaries', 'donations'],
     approvals: ['approvals'],
-    system: ['audits'],
+    system: ['audits', 'pengurus', 'staff'],
     staff_profile: ['staff', 'salaries']
   };
 
@@ -3305,6 +3305,8 @@ if (!res.ok) {
                 onUpdateProfile={handleUpdateProfile}
                 currentRole={currentRole}
                 onReloadStructures={loadStructures}
+                pengurusList={pengurus}
+                staffList={staffs}
               />
             )}
 

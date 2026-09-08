@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.5
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Settings, 
   Building, 
@@ -54,7 +54,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
-import { InstitutionalProfile, AuditLog, SalaryComponent } from '../types';
+import { InstitutionalProfile, AuditLog, SalaryComponent, Staff } from '../types';
 import { getCutoffPeriodRange, INDO_MONTHS } from '../utils/cutoff';
 
 export const DEFAULT_MASTER_SALARY_COMPONENTS: SalaryComponent[] = [
@@ -74,6 +74,8 @@ interface SystemTabProps {
   onUpdateProfile: (p: InstitutionalProfile) => void;
   currentRole: string;
   onReloadStructures?: () => void;
+  pengurusList?: Staff[];
+  staffList?: Staff[];
 }
 
 export default function SystemTab({
@@ -82,6 +84,8 @@ export default function SystemTab({
   onUpdateProfile,
   currentRole,
   onReloadStructures,
+  pengurusList = [],
+  staffList = [],
 }: SystemTabProps) {
   const [activeSubView, setActiveSubView] = useState<'profile' | 'structure' | 'operators' | 'audit' | 'variables' | 'email'>('profile');
   const [activeNodeId, setActiveNodeId] = useState<string>('ketua');
@@ -91,6 +95,47 @@ export default function SystemTab({
   const [isFetchingTree, setIsFetchingTree] = useState(false);
   const [isSavingTree, setIsSavingTree] = useState(false);
 
+  // Unified pool of personnel: Pengurus first, then Staff
+  const personPool = useMemo(() => {
+    const list: (Staff & { source: 'pengurus' | 'staff' })[] = [];
+    const seen = new Set<string>();
+
+    (pengurusList || []).forEach(p => {
+      const key = p.nik || p.id;
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        list.push({ ...p, source: 'pengurus' });
+      }
+    });
+
+    (staffList || []).forEach(s => {
+      const key = s.nik || s.id;
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        list.push({ ...s, source: 'staff' });
+      }
+    });
+
+    return list;
+  }, [pengurusList, staffList]);
+
+  // Composition helper functions
+  const composeNames = (selected: Staff[]) => {
+    if (selected.length === 0) return '';
+    if (selected.length === 1) return selected[0].name;
+    if (selected.length === 2) return `${selected[0].name} & ${selected[1].name}`;
+    const allExceptLast = selected.slice(0, -1).map(p => p.name).join(', ');
+    return `${allExceptLast} & ${selected[selected.length - 1].name}`;
+  };
+
+  const composeEmails = (selected: Staff[]) => {
+    return Array.from(new Set(selected.map(p => (p.email || '').trim()).filter(Boolean))).join(', ');
+  };
+
+  const composePhones = (selected: Staff[]) => {
+    return Array.from(new Set(selected.map(p => (p.phone || '').trim()).filter(Boolean))).join(', ');
+  };
+
   // States for editing the active structural node:
   const [editName, setEditName] = useState('');
   const [editTitle, setEditTitle] = useState('');
@@ -99,6 +144,9 @@ export default function SystemTab({
   const [editParentId, setEditParentId] = useState<string>('');
   const [editEmail, setEditEmail] = useState<string>('');
   const [editPhone, setEditPhone] = useState<string>('');
+  const [editSelectedNiks, setEditSelectedNiks] = useState<string[]>([]);
+  const [editPoolTab, setEditPoolTab] = useState<'all' | 'pengurus' | 'staff'>('all');
+  const [editPersonSearch, setEditPersonSearch] = useState<string>('');
 
   // Add custom node states
   const [isAddingNode, setIsAddingNode] = useState(false);
@@ -110,6 +158,239 @@ export default function SystemTab({
   const [newNodeParentId, setNewNodeParentId] = useState<string>('');
   const [newNodeEmail, setNewNodeEmail] = useState<string>('');
   const [newNodePhone, setNewNodePhone] = useState<string>('');
+  const [newSelectedNiks, setNewSelectedNiks] = useState<string[]>([]);
+  const [newPoolTab, setNewPoolTab] = useState<'all' | 'pengurus' | 'staff'>('all');
+  const [newPersonSearch, setNewPersonSearch] = useState<string>('');
+
+  const handleToggleEditPerson = (person: Staff) => {
+    const key = person.nik || person.id;
+    let next: string[];
+    if (editSelectedNiks.includes(key)) {
+      next = editSelectedNiks.filter(k => k !== key);
+    } else {
+      next = [...editSelectedNiks, key];
+    }
+    setEditSelectedNiks(next);
+    const selected = personPool.filter(p => next.includes(p.nik || p.id));
+    if (selected.length > 0) {
+      setEditName(composeNames(selected));
+      setEditEmail(composeEmails(selected));
+      setEditPhone(composePhones(selected));
+    } else {
+      setEditName('');
+      setEditEmail('');
+      setEditPhone('');
+    }
+  };
+
+  const handleToggleNewPerson = (person: Staff) => {
+    const key = person.nik || person.id;
+    let next: string[];
+    if (newSelectedNiks.includes(key)) {
+      next = newSelectedNiks.filter(k => k !== key);
+    } else {
+      next = [...newSelectedNiks, key];
+    }
+    setNewSelectedNiks(next);
+    const selected = personPool.filter(p => next.includes(p.nik || p.id));
+    if (selected.length > 0) {
+      setNewNodeName(composeNames(selected));
+      setNewNodeEmail(composeEmails(selected));
+      setNewNodePhone(composePhones(selected));
+      if (!newNodeTitle && selected.length === 1 && selected[0].position) {
+        setNewNodeTitle(selected[0].position);
+      }
+    } else {
+      setNewNodeName('');
+      setNewNodeEmail('');
+      setNewNodePhone('');
+    }
+  };
+
+  const renderPersonnelSelector = (
+    selectedNiks: string[],
+    onToggle: (person: Staff) => void,
+    onClear: () => void,
+    poolTab: 'all' | 'pengurus' | 'staff',
+    setPoolTab: (t: 'all' | 'pengurus' | 'staff') => void,
+    searchVal: string,
+    setSearchVal: (v: string) => void
+  ) => {
+    const filteredPool = personPool.filter(p => {
+      if (poolTab === 'pengurus' && p.source !== 'pengurus') return false;
+      if (poolTab === 'staff' && p.source !== 'staff') return false;
+      if (searchVal.trim()) {
+        const q = searchVal.toLowerCase();
+        const matchName = (p.name || '').toLowerCase().includes(q);
+        const matchPos = (p.position || '').toLowerCase().includes(q);
+        const matchNik = (p.nik || p.id || '').toLowerCase().includes(q);
+        return matchName || matchPos || matchNik;
+      }
+      return true;
+    });
+
+    const selectedPersons = personPool.filter(p => selectedNiks.includes(p.nik || p.id));
+
+    return (
+      <div className="bg-slate-50 border border-slate-300/80 rounded-xl p-3.5 space-y-3 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <Users className="w-4 h-4 text-[#0c2340]" />
+              Pilih Pejabat dari Database Pengurus / Staf
+            </label>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Bisa memilih <strong>1 atau beberapa orang</strong> sekaligus. Data nama, email resmi, dan no. telepon otomatis terisi tanpa perlu mengetik ulang.
+            </p>
+          </div>
+
+          {selectedNiks.length > 0 && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer shrink-0 self-start sm:self-auto"
+            >
+              ✕ Kosongkan Pilihan
+            </button>
+          )}
+        </div>
+
+        {/* Filter Tab & Search row */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="inline-flex rounded-lg bg-slate-200/70 p-0.5 text-[11px] font-medium shrink-0">
+            <button
+              type="button"
+              onClick={() => setPoolTab('all')}
+              className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                poolTab === 'all' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Semua ({personPool.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setPoolTab('pengurus')}
+              className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                poolTab === 'pengurus' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              🏛️ Pengurus ({pengurusList.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setPoolTab('staff')}
+              className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                poolTab === 'staff' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              👥 Staf ({staffList.length})
+            </button>
+          </div>
+
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={searchVal}
+              onChange={(e) => setSearchVal(e.target.value)}
+              placeholder="Cari nama, NIK, atau jabatan..."
+              className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0c2340]"
+            />
+            {searchVal && (
+              <button
+                type="button"
+                onClick={() => setSearchVal('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Selected People Badges Preview */}
+        {selectedPersons.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 bg-white p-2 rounded-lg border border-blue-200">
+            <span className="text-[10px] uppercase font-bold text-blue-900 tracking-wider mr-1">
+              Terpilih ({selectedPersons.length}):
+            </span>
+            {selectedPersons.map(p => {
+              const key = p.nik || p.id;
+              return (
+                <span
+                  key={key}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-[#0c2340] text-white shadow-2xs"
+                >
+                  <span>{p.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => onToggle(p)}
+                    className="hover:bg-rose-600 rounded-full w-3.5 h-3.5 flex items-center justify-center cursor-pointer ml-0.5"
+                    title={`Hapus ${p.name}`}
+                  >
+                    ✕
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Scrollable list of selectable personnel cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
+          {filteredPool.length === 0 ? (
+            <div className="col-span-full py-6 text-center text-xs text-slate-400 italic">
+              Tidak ada data personil yang cocok dengan kriteria filter.
+            </div>
+          ) : (
+            filteredPool.map(person => {
+              const key = person.nik || person.id;
+              const isChecked = selectedNiks.includes(key);
+              const isPengurus = person.source === 'pengurus';
+
+              return (
+                <div
+                  key={key}
+                  onClick={() => onToggle(person)}
+                  className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition-all select-none text-left ${
+                    isChecked
+                      ? 'bg-blue-50/90 border-blue-500 shadow-2xs ring-1 ring-blue-400/40'
+                      : 'bg-white border-slate-200 hover:bg-slate-50/80 hover:border-slate-300'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => {}}
+                    className="mt-1 rounded text-blue-600 focus:ring-blue-500 cursor-pointer pointer-events-none shrink-0"
+                  />
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className={`text-xs font-bold truncate ${isChecked ? 'text-blue-950' : 'text-slate-900'}`}>
+                        {person.name}
+                      </span>
+                      <span className={`text-[9px] px-1 py-0.2 rounded font-bold shrink-0 ${
+                        isPengurus ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {isPengurus ? 'Pengurus' : 'Staf'}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-slate-500 truncate mt-0.5">
+                      {person.position || (isPengurus ? 'Pengurus Yayasan' : 'Staf Pelaksana')} • {person.nik || person.id}
+                    </div>
+                    {person.email && (
+                      <div className="text-[10px] text-slate-400 font-mono truncate mt-0.5">
+                        ✉ {person.email}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // View mode and scale for org chart
   const [structureViewMode, setStructureViewMode] = useState<'chart' | 'hierarchy'>('chart');
@@ -264,6 +545,8 @@ export default function SystemTab({
         setNewNodePhone('');
         setNewNodeOrder(100);
         setNewNodeParentId('');
+        setNewSelectedNiks([]);
+        setNewPersonSearch('');
         setActiveNodeId(cleanId);
         await fetchOrgTree();
         if (onReloadStructures) onReloadStructures();
@@ -336,8 +619,23 @@ export default function SystemTab({
       setEditPhone(activeNode.phone || '');
       setEditOrder(typeof activeNode.order === 'number' ? activeNode.order : 100);
       setEditParentId(activeNode.parentId || '');
+
+      // Match selected person(s) from personPool by comparing name(s)
+      if (personPool.length > 0 && activeNode.name) {
+        const nodeNameLower = activeNode.name.toLowerCase();
+        const matched = personPool
+          .filter(p => {
+            if (!p.name) return false;
+            const pNameLower = p.name.trim().toLowerCase();
+            return nodeNameLower.includes(pNameLower) || pNameLower.includes(nodeNameLower);
+          })
+          .map(p => p.nik || p.id);
+        setEditSelectedNiks(matched);
+      } else {
+        setEditSelectedNiks([]);
+      }
     }
-  }, [activeNodeId, orgTree]);
+  }, [activeNodeId, orgTree, personPool]);
 
 
 
@@ -2602,12 +2900,30 @@ export default function SystemTab({
                   {node.title}
                 </div>
 
-                {/* Person name */}
-                <h4 className={`text-xs font-bold leading-tight line-clamp-2 ${
-                  isSelected || isTopLevel ? 'text-white' : 'text-slate-900'
-                }`}>
-                  {node.name || '(Belum Ditentukan)'}
-                </h4>
+                {/* Person name(s) */}
+                <div className="space-y-1 my-1">
+                  {node.name ? (
+                    (() => {
+                      const persons = node.name.split(/\s*(?:&|,|\/)\s*/).filter(Boolean);
+                      return persons.map((pName: string, idx: number) => (
+                        <div key={idx} className={`text-xs font-bold leading-tight flex items-center justify-center gap-1.5 ${
+                          isSelected || isTopLevel ? 'text-white' : 'text-slate-900'
+                        }`}>
+                          {persons.length > 1 && (
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected || isTopLevel ? 'bg-amber-300' : 'bg-blue-600'}`} />
+                          )}
+                          <span className="truncate max-w-[180px]" title={pName}>{pName}</span>
+                        </div>
+                      ));
+                    })()
+                  ) : (
+                    <h4 className={`text-xs italic ${
+                      isSelected || isTopLevel ? 'text-slate-300' : 'text-slate-400'
+                    }`}>
+                      (Belum Ditentukan)
+                    </h4>
+                  )}
+                </div>
 
                 {/* Sub text / description */}
                 {node.sub && (
@@ -2763,10 +3079,26 @@ export default function SystemTab({
                       Formulir Penambahan Jabatan / Divisi Baru
                     </h4>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Tentukan atasan langsung dan urutan horizontal agar tersusun otomatis di bagan organisasi.
+                      Pilih pengurus/staf dari database yayasan. Tentukan atasan langsung dan urutan horizontal agar tersusun otomatis di bagan organisasi.
                     </p>
                   </div>
                 </div>
+
+                {/* Person selector from Pengurus / Staff database */}
+                {renderPersonnelSelector(
+                  newSelectedNiks,
+                  handleToggleNewPerson,
+                  () => {
+                    setNewSelectedNiks([]);
+                    setNewNodeName('');
+                    setNewNodeEmail('');
+                    setNewNodePhone('');
+                  },
+                  newPoolTab,
+                  setNewPoolTab,
+                  newPersonSearch,
+                  setNewPersonSearch
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
@@ -2792,12 +3124,14 @@ export default function SystemTab({
                     />
                   </div>
                   <div>
-                    <label className="text-slate-700 font-semibold mb-1 block text-xs">Nama Pejabat / Pengurus :</label>
+                    <label className="text-slate-700 font-semibold mb-1 block text-xs">
+                      Nama Pejabat / Pengurus {newSelectedNiks.length > 0 && <span className="text-emerald-600 font-normal text-[10px]">(Terisi Otomatis)</span>} :
+                    </label>
                     <input
                       type="text"
                       value={newNodeName}
                       onChange={(e) => setNewNodeName(e.target.value)}
-                      placeholder="contoh: Angelina Meilia Putri Manalu"
+                      placeholder="Pilih dari daftar pengurus/staf di atas atau ketik nama..."
                       className="w-full bg-slate-50 border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340] focus:bg-white"
                       required
                     />
@@ -2807,7 +3141,7 @@ export default function SystemTab({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-slate-700 font-semibold mb-1 block text-xs">
-                      Email Resmi Pengurus <span className="text-amber-600 font-normal">(Menerima Notifikasi Pagi 07:00 WIB)</span> :
+                      Email Resmi Pengurus {newSelectedNiks.length > 0 && <span className="text-emerald-600 font-normal text-[10px]">(Terisi Otomatis)</span>} <span className="text-amber-600 font-normal">(Menerima Notifikasi Pagi 07:00 WIB)</span> :
                     </label>
                     <input
                       type="email"
@@ -2818,7 +3152,9 @@ export default function SystemTab({
                     />
                   </div>
                   <div>
-                    <label className="text-slate-700 font-semibold mb-1 block text-xs">No. Telepon / WhatsApp :</label>
+                    <label className="text-slate-700 font-semibold mb-1 block text-xs">
+                      No. Telepon / WhatsApp {newSelectedNiks.length > 0 && <span className="text-emerald-600 font-normal text-[10px]">(Terisi Otomatis)</span>} :
+                    </label>
                     <input
                       type="text"
                       value={newNodePhone}
@@ -2885,6 +3221,8 @@ export default function SystemTab({
                       setNewNodeSub('');
                       setNewNodeOrder(100);
                       setNewNodeParentId('');
+                      setNewSelectedNiks([]);
+                      setNewPersonSearch('');
                     }}
                     className="px-3.5 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded text-xs cursor-pointer"
                   >
@@ -3072,15 +3410,33 @@ export default function SystemTab({
                         Edit Data Pengurus, Atasan & Rantai Komando
                       </span>
 
+                      {/* Person selector from Pengurus / Staff database */}
+                      {renderPersonnelSelector(
+                        editSelectedNiks,
+                        handleToggleEditPerson,
+                        () => {
+                          setEditSelectedNiks([]);
+                          setEditName('');
+                          setEditEmail('');
+                          setEditPhone('');
+                        },
+                        editPoolTab,
+                        setEditPoolTab,
+                        editPersonSearch,
+                        setEditPersonSearch
+                      )}
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <label className="text-[10px] text-slate-600 font-semibold block">Nama Pengurus/Staf :</label>
+                          <label className="text-[10px] text-slate-600 font-semibold block">
+                            Nama Pengurus/Staf {editSelectedNiks.length > 0 && <span className="text-emerald-600 font-normal">(Terisi Otomatis)</span>} :
+                          </label>
                           <input 
                             type="text" 
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
                             className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#0c2340]"
-                            placeholder="Masukkan nama pengurus..."
+                            placeholder="Pilih dari daftar pengurus/staf di atas atau ketik nama..."
                             required
                           />
                         </div>
@@ -3101,7 +3457,7 @@ export default function SystemTab({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <label className="text-[10px] text-slate-600 font-semibold block">
-                            Email Resmi Pengurus <span className="text-amber-600 font-normal">(Menerima Notifikasi Pagi 07:00 WIB)</span> :
+                            Email Resmi Pengurus {editSelectedNiks.length > 0 && <span className="text-emerald-600 font-normal">(Terisi Otomatis)</span>} <span className="text-amber-600 font-normal">(Menerima Notifikasi Pagi 07:00 WIB)</span> :
                           </label>
                           <input 
                             type="email" 
@@ -3113,7 +3469,9 @@ export default function SystemTab({
                         </div>
 
                         <div className="space-y-1">
-                          <label className="text-[10px] text-slate-600 font-semibold block">No. Telepon / WhatsApp :</label>
+                          <label className="text-[10px] text-slate-600 font-semibold block">
+                            No. Telepon / WhatsApp {editSelectedNiks.length > 0 && <span className="text-emerald-600 font-normal">(Terisi Otomatis)</span>} :
+                          </label>
                           <input 
                             type="text" 
                             value={editPhone}

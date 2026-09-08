@@ -186,6 +186,12 @@ export async function generateFoundationMeetingId(): Promise<string> {
   return `FM-${year()}-${pad(seq)}`;
 }
 
+/** Pengurus Yayasan NIK */
+export async function generatePengurusNik(): Promise<string> {
+  const seq = await nextSeq(`pengurus_${year()}`);
+  return `PENG-${year()}-${pad(seq)}`;
+}
+
 /** Dokumen organisasi */
 export async function generateDocumentId(): Promise<string> {
   const seq = await nextSeq(`doc_${year()}`);

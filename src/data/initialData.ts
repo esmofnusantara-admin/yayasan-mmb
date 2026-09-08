@@ -802,6 +802,129 @@ export const INITIAL_STAFF: Staff[] = [
   }
 ];
 
+export const INITIAL_PENGURUS: Staff[] = [
+  {
+    nik: 'PENG-1001',
+    name: 'Fernandes Manihuruk',
+    category: 'Pengurus',
+    position: 'Ketua Pengurus Yayasan',
+    division: 'Pengurus Harian Yayasan',
+    status: 'Pengurus Aktif',
+    phone: '08123456701',
+    email: 'ketua@esm.or.id',
+    address: 'Kantor Yayasan MMB',
+    joinedDate: '2020-01-01',
+    periodStart: '2024-01-01',
+    periodEnd: '2029-01-01',
+    skNumber: '001/SK-YYS/2024'
+  },
+  {
+    nik: 'PENG-1002',
+    name: 'Yusuf Raja Tamba',
+    category: 'Pengurus',
+    position: 'Sekretaris Yayasan',
+    division: 'Sekretariat',
+    status: 'Pengurus Aktif',
+    phone: '08123456702',
+    email: 'sekretaris@esm.or.id',
+    address: 'Kantor Yayasan MMB',
+    joinedDate: '2020-01-01',
+    periodStart: '2024-01-01',
+    periodEnd: '2029-01-01',
+    skNumber: '002/SK-YYS/2024'
+  },
+  {
+    nik: 'PENG-1003',
+    name: 'Angelina Meilia Putri Manalu',
+    category: 'Pengurus',
+    position: 'Bendahara Yayasan',
+    division: 'Keuangan & Audit',
+    status: 'Pengurus Aktif',
+    phone: '08123456703',
+    email: 'bendahara@esm.or.id',
+    address: 'Kantor Yayasan MMB',
+    joinedDate: '2020-01-01',
+    periodStart: '2024-01-01',
+    periodEnd: '2029-01-01',
+    skNumber: '003/SK-YYS/2024'
+  },
+  {
+    nik: 'PENG-1004',
+    name: 'Wilda Silvany',
+    category: 'Pengurus',
+    position: 'Pelaksana Tugas Bendahara Yayasan',
+    division: 'Keuangan & Audit',
+    status: 'Pengurus Aktif',
+    phone: '08123456704',
+    email: 'wilda@esm.or.id',
+    address: 'Kantor Yayasan MMB',
+    joinedDate: '2022-01-01',
+    periodStart: '2024-01-01',
+    periodEnd: '2029-01-01',
+    skNumber: '004/SK-YYS/2024'
+  },
+  {
+    nik: 'PENG-1005',
+    name: 'Triawan Wicaksono',
+    category: 'Pengurus',
+    position: 'Ketua Dewan Pembina',
+    division: 'Pengurus Harian Yayasan',
+    status: 'Pengurus Aktif',
+    phone: '08123456705',
+    email: 'pembina1@esm.or.id',
+    address: 'Kantor Yayasan MMB',
+    joinedDate: '2019-01-01',
+    periodStart: '2024-01-01',
+    periodEnd: '2029-01-01',
+    skNumber: '005/SK-YYS/2024'
+  },
+  {
+    nik: 'PENG-1006',
+    name: 'Flafiana Trinurjani Tagung,S.Si., M.Min., M.Si.',
+    category: 'Pengurus',
+    position: 'Anggota Dewan Pembina',
+    division: 'Pengurus Harian Yayasan',
+    status: 'Pengurus Aktif',
+    phone: '08123456706',
+    email: 'pembina2@esm.or.id',
+    address: 'Kantor Yayasan MMB',
+    joinedDate: '2019-01-01',
+    periodStart: '2024-01-01',
+    periodEnd: '2029-01-01',
+    skNumber: '006/SK-YYS/2024'
+  },
+  {
+    nik: 'PENG-1007',
+    name: 'Febry Ramos Sinaga',
+    category: 'Pengurus',
+    position: 'Ketua Dewan Pengawas',
+    division: 'Pengurus Harian Yayasan',
+    status: 'Pengurus Aktif',
+    phone: '08123456707',
+    email: 'pengawas1@esm.or.id',
+    address: 'Kantor Yayasan MMB',
+    joinedDate: '2020-01-01',
+    periodStart: '2024-01-01',
+    periodEnd: '2029-01-01',
+    skNumber: '007/SK-YYS/2024'
+  },
+  {
+    nik: 'PENG-1008',
+    name: 'Lucky Regina',
+    category: 'Pengurus',
+    position: 'Anggota Dewan Pengawas',
+    division: 'Pengurus Harian Yayasan',
+    status: 'Pengurus Aktif',
+    phone: '08123456708',
+    email: 'pengawas2@esm.or.id',
+    address: 'Kantor Yayasan MMB',
+    joinedDate: '2020-01-01',
+    periodStart: '2024-01-01',
+    periodEnd: '2029-01-01',
+    skNumber: '008/SK-YYS/2024'
+  }
+];
+
 export const INITIAL_INWARD_LETTERS: LetterInward[] = [
   {
     id: 'LETIN-01',

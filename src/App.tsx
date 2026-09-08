@@ -90,6 +90,7 @@ import {
   INITIAL_CATEGORIES,
   INITIAL_PARTNERS,
   INITIAL_STAFF,
+  INITIAL_PENGURUS,
   INITIAL_SALARIES,
   INITIAL_INWARD_LETTERS,
   INITIAL_OUTWARD_LETTERS,
@@ -374,6 +375,7 @@ export default function App() {
   const [categories, setCategories] = useState<FinancialCategory[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [staffs, setStaffs] = useState<Staff[]>([]);
+  const [pengurus, setPengurus] = useState<Staff[]>([]);
   const [salaries, setSalaries] = useState<StaffSalary[]>([]);
   const [inwardLetters, setInwardLetters] = useState<LetterInward[]>([]);
   const [outwardLetters, setOutwardLetters] = useState<LetterOutward[]>([]);
@@ -586,8 +588,8 @@ export default function App() {
     finance: ['transactions', 'categories'],
     kegiatan: ['activities', 'activity_transactions', 'activity_rundowns', 'activity_preparations', 'transactions'],
     partners: ['partners', 'donations'],
-    staff: ['staff'],
-    foundation_tasks: ['foundation_tasks', 'foundation_meetings', 'staff'],
+    staff: ['staff', 'pengurus'],
+    foundation_tasks: ['foundation_tasks', 'foundation_meetings', 'pengurus'],
     staff_tasks: ['staff_tasks', 'staff_meetings', 'staff'],
     payroll: ['staff', 'transactions', 'salaries'],
     letters: ['inward_letters', 'outward_letters', 'documents'],
@@ -628,6 +630,8 @@ export default function App() {
         return loadCollection('partners', INITIAL_PARTNERS, setPartners);
       case 'staff':
         return loadCollection('staff', INITIAL_STAFF, setStaffs);
+      case 'pengurus':
+        return loadCollection('pengurus', INITIAL_PENGURUS, setPengurus);
       case 'salaries':
         return loadCollection('salaries', INITIAL_SALARIES, setSalaries);
       case 'inward_letters':
@@ -1918,20 +1922,22 @@ if (!res.ok) {
   // 5. Staff Handlers
   const handleAddStaff = async (s: Staff) => {
     try {
+      const isPengurus = s.category === 'Pengurus' || ['pembina', 'pengawas', 'ketua', 'sekretaris', 'bendahara', 'direksi', 'pengurus'].some(k => (s.position || '').toLowerCase().includes(k));
+      const targetCol = isPengurus ? 'pengurus' : 'staff';
       const payload = {
         ...s,
+        category: isPengurus ? 'Pengurus' : (s.category || 'Staf'),
         createdBy: `${currentRole} Operator`,
         createdAt: new Date().toISOString(),
         deleted: false
       };
-      await fetch(`/api/data/staff/${s.nik}`, {
+      await fetch(`/api/data/${targetCol}/${s.nik}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
       // Automatically register user/operator account
-      const isPengurus = s.category === 'Pengurus' || ['pembina', 'pengawas', 'ketua', 'sekretaris', 'bendahara', 'direksi', 'pengurus'].some(k => (s.position || '').toLowerCase().includes(k));
       const cleanEmail = s.email?.trim() || `${s.nik.toLowerCase().trim()}@esm.or.id`;
       const cleanPhone = s.phone?.trim() || '0812345678';
       const userRole = isPengurus
@@ -1961,7 +1967,11 @@ if (!res.ok) {
       });
 
       await logAudit(`Menggunakan Penerimaan ${isPengurus ? 'Pengurus' : 'Karyawan'} Baru ID/NIK: ${s.nik} & Auto-Registrasi Akun Operator: ${cleanEmail}`, isPengurus ? 'Pengurus & Organisasi' : 'Staf & HR');
-      loadCollection('staff', INITIAL_STAFF, setStaffs);
+      if (isPengurus) {
+        await loadCollection('pengurus', INITIAL_PENGURUS, setPengurus);
+      } else {
+        await loadCollection('staff', INITIAL_STAFF, setStaffs);
+      }
     } catch (e: any) {
       console.error(e);
     }
@@ -1969,20 +1979,28 @@ if (!res.ok) {
 
   const handleUpdateStaff = async (s: Staff) => {
     try {
-      const existing = staffs.find(x => x.nik === s.nik || (s.id && x.id === s.id));
+      const isPengurus = s.category === 'Pengurus' || pengurus.some(x => x.nik === s.nik || (s.id && x.id === s.id)) || ['pembina', 'pengawas', 'ketua', 'sekretaris', 'bendahara', 'direksi', 'pengurus'].some(k => (s.position || '').toLowerCase().includes(k));
+      const targetCol = isPengurus ? 'pengurus' : 'staff';
+      const pool = isPengurus ? pengurus : staffs;
+      const existing = pool.find(x => x.nik === s.nik || (s.id && x.id === s.id));
       const payload = {
         ...(existing || {}),
         ...s,
+        category: isPengurus ? 'Pengurus' : (s.category || 'Staf'),
         updatedAt: new Date().toISOString(),
         deleted: false
       };
-      await fetch(`/api/data/staff/${s.nik}`, {
+      await fetch(`/api/data/${targetCol}/${s.nik}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      await logAudit(`Melakukan Perubahan Kontrak Kerja Kepegawaian NIK: ${s.nik}`, 'Staf & HR');
-      await loadCollection('staff', INITIAL_STAFF, setStaffs);
+      await logAudit(`Melakukan Perubahan Data ${isPengurus ? 'Pengurus' : 'Kepegawaian'} NIK: ${s.nik}`, isPengurus ? 'Pengurus & Organisasi' : 'Staf & HR');
+      if (isPengurus) {
+        await loadCollection('pengurus', INITIAL_PENGURUS, setPengurus);
+      } else {
+        await loadCollection('staff', INITIAL_STAFF, setStaffs);
+      }
     } catch (e: any) {
       console.error(e);
     }
@@ -2083,7 +2101,9 @@ if (!res.ok) {
       }
 
       // Call delete route on server
-      const res = await fetch(`/api/data/staff/${nik}?role=${encodeURIComponent(currentRole)}`, {
+      const isPengurus = staffToDelete?.category === 'Pengurus' || pengurus.some(p => p.nik === nik);
+      const targetCol = isPengurus ? 'pengurus' : 'staff';
+      const res = await fetch(`/api/data/${targetCol}/${nik}?role=${encodeURIComponent(currentRole)}`, {
         method: 'DELETE',
         headers: {
           'x-user-role': currentRole
@@ -2091,14 +2111,17 @@ if (!res.ok) {
       });
 
       if (res.ok) {
-        await logAudit(`[Database Staf] Pemutusan Kontrak Kerja, Pegawai NIK: ${nik} - "${staffToDelete.name}" dinonaktifkan oleh ${currentRole}.`, 'Staf & HR');
+        await logAudit(`[Database ${isPengurus ? 'Pengurus' : 'Staf'}] Data ${isPengurus ? 'Pengurus' : 'Pegawai'} NIK: ${nik} - "${staffToDelete.name}" dinonaktifkan oleh ${currentRole}.`, isPengurus ? 'Pengurus & Organisasi' : 'Staf & HR');
         
-        // Refresh staffs list
-        await loadCollection('staff', INITIAL_STAFF, setStaffs);
-        alert(`Sukses: Data kepegawaian staf ${staffToDelete.name} berhasil dinonaktifkan.${associatedUserDeletedText}`);
+        if (isPengurus) {
+          await loadCollection('pengurus', INITIAL_PENGURUS, setPengurus);
+        } else {
+          await loadCollection('staff', INITIAL_STAFF, setStaffs);
+        }
+        alert(`Sukses: Data ${isPengurus ? 'pengurus' : 'kepegawaian staf'} ${staffToDelete.name} berhasil dinonaktifkan.${associatedUserDeletedText}`);
       } else {
         const errorText = await res.text();
-        alert(`Gagal menonaktifkan data staf: ${errorText}`);
+        alert(`Gagal menonaktifkan data: ${errorText}`);
       }
     } catch (e: any) {
       console.error(e);
@@ -3157,6 +3180,7 @@ if (!res.ok) {
             {activeTab === 'staff' && (
               <StaffTab 
                 staffs={staffs}
+                pengurusList={pengurus}
                 onAddStaff={handleAddStaff}
                 onUpdateStaff={handleUpdateStaff}
                 onDeleteStaff={handleDeleteStaff}
@@ -3210,7 +3234,7 @@ if (!res.ok) {
                 idPrefix={{ task: 'FY', meeting: 'FM' }}
                 staffTasks={foundationTasks}
                 staffMeetings={foundationMeetings}
-                staffs={staffs}
+                staffs={pengurus}
                 members={members}
                 notes={notes}
                 smallGroups={smallGroups}

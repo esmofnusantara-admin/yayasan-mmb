@@ -31,6 +31,7 @@ import { exportToCSV } from '../utils/export';
 
 interface StaffTabProps {
   staffs: Staff[];
+  pengurusList?: Staff[];
   onAddStaff: (s: Staff) => void;
   onUpdateStaff: (s: Staff) => void;
   onDeleteStaff: (nik: string) => void;
@@ -62,6 +63,7 @@ export const isPengurusMember = (s: Staff): boolean => {
 
 export default function StaffTab({
   staffs,
+  pengurusList = [],
   onAddStaff,
   onUpdateStaff,
   onDeleteStaff,
@@ -110,9 +112,11 @@ export default function StaffTab({
     "Koordinator Lapangan"
   ];
 
-  // Separate lists
+  // Separate lists: Staf from staffs table, Pengurus from pengurus table
   const allStaffList = staffs.filter(s => !isPengurusMember(s));
-  const allPengurusList = staffs.filter(s => isPengurusMember(s));
+  const allPengurusList = (pengurusList && pengurusList.length > 0)
+    ? pengurusList
+    : staffs.filter(s => isPengurusMember(s));
 
   // Current active list
   const currentList = activeCategoryTab === 'staff' ? allStaffList : allPengurusList;

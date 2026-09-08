@@ -304,8 +304,8 @@ export default function StaffTasksTab({
 
   // Filter staff list according to scope (Foundation: Pengurus vs Staff: Staf Pelaksana)
   const scopedStaffs = isFoundationScope
-    ? (staffs.filter(s => isPengurusMember(s)).length > 0 ? staffs.filter(s => isPengurusMember(s)) : staffs)
-    : (staffs.filter(s => !isPengurusMember(s)).length > 0 ? staffs.filter(s => !isPengurusMember(s)) : staffs);
+    ? (staffs.some(s => isPengurusMember(s)) ? staffs.filter(s => isPengurusMember(s)) : staffs)
+    : staffs.filter(s => !isPengurusMember(s));
 
   const [subTab, setSubTab] = useState<'tasks' | 'meetings' | 'structure'>('tasks');
 
@@ -1197,7 +1197,7 @@ export default function StaffTasksTab({
               {/* View Switcher Tabs */}
               <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 shrink-0">
                 {[
-                  { mode: 'staff', label: 'Per Staf', icon: Users },
+                  { mode: 'staff', label: isFoundationScope ? 'Per Pengurus' : 'Per Staf', icon: Users },
                   { mode: 'kanban', label: 'Papan Status', icon: Kanban },
                   { mode: 'timeline', label: 'Timeline & Agenda', icon: CalendarDays }
                 ].map((v) => {

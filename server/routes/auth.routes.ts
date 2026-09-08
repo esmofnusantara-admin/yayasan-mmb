@@ -69,16 +69,16 @@ export const checkCollectionPermission = (req: any, res: Response, next: NextFun
   }
 
   // 2. Financial, Payroll & Kas collections (Super Admin, Pembina, Pengawas, Ketua Yayasan and Bendahara are authorized, or users with explicit 'reports' access for read-only GET requests)
-  if (colName === 'transactions' || colName === 'kas' || colName === 'salaries' || colName === 'staff' || colName === 'partners' || colName === 'categories' || colName === 'donations' || colName === 'incomes' || colName === 'expenses' || colName === 'detail_pengeluaran' || colName === 'detail_expenses' || colName === 'fundraising' || colName === 'payroll_payments') {
+  if (colName === 'transactions' || colName === 'kas' || colName === 'salaries' || colName === 'staff' || colName === 'pengurus' || colName === 'partners' || colName === 'categories' || colName === 'donations' || colName === 'incomes' || colName === 'expenses' || colName === 'detail_pengeluaran' || colName === 'detail_expenses' || colName === 'fundraising' || colName === 'payroll_payments') {
     const isReadRequest = req.method === 'GET';
+    const hasStaffAccess = Array.isArray(user.features) && (user.features.includes('staff') || user.features.includes('foundation_tasks') || user.features.includes('staff_tasks'));
     const hasReportsAccess = Array.isArray(user.features) && user.features.includes('reports');
 
-    const isStaffOrSalaryRead = (colName === 'staff' || colName === 'salaries') && isReadRequest;
-    
-    // Check custom bypasses for Staff/Partners:
-    // 1. Staff can read/write partners
+    // 1. Staff can read staff, pengurus, and salaries
+    const isStaffOrSalaryRead = (colName === 'staff' || colName === 'pengurus' || colName === 'salaries') && isReadRequest && hasStaffAccess;
+    // 2. Partners access
     const isPartnersAccess = colName === 'partners';
-    // 2. Staff can only read donations
+    // 3. Staff can only read donations
     const isDonationsRead = colName === 'donations' && isReadRequest;
 
     const isBypassed = isStaffOrSalaryRead || isPartnersAccess || isDonationsRead;

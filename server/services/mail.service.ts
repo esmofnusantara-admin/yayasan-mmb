@@ -511,6 +511,7 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
     }
 
     const allStaff = await dbDriver.getDocs('staff');
+    const allPengurus = await dbDriver.getDocs('pengurus');
     const allStructures = await dbDriver.getDocs('structures');
     const allUsers = await dbDriver.getDocs('users');
     const allStaffTasks = (await dbDriver.getDocs('staff_tasks')).filter((t: any) => !t.deleted);
@@ -526,7 +527,7 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
       structureNodeId?: string;
     }>();
 
-    // 1. Ambil dari database Staff & Pengurus
+    // 1. Ambil dari database Staff
     for (const s of allStaff) {
       if (s.deleted || !s.email || !s.email.includes('@')) continue;
       const cleanEmail = s.email.toLowerCase().trim();
@@ -540,6 +541,19 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
         roleOrTitle: s.position || (isPengurus ? 'Pengurus Yayasan' : 'Staf Yayasan'),
         isPengurus,
         nikOrId: s.nik || s.id || ''
+      });
+    }
+
+    // 2. Ambil dari database Pengurus Yayasan (tabel pengurus terpisah)
+    for (const p of allPengurus) {
+      if (p.deleted || !p.email || !p.email.includes('@')) continue;
+      const cleanEmail = p.email.toLowerCase().trim();
+      recipientsMap.set(cleanEmail, {
+        name: p.name || 'Pengurus Yayasan MMB',
+        email: cleanEmail,
+        roleOrTitle: p.position || 'Pengurus Yayasan',
+        isPengurus: true,
+        nikOrId: p.nik || p.id || ''
       });
     }
 

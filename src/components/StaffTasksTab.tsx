@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ClipboardList,
   Users,
@@ -308,6 +308,12 @@ export default function StaffTasksTab({
     : staffs.filter(s => !isPengurusMember(s));
 
   const [subTab, setSubTab] = useState<'tasks' | 'meetings' | 'structure'>('tasks');
+
+  useEffect(() => {
+    if (isFoundationScope && subTab === 'structure') {
+      setSubTab('tasks');
+    }
+  }, [isFoundationScope, subTab]);
 
   // Tracking View Mode: 'staff' (Grid Staf) | 'kanban' (Papan Kanban) | 'timeline' (Timeline / Agenda)
   const [taskViewMode, setTaskViewMode] = useState<'staff' | 'kanban' | 'timeline'>('staff');
@@ -1126,15 +1132,17 @@ export default function StaffTasksTab({
               >
                 <Users className="w-3.5 h-3.5" /> {isFoundationScope ? 'Dokumentasi Rapat Yayasan' : 'Dokumentasi Rapat Staf'}
               </button>
-              <button
-                onClick={() => setSubTab('structure')}
-                className={`flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded transition-colors cursor-pointer ${subTab === 'structure'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-300 hover:text-white'
-                  }`}
-              >
-                <Award className="w-3.5 h-3.5 text-amber-400" /> Struktur Kepengurusan
-              </button>
+              {!isFoundationScope && (
+                <button
+                  onClick={() => setSubTab('structure')}
+                  className={`flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded transition-colors cursor-pointer ${subTab === 'structure'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-300 hover:text-white'
+                    }`}
+                >
+                  <Award className="w-3.5 h-3.5 text-amber-400" /> Struktur Kepengurusan
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -2997,7 +3005,7 @@ export default function StaffTasksTab({
         </div>
       )}
             {/* SUBTAB 3: STRUKTUR KEPENGURUSAN PELAYANAN (BERDASARKAN SEKTOR & WILAYAH PELAYANAN) */}
-      {subTab === 'structure' && !selectedStaff && (
+      {subTab === 'structure' && !isFoundationScope && !selectedStaff && (
         <div className="space-y-6">
           
           {/* Header & Sector Switcher */}

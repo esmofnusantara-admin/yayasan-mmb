@@ -164,6 +164,8 @@ export default function SystemTab({
 
   const handleToggleEditPerson = (person: Staff) => {
     const key = person.nik || person.id;
+    if (!key) return;
+
     let next: string[];
     if (editSelectedNiks.includes(key)) {
       next = editSelectedNiks.filter(k => k !== key);
@@ -171,7 +173,10 @@ export default function SystemTab({
       next = [...editSelectedNiks, key];
     }
     setEditSelectedNiks(next);
-    const selected = personPool.filter(p => next.includes(p.nik || p.id));
+    const selected = personPool.filter(p => {
+      const personKey = p.nik || p.id;
+      return personKey !== undefined && next.includes(personKey);
+    });
     if (selected.length > 0) {
       setEditName(composeNames(selected));
       setEditEmail(composeEmails(selected));
@@ -185,6 +190,8 @@ export default function SystemTab({
 
   const handleToggleNewPerson = (person: Staff) => {
     const key = person.nik || person.id;
+    if (!key) return;
+
     let next: string[];
     if (newSelectedNiks.includes(key)) {
       next = newSelectedNiks.filter(k => k !== key);
@@ -192,7 +199,10 @@ export default function SystemTab({
       next = [...newSelectedNiks, key];
     }
     setNewSelectedNiks(next);
-    const selected = personPool.filter(p => next.includes(p.nik || p.id));
+    const selected = personPool.filter(p => {
+      const personKey = p.nik || p.id;
+      return personKey !== undefined && next.includes(personKey);
+    });
     if (selected.length > 0) {
       setNewNodeName(composeNames(selected));
       setNewNodeEmail(composeEmails(selected));

@@ -41,10 +41,13 @@ import {
   Zap,
   Tag,
   ArrowRight,
-  Mail
+  Mail,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { StaffTask, StaffMeeting, Staff, Member, MemberNote, SmallGroup, InstitutionalProfile } from '../types';
 import { isPengurusMember } from './StaffTab';
+import { RichTextEditor, RichTextViewer } from './RichTextEditor';
 
 interface StaffTasksTabProps {
   targetScope?: 'staff' | 'foundation';
@@ -347,6 +350,7 @@ export default function StaffTasksTab({
 
   // Selected meeting for details modal
   const [viewingMeeting, setViewingMeeting] = useState<StaffMeeting | null>(null);
+  const [isViewingMeetingFullscreen, setIsViewingMeetingFullscreen] = useState(false);
 
   // Kepengurusan Structure state
   const [selectedSector, setSelectedSector] = useState<'Siswa' | 'Mahasiswa' | 'Alumni'>('Siswa');
@@ -870,6 +874,12 @@ export default function StaffTasksTab({
       return;
     }
 
+    const plainNotes = meetingNotes.replace(/<[^>]+>/g, '').trim();
+    if (!plainNotes) {
+      alert('Catatan notulen / keputusan & tindakan rapat wajib diisi!');
+      return;
+    }
+
     if (editingMeeting) {
       if (!window.confirm('Apakah Anda yakin ingin menyimpan perubahan notulensi rapat ini?')) {
         return;
@@ -1065,8 +1075,9 @@ export default function StaffTasksTab({
 
   // Filter Meetings with Date Range support
   const filteredMeetings = staffMeetings.filter(m => {
+    const cleanNotes = m.notes.replace(/<[^>]+>/g, ' ').toLowerCase();
     const matchesSearch = m.title.toLowerCase().includes(meetingSearch.toLowerCase()) ||
-      m.notes.toLowerCase().includes(meetingSearch.toLowerCase()) ||
+      cleanNotes.includes(meetingSearch.toLowerCase()) ||
       m.leaderName.toLowerCase().includes(meetingSearch.toLowerCase());
 
     const matchesStart = !meetingStartDate || m.date >= meetingStartDate;
@@ -2103,25 +2114,38 @@ export default function StaffTasksTab({
       )}
 
       {viewingMeeting && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
-          <div className="bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[calc(100vh-4rem)] animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-2 sm:p-4 z-50 backdrop-blur-xs">
+          <div className={`bg-white rounded-lg shadow-xl border border-slate-200 w-full overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150 transition-all ${
+            isViewingMeetingFullscreen ? 'max-w-5xl h-[94vh]' : 'max-w-lg max-h-[calc(100vh-4rem)]'
+          }`}>
             <div className="bg-[#0c2340] p-4 text-white flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-slate-300" />
                 <h3 className="font-bold text-xs">Notulensi Rapat: {viewingMeeting.id}</h3>
               </div>
-              <button
-                onClick={() => setViewingMeeting(null)}
-                className="text-slate-300 hover:text-white transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setIsViewingMeetingFullscreen(!isViewingMeetingFullscreen)}
+                  className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  title={isViewingMeetingFullscreen ? 'Kecilkan Tampilan' : 'Perbesar Layar Penuh'}
+                >
+                  {isViewingMeetingFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={() => { setViewingMeeting(null); setIsViewingMeetingFullscreen(false); }}
+                  className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  title="Tutup"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <div className="p-5 space-y-4 overflow-y-auto flex-1 text-xs">
               <div className="space-y-0.5">
                 <span className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider block">Topik Agenda Rapat</span>
-                <h2 className="text-xs font-bold text-slate-900 leading-snug">{viewingMeeting.title}</h2>
+                <h2 className="text-sm font-bold text-slate-900 leading-snug">{viewingMeeting.title}</h2>
               </div>
 
               <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded border border-slate-200">
@@ -2167,10 +2191,15 @@ export default function StaffTasksTab({
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-500 uppercase font-semibold block">Notulen & Kesepakatan</span>
-                <div className="bg-slate-50 p-3.5 rounded border border-slate-200 text-xs text-slate-800 leading-relaxed whitespace-pre-wrap max-h-56 overflow-y-auto font-sans">
-                  {viewingMeeting.notes}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-500 uppercase font-semibold block">Notulen & Kesepakatan</span>
+                </div>
+                <div className="bg-slate-50 p-3.5 rounded border border-slate-200 font-sans">
+                  <RichTextViewer
+                    content={viewingMeeting.notes}
+                    className={isViewingMeetingFullscreen ? 'max-h-[52vh] overflow-y-auto pr-1' : 'max-h-56 overflow-y-auto pr-1'}
+                  />
                 </div>
               </div>
 
@@ -2201,9 +2230,27 @@ export default function StaffTasksTab({
               )}
             </div>
 
-            <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex justify-end shrink-0">
+            <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex justify-between items-center shrink-0">
               <button
-                onClick={() => setViewingMeeting(null)}
+                type="button"
+                onClick={() => setIsViewingMeetingFullscreen(!isViewingMeetingFullscreen)}
+                className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold rounded text-xs transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+              >
+                {isViewingMeetingFullscreen ? (
+                  <>
+                    <Minimize2 className="w-3.5 h-3.5 text-slate-600" />
+                    <span>Kecilkan Tampilan</span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="w-3.5 h-3.5 text-[#0c2340]" />
+                    <span>Baca Layar Penuh</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => { setViewingMeeting(null); setIsViewingMeetingFullscreen(false); }}
                 className="px-4 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs transition-colors cursor-pointer"
               >
                 Tutup
@@ -3072,14 +3119,20 @@ export default function StaffTasksTab({
               </div>
 
               <div className="space-y-1">
-                <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">Notulen / Keputusan & Tindakan</label>
-                <textarea
-                  placeholder="Tulis ringkasan hasil rapat, keputusan, rencana lanjutan, dll..."
-                  rows={4}
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">
+                    Notulen / Keputusan & Tindakan
+                  </label>
+                  <span className="text-[9px] text-slate-400">
+                    Bisa diformat (tebal, stabilo, dll) & Layar Penuh
+                  </span>
+                </div>
+                <RichTextEditor
                   value={meetingNotes}
-                  onChange={(e) => setMeetingNotes(e.target.value)}
-                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs outline-none bg-white text-slate-800 leading-relaxed font-sans"
-                  required
+                  onChange={setMeetingNotes}
+                  placeholder="Tulis ringkasan hasil rapat, keputusan, rencana lanjutan, dll..."
+                  title={meetingTitle ? `Notulensi: ${meetingTitle}` : (isFoundationScope ? 'Notulensi Rapat Yayasan' : 'Notulensi Rapat Staf')}
+                  gdriveFolderUrl={GDRIVE_FOLDER_URL}
                 />
               </div>
 

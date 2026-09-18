@@ -2332,7 +2332,7 @@ export function exportMemberGrowthReportToPDF(
   doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
   doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(0.3);
-  doc.roundedRect(15, y, 180, 28, 2, 2, 'FD');
+  doc.roundedRect(15, y, 180, 34, 2, 2, 'FD');
 
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(9);
@@ -2346,16 +2346,21 @@ export function exportMemberGrowthReportToPDF(
   doc.text(`Nama Lengkap   : ${member.fullName}`, 20, y + 12);
   doc.text(`Nama Panggilan : ${member.nickName || '-'} (${member.gender})`, 20, y + 17);
   doc.text(`Tempat, Tgl Lahir: ${member.birthPlace || '-'}, ${member.birthDate || '-'}`, 20, y + 22);
+  const fullAddress = [member.address, member.city, member.province].filter(Boolean).join(', ') || '-';
+  const addressTruncated = fullAddress.length > 45 ? fullAddress.substring(0, 42) + '...' : fullAddress;
+  doc.text(`Alamat & Kota  : ${addressTruncated}`, 20, y + 27);
 
-  doc.text(`Kontak / WA  : ${member.phone || '-'}`, 110, y + 12);
-  doc.text(`Email / IG   : ${member.email || '-'} (${member.instagram || '-'})`, 110, y + 17);
+  doc.text(`Kontak / WA      : ${member.phone || '-'}`, 110, y + 12);
+  doc.text(`Email / IG       : ${member.email || '-'} (${member.instagram || '-'})`, 110, y + 17);
   doc.text(`Pendidikan/Profesi: ${member.education || '-'} / ${member.occupation || '-'}`, 110, y + 22);
+  doc.text(`Tanggal Terdaftar: ${member.joinedDate || '-'}`, 110, y + 27);
 
-  y += 33;
+  y += 39;
 
   // Bagian B: Penugasan & Komunitas (3 Ruang)
   const hasCommittee = !!member.committeeRole;
-  const boxHeight = hasCommittee ? 37 : 32;
+  const isFromOutreach = !!member.outreachRelationId || (member.outreachHistory && member.outreachHistory.length > 0);
+  const boxHeight = hasCommittee ? 42 : 36;
   doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
   doc.roundedRect(15, y, 180, boxHeight, 2, 2, 'FD');
 
@@ -2371,17 +2376,19 @@ export function exportMemberGrowthReportToPDF(
   doc.text(`Komponen / Wilayah: ${member.component} / ${member.region}`, 20, y + 12);
   doc.text(`Status Keaktifan  : ${member.statusKeaktifan}`, 20, y + 17);
   doc.text(`Staff Pendamping  : ${member.staffAdvisor || '-'}`, 20, y + 22);
-  doc.text(`Pemimpin Pemuridan: ${member.discipleshipLeader || '-'} | Pemimpin Komunitas: ${member.mentor || '-'}`, 20, y + 27);
+  doc.text(`Pemimpin Pemuridan: ${member.discipleshipLeader || '-'}`, 20, y + 27);
+  doc.text(`Pemimpin Komunitas: ${member.mentor || '-'}`, 20, y + 32);
 
   doc.text(`• Core Circle   : ${member.coreCircleCommunity || '-'}`, 110, y + 12);
   doc.text(`• Intimate Space: ${member.intimateSpaceCommunity || '-'}`, 110, y + 17);
   doc.text(`• Social Space  : ${member.socialSpaceCommunity || '-'}`, 110, y + 22);
   doc.text(`Gereja Asal     : ${member.originalChurch || '-'}`, 110, y + 27);
+  doc.text(`Jalur Masuk     : ${isFromOutreach ? 'Relasi Pelayanan (Penjangkauan)' : 'Pendaftaran Langsung'}`, 110, y + 32);
 
   if (hasCommittee) {
     doc.setFont('Helvetica', 'bold');
     doc.setTextColor(maroonColor[0], maroonColor[1], maroonColor[2]);
-    doc.text(`Posisi Kepengurusan: ${member.committeeRole}`, 20, y + 32);
+    doc.text(`Posisi Kepengurusan: ${member.committeeRole}`, 20, y + 38);
   }
 
   y += boxHeight + 5;
@@ -2394,13 +2401,119 @@ export function exportMemberGrowthReportToPDF(
     }
   };
 
-  // Bagian C: Catatan Pertumbuhan
+  // Bagian C: Riwayat Penjangkauan & Status Pendaftaran
+  checkAddPage(30);
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  const hasOutreachHistory = !!(member.outreachHistory && member.outreachHistory.length > 0);
+  doc.text('C. RIWAYAT PENJANGKAUAN & STATUS PENDAFTARAN', 15, y);
+  y += 5;
+
+  if (hasOutreachHistory) {
+    const historyList = member.outreachHistory!;
+    // Render timeline steps
+    historyList.forEach((step, idx) => {
+      checkAddPage(20);
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(203, 213, 225);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(15, y, 180, 16, 1.5, 1.5, 'FD');
+
+      // Stage tag circle
+      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.circle(21, y + 5.5, 3.2, 'F');
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(255, 255, 255);
+      doc.text(`${idx + 1}`, 19.8, y + 6.8);
+
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text(`Tahap: ${step.stage}`, 27, y + 6);
+
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(textLight[0], textLight[1], textLight[2]);
+      doc.text(`Tanggal: ${step.date || '-'}  |  PIC: ${step.pic || member.staffAdvisor || '-'}`, 80, y + 6);
+
+      doc.setFont('Helvetica', 'italic');
+      doc.setFontSize(7.5);
+      doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+      const notesTxt = step.notes ? `"${step.notes}"` : 'Tidak ada catatan khusus pada tahapan ini.';
+      const notesSplit = doc.splitTextToSize(notesTxt, 160);
+      doc.text(notesSplit.slice(0, 2), 27, y + 11.5);
+
+      y += 18.5;
+    });
+
+    // Final registration box (Green/Emerald highlight)
+    checkAddPage(18);
+    doc.setFillColor(240, 253, 244);
+    doc.setDrawColor(167, 243, 208);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(15, y, 180, 16, 1.5, 1.5, 'FD');
+
+    doc.setFillColor(5, 150, 105);
+    doc.circle(21, y + 5.5, 3.2, 'F');
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    doc.text('✓', 19.5, y + 6.8);
+
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(6, 95, 70);
+    doc.text('Terdaftar di Database Anggota Pelayanan', 27, y + 6);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(4, 120, 87);
+    doc.text(`Tanggal Resmi: ${member.joinedDate || '-'}  |  Status: Aktif Dimuridkan`, 105, y + 6);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(6, 95, 70);
+    doc.text('Menyelesaikan alur penjangkauan Relasi Pelayanan dan resmi masuk pembinaan pemuridan.', 27, y + 11.5);
+
+    y += 19.5;
+  } else {
+    // Direct registration box
+    checkAddPage(22);
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(15, y, 180, 18, 1.5, 1.5, 'FD');
+
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text('Jalur Masuk: Pendaftaran Langsung ke Database Anggota', 20, y + 6);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+    doc.text(`Tanggal Pendaftaran: ${member.joinedDate || '-'}`, 20, y + 11);
+    doc.text(`Pembina / Pendamping: ${member.staffAdvisor || member.discipleshipLeader || member.mentor || '-'}`, 105, y + 11);
+
+    doc.setFont('Helvetica', 'italic');
+    doc.setFontSize(7.5);
+    doc.setTextColor(textLight[0], textLight[1], textLight[2]);
+    doc.text('Anggota ini didaftarkan langsung ke sistem pelayanan tanpa melalui proses tahapan alur Relasi Pelayanan.', 20, y + 15.5);
+
+    y += 21.5;
+  }
+
+  y += 3;
+
+  // Bagian D: Catatan Pertumbuhan
   const memberNotes = notes.filter(n => n.memberId === member.id);
   checkAddPage(25);
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.text(`C. CATATAN PERTUMBUHAN & KEPENGURUSAN (${memberNotes.length})`, 15, y);
+  doc.text(`D. CATATAN PERTUMBUHAN & KEPENGURUSAN (${memberNotes.length})`, 15, y);
   y += 5;
 
   if (memberNotes.length === 0) {
@@ -2413,12 +2526,15 @@ export function exportMemberGrowthReportToPDF(
     memberNotes.forEach((n, idx) => {
       checkAddPage(22);
       doc.setFillColor(245, 247, 250);
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
       doc.roundedRect(15, y, 180, 18, 1.5, 1.5, 'FD');
 
       doc.setFont('Helvetica', 'bold');
       doc.setFontSize(8);
       doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text(`${idx + 1}. [${n.category || 'Pertumbuhan'}] - ${n.date}`, 18, y + 5);
+      const authorText = n.author ? ` • Oleh: ${n.author}` : '';
+      doc.text(`${idx + 1}. [${n.category || 'Pertumbuhan'}] - ${n.date}${authorText}`, 18, y + 5);
 
       doc.setFont('Helvetica', 'normal');
       doc.setFontSize(7.5);
@@ -2437,13 +2553,13 @@ export function exportMemberGrowthReportToPDF(
 
   y += 4;
 
-  // Bagian D: Pokok Doa
+  // Bagian E: Pokok Doa
   const memberPrayers = prayers.filter(p => p.memberId === member.id);
   checkAddPage(25);
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.text(`D. POKOK PERMOHONAN DOA (${memberPrayers.length})`, 15, y);
+  doc.text(`E. POKOK PERMOHONAN DOA (${memberPrayers.length})`, 15, y);
   y += 5;
 
   if (memberPrayers.length === 0) {
@@ -2461,6 +2577,7 @@ export function exportMemberGrowthReportToPDF(
       checkAddPage(boxHeight + 4);
       doc.setFillColor(isAnswered ? 240 : 245, isAnswered ? 253 : 247, isAnswered ? 244 : 250);
       doc.setDrawColor(isAnswered ? 167 : 226, isAnswered ? 243 : 232, isAnswered ? 208 : 240);
+      doc.setLineWidth(0.3);
       doc.roundedRect(15, y, 180, boxHeight, 1.5, 1.5, 'FD');
 
       doc.setFont('Helvetica', 'bold');
@@ -2489,13 +2606,13 @@ export function exportMemberGrowthReportToPDF(
 
   y += 4;
 
-  // Bagian E: Log Pendampingan
+  // Bagian F: Log Pendampingan
   const memberFollowUps = followUps.filter(f => f.memberId === member.id);
   checkAddPage(25);
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.text(`E. RIWAYAT LOG PENDAMPINGAN (${memberFollowUps.length})`, 15, y);
+  doc.text(`F. RIWAYAT LOG PENDAMPINGAN (${memberFollowUps.length})`, 15, y);
   y += 5;
 
   if (memberFollowUps.length === 0) {
@@ -2508,6 +2625,8 @@ export function exportMemberGrowthReportToPDF(
     memberFollowUps.forEach((fu, idx) => {
       checkAddPage(18);
       doc.setFillColor(245, 247, 250);
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
       doc.roundedRect(15, y, 180, 14, 1.5, 1.5, 'FD');
 
       doc.setFont('Helvetica', 'bold');
@@ -2525,18 +2644,44 @@ export function exportMemberGrowthReportToPDF(
     });
   }
 
-  // Footer validation
-  checkAddPage(20);
-  y += 5;
+  // Tanda Tangan & Verifikasi
+  checkAddPage(38);
+  y += 6;
   doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(0.3);
   doc.line(15, y, 195, y);
-  y += 5;
+  y += 6;
 
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+  doc.text('Mengetahui / Pembina:', 20, y);
+  doc.text('Anggota Pelayanan:', 130, y);
+
+  y += 16;
+  doc.setFont('Helvetica', 'bold');
+  doc.text(member.staffAdvisor || member.discipleshipLeader || member.mentor || 'Staff Pendamping', 20, y);
+  doc.text(member.fullName, 130, y);
+
+  y += 4;
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(textLight[0], textLight[1], textLight[2]);
+  doc.text('Staff / Pemimpin Pemuridan', 20, y);
+  doc.text(`ID: ${member.id}`, 130, y);
+
+  y += 6;
   doc.text('Dokumen ini dicetak otomatis dari Sistem Administrasi Terpadu Yayasan Murid Muda Bermisi (MMB).', 15, y);
+
+  // Add Page Numbers
+  const totalPages = (doc as any).internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(textLight[0], textLight[1], textLight[2]);
+    doc.text(`Halaman ${i} dari ${totalPages}`, 195, 290, { align: 'right' });
+  }
 
   doc.save(`Rapor_Pertumbuhan_${member.fullName.replace(/\s+/g, '_')}_${member.id}.pdf`);
 }

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { jsPDF } from 'jspdf';
 import {
   Plus,
@@ -30,7 +30,10 @@ import {
   CheckCircle2,
   Phone,
   UserPlus,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ChevronDown,
+  Check,
+  X
 } from 'lucide-react';
 import { 
   SmallGroup, 
@@ -141,6 +144,20 @@ export default function SmallGroupsTab({
 
   // Meeting logger state
   const [filterMeetingGroupId, setFilterMeetingGroupId] = useState<string>('all');
+  const [isFilterMeetingDropdownOpen, setIsFilterMeetingDropdownOpen] = useState(false);
+  const [filterMeetingSearch, setFilterMeetingSearch] = useState('');
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
+        setIsFilterMeetingDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const [formMeetingGroupId, setFormMeetingGroupId] = useState<string>(groups[0]?.id || '');
   const [selectedMeetingMaterials, setSelectedMeetingMaterials] = useState<string[]>([]);
   const [customMaterialInput, setCustomMaterialInput] = useState('');
@@ -890,7 +907,7 @@ export default function SmallGroupsTab({
                             <span className="font-semibold text-xs text-slate-800 block">{member.fullName}</span>
                             <span className="text-[10px] font-mono text-slate-500">{member.id} &bull; {member.component}</span>
                           </div>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-semibold border border-emerald-200">{member.statusKeaktifan}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#f0f4f1] text-[#274632] font-semibold border border-[#dbe7de]">{member.statusKeaktifan}</span>
                         </div>
                       ))}
                     </div>
@@ -1123,8 +1140,8 @@ export default function SmallGroupsTab({
                           <span>{m.component}</span> &bull; <span className="text-slate-500">{m.region}</span>
                         </td>
                         <td className="py-2.5 px-3">
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold border ${m.statusKeaktifan === 'Aktif' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                              m.statusKeaktifan === 'Penjangkauan' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold border ${m.statusKeaktifan === 'Aktif' ? 'bg-[#f0f4f1] text-[#274632] border-[#dbe7de]' :
+                              m.statusKeaktifan === 'Penjangkauan' ? 'bg-[#fcf5eb] text-[#5c421e] border-[#f2dfc7]' :
                                 'bg-slate-100 text-slate-700 border-slate-200'
                             }`}>
                             {m.statusKeaktifan}
@@ -1158,10 +1175,10 @@ export default function SmallGroupsTab({
                           )}
                         </td>
                         <td className="py-2.5 px-3 text-center">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${spacesCount === 3 ? 'bg-emerald-100 text-emerald-900' :
-                              spacesCount === 2 ? 'bg-blue-100 text-blue-900' :
-                                spacesCount === 1 ? 'bg-amber-100 text-amber-900' :
-                                  'bg-slate-100 text-slate-500'
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${spacesCount === 3 ? 'bg-[#f0f4f1] text-[#274632] border-[#dbe7de]' :
+                              spacesCount === 2 ? 'bg-[#f0f4f8] text-[#1c3350] border-[#dce3ec]' :
+                                spacesCount === 1 ? 'bg-[#fcf5eb] text-[#5c421e] border-[#f2dfc7]' :
+                                  'bg-slate-100 text-slate-500 border-slate-200'
                             }`}>
                             {spacesCount} Ruang
                           </span>
@@ -1190,24 +1207,151 @@ export default function SmallGroupsTab({
                 </p>
               </div>
 
-              {/* Explicit Filter Dropdown */}
-              <div className="flex items-center gap-1.5">
+              {/* Searchable Filter Dropdown / Combobox */}
+              <div className="flex items-center gap-1.5 relative" ref={filterDropdownRef}>
                 <label className="text-xs text-slate-600 font-semibold shrink-0">Filter Komunitas:</label>
-                <select
-                  value={filterMeetingGroupId}
-                  onChange={(e) => setFilterMeetingGroupId(e.target.value)}
-                  className="border border-slate-300 rounded px-2.5 py-1 text-xs bg-white text-slate-800 font-medium focus:border-[#0c2340] focus:outline-none"
+                
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFilterMeetingDropdownOpen(!isFilterMeetingDropdownOpen);
+                    setFilterMeetingSearch('');
+                  }}
+                  className="border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-800 font-medium flex items-center justify-between gap-2 hover:bg-slate-50 focus:border-[#0c2340] focus:outline-none cursor-pointer shadow-2xs min-w-[200px] max-w-[280px]"
                 >
-                  <option value="all">Semua Komunitas ({meetings.length})</option>
-                  {groups.map(g => {
-                    const count = meetings.filter(m => m.groupId === g.id).length;
-                    return (
-                      <option key={g.id} value={g.id}>
-                        {g.name} ({count} pertemuan)
-                      </option>
-                    );
-                  })}
-                </select>
+                  <span className="truncate text-left">
+                    {filterMeetingGroupId === 'all'
+                      ? `Semua Komunitas (${meetings.length})`
+                      : `${groups.find(g => g.id === filterMeetingGroupId)?.name || 'Pilih Komunitas'} (${meetings.filter(m => m.groupId === filterMeetingGroupId).length} pertemuan)`}
+                  </span>
+                  <div className="flex items-center gap-1 shrink-0 text-slate-400">
+                    {filterMeetingGroupId !== 'all' && (
+                      <span
+                        role="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFilterMeetingGroupId('all');
+                          setIsFilterMeetingDropdownOpen(false);
+                        }}
+                        className="hover:text-slate-700 hover:bg-slate-100 p-0.5 rounded cursor-pointer"
+                        title="Reset ke Semua Komunitas"
+                      >
+                        <X className="w-3 h-3" />
+                      </span>
+                    )}
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isFilterMeetingDropdownOpen ? 'rotate-180 text-[#0c2340]' : ''}`} />
+                  </div>
+                </button>
+
+                {/* Searchable Dropdown Popover */}
+                {isFilterMeetingDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-1 w-72 sm:w-80 bg-white border border-slate-200 rounded-lg shadow-xl z-40 overflow-hidden">
+                    {/* Search Input Bar */}
+                    <div className="p-2 border-b border-slate-100 bg-slate-50/70">
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                        <input
+                          type="text"
+                          autoFocus
+                          value={filterMeetingSearch}
+                          onChange={(e) => setFilterMeetingSearch(e.target.value)}
+                          placeholder="Cari nama komunitas / pemimpin..."
+                          className="w-full text-xs pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded focus:outline-none focus:border-[#0c2340] text-slate-800 placeholder:text-slate-400"
+                        />
+                        {filterMeetingSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setFilterMeetingSearch('')}
+                            className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Scrollable Groups List */}
+                    <div className="max-h-56 overflow-y-auto divide-y divide-slate-50 text-xs">
+                      {/* Option: Semua Komunitas */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFilterMeetingGroupId('all');
+                          setIsFilterMeetingDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-slate-50 cursor-pointer transition-colors ${
+                          filterMeetingGroupId === 'all' ? 'bg-[#0c2340]/5 text-[#0c2340] font-semibold' : 'text-slate-700'
+                        }`}
+                      >
+                        <span className="truncate">Semua Komunitas</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono font-normal">
+                            {meetings.length} pertemuan
+                          </span>
+                          {filterMeetingGroupId === 'all' && <Check className="w-3.5 h-3.5 text-[#0c2340]" />}
+                        </div>
+                      </button>
+
+                      {/* Filtered Group Items */}
+                      {groups
+                        .filter(g => {
+                          if (!filterMeetingSearch.trim()) return true;
+                          const q = filterMeetingSearch.toLowerCase();
+                          return (
+                            g.name.toLowerCase().includes(q) ||
+                            (g.leader && g.leader.toLowerCase().includes(q)) ||
+                            (g.targetSegment && g.targetSegment.toLowerCase().includes(q)) ||
+                            (g.region && g.region.toLowerCase().includes(q))
+                          );
+                        })
+                        .map(g => {
+                          const count = meetings.filter(m => m.groupId === g.id).length;
+                          const isSelected = filterMeetingGroupId === g.id;
+                          return (
+                            <button
+                              key={g.id}
+                              type="button"
+                              onClick={() => {
+                                setFilterMeetingGroupId(g.id);
+                                setIsFilterMeetingDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-slate-50 cursor-pointer transition-colors ${
+                                isSelected ? 'bg-[#0c2340]/5 text-[#0c2340] font-semibold' : 'text-slate-800'
+                              }`}
+                            >
+                              <div className="truncate pr-2">
+                                <div className="font-semibold text-slate-900 truncate">{g.name}</div>
+                                <div className="text-[10px] text-slate-500 font-normal truncate">
+                                  {g.leader ? `Pemimpin: ${g.leader}` : 'Pemimpin belum diset'} {g.region ? `• ${g.region}` : ''}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono font-normal">
+                                  {count} pertemuan
+                                </span>
+                                {isSelected && <Check className="w-3.5 h-3.5 text-[#0c2340]" />}
+                              </div>
+                            </button>
+                          );
+                        })}
+
+                      {groups.filter(g => {
+                        if (!filterMeetingSearch.trim()) return true;
+                        const q = filterMeetingSearch.toLowerCase();
+                        return (
+                          g.name.toLowerCase().includes(q) ||
+                          (g.leader && g.leader.toLowerCase().includes(q)) ||
+                          (g.targetSegment && g.targetSegment.toLowerCase().includes(q)) ||
+                          (g.region && g.region.toLowerCase().includes(q))
+                        );
+                      }).length === 0 && (
+                        <div className="p-4 text-center text-slate-400 text-xs">
+                          Tidak ditemukan komunitas yang cocok "{filterMeetingSearch}"
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1257,13 +1401,14 @@ export default function SmallGroupsTab({
                         "{meet.notes}"
                       </p>
 
-                      {/* Attendance Chips */}
+                      {/* Attendance Chips (Soft Pastel Tone) */}
                       <div className="flex flex-wrap gap-1 pt-1">
                         {meet.attendance.map(mId => {
                           const mInfo = members.find(m => m.id === mId);
                           return (
-                            <span key={mId} className="text-[10px] bg-emerald-50 text-emerald-800 px-1.5 py-0.2 rounded border border-emerald-200 font-medium">
-                              &bull; {mInfo?.fullName || mId}
+                            <span key={mId} className="text-[10px] bg-[#f0f4f1] text-[#274632] px-2 py-0.5 rounded border border-[#dbe7de] font-medium inline-flex items-center gap-1">
+                              <span className="w-1 h-1 rounded-full bg-[#3e6b4d]"></span>
+                              {mInfo?.fullName || mId}
                             </span>
                           );
                         })}

@@ -823,6 +823,8 @@ export default function MembersTab({
       'Komponen',
       'Wilayah',
       'Status Keaktifan',
+      'Posisi Kepengurusan',
+      'Jalur Pendaftaran',
       'Core Circle',
       'Intimate Space',
       'Social Space',
@@ -835,6 +837,8 @@ export default function MembersTab({
       'Pekerjaan',
       'Gereja Asal',
       'Kota',
+      'Provinsi',
+      'Alamat',
       'Tanggal Bergabung'
     ];
     const keys = [
@@ -845,6 +849,8 @@ export default function MembersTab({
       'component',
       'region',
       'statusKeaktifan',
+      'committeeRole',
+      'registrationTrack',
       'coreCircleCommunity',
       'intimateSpaceCommunity',
       'socialSpaceCommunity',
@@ -857,9 +863,24 @@ export default function MembersTab({
       'occupation',
       'originalChurch',
       'city',
+      'province',
+      'address',
       'joinedDate'
     ];
-    exportToCSV(filteredMembers, headers, keys, `data_anggota_pelayanan_${new Date().toISOString().substring(0, 10)}.csv`);
+    const dataToExport = filteredMembers.map(m => ({
+      ...m,
+      committeeRole: m.committeeRole || '-',
+      registrationTrack: m.outreachRelationId || (m.outreachHistory && m.outreachHistory.length > 0) ? 'Relasi Pelayanan' : 'Pendaftaran Langsung',
+      discipleshipLeader: m.discipleshipLeader || '-',
+      mentor: m.mentor || '-',
+      staffAdvisor: m.staffAdvisor || '-',
+      address: m.address || '-',
+      province: m.province || '-',
+      coreCircleCommunity: m.coreCircleCommunity || '-',
+      intimateSpaceCommunity: m.intimateSpaceCommunity || '-',
+      socialSpaceCommunity: m.socialSpaceCommunity || '-'
+    }));
+    exportToCSV(dataToExport, headers, keys, `data_anggota_pelayanan_${new Date().toISOString().substring(0, 10)}.csv`);
   };
 
   const handleExportSinglePDF = (member: Member) => {
@@ -1249,8 +1270,8 @@ export default function MembersTab({
                             <span className="text-xs text-slate-500">Staff: {member.staffAdvisor || '-'}</span>
                           </td>
                           <td className="p-3.5">
-                            <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${member.statusKeaktifan === 'Aktif' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
-                                member.statusKeaktifan === 'Penjangkauan' ? 'bg-amber-50 text-amber-800 border border-amber-200' :
+                            <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${member.statusKeaktifan === 'Aktif' ? 'bg-[#f0f4f1] text-[#274632] border-[#dbe7de]' :
+                                member.statusKeaktifan === 'Penjangkauan' ? 'bg-[#fcf5eb] text-[#5c421e] border-[#f2dfc7]' :
                                   'bg-slate-100 text-slate-700 border border-slate-200'
                               }`}>
                               {member.statusKeaktifan}
@@ -1420,7 +1441,7 @@ export default function MembersTab({
                     <span className="bg-slate-100 text-slate-800 border border-slate-200 px-2 py-0.5 rounded text-xs font-semibold">
                       {selectedMember.component}
                     </span>
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium border ${selectedMember.statusKeaktifan === 'Aktif' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium border ${selectedMember.statusKeaktifan === 'Aktif' ? 'bg-[#f0f4f1] text-[#274632] border-[#dbe7de]' :
                         selectedMember.statusKeaktifan === 'Penjangkauan' ? 'bg-amber-50 text-amber-800 border-amber-200' :
                           'bg-slate-100 text-slate-700 border-slate-200'
                       }`}>
@@ -1511,7 +1532,7 @@ export default function MembersTab({
                         Riwayat Penjangkauan
                       </span>
                       {selectedMember.outreachHistory && selectedMember.outreachHistory.length > 0 ? (
-                        <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.2 rounded font-semibold">
+                        <span className="text-[10px] bg-[#f0f4f1] text-[#274632] border border-[#dbe7de] px-1.5 py-0.2 rounded font-semibold">
                           Alur Relasi Pelayanan
                         </span>
                       ) : (
@@ -1555,15 +1576,15 @@ export default function MembersTab({
 
                         {/* Final Step: Registered */}
                         <div className="flex gap-2 relative text-xs pt-1">
-                          <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 z-10">
+                          <div className="w-5 h-5 rounded-full bg-[#274632] text-white flex items-center justify-center text-[10px] font-bold shrink-0 z-10">
                             ✓
                           </div>
-                          <div className="flex-1 bg-emerald-50/70 border border-emerald-200 rounded p-2 text-xs space-y-0.5">
+                          <div className="flex-1 bg-[#f0f4f1] border border-[#dbe7de] rounded p-2 text-xs space-y-0.5">
                             <div className="flex justify-between items-center">
-                              <span className="font-bold text-emerald-950 text-[11px]">Terdaftar di Database Anggota</span>
-                              <span className="text-[10px] text-emerald-800 font-mono">{selectedMember.joinedDate}</span>
+                              <span className="font-bold text-[#1f3727] text-[11px]">Terdaftar di Database Anggota</span>
+                              <span className="text-[10px] text-[#274632] font-mono">{selectedMember.joinedDate}</span>
                             </div>
-                            <div className="text-[10px] text-emerald-700">
+                            <div className="text-[10px] text-[#34593f]">
                               Resmi tercatat dan siap mengikuti pembinaan pemuridan.
                             </div>
                           </div>
@@ -1573,7 +1594,7 @@ export default function MembersTab({
                       <div className="p-2.5 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600 space-y-1">
                         <div className="flex items-center justify-between">
                           <span className="font-semibold text-slate-800 flex items-center gap-1">
-                            <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                            <CheckCircle className="w-3.5 h-3.5 text-[#274632]" />
                             Pendaftaran Langsung
                           </span>
                           <span className="text-[10px] font-mono text-slate-500">{selectedMember.joinedDate}</span>

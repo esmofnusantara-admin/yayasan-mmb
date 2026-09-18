@@ -5,14 +5,14 @@ let cronIntervalId: NodeJS.Timeout | null = null;
 
 /**
  * Memulai penjadwal otomatis latar belakang (Background Cron Scheduler).
- * Berjalan setiap hari pada pukul 07:00 WIB (Asia/Jakarta).
+ * Berjalan setiap hari pada pukul 08:00 WIB (Asia/Jakarta).
  */
 export function initCronScheduler() {
   if (cronIntervalId) {
     clearInterval(cronIntervalId);
   }
 
-  console.log('[CronScheduler] Initializing morning task reminder scheduler (Target: 07:00 AM WIB)...');
+  console.log('[CronScheduler] Initializing morning task reminder scheduler (Target: 08:00 AM WIB)...');
 
   cronIntervalId = setInterval(async () => {
     try {
@@ -31,10 +31,10 @@ export function initCronScheduler() {
       const currentTimeWib = timeFormatter.format(now);
       const currentDateWib = dateFormatter.format(now);
 
-      // Cek apakah waktu saat ini pukul 07:00 dan belum dijalankan hari ini
-      if (currentTimeWib === '07:00' && lastDailyDigestRunDate !== currentDateWib) {
+      // Cek apakah waktu saat ini pukul 08:00 dan belum dijalankan hari ini
+      if (currentTimeWib === '08:00' && lastDailyDigestRunDate !== currentDateWib) {
         lastDailyDigestRunDate = currentDateWib;
-        console.log(`[CronScheduler] Triggering 07:00 AM WIB daily morning task digest for ${currentDateWib}...`);
+        console.log(`[CronScheduler] Triggering 08:00 AM WIB daily morning task digest for ${currentDateWib}...`);
         
         await sendDailyMorningTaskDigest();
       }

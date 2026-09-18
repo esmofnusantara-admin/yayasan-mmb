@@ -594,14 +594,197 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
     // Ambil tanggal hari ini format YYYY-MM-DD (WIB / Asia/Jakarta)
     const nowWib = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
     const todayStr = nowWib.toISOString().substring(0, 10);
+    const todayMonthDay = todayStr.substring(5, 10); // MM-DD
     const dateFormatted = nowWib.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+    // -------------------------------------------------------------
+    // 1. CEK ULANG TAHUN HARI INI (KIRIM KE SEMUA STAF & PENGURUS)
+    // -------------------------------------------------------------
+    const allMembers = await dbDriver.getDocs('members');
+    
+    const isBirthdayToday = (birthDateStr?: string): boolean => {
+      if (!birthDateStr || birthDateStr.length < 5) return false;
+      const clean = birthDateStr.trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(clean)) {
+        return clean.substring(5, 10) === todayMonthDay;
+      }
+      const parts = clean.split(/[/-]/);
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          return `${String(parts[1]).padStart(2, '0')}-${String(parts[2]).padStart(2, '0')}` === todayMonthDay;
+        } else {
+          return `${String(parts[1]).padStart(2, '0')}-${String(parts[0]).padStart(2, '0')}` === todayMonthDay;
+        }
+      }
+      return false;
+    };
+
+    const birthdayPeople: Array<{ name: string; role: string; category: string; phone?: string; email?: string }> = [];
+
+    for (const s of allStaff) {
+      if (!s.deleted && s.birthDate && isBirthdayToday(s.birthDate)) {
+        birthdayPeople.push({
+          name: s.name,
+          role: s.position || 'Staf Yayasan',
+          category: s.category === 'Pengurus' ? 'Pengurus Yayasan' : 'Staf Pelaksana',
+          phone: s.phone,
+          email: s.email
+        });
+      }
+    }
+
+    for (const p of allPengurus) {
+      if (!p.deleted && p.birthDate && isBirthdayToday(p.birthDate)) {
+        if (!birthdayPeople.some(b => b.name.toLowerCase() === (p.name || '').toLowerCase())) {
+          birthdayPeople.push({
+            name: p.name,
+            role: p.position || 'Pengurus Yayasan',
+            category: 'Pengurus Yayasan',
+            phone: p.phone,
+            email: p.email
+          });
+        }
+      }
+    }
+
+    for (const m of allMembers) {
+      if (!m.deleted && m.birthDate && isBirthdayToday(m.birthDate)) {
+        const mName = m.fullName || m.nickName || '';
+        if (mName && !birthdayPeople.some(b => b.name.toLowerCase() === mName.toLowerCase())) {
+          birthdayPeople.push({
+            name: mName,
+            role: 'Anggota / Komunitas Pemuridan',
+            category: 'Keluarga Besar MMB',
+            phone: m.phone,
+            email: m.email
+          });
+        }
+      }
+    }
+
+    if (birthdayPeople.length > 0) {
+      console.log(`[MorningDigest] ${birthdayPeople.length} people have birthdays today! Sending broadcast to all staff & pengurus...`);
+      const namesStr = birthdayPeople.map(b => b.name).join(', ');
+      
+      const celebrantsListHtml = birthdayPeople.map(b => {
+        const rawPhone = (b.phone || '').replace(/[^0-9]/g, '');
+        const waPhone = rawPhone.startsWith('0') ? '62' + rawPhone.slice(1) : (rawPhone.startsWith('62') ? rawPhone : (rawPhone ? '62' + rawPhone : ''));
+        const waText = encodeURIComponent(`Halo ${b.name}, Selamat Ulang Tahun! 🎉 Kiranya Tuhan Yesus senantiasa memberkati, melindungi, dan melimpahkan sukacita dalam hidup serta pelayananmu.`);
+        const waLink = waPhone ? `https://wa.me/${waPhone}?text=${waText}` : '';
+        const mailtoLink = b.email ? `mailto:${b.email}?subject=${encodeURIComponent(`Selamat Ulang Tahun, ${b.name}! 🎉`)}&body=${encodeURIComponent(`Halo ${b.name},\n\nSelamat Hari Ulang Tahun! 🎉\nKiranya berkat kasih, kesehatan, penyertaan, dan damai sejahtera dari Tuhan Yesus Kristus senantiasa melimpah bagi saudara/i sekeluarga.\n\nSalam hangat,\nKeluarga Besar Yayasan Murid Muda Bermisi`)}` : '';
+
+        return `
+          <div style="background-color: #fdf2f8; border: 1px solid #fbcfe8; border-left: 5px solid #ec4899; padding: 16px; margin-bottom: 14px; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <div style="font-weight: bold; color: #831843; font-size: 16px;">🎂 ${b.name}</div>
+                <div style="color: #9d174d; font-size: 12px; margin-top: 2px; font-weight: 500;">${b.role} • ${b.category}</div>
+              </div>
+            </div>
+            
+            <div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px;">
+              ${waLink ? `
+                <a href="${waLink}" target="_blank" style="display: inline-block; background-color: #25d366; color: #ffffff; text-decoration: none; font-size: 12px; font-weight: bold; padding: 6px 14px; border-radius: 6px; margin-right: 8px; margin-top: 6px;">
+                  💬 Kirim Ucapan via WhatsApp
+                </a>
+              ` : ''}
+              ${mailtoLink ? `
+                <a href="${mailtoLink}" target="_blank" style="display: inline-block; background-color: #0c2340; color: #ffffff; text-decoration: none; font-size: 12px; font-weight: bold; padding: 6px 14px; border-radius: 6px; margin-top: 6px;">
+                  ✉️ Kirim Email Ucapan
+                </a>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const birthdayHtml = `
+        <!DOCTYPE html>
+        <html lang="id">
+        <head>
+          <meta charset="utf-8" />
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; }
+            .container { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+            .header { background: linear-gradient(135deg, #0c2340 0%, #1e3a8a 100%); color: #ffffff; padding: 26px; text-align: center; }
+            .header h1 { margin: 0; font-size: 22px; font-weight: bold; }
+            .badge { display: inline-block; background-color: #ec4899; color: #ffffff; font-size: 11px; font-weight: bold; padding: 4px 14px; border-radius: 9999px; margin-top: 10px; text-transform: uppercase; }
+            .content { padding: 24px; color: #1e293b; font-size: 14px; line-height: 1.6; }
+            .callout-box { background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 14px 16px; border-radius: 0 6px 6px 0; margin-bottom: 18px; color: #1e40af; font-size: 13px; }
+            .verse-box { background-color: #fefce8; border: 1px solid #fef08a; border-radius: 6px; padding: 14px 16px; margin: 20px 0; color: #713f12; font-style: italic; font-size: 13px; }
+            .footer { background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px; text-align: center; color: #64748b; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🎉 Kabar Sukacita Ulang Tahun!</h1>
+              <p style="margin: 6px 0 0 0; color: #cbd5e1; font-size: 13px;">Keluarga Besar Yayasan Murid Muda Bermisi</p>
+              <div class="badge">🎂 Hari Ini • ${dateFormatted}</div>
+            </div>
+            <div class="content">
+              <p>Salam damai sejahtera dalam kasih Kristus,</p>
+              
+              <div class="callout-box">
+                <strong>💌 Mari Berikan Ucapan & Doa!</strong><br/>
+                Hari ini Tuhan menambahkan setahun usia bagi rekan kita. Mari seluruh staf dan pengurus meluangkan waktu sejenak untuk menyampaikan ucapan selamat, doa, dan berkat secara langsung kepada yang bersangkutan.
+              </div>
+
+              ${celebrantsListHtml}
+
+              <div class="verse-box">
+                "TUHAN memberkati engkau dan melindungi engkau; TUHAN menyinari engkau dengan wajah-Nya dan memberi engkau kasih karunia; TUHAN menghadapkan wajah-Nya kepadamu dan memberi engkau damai sejahtera."
+                <div style="font-weight: bold; font-style: normal; color: #854d0e; margin-top: 6px; text-align: right;">— Bilangan 6:24-26</div>
+              </div>
+
+              <p style="color: #475569; font-size: 13px;">
+                Klik tombol <strong>WhatsApp</strong> atau <strong>Email</strong> di atas untuk langsung mengirimkan ucapan hangat kepada yang berulang tahun.
+              </p>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} Yayasan Murid Muda Bermisi.</p>
+              <p style="margin: 0; color: #94a3b8; font-size: 11px;">Notifikasi otomatis ulang tahun untuk seluruh Staf & Pengurus Yayasan MMB.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      for (const rec of recipients) {
+        await sendMail({
+          to: rec.email,
+          subject: `🎂 [Ulang Tahun Hari Ini] Selamat Ulang Tahun: ${namesStr}! — Mari Berikan Ucapan`,
+          html: birthdayHtml
+        });
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 2. TUGAS JATUH TEMPO HARI INI (08:00) & TERLEWAT 3 HARI
+    // -------------------------------------------------------------
+    const getTaskDeadlineDate = (t: any): string => {
+      if (t.endDate && /^\d{4}-\d{2}-\d{2}/.test(t.endDate)) return t.endDate.substring(0, 10);
+      if (t.targetDate && /^\d{4}-\d{2}-\d{2}/.test(t.targetDate)) return t.targetDate.substring(0, 10);
+      if (t.startDate && /^\d{4}-\d{2}-\d{2}/.test(t.startDate)) return t.startDate.substring(0, 10);
+      if (t.createdAt && t.createdAt.length >= 10) return t.createdAt.substring(0, 10);
+      return '';
+    };
+
+    const getDiffDays = (deadlineStr: string): number => {
+      if (!deadlineStr || deadlineStr.length < 10) return 0;
+      const dParts = deadlineStr.substring(0, 10).split('-').map(Number);
+      const tParts = todayStr.split('-').map(Number);
+      const dDate = new Date(dParts[0], dParts[1] - 1, dParts[2]);
+      const tDate = new Date(tParts[0], tParts[1] - 1, tParts[2]);
+      return Math.round((tDate.getTime() - dDate.getTime()) / (1000 * 60 * 60 * 24));
+    };
 
     for (const recipient of recipients) {
       const targetEmail = recipient.email;
       const recipientName = recipient.name;
       const isPengurus = recipient.isPengurus;
 
-      // Cari tugas yang relevan untuk penerima ini hari ini (Pengurus dari foundation_tasks, Staf dari staff_tasks)
+      // Cari tugas yang relevan untuk penerima ini
       const relevantPool = isPengurus ? [...allFoundationTasks, ...allStaffTasks] : allStaffTasks;
       const personTasks = relevantPool.filter((t: any) => {
         const nikMatch = recipient.nikOrId && t.staffNik && String(t.staffNik).toLowerCase().trim() === String(recipient.nikOrId).toLowerCase().trim();
@@ -614,73 +797,53 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
         return nikMatch || nameMatch || titleMatch || nodeMatch;
       });
 
-      // Tugas hari ini / belum selesai
-      const todayTasks = personTasks.filter((t: any) => {
+      // 1. Tugas yang duedate-nya HARI INI
+      const dueTodayTasks = personTasks.filter((t: any) => {
         if (t.status === 'Selesai') return false;
-        if (t.targetDate === todayStr) return true;
-        if (t.startDate && t.endDate && todayStr >= t.startDate && todayStr <= t.endDate) return true;
-        if (t.periodType === 'DAILY' && (!t.targetDate || t.targetDate === todayStr)) return true;
-        return false;
+        const dl = getTaskDeadlineDate(t);
+        const diff = getDiffDays(dl);
+        return diff === 0;
       });
 
-      // Tugas deadline hari ini
-      const deadlineTodayTasks = personTasks.filter((t: any) => {
-        return t.status !== 'Selesai' && (t.endDate === todayStr || t.targetDate === todayStr);
+      // 2. Tugas yang SUDAH TERLEWAT 3 HARI (atau lebih)
+      const overdue3DaysTasks = personTasks.filter((t: any) => {
+        if (t.status === 'Selesai') return false;
+        const dl = getTaskDeadlineDate(t);
+        const diff = getDiffDays(dl);
+        return diff >= 3;
       });
+
+      // HANYA KIRIM jika ada tugas jatuh tempo hari ini ATAU ada tugas terlewat 3 hari
+      if (dueTodayTasks.length === 0 && overdue3DaysTasks.length === 0) {
+        continue;
+      }
 
       const bibleVerse = getRandomBibleVerse();
       let emailContentHtml = '';
 
-      if (todayTasks.length === 0) {
-        if (isPengurus) {
-          // Pengurus belum ada agenda khusus di sistem hari ini
-          emailContentHtml = `
-            <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin: 16px 0;">
-              <div style="font-weight: bold; color: #0c2340; font-size: 14px; margin-bottom: 6px;">
-                🏛️ Agenda Kepengurusan & Perencanaan Pelayanan
-              </div>
-              <p style="margin: 0; color: #334155; font-size: 13px; line-height: 1.6;">
-                Mari awali hari dengan merencanakan agenda kepengurusan, koordinasi divisi, evaluasi pelayanan, dan pemantauan program kerja yayasan. Anda dapat meninjau dan mengelola agenda melalui portal Yayasan MMB.
-              </p>
-            </div>
-          `;
-        } else {
-          // Staf BELUM punya program kerja hari ini
-          emailContentHtml = `
-            <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin: 16px 0;">
-              <div style="font-weight: bold; color: #92400e; font-size: 14px; margin-bottom: 6px;">
-                📌 Belum Ada Rencana Kerja yang Terdaftar untuk Hari Ini
-              </div>
-              <p style="margin: 0; color: #78350f; font-size: 13px;">
-                Mari awali hari dengan merencanakan aktivitas pelayanan dan program kerja Anda. Silakan input program kerja harian Anda melalui aplikasi Yayasan MMB.
-              </p>
-            </div>
-          `;
-        }
-      } else {
-        // MEMILIKI program kerja hari ini
-        const rowsHtml = todayTasks.map((t: any, idx: number) => {
-          const isDeadline = deadlineTodayTasks.some(d => d.id === t.id);
-          return `
-            <tr style="border-bottom: 1px solid #f1f5f9;">
-              <td style="padding: 10px 8px; font-weight: 600; color: #0c2340;">${idx + 1}. ${t.title}</td>
-              <td style="padding: 10px 8px; color: #64748b;">${t.time ? `Pukul ${t.time}` : formatPeriodLabel(t.periodType, t.targetDate)}</td>
-              <td style="padding: 10px 8px;">
-                <span style="display: inline-block; background: ${t.status === 'Dalam Proses' ? '#dbeafe' : '#fef3c7'}; color: ${t.status === 'Dalam Proses' ? '#1e40af' : '#92400e'}; font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 4px;">
-                  ${t.status || 'Belum Mulai'}
-                </span>
-                ${isDeadline ? '<span style="display: inline-block; background: #fee2e2; color: #991b1b; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">⚠️ DEADLINE HARI INI</span>' : ''}
-              </td>
-            </tr>
-          `;
-        }).join('');
+      // Render tugas hari ini jika ada
+      if (dueTodayTasks.length > 0) {
+        const todayRows = dueTodayTasks.map((t: any, idx: number) => `
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 10px 8px; font-weight: 600; color: #0c2340;">${idx + 1}. ${t.title}</td>
+            <td style="padding: 10px 8px; color: #64748b;">${t.time ? `Pukul ${t.time}` : formatPeriodLabel(t.periodType, t.targetDate)}</td>
+            <td style="padding: 10px 8px;">
+              <span style="display: inline-block; background: ${t.status === 'Dalam Proses' ? '#dbeafe' : '#fef3c7'}; color: ${t.status === 'Dalam Proses' ? '#1e40af' : '#92400e'}; font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 4px;">
+                ${t.status || 'Belum Mulai'}
+              </span>
+              <span style="display: inline-block; background: #fee2e2; color: #991b1b; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">
+                🎯 BATAS HARI INI
+              </span>
+            </td>
+          </tr>
+        `).join('');
 
-        emailContentHtml = `
+        emailContentHtml += `
           <div style="margin: 18px 0;">
             <div style="font-weight: bold; color: #0c2340; font-size: 14px; margin-bottom: 8px;">
-              📋 Agenda & Program Kerja Anda Hari Ini (${todayTasks.length} Agenda):
+              📋 Tugas Jatuh Tempo Hari Ini (${dueTodayTasks.length} Kegiatan):
             </div>
-            <table style="width: 100%; border-collapse: collapse; font-size: 13px; background: #f8fafc; border-radius: 6px; overflow: hidden;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; background: #f8fafc; border-radius: 6px; overflow: hidden; border: 1px solid #e2e8f0;">
               <thead>
                 <tr style="background: #e2e8f0; color: #334155; text-align: left; font-size: 12px;">
                   <th style="padding: 8px;">Program / Tugas</th>
@@ -689,7 +852,49 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
                 </tr>
               </thead>
               <tbody>
-                ${rowsHtml}
+                ${todayRows}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      // Render tugas terlewat 3 hari jika ada
+      if (overdue3DaysTasks.length > 0) {
+        const overdueRows = overdue3DaysTasks.map((t: any, idx: number) => {
+          const dl = getTaskDeadlineDate(t);
+          const diff = getDiffDays(dl);
+          return `
+            <tr style="border-bottom: 1px solid #fecdd3;">
+              <td style="padding: 10px 8px; font-weight: 600; color: #9f1239;">${idx + 1}. ${t.title}</td>
+              <td style="padding: 10px 8px; color: #881337; font-size: 12px;">Target: ${dl || '-'}</td>
+              <td style="padding: 10px 8px;">
+                <span style="display: inline-block; background: #ffe4e6; color: #9f1239; font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px; border: 1px solid #fecdd3;">
+                  ⚠️ Terlewat ${diff} Hari
+                </span>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        emailContentHtml += `
+          <div style="margin: 20px 0; background-color: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px; padding: 16px;">
+            <div style="font-weight: bold; color: #9f1239; font-size: 14px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+              ⚠️ Peringatan: Tugas Telah Terlewat 3 Hari / Perlu Tindak Lanjut (${overdue3DaysTasks.length} Tugas)
+            </div>
+            <p style="margin: 0 0 10px 0; color: #881337; font-size: 12px;">
+              Mohon segera memperbarui status kegiatan ini di sistem, atau selesaikan kendala yang dihadapi:
+            </p>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; background: #ffffff; border-radius: 6px; overflow: hidden; border: 1px solid #fecdd3;">
+              <thead>
+                <tr style="background: #ffe4e6; color: #881337; text-align: left; font-size: 12px;">
+                  <th style="padding: 8px;">Program / Tugas</th>
+                  <th style="padding: 8px;">Target Semula</th>
+                  <th style="padding: 8px;">Keterlambatan</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${overdueRows}
               </tbody>
             </table>
           </div>
@@ -700,9 +905,7 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
         ? `Selamat Pagi, Bapak/Ibu <strong>${recipientName}</strong> (${recipient.roleOrTitle})!`
         : `Selamat Pagi, <strong>${recipientName}</strong> (${recipient.roleOrTitle})!`;
 
-      const openingBlessing = isPengurus
-        ? `Semoga hikmat, damai sejahtera, dan sukacita Tuhan senantiasa menyertai kepemimpinan serta pelayanan Anda dalam mengayomi Yayasan Murid Muda Bermisi pada hari ini, <strong>${dateFormatted}</strong>.`
-        : `Semoga damai sejahtera dan sukacita Tuhan menyertai aktivitas pelayanan Anda pada hari ini, <strong>${dateFormatted}</strong>.`;
+      const openingBlessing = `Berikut adalah ringkasan agenda tugas dan status penugasan Anda per hari ini, <strong>${dateFormatted}</strong> (Pukul 08:00 WIB).`;
 
       const html = `
         <!DOCTYPE html>
@@ -729,7 +932,7 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
             <div class="header">
               <h1>Yayasan Murid Muda Bermisi</h1>
               <p>Yayasan MMB — ESM Management System</p>
-              <div class="badge">☀️ Pengingat Agenda Pagi</div>
+              <div class="badge">☀️ Notifikasi Tugas Pagi (08:00 WIB)</div>
             </div>
             <div class="content">
               <p>${salutationGreeting}</p>
@@ -750,16 +953,23 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
             </div>
             <div class="footer">
               <p>© ${new Date().getFullYear()} Yayasan Murid Muda Bermisi. Seluruh hak cipta dilindungi.</p>
-              <p style="margin: 0; color: #94a3b8; font-size: 11px;">Pengingat otomatis harian (Pukul 07:00 WIB) via Sistem Yayasan MMB.</p>
+              <p style="margin: 0; color: #94a3b8; font-size: 11px;">Notifikasi otomatis harian (Pukul 08:00 WIB) via Sistem Yayasan MMB.</p>
             </div>
           </div>
         </body>
         </html>
       `;
 
+      let emailSubject = `☀️ [Pengingat Pagi 08:00] Agenda Tugas Jatuh Tempo Hari Ini (${dateFormatted}) — Yayasan MMB`;
+      if (overdue3DaysTasks.length > 0 && dueTodayTasks.length > 0) {
+        emailSubject = `⚠️ [Penting 08:00] Tugas Jatuh Tempo Hari Ini & Peringatan Terlewat 3 Hari — Yayasan MMB`;
+      } else if (overdue3DaysTasks.length > 0) {
+        emailSubject = `⚠️ [Peringatan Keterlambatan] Tugas Anda Telah Terlewat 3 Hari — Yayasan MMB`;
+      }
+
       const sendRes = await sendMail({
         to: targetEmail,
-        subject: `☀️ [Pengingat Pagi] Agenda Kerja Hari Ini (${dateFormatted}) — Yayasan MMB`,
+        subject: emailSubject,
         html,
       });
 

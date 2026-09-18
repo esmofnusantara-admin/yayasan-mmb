@@ -373,6 +373,50 @@ export const getTaskDaysOverdue = (task: {
   };
 };
 
+export const getGoogleCalendarUrl = (task: {
+  title: string;
+  notes?: string;
+  startDate?: string;
+  endDate?: string;
+  targetDate?: string;
+  time?: string;
+  periodType?: string;
+  staffName?: string;
+}): string => {
+  const { startStr, endStr } = getTaskEffectiveDates(task);
+  const title = encodeURIComponent(task.title || 'Kegiatan Yayasan MMB');
+  const details = encodeURIComponent(
+    `${task.notes ? task.notes + '\n\n' : ''}Penanggung Jawab: ${task.staffName || '-'}\nSistem Manajemen Yayasan MMB`
+  );
+  const location = encodeURIComponent('Yayasan MMB');
+  const cleanDate = (dStr: string) => dStr.replace(/[^0-9]/g, '');
+
+  if (startStr && startStr.length >= 10) {
+    const sDateOnly = cleanDate(startStr.substring(0, 10));
+    const effectiveEnd = endStr || startStr;
+    const eDateOnly = cleanDate(effectiveEnd.substring(0, 10));
+
+    if (task.time && /^\d{2}:\d{2}/.test(task.time)) {
+      const [h, m] = task.time.split(':').map(Number);
+      const startH = String(h).padStart(2, '0');
+      const startM = String(m).padStart(2, '0');
+      const endH = String((h + 1) % 24).padStart(2, '0');
+      const endM = startM;
+      const startFormatted = `${sDateOnly}T${startH}${startM}00`;
+      const endFormatted = `${eDateOnly}T${endH}${endM}00`;
+      return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=${location}&dates=${startFormatted}/${endFormatted}&ctz=Asia/Jakarta`;
+    } else {
+      const eParts = effectiveEnd.substring(0, 10).split('-').map(Number);
+      const eDateObj = new Date(eParts[0], eParts[1] - 1, eParts[2] + 1);
+      const eY = eDateObj.getFullYear();
+      const eM = String(eDateObj.getMonth() + 1).padStart(2, '0');
+      const eD = String(eDateObj.getDate()).padStart(2, '0');
+      return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=${location}&dates=${sDateOnly}/${eY}${eM}${eD}`;
+    }
+  }
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=${location}`;
+};
+
 const GDRIVE_FOLDER_URL = "https://drive.google.com/drive/folders/1UeWgBx8r7jP9I03XO4r-1xtTmDER5x4t?usp=drive_link";
 const MAX_DIRECT_UPLOAD_MB = 1;
 const MAX_DIRECT_UPLOAD_BYTES = MAX_DIRECT_UPLOAD_MB * 1024 * 1024;
@@ -508,6 +552,7 @@ export default function StaffTasksTab({
   const [taskNotes, setTaskNotes] = useState('');
   const [taskParentId, setTaskParentId] = useState('');
   const [taskExternalLink, setTaskExternalLink] = useState('');
+  const [addToGoogleCalendar, setAddToGoogleCalendar] = useState(false);
 
   // Form Fields - Meeting
   const [meetingTitle, setMeetingTitle] = useState('');
@@ -677,6 +722,7 @@ export default function StaffTasksTab({
     setTaskParentId('');
     setTaskExternalLink('');
     setUploadedFile(null);
+    setAddToGoogleCalendar(false);
     setIsTaskModalOpen(true);
   };
 
@@ -760,6 +806,7 @@ export default function StaffTasksTab({
     } else {
       setUploadedFile(null);
     }
+    setAddToGoogleCalendar(false);
     setIsTaskModalOpen(true);
   };
 
@@ -958,8 +1005,13 @@ export default function StaffTasksTab({
     };
 
     await onSaveTask(taskPayload);
+    if (addToGoogleCalendar) {
+      const calUrl = getGoogleCalendarUrl(taskPayload);
+      window.open(calUrl, '_blank', 'noopener,noreferrer');
+    }
     setIsTaskModalOpen(false);
     setEditingTask(null);
+    setAddToGoogleCalendar(false);
   };
 
   const handleSaveMeetingSubmit = async (e: React.FormEvent) => {
@@ -1698,32 +1750,43 @@ export default function StaffTasksTab({
                                       )}
                                     </div>
 
-                                    {canModify && (
-                                      <div className="flex items-center gap-1">
-                                        <button
-                                          onClick={() => handleNotifyEmailClick(task)}
-                                          disabled={sendingEmailTaskId === task.id}
-                                          className="p-1 hover:bg-blue-50 rounded text-blue-700 transition-colors cursor-pointer disabled:opacity-50"
-                                          title="Kirim Notifikasi Email ke Staf"
-                                        >
-                                          <Mail className="w-3 h-3" />
-                                        </button>
-                                        <button
-                                          onClick={() => handleOpenEditTask(task)}
-                                          className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors cursor-pointer"
-                                          title="Edit Kegiatan"
-                                        >
-                                          <Edit className="w-3 h-3" />
-                                        </button>
-                                        <button
-                                          onClick={() => handleDeleteTaskClick(task)}
-                                          className="p-1 hover:bg-rose-50 rounded text-rose-700 transition-colors cursor-pointer"
-                                          title="Hapus Kegiatan"
-                                        >
-                                          <Trash className="w-3 h-3" />
-                                        </button>
-                                      </div>
-                                    )}
+                                    <div className="flex items-center gap-1">
+                                      <a
+                                        href={getGoogleCalendarUrl(task)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="p-1 hover:bg-blue-50 rounded text-blue-700 transition-colors cursor-pointer"
+                                        title="Tambahkan ke Google Calendar"
+                                      >
+                                        <Calendar className="w-3 h-3" />
+                                      </a>
+                                      {canModify && (
+                                        <>
+                                          <button
+                                            onClick={() => handleNotifyEmailClick(task)}
+                                            disabled={sendingEmailTaskId === task.id}
+                                            className="p-1 hover:bg-blue-50 rounded text-blue-700 transition-colors cursor-pointer disabled:opacity-50"
+                                            title="Kirim Notifikasi Email ke Staf"
+                                          >
+                                            <Mail className="w-3 h-3" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleOpenEditTask(task)}
+                                            className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors cursor-pointer"
+                                            title="Edit Kegiatan"
+                                          >
+                                            <Edit className="w-3 h-3" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleDeleteTaskClick(task)}
+                                            className="p-1 hover:bg-rose-50 rounded text-rose-700 transition-colors cursor-pointer"
+                                            title="Hapus Kegiatan"
+                                          >
+                                            <Trash className="w-3 h-3" />
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               );
@@ -1830,32 +1893,43 @@ export default function StaffTasksTab({
                             <option value="Tertunda">🔴 Tertunda</option>
                           </select>
 
-                          {canModify && (
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => handleNotifyEmailClick(task)}
-                                disabled={sendingEmailTaskId === task.id}
-                                className="p-1.5 bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 rounded transition-colors cursor-pointer disabled:opacity-50"
-                                title="Kirim Notifikasi Email ke Staf"
-                              >
-                                <Mail className="w-3 h-3" />
-                              </button>
-                              <button
-                                onClick={() => handleOpenEditTask(task)}
-                                className="p-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded transition-colors cursor-pointer"
-                                title="Edit Kegiatan"
-                              >
-                                <Edit className="w-3 h-3" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteTaskClick(task)}
-                                className="p-1.5 bg-white border border-rose-300 hover:bg-rose-50 text-rose-700 rounded transition-colors cursor-pointer"
-                                title="Hapus Kegiatan"
-                              >
-                                <Trash className="w-3 h-3" />
-                              </button>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-1">
+                            <a
+                              href={getGoogleCalendarUrl(task)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 rounded transition-colors cursor-pointer flex items-center justify-center"
+                              title="Tambahkan ke Google Calendar"
+                            >
+                              <Calendar className="w-3 h-3 text-blue-600" />
+                            </a>
+                            {canModify && (
+                              <>
+                                <button
+                                  onClick={() => handleNotifyEmailClick(task)}
+                                  disabled={sendingEmailTaskId === task.id}
+                                  className="p-1.5 bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 rounded transition-colors cursor-pointer disabled:opacity-50"
+                                  title="Kirim Notifikasi Email ke Staf"
+                                >
+                                  <Mail className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => handleOpenEditTask(task)}
+                                  className="p-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded transition-colors cursor-pointer"
+                                  title="Edit Kegiatan"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteTaskClick(task)}
+                                  className="p-1.5 bg-white border border-rose-300 hover:bg-rose-50 text-rose-700 rounded transition-colors cursor-pointer"
+                                  title="Hapus Kegiatan"
+                                >
+                                  <Trash className="w-3 h-3" />
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -2043,31 +2117,42 @@ export default function StaffTasksTab({
                             </div>
                           )}
 
-                          {canModify && (
-                            <div className="flex justify-end items-center gap-1.5 pt-2 border-t border-slate-200">
-                              <button
-                                onClick={() => handleNotifyEmailClick(task)}
-                                disabled={sendingEmailTaskId === task.id}
-                                className="px-2 py-0.5 bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 rounded text-[10px] font-semibold flex items-center gap-0.5 cursor-pointer shadow-xs transition-colors disabled:opacity-50"
-                                title="Kirim Notifikasi Email ke Staf"
-                              >
-                                <Mail className="w-3 h-3 text-blue-600" /> Notif Email
-                              </button>
-                              <button
-                                onClick={() => handleOpenEditTask(task)}
-                                className="px-2 py-0.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-[10px] font-semibold flex items-center gap-0.5 cursor-pointer shadow-xs transition-colors"
-                              >
-                                <Edit className="w-3 h-3 text-slate-600" /> Edit
-                              </button>
-                              <button
-                                onClick={() => handleDeleteTaskClick(task)}
-                                className="px-2 py-0.5 bg-white border border-rose-300 hover:bg-rose-50 text-rose-800 rounded text-[10px] font-semibold flex items-center gap-0.5 cursor-pointer shadow-xs transition-colors"
-                                title="Hapus Tugas"
-                              >
-                                <Trash className="w-3 h-3 text-rose-700" /> Hapus
-                              </button>
-                            </div>
-                          )}
+                          <div className="flex justify-end items-center gap-1.5 pt-2 border-t border-slate-200">
+                            <a
+                              href={getGoogleCalendarUrl(task)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2 py-0.5 bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 rounded text-[10px] font-semibold flex items-center gap-0.5 cursor-pointer shadow-xs transition-colors"
+                              title="Tambahkan ke Google Calendar"
+                            >
+                              <Calendar className="w-3 h-3 text-blue-600" /> Kalender
+                            </a>
+                            {canModify && (
+                              <>
+                                <button
+                                  onClick={() => handleNotifyEmailClick(task)}
+                                  disabled={sendingEmailTaskId === task.id}
+                                  className="px-2 py-0.5 bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 rounded text-[10px] font-semibold flex items-center gap-0.5 cursor-pointer shadow-xs transition-colors disabled:opacity-50"
+                                  title="Kirim Notifikasi Email ke Staf"
+                                >
+                                  <Mail className="w-3 h-3 text-blue-600" /> Notif Email
+                                </button>
+                                <button
+                                  onClick={() => handleOpenEditTask(task)}
+                                  className="px-2 py-0.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-[10px] font-semibold flex items-center gap-0.5 cursor-pointer shadow-xs transition-colors"
+                                >
+                                  <Edit className="w-3 h-3 text-slate-600" /> Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteTaskClick(task)}
+                                  className="px-2 py-0.5 bg-white border border-rose-300 hover:bg-rose-50 text-rose-800 rounded text-[10px] font-semibold flex items-center gap-0.5 cursor-pointer shadow-xs transition-colors"
+                                  title="Hapus Tugas"
+                                >
+                                  <Trash className="w-3 h-3 text-rose-700" /> Hapus
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </React.Fragment>
                     );
@@ -2191,23 +2276,35 @@ export default function StaffTasksTab({
                             )}
                           </div>
 
-                          {canModify && (
-                            <div className="flex justify-end gap-1.5 pt-1.5 border-t border-slate-200/50 text-[10px]">
-                              <button
-                                onClick={() => handleOpenEditTask(task)}
-                                className="text-slate-700 hover:underline font-semibold cursor-pointer"
-                              >
-                                Edit
-                              </button>
-                              <span className="text-slate-300">|</span>
-                              <button
-                                onClick={() => handleDeleteTaskClick(task)}
-                                className="text-rose-700 hover:underline cursor-pointer"
-                              >
-                                Hapus
-                              </button>
-                            </div>
-                          )}
+                          <div className="flex justify-end gap-1.5 pt-1.5 border-t border-slate-200/50 text-[10px] items-center">
+                            <a
+                              href={getGoogleCalendarUrl(task)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-700 hover:underline font-semibold cursor-pointer flex items-center gap-0.5"
+                              title="Tambahkan ke Google Calendar"
+                            >
+                              <Calendar className="w-2.5 h-2.5 text-blue-600" /> Kalender
+                            </a>
+                            {canModify && (
+                              <>
+                                <span className="text-slate-300">|</span>
+                                <button
+                                  onClick={() => handleOpenEditTask(task)}
+                                  className="text-slate-700 hover:underline font-semibold cursor-pointer"
+                                >
+                                  Edit
+                                </button>
+                                <span className="text-slate-300">|</span>
+                                <button
+                                  onClick={() => handleDeleteTaskClick(task)}
+                                  className="text-rose-700 hover:underline cursor-pointer"
+                                >
+                                  Hapus
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       );
                     })
@@ -3072,20 +3169,62 @@ export default function StaffTasksTab({
                 )}
               </div>
 
-                <div className="flex justify-end gap-2 pt-2.5 border-t border-slate-200 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => { setIsTaskModalOpen(false); setEditingTask(null); }}
-                    className="px-3.5 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 rounded text-xs font-medium text-slate-700 transition-colors cursor-pointer"
+                <div className="pt-2.5 pb-1 border-t border-slate-200">
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-700 hover:text-slate-900 select-none bg-blue-50/50 hover:bg-blue-50 p-2.5 rounded-lg border border-blue-100 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={addToGoogleCalendar}
+                      onChange={e => setAddToGoogleCalendar(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-bold text-[#0c2340] flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        Tambahkan ke Google Calendar saya saat disimpan
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        Otomatis membuka Google Calendar di tab baru dengan detail kegiatan terisi lengkap.
+                      </span>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-slate-200 shrink-0">
+                  <a
+                    href={getGoogleCalendarUrl({
+                      title: taskTitle.trim(),
+                      notes: taskNotes.trim(),
+                      startDate: taskStartDate,
+                      endDate: taskEndDate,
+                      targetDate: taskTargetDate,
+                      time: taskTime,
+                      periodType: taskPeriodType,
+                      staffName: scopedStaffs.find(s => s.nik === taskStaffNik)?.name || staffs.find(s => s.nik === taskStaffNik)?.name || ''
+                    })}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2.5 py-1.5 border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                    title="Buka langsung lembar kegiatan di Google Calendar"
                   >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                  >
-                    Simpan Kegiatan
-                  </button>
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>Buka Kalender Google</span>
+                  </a>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setIsTaskModalOpen(false); setEditingTask(null); }}
+                      className="px-3.5 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 rounded text-xs font-medium text-slate-700 transition-colors cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                    >
+                      Simpan Kegiatan
+                    </button>
+                  </div>
                 </div>
             </form>
           </div>

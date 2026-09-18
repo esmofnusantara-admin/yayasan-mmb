@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Users,
   Plus,
@@ -17,6 +17,9 @@ import {
   UserPlus,
   CheckCircle,
   ChevronRight,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
   ChevronDown,
   StickyNote,
   Heart,
@@ -88,6 +91,10 @@ export default function MembersTab({
   const [filterComponent, setFilterComponent] = useState<string>('Semua');
   const [filterSpace, setFilterSpace] = useState<string>('Semua');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+
+  // Pagination states for Database Anggota
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(10);
 
   // Modal forms states
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -710,6 +717,20 @@ export default function MembersTab({
     return matchesSearch && matchesComponent && matchesRegion && matchesSpace;
   });
 
+  // Reset pagination to page 1 whenever any filter or page size changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterComponent, filterRegion, filterSpace, pageSize]);
+
+  // Pagination calculations for Database Anggota table
+  const totalPages = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, filteredMembers.length);
+  const paginatedMembers = useMemo(() => {
+    return filteredMembers.slice(startIndex, startIndex + pageSize);
+  }, [filteredMembers, startIndex, pageSize]);
+
   const handleExportCSV = () => {
     const headers = [
       'ID Anggota',
@@ -922,7 +943,14 @@ export default function MembersTab({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
-                    {filteredMembers.map((member) => {
+                    {paginatedMembers.length === 0 ? (
+                      <tr>
+                        <td colSpan={isEditable ? 6 : 5} className="p-8 text-center text-slate-400">
+                          Tidak ada data anggota yang sesuai dengan filter atau pencarian.
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedMembers.map((member) => {
                       const spaces = [];
                       if (member.coreCircleCommunity) spaces.push({ name: member.coreCircleCommunity, type: 'Core Circle', color: 'bg-purple-50 text-purple-800 border-purple-200' });
                       if (member.intimateSpaceCommunity || member.smallGroupId) {
@@ -1004,15 +1032,127 @@ export default function MembersTab({
                           )}
                         </tr>
                       );
-                    })}
+                    }))}
                   </tbody>
                 </table>
               </div>
             </div>
 
-            <div className="p-3.5 border-t border-slate-200 bg-slate-50 flex justify-between items-center text-xs text-slate-600">
-              <span>Menampilkan {filteredMembers.length} dari {members.length} Anggota</span>
-              <span className="text-xs text-slate-500">Database Yayasan Terintegrasi</span>
+            {/* Pagination Controls */}
+            <div className="p-3.5 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-600">
+              <div className="flex flex-wrap items-center gap-2">
+                <span>
+                  Menampilkan{' '}
+                  <strong className="text-slate-900 font-semibold font-mono">
+                    {filteredMembers.length > 0 ? startIndex + 1 : 0}
+                  </strong>
+                  {' '}-{' '}
+                  <strong className="text-slate-900 font-semibold font-mono">
+                    {endIndex}
+                  </strong>
+                  {' '}dari{' '}
+                  <strong className="text-slate-900 font-semibold font-mono">
+                    {filteredMembers.length}
+                  </strong>
+                  {' '}Anggota
+                </span>
+                <span className="text-slate-300">|</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500 text-[11px]">Baris:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="border border-slate-300 rounded px-2 py-0.5 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-[#0c2340] cursor-pointer shadow-xs"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage(1)}
+                    disabled={safeCurrentPage === 1}
+                    className="p-1 px-2 border border-slate-300 rounded bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-slate-700 font-medium cursor-pointer shadow-xs"
+                    title="Halaman Pertama"
+                  >
+                    <ChevronsLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={safeCurrentPage === 1}
+                    className="p-1 px-2 border border-slate-300 rounded bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-slate-700 font-medium flex items-center gap-1 cursor-pointer shadow-xs"
+                    title="Halaman Sebelumnya"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline text-xs">Prev</span>
+                  </button>
+
+                  <div className="flex items-center gap-1 px-1">
+                    {(() => {
+                      const pages: (number | string)[] = [];
+                      if (totalPages <= 5) {
+                        for (let i = 1; i <= totalPages; i++) pages.push(i);
+                      } else {
+                        pages.push(1);
+                        if (safeCurrentPage > 3) pages.push('...');
+                        const start = Math.max(2, safeCurrentPage - 1);
+                        const end = Math.min(totalPages - 1, safeCurrentPage + 1);
+                        for (let i = start; i <= end; i++) {
+                          if (!pages.includes(i)) pages.push(i);
+                        }
+                        if (safeCurrentPage < totalPages - 2) pages.push('...');
+                        if (!pages.includes(totalPages)) pages.push(totalPages);
+                      }
+
+                      return pages.map((p, idx) => {
+                        if (p === '...') {
+                          return <span key={`ellipsis-${idx}`} className="px-1 text-slate-400">...</span>;
+                        }
+                        const isCurrent = p === safeCurrentPage;
+                        return (
+                          <button
+                            key={p}
+                            onClick={() => setCurrentPage(Number(p))}
+                            className={`min-w-[28px] h-7 text-xs rounded font-mono font-semibold transition-colors cursor-pointer ${
+                              isCurrent
+                                ? 'bg-[#0c2340] text-white shadow-xs'
+                                : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 shadow-xs'
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        );
+                      });
+                    })()}
+                  </div>
+
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={safeCurrentPage === totalPages}
+                    className="p-1 px-2 border border-slate-300 rounded bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-slate-700 font-medium flex items-center gap-1 cursor-pointer shadow-xs"
+                    title="Halaman Berikutnya"
+                  >
+                    <span className="hidden sm:inline text-xs">Next</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={safeCurrentPage === totalPages}
+                    className="p-1 px-2 border border-slate-300 rounded bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-slate-700 font-medium cursor-pointer shadow-xs"
+                    title="Halaman Terakhir"
+                  >
+                    <ChevronsRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

@@ -649,8 +649,9 @@ export default function App() {
   };
 
   const TAB_REQUIRED_COLLECTIONS: Record<string, string[]> = {
-    dashboard: ['members', 'transactions', 'partners', 'small_groups', 'approvals', 'audits', 'staff'],
-    members: ['members', 'small_groups', 'member_notes', 'prayer_requests', 'follow_ups'],
+    dashboard: ['members', 'transactions', 'partners', 'small_groups', 'approvals', 'audits', 'staff', 'ministry_relations'],
+    ministry_relations: ['ministry_relations', 'members', 'small_groups', 'staff'],
+    members: ['members', 'small_groups', 'member_notes', 'prayer_requests', 'follow_ups', 'ministry_relations', 'staff'],
     small_groups: ['small_groups', 'meeting_logs', 'materials', 'members', 'ministry_relations'],
     finance: ['transactions', 'categories'],
     kegiatan: ['activities', 'activity_transactions', 'activity_rundowns', 'activity_preparations', 'transactions'],
@@ -660,7 +661,7 @@ export default function App() {
     staff_tasks: ['staff_tasks', 'staff_meetings', 'staff'],
     payroll: ['staff', 'transactions', 'salaries'],
     letters: ['inward_letters', 'outward_letters', 'documents'],
-    reports: ['members', 'transactions', 'partners', 'small_groups', 'meeting_logs', 'staff', 'salaries', 'donations'],
+    reports: ['members', 'transactions', 'partners', 'small_groups', 'meeting_logs', 'staff', 'salaries', 'donations', 'ministry_relations'],
     approvals: ['approvals'],
     system: ['audits', 'pengurus', 'staff'],
     staff_profile: ['staff', 'salaries']
@@ -1319,7 +1320,7 @@ export default function App() {
         body: JSON.stringify(payload)
       });
       await logAudit(`Menambah Relasi Pelayanan Baru: ${rel.fullName} (${rel.stage})`, 'Pemuridan');
-      loadCollection('ministry_relations', INITIAL_MINISTRY_RELATIONS, setMinistryRelations);
+      await loadCollection('ministry_relations', INITIAL_MINISTRY_RELATIONS, setMinistryRelations);
     } catch (e: any) {
       console.error(e);
     }
@@ -1339,7 +1340,7 @@ export default function App() {
         body: JSON.stringify(payload)
       });
       await logAudit(`Memperbarui Relasi Pelayanan: ${rel.fullName} (${rel.stage})`, 'Pemuridan');
-      loadCollection('ministry_relations', INITIAL_MINISTRY_RELATIONS, setMinistryRelations);
+      await loadCollection('ministry_relations', INITIAL_MINISTRY_RELATIONS, setMinistryRelations);
     } catch (e: any) {
       console.error(e);
     }
@@ -1359,7 +1360,7 @@ export default function App() {
         return;
       }
       await logAudit(`Menghapus Relasi Pelayanan ID: ${id} (Soft-Delete)`, 'Pemuridan');
-      loadCollection('ministry_relations', INITIAL_MINISTRY_RELATIONS, setMinistryRelations);
+      await loadCollection('ministry_relations', INITIAL_MINISTRY_RELATIONS, setMinistryRelations);
     } catch (e: any) {
       console.error(e);
       alert(`Terjadi kesalahan saat menghapus relasi: ${e.message}`);

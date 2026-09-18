@@ -29,6 +29,7 @@ import {
   Sparkles,
   CheckCircle2,
   Phone,
+  UserPlus,
   Image as ImageIcon
 } from 'lucide-react';
 import { 
@@ -66,6 +67,9 @@ interface SmallGroupsTabProps {
   onDeleteMinistryRelation?: (id: string) => void;
   profile?: InstitutionalProfile;
   currentRole: string;
+  controlledSubView?: 'relations' | 'groups' | 'matrix' | 'meetings' | 'materials';
+  onSubViewChange?: (v: 'relations' | 'groups' | 'matrix' | 'meetings' | 'materials') => void;
+  onRegisterAsMember?: (rel: MinistryRelation) => void;
 }
 
 export default function SmallGroupsTab({
@@ -88,11 +92,19 @@ export default function SmallGroupsTab({
   onDeleteMinistryRelation,
   profile,
   currentRole,
+  controlledSubView,
+  onSubViewChange,
+  onRegisterAsMember,
 }: SmallGroupsTabProps) {
   const isEditable = ['Super Admin', 'Ketua Yayasan', 'Pembina Yayasan', 'Sekretaris', 'Staff', 'Volunteer'].includes(currentRole);
 
   // Navigation inside groups
-  const [activeSubView, setActiveSubView] = useState<'relations' | 'groups' | 'matrix' | 'meetings' | 'materials'>('relations');
+  const [internalSubView, setInternalSubView] = useState<'relations' | 'groups' | 'matrix' | 'meetings' | 'materials'>('relations');
+  const activeSubView = controlledSubView !== undefined ? controlledSubView : internalSubView;
+  const setActiveSubView = (val: 'relations' | 'groups' | 'matrix' | 'meetings' | 'materials') => {
+    setInternalSubView(val);
+    if (onSubViewChange) onSubViewChange(val);
+  };
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -1088,11 +1100,28 @@ export default function SmallGroupsTab({
                                   <span>→</span>
                                   <span>{getNextStage(stage)}</span>
                                 </button>
-                              ) : (
-                                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-0.5">
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Murid Aktif
-                                </span>
-                              )}
+                              ) : (() => {
+                                const isMemberRegistered = Boolean(
+                                  (rel.memberId && members.some(m => m.id === rel.memberId)) ||
+                                  members.some(m => (m.fullName && rel.fullName && m.fullName.toLowerCase().trim() === rel.fullName.toLowerCase().trim()) || 
+                                                    (rel.phone && m.phone && m.phone.replace(/\D/g, '') === rel.phone.replace(/\D/g, '') && rel.phone.length > 5))
+                                );
+                                return isMemberRegistered ? (
+                                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-1" title="Sudah terdaftar resmi di Database Anggota">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Terdaftar Anggota
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    title="Daftarkan ke Database Anggota Pelayanan (Staff mengisi sisa data NIK, dsb)"
+                                    onClick={() => onRegisterAsMember?.(rel)}
+                                    className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold cursor-pointer flex items-center gap-1 shadow-2xs transition-colors"
+                                  >
+                                    <UserPlus className="w-3 h-3" />
+                                    <span>Daftarkan Anggota</span>
+                                  </button>
+                                );
+                              })()}
                             </div>
                           )}
                         </div>

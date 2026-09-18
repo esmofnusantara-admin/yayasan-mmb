@@ -131,6 +131,8 @@ const TAB_TO_HASH: Record<string, string> = {
 const HASH_TO_TAB: Record<string, string> = {
   dashboard: 'dashboard',
   members: 'members',
+  'relasi-pelayanan': 'small_groups',
+  'pemuridan-misional': 'small_groups',
   'small-groups': 'small_groups',
   small_groups: 'small_groups',
   finance: 'finance',
@@ -326,6 +328,10 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>(() => getTabFromUrl());
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
+  const [smallGroupsSubView, setSmallGroupsSubView] = useState<'relations' | 'groups' | 'matrix' | 'meetings' | 'materials'>('relations');
+  const [prefillMemberForRegistration, setPrefillMemberForRegistration] = useState<Partial<Member> | null>(null);
+  const [activeRelationForRegistration, setActiveRelationForRegistration] = useState<MinistryRelation | null>(null);
+
   const navigateTab = (tab: string) => {
     setActiveTab(tab);
     const targetHash = TAB_TO_HASH[tab] || tab;
@@ -335,9 +341,50 @@ export default function App() {
     setIsMobileMenuOpen(false);
   };
 
+  const navigateSmallGroups = (subView: 'relations' | 'groups' | 'matrix' | 'meetings' | 'materials') => {
+    setActiveTab('small_groups');
+    setSmallGroupsSubView(subView);
+    const targetHash = subView === 'relations' ? 'relasi-pelayanan' : 'small-groups';
+    if (window.location.hash.replace(/^#\/?/, '') !== targetHash) {
+      window.location.hash = `#/${targetHash}`;
+    }
+    setIsMobileMenuOpen(false);
+  };
+
+  const handleRegisterRelationAsMember = (rel: MinistryRelation) => {
+    const matchedGroup = smallGroups.find(g => g.id === rel.targetGroupId);
+    const isSiswa = rel.campusOrSchool ? /sma|smk|smp|sekolah/i.test(rel.campusOrSchool) : false;
+    setPrefillMemberForRegistration({
+      fullName: rel.fullName,
+      nickName: rel.nickName || rel.fullName.split(' ')[0],
+      gender: rel.gender || 'Laki-laki',
+      phone: rel.phone || '',
+      city: rel.city || '',
+      region: rel.region || (profile?.regions?.[0] || 'Jabodetabek'),
+      component: isSiswa ? 'Siswa' : 'Mahasiswa',
+      occupation: rel.campusOrSchool || '',
+      education: isSiswa ? 'SMA / Sederajat' : 'S1 / Sarjana',
+      communitySpaces: ['Intimate Space'],
+      intimateSpaceCommunity: matchedGroup ? matchedGroup.name : undefined,
+      smallGroupId: rel.targetGroupId,
+      mentor: rel.picStaffOrLeader || 'Staf Pembina',
+      discipleshipLeader: rel.picStaffOrLeader || 'Staf Pembina',
+      staffAdvisor: rel.picStaffOrLeader || 'Staf Pembina',
+      statusKeaktifan: 'Aktif'
+    });
+    setActiveRelationForRegistration(rel);
+    navigateTab('members');
+  };
+
   // Sync with browser URL hash change (e.g. Back/Forward button or direct link on refresh)
   useEffect(() => {
     const handleHashChange = () => {
+      const rawHash = window.location.hash.replace(/^#\/?/, '').trim().toLowerCase();
+      if (rawHash === 'relasi-pelayanan') {
+        setSmallGroupsSubView('relations');
+      } else if (rawHash === 'small-groups' || rawHash === 'pemuridan-misional') {
+        setSmallGroupsSubView('groups');
+      }
       const targetTab = getTabFromUrl();
       if (targetTab && hasFeatureAccess(targetTab)) {
         setActiveTab(targetTab);
@@ -345,10 +392,16 @@ export default function App() {
     };
 
     if (currentUser) {
+      const rawHash = window.location.hash.replace(/^#\/?/, '').trim().toLowerCase();
+      if (rawHash === 'relasi-pelayanan') {
+        setSmallGroupsSubView('relations');
+      } else if (rawHash === 'small-groups' || rawHash === 'pemuridan-misional') {
+        setSmallGroupsSubView('groups');
+      }
       const initialTab = getTabFromUrl();
       if (hasFeatureAccess(initialTab)) {
         setActiveTab(initialTab);
-        const targetHash = TAB_TO_HASH[initialTab] || initialTab;
+        const targetHash = initialTab === 'small_groups' && rawHash === 'relasi-pelayanan' ? 'relasi-pelayanan' : (TAB_TO_HASH[initialTab] || initialTab);
         if (window.location.hash.replace(/^#\/?/, '') !== targetHash) {
           window.location.hash = `#/${targetHash}`;
         }
@@ -766,6 +819,12 @@ export default function App() {
       });
       await logAudit(`Menambahkan Anggota Baru ID: ${m.id}`, 'Anggota', undefined, `Nama: ${m.fullName}`);
       loadCollection('members', INITIAL_MEMBERS, setMembers);
+
+      if (activeRelationForRegistration) {
+        const updatedRel = { ...activeRelationForRegistration, memberId: m.id };
+        await handleUpdateMinistryRelation(updatedRel);
+        setActiveRelationForRegistration(null);
+      }
     } catch (e: any) {
       console.error(e);
     }
@@ -2926,26 +2985,79 @@ if (!res.ok) {
                 </button>
               )}
 
-              {hasFeatureAccess('members') && (
-                <button 
-                  onClick={() => navigateTab('members')}
-                  className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
-                    activeTab === 'members' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
-                  }`}
-                >
-                  <Users className="w-4 h-4 shrink-0" /> Anggota Pelayanan
-                </button>
-              )}
+              {/* Group: Anggota & Pemuridan (Option A) */}
+              {(hasFeatureAccess('members') || hasFeatureAccess('small_groups')) && (
+                <div className="pt-2 pb-1 space-y-1">
+                  <div className="flex items-center justify-between px-2.5 py-1 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <span className="flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5 text-slate-400" /> Anggota & Pemuridan
+                    </span>
+                  </div>
 
-              {hasFeatureAccess('small_groups') && (
-                <button 
-                  onClick={() => navigateTab('small_groups')}
-                  className={`w-full text-xs font-semibold px-3 py-2 rounded flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
-                    activeTab === 'small_groups' ? 'bg-[#0c2340] text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
-                  }`}
-                >
-                  <BookOpen className="w-4 h-4 shrink-0" /> Pemuridan Misional
-                </button>
+                  <div className="space-y-1 pl-1.5 border-l-2 border-slate-200 ml-3">
+                    {hasFeatureAccess('members') && (
+                      <button 
+                        onClick={() => navigateTab('members')}
+                        className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded flex items-center justify-between transition-colors cursor-pointer text-left ${
+                          activeTab === 'members' 
+                            ? 'bg-[#0c2340] text-white shadow-2xs font-bold' 
+                            : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2 truncate">
+                          <Users className="w-3.5 h-3.5 shrink-0" /> Database Anggota
+                        </span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold shrink-0 ${
+                          activeTab === 'members' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {members.length}
+                        </span>
+                      </button>
+                    )}
+
+                    {hasFeatureAccess('small_groups') && (
+                      <button 
+                        onClick={() => navigateSmallGroups('relations')}
+                        className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded flex items-center justify-between transition-colors cursor-pointer text-left ${
+                          activeTab === 'small_groups' && smallGroupsSubView === 'relations'
+                            ? 'bg-[#0c2340] text-white shadow-2xs font-bold' 
+                            : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2 truncate">
+                          <HeartHandshake className="w-3.5 h-3.5 shrink-0" /> Relasi Pelayanan
+                        </span>
+                        {ministryRelations.length > 0 && (
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold shrink-0 ${
+                            activeTab === 'small_groups' && smallGroupsSubView === 'relations' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700 border border-blue-200'
+                          }`}>
+                            {ministryRelations.length}
+                          </span>
+                        )}
+                      </button>
+                    )}
+
+                    {hasFeatureAccess('small_groups') && (
+                      <button 
+                        onClick={() => navigateSmallGroups('groups')}
+                        className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded flex items-center justify-between transition-colors cursor-pointer text-left ${
+                          activeTab === 'small_groups' && smallGroupsSubView !== 'relations'
+                            ? 'bg-[#0c2340] text-white shadow-2xs font-bold' 
+                            : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2 truncate">
+                          <BookOpen className="w-3.5 h-3.5 shrink-0" /> Komunitas & Kurikulum
+                        </span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold shrink-0 ${
+                          activeTab === 'small_groups' && smallGroupsSubView !== 'relations' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {smallGroups.length}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                </div>
               )}
 
               {hasFeatureAccess('finance') && (
@@ -3164,6 +3276,8 @@ if (!res.ok) {
                 currentRole={currentRole}
                 profile={profile}
                 staffs={staffs}
+                prefillMember={prefillMemberForRegistration}
+                onClearPrefillMember={() => setPrefillMemberForRegistration(null)}
               />
             )}
 
@@ -3188,6 +3302,9 @@ if (!res.ok) {
                 onDeleteMinistryRelation={handleDeleteMinistryRelation}
                 profile={profile}
                 currentRole={currentRole}
+                controlledSubView={smallGroupsSubView}
+                onSubViewChange={setSmallGroupsSubView}
+                onRegisterAsMember={handleRegisterRelationAsMember}
               />
             )}
 

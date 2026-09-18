@@ -29,7 +29,10 @@ import {
   Layers,
   Sparkles,
   Award,
-  CheckSquare
+  CheckSquare,
+  Filter,
+  SlidersHorizontal,
+  RotateCcw
 } from 'lucide-react';
 import { Member, MemberNote, PrayerRequest, FollowUpLog, SmallGroup, InstitutionalProfile, Staff } from '../types';
 import { exportToCSV, exportMemberGrowthReportToPDF } from '../utils/export';
@@ -56,6 +59,8 @@ interface MembersTabProps {
   currentRole: string;
   profile?: InstitutionalProfile;
   staffs?: Staff[];
+  prefillMember?: Partial<Member> | null;
+  onClearPrefillMember?: () => void;
 }
 
 export default function MembersTab({
@@ -79,7 +84,9 @@ export default function MembersTab({
   onDeleteFollowUp,
   currentRole,
   profile,
-  staffs = []
+  staffs = [],
+  prefillMember,
+  onClearPrefillMember
 }: MembersTabProps) {
   const isEditable = ['Super Admin', 'Ketua Yayasan', 'Sekretaris', 'Staff', 'Pembina Yayasan'].includes(currentRole);
 
@@ -120,6 +127,10 @@ export default function MembersTab({
   const [region, setRegion] = useState(profile?.regions?.[0] || '');
   const [selectedRegions, setSelectedRegions] = useState<string[]>(profile?.regions?.[0] ? [profile.regions[0]] : []);
   const [filterRegion, setFilterRegion] = useState('Semua');
+  const [filterLeader, setFilterLeader] = useState<string>('Semua');
+  const [filterStaffAdvisor, setFilterStaffAdvisor] = useState<string>('Semua');
+  const [filterStatusKeaktifan, setFilterStatusKeaktifan] = useState<string>('Semua');
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState<boolean>(false);
 
   // 3 Space Communities states
   const [selectedSpaces, setSelectedSpaces] = useState<('Core Circle' | 'Intimate Space' | 'Social Space')[]>(['Intimate Space']);
@@ -131,6 +142,36 @@ export default function MembersTab({
   const [mentor, setMentor] = useState(''); // Pemimpin Komunitas
   const [staffAdvisor, setStaffAdvisor] = useState('');
   const [statusKeaktifan, setStatusKeaktifan] = useState<'Penjangkauan' | 'Aktif' | 'Pasif' | 'Cuti' | 'Pindah'>('Aktif');
+
+  // Auto-fill and open member form when prefillMember is supplied (e.g. from Relasi Pelayanan Dimuridkan)
+  useEffect(() => {
+    if (prefillMember) {
+      setEditingMember(null);
+      setFullName(prefillMember.fullName || '');
+      setNickName(prefillMember.nickName || '');
+      setGender(prefillMember.gender || 'Laki-laki');
+      setPhone(prefillMember.phone || '');
+      setCity(prefillMember.city || '');
+      const reg = prefillMember.region || (profile?.regions?.[0] || 'Jabodetabek');
+      setRegion(reg);
+      setSelectedRegions([reg]);
+      setComponent(prefillMember.component || 'Mahasiswa');
+      setEducation(prefillMember.education || '');
+      setOccupation(prefillMember.occupation || '');
+      setSelectedSpaces(prefillMember.communitySpaces || ['Intimate Space']);
+      setIntimateSpaceComm(prefillMember.intimateSpaceCommunity || '');
+      setCoreCircleComm(prefillMember.coreCircleCommunity || '');
+      setSocialSpaceComm(prefillMember.socialSpaceCommunity || '');
+      setDiscipleshipLeader(prefillMember.discipleshipLeader || '');
+      setMentor(prefillMember.mentor || '');
+      setStaffAdvisor(prefillMember.staffAdvisor || '');
+      setStatusKeaktifan('Aktif');
+      setIsFormOpen(true);
+      if (onClearPrefillMember) {
+        onClearPrefillMember();
+      }
+    }
+  }, [prefillMember]);
 
   // Sub-tab States: Adding / Editing Growth Note
   const [editingNote, setEditingNote] = useState<MemberNote | null>(null);
@@ -695,6 +736,46 @@ export default function MembersTab({
     }
   };
 
+  // Unique values for dynamic filter dropdowns
+  const uniqueLeaders = useMemo(() => {
+    const set = new Set<string>();
+    members.forEach(m => {
+      if (m.discipleshipLeader && m.discipleshipLeader.trim()) set.add(m.discipleshipLeader.trim());
+    });
+    return Array.from(set).sort();
+  }, [members]);
+
+  const uniqueStaffAdvisors = useMemo(() => {
+    const set = new Set<string>();
+    members.forEach(m => {
+      if (m.staffAdvisor && m.staffAdvisor.trim()) set.add(m.staffAdvisor.trim());
+    });
+    staffs.forEach(s => {
+      if (s.name && s.name.trim() && !s.deleted) set.add(s.name.trim());
+    });
+    return Array.from(set).sort();
+  }, [members, staffs]);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (filterComponent !== 'Semua') count++;
+    if (filterRegion !== 'Semua') count++;
+    if (filterSpace !== 'Semua') count++;
+    if (filterLeader !== 'Semua') count++;
+    if (filterStaffAdvisor !== 'Semua') count++;
+    if (filterStatusKeaktifan !== 'Semua') count++;
+    return count;
+  }, [filterComponent, filterRegion, filterSpace, filterLeader, filterStaffAdvisor, filterStatusKeaktifan]);
+
+  const handleResetFilters = () => {
+    setFilterComponent('Semua');
+    setFilterRegion('Semua');
+    setFilterSpace('Semua');
+    setFilterLeader('Semua');
+    setFilterStaffAdvisor('Semua');
+    setFilterStatusKeaktifan('Semua');
+  };
+
   // Filter lists based on input query
   const filteredMembers = members.filter(member => {
     const matchesSearch = member.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -714,13 +795,17 @@ export default function MembersTab({
       matchesSpace = !!member.socialSpaceCommunity;
     }
 
-    return matchesSearch && matchesComponent && matchesRegion && matchesSpace;
+    const matchesLeader = filterLeader === 'Semua' || member.discipleshipLeader === filterLeader;
+    const matchesStaffAdvisor = filterStaffAdvisor === 'Semua' || member.staffAdvisor === filterStaffAdvisor;
+    const matchesStatusKeaktifan = filterStatusKeaktifan === 'Semua' || (member.statusKeaktifan || 'Aktif') === filterStatusKeaktifan;
+
+    return matchesSearch && matchesComponent && matchesRegion && matchesSpace && matchesLeader && matchesStaffAdvisor && matchesStatusKeaktifan;
   });
 
   // Reset pagination to page 1 whenever any filter or page size changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterComponent, filterRegion, filterSpace, pageSize]);
+  }, [searchQuery, filterComponent, filterRegion, filterSpace, filterLeader, filterStaffAdvisor, filterStatusKeaktifan, pageSize]);
 
   // Pagination calculations for Database Anggota table
   const totalPages = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
@@ -884,8 +969,8 @@ export default function MembersTab({
           <div className="lg:col-span-2 bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden flex flex-col justify-between">
             <div>
               {/* Filter controls */}
-              <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-3 bg-slate-50/50">
-                <div className="relative flex-1">
+              <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-2.5 bg-slate-50/50 items-center">
+                <div className="relative flex-1 w-full">
                   <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
@@ -895,39 +980,204 @@ export default function MembersTab({
                     className="w-full pl-9 pr-4 py-1.5 border border-slate-300 rounded text-xs bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                   />
                 </div>
-                <div className="flex gap-2 flex-wrap">
-                  <select
-                    value={filterComponent}
-                    onChange={(e) => setFilterComponent(e.target.value)}
-                    className="border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-700 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+                    className={`px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                      isFilterPanelOpen || activeFiltersCount > 0
+                        ? 'bg-[#0c2340] text-white border-[#0c2340] shadow-2xs'
+                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                    }`}
                   >
-                    <option value="Semua">Semua Komponen</option>
-                    {(profile?.memberComponents || ["Siswa", "Mahasiswa", "Alumni", "Umum"]).map((comp, idx) => (
-                      <option key={idx} value={comp}>{comp}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={filterRegion}
-                    onChange={(e) => setFilterRegion(e.target.value)}
-                    className="border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-700 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
-                  >
-                    <option value="Semua">Semua Wilayah</option>
-                    {(profile?.regions || []).map((r, idx) => (
-                      <option key={idx} value={r}>{r}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={filterSpace}
-                    onChange={(e) => setFilterSpace(e.target.value)}
-                    className="border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-700 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
-                  >
-                    <option value="Semua">Semua Ruang</option>
-                    <option value="Core Circle">Core Circle</option>
-                    <option value="Intimate Space">Intimate Space</option>
-                    <option value="Social Space">Social Space</option>
-                  </select>
+                    <Filter className="w-3.5 h-3.5" />
+                    <span>Filter</span>
+                    {activeFiltersCount > 0 && (
+                      <span className="bg-amber-400 text-slate-900 text-[10px] font-bold px-1.5 py-0.2 rounded-full leading-none">
+                        {activeFiltersCount}
+                      </span>
+                    )}
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isFilterPanelOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {activeFiltersCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleResetFilters}
+                      className="text-xs text-rose-600 hover:text-rose-700 hover:underline font-medium px-1 flex items-center gap-1 cursor-pointer"
+                      title="Hapus semua filter"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Reset</span>
+                    </button>
+                  )}
                 </div>
               </div>
+
+              {/* Expandable Filter Drawer */}
+              {isFilterPanelOpen && (
+                <div className="p-4 bg-slate-50 border-b border-slate-200 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <SlidersHorizontal className="w-3.5 h-3.5 text-slate-600" /> Filter Lengkap Database Anggota
+                    </span>
+                    {activeFiltersCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleResetFilters}
+                        className="text-[11px] text-rose-600 hover:text-rose-800 hover:underline font-medium cursor-pointer flex items-center gap-1"
+                      >
+                        <RotateCcw className="w-3 h-3" /> Reset Semua Filter ({activeFiltersCount})
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                    {/* 1. Komponen Pelayanan */}
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-600 block mb-1">Komponen Pelayanan :</label>
+                      <select
+                        value={filterComponent}
+                        onChange={(e) => setFilterComponent(e.target.value)}
+                        className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-700 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                      >
+                        <option value="Semua">Semua Komponen</option>
+                        {(profile?.memberComponents || ["Siswa", "Mahasiswa", "Alumni", "Umum"]).map((comp, idx) => (
+                          <option key={idx} value={comp}>{comp}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 2. Wilayah Pelayanan */}
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-600 block mb-1">Wilayah Pelayanan :</label>
+                      <select
+                        value={filterRegion}
+                        onChange={(e) => setFilterRegion(e.target.value)}
+                        className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-700 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                      >
+                        <option value="Semua">Semua Wilayah</option>
+                        {(profile?.regions || []).map((r, idx) => (
+                          <option key={idx} value={r}>{r}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 3. 3 Ruang Komunitas */}
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-600 block mb-1">3 Ruang Komunitas :</label>
+                      <select
+                        value={filterSpace}
+                        onChange={(e) => setFilterSpace(e.target.value)}
+                        className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-700 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                      >
+                        <option value="Semua">Semua Ruang Komunitas</option>
+                        <option value="Core Circle">Core Circle</option>
+                        <option value="Intimate Space">Intimate Space</option>
+                        <option value="Social Space">Social Space</option>
+                      </select>
+                    </div>
+
+                    {/* 4. Pemimpin Pemuridan */}
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-600 block mb-1">Pemimpin Pemuridan :</label>
+                      <select
+                        value={filterLeader}
+                        onChange={(e) => setFilterLeader(e.target.value)}
+                        className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-700 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                      >
+                        <option value="Semua">Semua Pemimpin</option>
+                        {uniqueLeaders.map((lead, idx) => (
+                          <option key={idx} value={lead}>{lead}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 5. Staff Pendamping */}
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-600 block mb-1">Staff Pendamping :</label>
+                      <select
+                        value={filterStaffAdvisor}
+                        onChange={(e) => setFilterStaffAdvisor(e.target.value)}
+                        className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-700 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                      >
+                        <option value="Semua">Semua Staff Pendamping</option>
+                        {uniqueStaffAdvisors.map((staff, idx) => (
+                          <option key={idx} value={staff}>{staff}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 6. Status Keaktifan */}
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-600 block mb-1">Status Keaktifan :</label>
+                      <select
+                        value={filterStatusKeaktifan}
+                        onChange={(e) => setFilterStatusKeaktifan(e.target.value)}
+                        className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-700 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                      >
+                        <option value="Semua">Semua Status</option>
+                        <option value="Aktif">Aktif</option>
+                        <option value="Penjangkauan">Penjangkauan</option>
+                        <option value="Pasif">Pasif</option>
+                        <option value="Cuti">Cuti</option>
+                        <option value="Pindah">Pindah</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Active Filter Chips (displayed when drawer is closed but filters are active) */}
+              {activeFiltersCount > 0 && !isFilterPanelOpen && (
+                <div className="px-4 py-2 bg-slate-100/80 border-b border-slate-200 flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <span className="text-slate-500 font-medium">Filter Aktif:</span>
+                  {filterComponent !== 'Semua' && (
+                    <span className="bg-white border border-slate-300 text-slate-700 px-2 py-0.5 rounded flex items-center gap-1">
+                      Komponen: <b className="text-slate-900">{filterComponent}</b>
+                      <button type="button" onClick={() => setFilterComponent('Semua')} className="hover:text-rose-600 font-bold ml-0.5 cursor-pointer">×</button>
+                    </span>
+                  )}
+                  {filterRegion !== 'Semua' && (
+                    <span className="bg-white border border-slate-300 text-slate-700 px-2 py-0.5 rounded flex items-center gap-1">
+                      Wilayah: <b className="text-slate-900">{filterRegion}</b>
+                      <button type="button" onClick={() => setFilterRegion('Semua')} className="hover:text-rose-600 font-bold ml-0.5 cursor-pointer">×</button>
+                    </span>
+                  )}
+                  {filterSpace !== 'Semua' && (
+                    <span className="bg-white border border-slate-300 text-slate-700 px-2 py-0.5 rounded flex items-center gap-1">
+                      Ruang: <b className="text-slate-900">{filterSpace}</b>
+                      <button type="button" onClick={() => setFilterSpace('Semua')} className="hover:text-rose-600 font-bold ml-0.5 cursor-pointer">×</button>
+                    </span>
+                  )}
+                  {filterLeader !== 'Semua' && (
+                    <span className="bg-white border border-slate-300 text-slate-700 px-2 py-0.5 rounded flex items-center gap-1">
+                      Pemimpin: <b className="text-slate-900">{filterLeader}</b>
+                      <button type="button" onClick={() => setFilterLeader('Semua')} className="hover:text-rose-600 font-bold ml-0.5 cursor-pointer">×</button>
+                    </span>
+                  )}
+                  {filterStaffAdvisor !== 'Semua' && (
+                    <span className="bg-white border border-slate-300 text-slate-700 px-2 py-0.5 rounded flex items-center gap-1">
+                      Staff: <b className="text-slate-900">{filterStaffAdvisor}</b>
+                      <button type="button" onClick={() => setFilterStaffAdvisor('Semua')} className="hover:text-rose-600 font-bold ml-0.5 cursor-pointer">×</button>
+                    </span>
+                  )}
+                  {filterStatusKeaktifan !== 'Semua' && (
+                    <span className="bg-white border border-slate-300 text-slate-700 px-2 py-0.5 rounded flex items-center gap-1">
+                      Status: <b className="text-slate-900">{filterStatusKeaktifan}</b>
+                      <button type="button" onClick={() => setFilterStatusKeaktifan('Semua')} className="hover:text-rose-600 font-bold ml-0.5 cursor-pointer">×</button>
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="text-rose-600 hover:underline font-semibold ml-1 cursor-pointer"
+                  >
+                    Reset Semua
+                  </button>
+                </div>
+              )}
 
               {/* Members List */}
               <div className="overflow-x-auto">

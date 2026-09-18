@@ -153,6 +153,7 @@ export interface MinistryRelation {
   notes?: string;
   lastContactDate?: string;
   targetGroupId?: string;
+  memberId?: string;
   createdAt?: string;
 }
 

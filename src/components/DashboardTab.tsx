@@ -133,37 +133,50 @@ export default function DashboardTab({
 
   const memberBirthdays = (members || [])
     .filter(m => m.birthDate && !m.deleted)
-    .map(m => ({
-      id: m.id,
-      fullName: m.fullName || m.nickName || '',
-      birthDate: m.birthDate,
-      component: m.component || 'Anggota',
-      region: m.region ? `Wilayah ${m.region}` : 'Komunitas MMB'
-    }));
+    .map(m => {
+      const cleanRegion = m.region ? m.region.replace(/^wilayah\s+/i, '').trim() : '';
+      const displayRegion = cleanRegion ? `Wilayah ${cleanRegion}` : 'Komunitas MMB';
+      return {
+        id: m.id,
+        fullName: m.fullName || m.nickName || '',
+        birthDate: m.birthDate,
+        component: m.component || 'Anggota',
+        region: cleanRegion || 'Komunitas MMB',
+        displaySub: `${m.component || 'Anggota'} • ${displayRegion}`
+      };
+    });
 
   const staffBirthdays = (staffs || [])
     .filter(s => s.birthDate && !s.deleted)
     .map(s => {
       const isPengurus = s.category === 'Pengurus' || (s.position && /pengurus|pembina|pengawas|ketua|sekretaris|bendahara/i.test(s.position));
+      const roleName = s.position || (isPengurus ? 'Pengurus Yayasan' : 'Staff Pelayanan');
+      const deptName = isPengurus ? 'Yayasan MMB' : (s.division || 'Kantor Pusat Yayasan');
       return {
         id: s.id || s.nik,
         fullName: `${s.name} ${isPengurus ? '(Pengurus)' : '(Staff)'}`,
         birthDate: s.birthDate,
-        component: s.position || (isPengurus ? 'Pengurus Yayasan' : 'Staff Pelayanan'),
-        region: s.division || (isPengurus ? 'Yayasan MMB' : 'Kantor Pusat')
+        component: roleName,
+        region: deptName,
+        displaySub: `${roleName} • ${deptName}`
       };
     });
 
   const pengurusBirthdays = (pengurus || [])
     .filter(p => p.birthDate && !p.deleted)
     .filter(p => !staffBirthdays.some(s => s.id === (p.id || p.nik) || s.fullName.toLowerCase().includes((p.name || '').toLowerCase())))
-    .map(p => ({
-      id: p.id || p.nik,
-      fullName: `${p.name} (Pengurus)`,
-      birthDate: p.birthDate,
-      component: p.position || 'Pengurus Yayasan',
-      region: p.division || 'Yayasan MMB'
-    }));
+    .map(p => {
+      const roleName = p.position || 'Pengurus Yayasan';
+      const deptName = 'Yayasan MMB';
+      return {
+        id: p.id || p.nik,
+        fullName: `${p.name} (Pengurus)`,
+        birthDate: p.birthDate,
+        component: roleName,
+        region: deptName,
+        displaySub: `${roleName} • ${deptName}`
+      };
+    });
 
   const upcomingBirthdays = [...memberBirthdays, ...staffBirthdays, ...pengurusBirthdays]
     .filter(b => {
@@ -525,7 +538,7 @@ export default function DashboardTab({
                               )}
                             </div>
                             <p className="text-xs text-slate-500 mt-0.5 truncate">
-                              {m.component} &bull; Wilayah {m.region}
+                              {m.displaySub}
                             </p>
                           </div>
 
@@ -628,7 +641,7 @@ export default function DashboardTab({
                               )}
                             </div>
                             <p className="text-xs text-slate-500 mt-0.5 truncate">
-                              {m.component} &bull; Wilayah {m.region}
+                              {m.displaySub}
                             </p>
                           </div>
 

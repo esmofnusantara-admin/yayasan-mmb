@@ -26,6 +26,7 @@ router.get('/:colName', authenticateToken, checkCollectionPermission, async (req
         const userEmail = req.user?.email?.toLowerCase().trim();
         const userName = req.user?.name?.toLowerCase().trim();
         dataItems = dataItems.filter(item => {
+          if (item.deleted) return false;
           const staffEmail = item.email?.toLowerCase().trim();
           const staffName = item.name?.toLowerCase().trim();
           const staffPhone = item.phone?.trim();
@@ -46,12 +47,12 @@ router.get('/:colName', authenticateToken, checkCollectionPermission, async (req
         const userEmail = req.user?.email?.toLowerCase().trim();
         const userName = req.user?.name?.toLowerCase().trim();
         
-        // Find matching staff first to find the NIK (search both staff and pengurus)
+        // Find matching staff first to find the NIK (search both staff and pengurus, excluding deleted)
         const allStaffDocs = await dbDriver.getDocs('staff');
         const allPengurusDocs = await dbDriver.getDocs('pengurus');
-        const allStaff = [...allStaffDocs, ...allPengurusDocs];
+        const activeStaff = [...allStaffDocs, ...allPengurusDocs].filter(item => !item.deleted);
 
-        const matchedStaff = allStaff.find(item => {
+        const matchedStaffs = activeStaff.filter(item => {
           const staffEmail = item.email?.toLowerCase().trim();
           const staffName = item.name?.toLowerCase().trim();
           const staffPhone = item.phone?.trim();
@@ -60,12 +61,15 @@ router.get('/:colName', authenticateToken, checkCollectionPermission, async (req
                  (staffPhone && (staffPhone === userEmail || userEmail?.startsWith(staffPhone)));
         });
 
-        if (matchedStaff) {
-          const matchedSalaries = dataItems.filter(item => item.id === matchedStaff.nik);
+        const matchedNiks = matchedStaffs.map(s => s.nik).filter(Boolean);
+
+        if (matchedNiks.length > 0) {
+          const matchedSalaries = dataItems.filter(item => matchedNiks.includes(item.id));
           if (matchedSalaries.length > 0) {
             dataItems = matchedSalaries;
           } else {
-            // Synthesize default salary configuration from matchedStaff properties
+            // Synthesize default salary configuration from matchedStaffs properties
+            const matchedStaff = matchedStaffs[0];
             const defaultComponents: any[] = [];
             if (matchedStaff.allowancePosition) defaultComponents.push({ id: 'allowancePosition', name: 'Tunjangan Jabatan', type: 'allowance', amount: Number(matchedStaff.allowancePosition) });
             if (matchedStaff.allowanceHousing) defaultComponents.push({ id: 'allowanceHousing', name: 'Tunjangan Perumahan', type: 'allowance', amount: Number(matchedStaff.allowanceHousing) });

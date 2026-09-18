@@ -320,6 +320,9 @@ export interface Staff {
   paidAmount?: number;
   lastMonthUnpaid?: number; // Sisa kekurangan / utang gaji bulan lalu
   lastPayrollMonth?: string; // Bulan siklus payroll terakhir (e.g. '2026-06')
+  deleted?: boolean;
+  deletedAt?: string;
+  deletedBy?: string;
 }
 
 export interface CareerHistory {

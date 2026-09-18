@@ -44,10 +44,11 @@ interface StaffMeTabProps {
 }
 
 export default function StaffMeTab({ currentUser, staffs, salaries = [], profile, structures = [] }: StaffMeTabProps) {
-  // Try to find matching staff item based on email, name, or phone number
-  const matchedByEmail = staffs.find(s => s.email?.toLowerCase().trim() === currentUser.email?.toLowerCase().trim());
-  const matchedByName = staffs.find(s => s.name?.toLowerCase().trim().includes(currentUser.name?.toLowerCase().trim()) || currentUser.name?.toLowerCase().trim().includes(s.name?.toLowerCase().trim()));
-  const matchedByPhone = staffs.find(s => s.phone?.trim() === currentUser.email?.split('@')[0] || s.phone?.trim() === currentUser.email || (currentUser as any).phone === s.phone);
+  // Try to find matching staff item based on email, name, or phone number (active staff only)
+  const activeStaffs = staffs.filter(s => !s.deleted);
+  const matchedByEmail = activeStaffs.find(s => s.email?.toLowerCase().trim() === currentUser.email?.toLowerCase().trim());
+  const matchedByName = activeStaffs.find(s => s.name?.toLowerCase().trim().includes(currentUser.name?.toLowerCase().trim()) || currentUser.name?.toLowerCase().trim().includes(s.name?.toLowerCase().trim()));
+  const matchedByPhone = activeStaffs.find(s => s.phone?.trim() === currentUser.email?.split('@')[0] || s.phone?.trim() === currentUser.email || (currentUser as any).phone === s.phone);
   const matchedStaff = matchedByEmail || matchedByName || matchedByPhone || null;
 
   // For users who are not registered in staffs database, provide a beautifully formatted fallback profile
@@ -120,7 +121,7 @@ export default function StaffMeTab({ currentUser, staffs, salaries = [], profile
     ? profile.salaryComponents 
     : DEFAULT_PUBLIC_FIELDS.map(f => ({ id: f.id, name: f.name, type: f.type as 'allowance' | 'deduction', amount: 0 }));
 
-  const rawConfig = salaries.find(sal => sal.id === currentStaff.nik);
+  const rawConfig = salaries.find(sal => sal.id === currentStaff.nik) || (salaries.length === 1 ? salaries[0] : undefined);
   const salaryBase = rawConfig ? rawConfig.salaryBase : (currentStaff?.salaryBase || 0);
 
   const existingComponents = rawConfig ? [...rawConfig.components] : [];

@@ -100,6 +100,11 @@ router.get('/:colName', authenticateToken, checkCollectionPermission, async (req
       }
     }
 
+    if (colName === 'ministry_relations') {
+      const mockIds = new Set(['REL-01', 'REL-02', 'REL-03', 'REL-04', 'REL-05', 'REL-06']);
+      dataItems = dataItems.filter(item => !mockIds.has(item.id));
+    }
+
     const items = dataItems.filter(item => includeDeleted || !item.deleted);
     res.json(items);
   } catch (error: any) {
@@ -113,6 +118,14 @@ router.post('/:colName/:id', authenticateToken, checkCollectionPermission, async
   const { colName, id } = req.params;
   const payload = req.body;
   try {
+    if (colName === 'ministry_relations') {
+      const mockIds = new Set(['REL-01', 'REL-02', 'REL-03', 'REL-04', 'REL-05', 'REL-06']);
+      if (mockIds.has(id)) {
+        res.json({ success: true, message: 'Mock data ignored' });
+        return;
+      }
+    }
+
     const cleaned = cleanObjectForFirestore(payload);
     if (colName === 'staff') {
       const existing = await dbDriver.getDoc(colName, id);

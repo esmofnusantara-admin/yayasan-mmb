@@ -5456,7 +5456,7 @@ export default function SystemTab({
               <div className="pt-3 border-t border-slate-200">
                 <h4 className="font-bold text-slate-900 text-xs mb-2 uppercase tracking-wider flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#0c2340] block"></span>
-                  Pilihan Notifikasi Otomatis
+                  Pilihan Notifikasi Email Tugas
                 </h4>
                 <label className="text-slate-700 font-semibold text-xs flex items-center gap-2 cursor-pointer">
                   <input
@@ -5465,10 +5465,10 @@ export default function SystemTab({
                     onChange={(e) => setSmtpNotifyStaffTasks(e.target.checked)}
                     className="w-4 h-4 text-[#0c2340] rounded border-slate-300 focus:ring-0 cursor-pointer"
                   />
-                  📋 Kirim Notifikasi Email Otomatis saat Penugasan & Program Kerja Staf Ditambahkan
+                  ✉️ Aktifkan Tombol "Kirim Notifikasi Email ke Staf" Manual
                 </label>
                 <p className="text-slate-500 text-[11px] ml-6 mt-0.5">
-                  Setiap kali pengurus menambahkan program kerja / tugas staf baru, email berisi detail tugas, jadwal, dan tautan lampiran akan dikirimkan otomatis ke staf terkait.
+                  Pengurus/staf dapat mengirimkan email penugasan resmi secara manual dengan mengklik tombol ikon surat pada kartu tugas. Notifikasi instan otomatis saat tambah tugas telah dinonaktifkan demi mencegah penumpukan email (anti-spam).
                 </p>
               </div>
 
@@ -5560,15 +5560,15 @@ export default function SystemTab({
             )}
           </div>
 
-          {/* CARD 2: REMINDER & REKAP PROGRAM KERJA PAGI (CRON 07:00 WIB) */}
+          {/* CARD 2: REMINDER & REKAP PROGRAM KERJA PAGI (CRON 08:00 WIB) */}
           <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200">
               <div>
                 <h4 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-slate-700" /> Pengingat Otomatis Program Kerja Pagi (Pukul 07:00 WIB)
+                  <Calendar className="w-3.5 h-3.5 text-slate-700" /> Pengingat Otomatis Tugas & Ulang Tahun (Pukul 08:00 WIB)
                 </h4>
                 <p className="text-slate-500 text-xs mt-0.5">
-                  Scheduler cron server berjalan otomatis setiap hari pukul <strong>07:00 WIB</strong> untuk memeriksa agenda staf:
+                  Scheduler cron server berjalan otomatis setiap hari pukul <strong>08:00 WIB</strong> untuk memeriksa agenda staf & hari ulang tahun:
                 </p>
               </div>
               <button
@@ -5583,29 +5583,34 @@ export default function SystemTab({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[11px] text-slate-700">
               <div className="bg-white p-3 rounded border border-slate-200 space-y-1">
-                <span className="font-bold text-amber-800 block flex items-center gap-1">
-                  ⚠️ Jika Belum Ada Program Kerja
-                </span>
-                <p className="text-slate-600 leading-relaxed">
-                  Email pengingat ramah akan dikirimkan kepada staf agar segera menginput rencana & program kerja hari ini di portal staf.
-                </p>
-              </div>
-              <div className="bg-white p-3 rounded border border-slate-200 space-y-1">
                 <span className="font-bold text-emerald-800 block flex items-center gap-1">
-                  📋 Jika Ada Program Kerja Hari Ini
+                  📋 Duedate Hari Ini
                 </span>
                 <p className="text-slate-600 leading-relaxed">
-                  Email berisi daftar agenda tugas hari ini + status deadline tugas yang harus diselesaikan akan dikirimkan sebagai checklist kerja.
+                  Email rekap dikirimkan hanya kepada staf/pengurus yang memiliki tugas dengan jatuh tempo hari ini sebagai checklist prioritas kerja.
                 </p>
               </div>
               <div className="bg-white p-3 rounded border border-slate-200 space-y-1">
-                <span className="font-bold text-blue-800 block flex items-center gap-1">
-                  📖 Ayat Alkitab Penyemangat
+                <span className="font-bold text-rose-800 block flex items-center gap-1">
+                  ⚠️ Tugas Terlewat 3 Hari
                 </span>
                 <p className="text-slate-600 leading-relaxed">
-                  Setiap email dilengkapi kutipan firman Tuhan motivasional acak untuk memberikan semangat dalam melayani institusi yayasan.
+                  Peringatan keterlambatan dikirimkan khusus untuk tugas yang belum tuntas dan telah melewati deadline selama 3 hari atau lebih.
                 </p>
               </div>
+              <div className="bg-white p-3 rounded border border-slate-200 space-y-1">
+                <span className="font-bold text-pink-700 block flex items-center gap-1">
+                  🎂 Kabar Sukacita Ulang Tahun
+                </span>
+                <p className="text-slate-600 leading-relaxed">
+                  Kabar sukacita dikirimkan ke seluruh staf & pengurus jika ada rekan yang berulang tahun hari ini, lengkap dengan tombol langsung ucapan via WhatsApp & Email.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-2.5 bg-blue-50/70 rounded border border-blue-200 text-[11px] text-blue-900 flex items-center gap-2">
+              <span className="font-bold text-blue-700 shrink-0">🛡️ Aturan Anti-Spam:</span>
+              <span>Staf atau pengurus yang <strong>tidak memiliki</strong> tugas jatuh tempo hari ini dan <strong>tidak memiliki</strong> tugas terlewat 3 hari tidak akan menerima email tugas (sistem tidak mengirimkan email kosong).</span>
             </div>
 
             {/* HASIL SIMULASI REMINDER */}

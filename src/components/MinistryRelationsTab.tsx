@@ -108,33 +108,33 @@ export default function MinistryRelationsTab({
     switch (stage) {
       case 'Kenalan':
         return {
-          headerBg: 'bg-sky-50 border-sky-200 text-sky-900',
-          badge: 'bg-sky-100 text-sky-800 border-sky-300',
-          indicator: 'bg-sky-500'
+          headerBg: 'bg-[#f4f7fb] border-[#d6e0ec] text-[#243e5c]',
+          badge: 'bg-white text-[#243e5c] border-[#d6e0ec]',
+          indicator: 'bg-[#507299]'
         };
       case 'Berelasi':
         return {
-          headerBg: 'bg-amber-50 border-amber-200 text-amber-900',
-          badge: 'bg-amber-100 text-amber-800 border-amber-300',
-          indicator: 'bg-amber-500'
+          headerBg: 'bg-[#fbf7f0] border-[#ebdfcb] text-[#5e4b2d]',
+          badge: 'bg-white text-[#5e4b2d] border-[#ebdfcb]',
+          indicator: 'bg-[#b88f55]'
         };
       case 'Diberitakan Injil':
         return {
-          headerBg: 'bg-purple-50 border-purple-200 text-purple-900',
-          badge: 'bg-purple-100 text-purple-800 border-purple-300',
-          indicator: 'bg-purple-500'
+          headerBg: 'bg-[#f8f5f9] border-[#e6dce8] text-[#533c5e]',
+          badge: 'bg-white text-[#533c5e] border-[#e6dce8]',
+          indicator: 'bg-[#8a6b98]'
         };
       case 'Dimuridkan':
         return {
-          headerBg: 'bg-emerald-50 border-emerald-200 text-emerald-900',
-          badge: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-          indicator: 'bg-emerald-500'
+          headerBg: 'bg-[#f1f6f2] border-[#d4e2d7] text-[#274935]',
+          badge: 'bg-white text-[#274935] border-[#d4e2d7]',
+          indicator: 'bg-[#4f8060]'
         };
       default:
         return {
-          headerBg: 'bg-slate-50 border-slate-200 text-slate-900',
-          badge: 'bg-slate-100 text-slate-800 border-slate-300',
-          indicator: 'bg-slate-500'
+          headerBg: 'bg-slate-50 border-slate-200 text-slate-800',
+          badge: 'bg-white text-slate-700 border-slate-200',
+          indicator: 'bg-slate-400'
         };
     }
   };
@@ -400,40 +400,40 @@ export default function MinistryRelationsTab({
 
       {/* Stage Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-sky-50/70 border border-sky-200 rounded-lg p-3">
-          <div className="flex justify-between items-center text-xs font-semibold text-sky-800">
+        <div className="bg-[#f4f7fb] border border-[#d6e0ec] rounded-lg p-3">
+          <div className="flex justify-between items-center text-xs font-semibold text-[#243e5c]">
             <span>Kenalan</span>
-            <span className="w-2 h-2 rounded-full bg-sky-500"></span>
+            <span className="w-2 h-2 rounded-full bg-[#507299]"></span>
           </div>
-          <div className="text-xl font-bold text-sky-950 mt-1">{countByStage.Kenalan}</div>
-          <div className="text-[10px] text-sky-600 mt-0.5">Kontak pertama & berkenalan</div>
+          <div className="text-xl font-bold text-[#152a42] mt-1">{countByStage.Kenalan}</div>
+          <div className="text-[10px] text-[#5a718c] mt-0.5">Kontak pertama & berkenalan</div>
         </div>
 
-        <div className="bg-amber-50/70 border border-amber-200 rounded-lg p-3">
-          <div className="flex justify-between items-center text-xs font-semibold text-amber-800">
+        <div className="bg-[#fbf7f0] border border-[#ebdfcb] rounded-lg p-3">
+          <div className="flex justify-between items-center text-xs font-semibold text-[#5e4b2d]">
             <span>Berelasi</span>
-            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+            <span className="w-2 h-2 rounded-full bg-[#b88f55]"></span>
           </div>
-          <div className="text-xl font-bold text-amber-950 mt-1">{countByStage.Berelasi}</div>
-          <div className="text-[10px] text-amber-600 mt-0.5">Membangun keakraban & trust</div>
+          <div className="text-xl font-bold text-[#42331c] mt-1">{countByStage.Berelasi}</div>
+          <div className="text-[10px] text-[#7d6745] mt-0.5">Membangun keakraban & trust</div>
         </div>
 
-        <div className="bg-purple-50/70 border border-purple-200 rounded-lg p-3">
-          <div className="flex justify-between items-center text-xs font-semibold text-purple-800">
+        <div className="bg-[#f8f5f9] border border-[#e6dce8] rounded-lg p-3">
+          <div className="flex justify-between items-center text-xs font-semibold text-[#533c5e]">
             <span>Diberitakan Injil</span>
-            <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+            <span className="w-2 h-2 rounded-full bg-[#8a6b98]"></span>
           </div>
-          <div className="text-xl font-bold text-purple-950 mt-1">{countByStage['Diberitakan Injil']}</div>
-          <div className="text-[10px] text-purple-600 mt-0.5">Diskusi iman & kabar baik</div>
+          <div className="text-xl font-bold text-[#3b2844] mt-1">{countByStage['Diberitakan Injil']}</div>
+          <div className="text-[10px] text-[#745a80] mt-0.5">Diskusi iman & kabar baik</div>
         </div>
 
-        <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg p-3">
-          <div className="flex justify-between items-center text-xs font-semibold text-emerald-800">
+        <div className="bg-[#f1f6f2] border border-[#d4e2d7] rounded-lg p-3">
+          <div className="flex justify-between items-center text-xs font-semibold text-[#274935]">
             <span>Dimuridkan</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span className="w-2 h-2 rounded-full bg-[#4f8060]"></span>
           </div>
-          <div className="text-xl font-bold text-emerald-950 mt-1">{countByStage.Dimuridkan}</div>
-          <div className="text-[10px] text-emerald-600 mt-0.5">Masuk KTB & Database Anggota</div>
+          <div className="text-xl font-bold text-[#183323] mt-1">{countByStage.Dimuridkan}</div>
+          <div className="text-[10px] text-[#52775f] mt-0.5">Masuk KTB & Database Anggota</div>
         </div>
       </div>
 
@@ -529,8 +529,8 @@ export default function MinistryRelationsTab({
                           </div>
                           <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold shrink-0 ${
                             rel.gender === 'Perempuan' 
-                              ? 'bg-rose-50 text-rose-700 border border-rose-100' 
-                              : 'bg-sky-50 text-sky-700 border border-sky-100'
+                              ? 'bg-[#fdf2f4] text-[#881337] border border-[#f5d0d8]' 
+                              : 'bg-[#f0f4f9] text-[#243e5c] border border-[#d6e0ec]'
                           }`}>
                             {rel.gender || 'L/P'}
                           </span>
@@ -558,8 +558,8 @@ export default function MinistryRelationsTab({
                           )}
 
                           {rel.targetGroupId && (
-                            <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded px-1.5 py-0.5 text-[10px] font-semibold flex items-center gap-1 mt-1">
-                              <Users className="w-3 h-3 text-emerald-600 shrink-0" />
+                            <div className="bg-[#f1f6f2] text-[#274935] border border-[#d4e2d7] rounded px-1.5 py-0.5 text-[10px] font-semibold flex items-center gap-1 mt-1">
+                              <Users className="w-3 h-3 text-[#4f8060] shrink-0" />
                               <span className="truncate">
                                 {groups.find(g => g.id === rel.targetGroupId)?.name || rel.targetGroupId}
                               </span>
@@ -589,8 +589,8 @@ export default function MinistryRelationsTab({
                           </button>
 
                           {isRegistered && (
-                            <span className="text-emerald-700 font-semibold flex items-center gap-0.5">
-                              <CheckCircle2 className="w-3 h-3" /> Terdaftar Anggota
+                            <span className="text-[#274935] font-semibold flex items-center gap-0.5">
+                              <CheckCircle2 className="w-3 h-3 text-[#4f8060]" /> Terdaftar Anggota
                             </span>
                           )}
                         </div>
@@ -635,15 +635,15 @@ export default function MinistryRelationsTab({
                               </button>
                             ) : (
                               isRegistered ? (
-                                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Terdaftar
+                                <span className="text-[10px] bg-[#f1f6f2] text-[#274935] font-bold px-1.5 py-0.5 rounded border border-[#d4e2d7] flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3 text-[#4f8060]" /> Terdaftar
                                 </span>
                               ) : (
                                 <button
                                   type="button"
                                   title="Daftarkan ke Database Anggota Pelayanan (Staff mengisi sisa data NIK, dsb)"
                                   onClick={() => onRegisterAsMember(rel)}
-                                  className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold cursor-pointer flex items-center gap-1 shadow-2xs transition-colors"
+                                  className="px-2 py-0.5 bg-[#274935] hover:bg-[#1b3425] text-white rounded text-[10px] font-bold cursor-pointer flex items-center gap-1 shadow-2xs transition-colors"
                                 >
                                   <UserPlus className="w-3 h-3" />
                                   <span>Daftar Anggota</span>
@@ -728,11 +728,11 @@ export default function MinistryRelationsTab({
             <div className="flex justify-between items-center pt-3 border-t border-slate-200">
               <div className="text-xs">
                 {isRelationRegisteredAsMember(viewingHistoryRelation) ? (
-                  <span className="text-emerald-700 font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Sudah Terdaftar Resmi di Database Anggota
+                  <span className="text-[#274935] font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#4f8060]" /> Sudah Terdaftar Resmi di Database Anggota
                   </span>
                 ) : (
-                  <span className="text-amber-700 font-medium">Belum terdaftar di Database Anggota</span>
+                  <span className="text-[#7d6745] font-medium">Belum terdaftar di Database Anggota</span>
                 )}
               </div>
 
@@ -745,7 +745,7 @@ export default function MinistryRelationsTab({
                       setViewingHistoryRelation(null);
                       onRegisterAsMember(rel);
                     }}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold cursor-pointer flex items-center gap-1 transition-colors"
+                    className="px-3 py-1.5 bg-[#274935] hover:bg-[#1b3425] text-white rounded text-xs font-semibold cursor-pointer flex items-center gap-1 transition-colors"
                   >
                     <UserPlus className="w-3.5 h-3.5" /> Daftarkan Sekarang
                   </button>

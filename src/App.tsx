@@ -494,20 +494,7 @@ export default function App() {
 
     try {
       const rawData = await safeFetchJson(`/api/data/${colName}?includeDeleted=true&t=${Date.now()}`);
-      let activeData = Array.isArray(rawData) ? rawData.filter((x: any) => !x.deleted) : [];
-      if (colName === 'ministry_relations' && activeData.length === 0 && Array.isArray(initialData) && initialData.length > 0) {
-        for (const item of initialData) {
-          const id = (item as any).id;
-          if (id) {
-            await fetch(`/api/data/${colName}/${id}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...item, deleted: false, createdAt: new Date().toISOString() })
-            }).catch(() => {});
-          }
-        }
-        activeData = initialData;
-      }
+      const activeData = Array.isArray(rawData) ? rawData.filter((x: any) => !x.deleted) : [];
       setter(activeData);
       return activeData as T[];
     } catch (err) {

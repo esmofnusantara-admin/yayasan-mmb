@@ -32,9 +32,11 @@ import {
   CheckSquare,
   Filter,
   SlidersHorizontal,
-  RotateCcw
+  RotateCcw,
+  HeartHandshake,
+  History
 } from 'lucide-react';
-import { Member, MemberNote, PrayerRequest, FollowUpLog, SmallGroup, InstitutionalProfile, Staff } from '../types';
+import { Member, MemberNote, PrayerRequest, FollowUpLog, SmallGroup, InstitutionalProfile, Staff, MinistryRelationStageLog } from '../types';
 import { exportToCSV, exportMemberGrowthReportToPDF } from '../utils/export';
 
 interface MembersTabProps {
@@ -142,6 +144,8 @@ export default function MembersTab({
   const [mentor, setMentor] = useState(''); // Pemimpin Komunitas
   const [staffAdvisor, setStaffAdvisor] = useState('');
   const [statusKeaktifan, setStatusKeaktifan] = useState<'Penjangkauan' | 'Aktif' | 'Pasif' | 'Cuti' | 'Pindah'>('Aktif');
+  const [outreachRelationId, setOutreachRelationId] = useState<string | undefined>(undefined);
+  const [outreachHistory, setOutreachHistory] = useState<MinistryRelationStageLog[] | undefined>(undefined);
 
   // Auto-fill and open member form when prefillMember is supplied (e.g. from Relasi Pelayanan Dimuridkan)
   useEffect(() => {
@@ -166,6 +170,8 @@ export default function MembersTab({
       setMentor(prefillMember.mentor || '');
       setStaffAdvisor(prefillMember.staffAdvisor || '');
       setStatusKeaktifan('Aktif');
+      setOutreachRelationId(prefillMember.outreachRelationId);
+      setOutreachHistory(prefillMember.outreachHistory);
       setIsFormOpen(true);
       if (onClearPrefillMember) {
         onClearPrefillMember();
@@ -284,6 +290,8 @@ export default function MembersTab({
     setMentor('Christian Sitorus');
     setStaffAdvisor(staffs[0]?.name || 'Joseph Daniel');
     setStatusKeaktifan('Aktif');
+    setOutreachRelationId(undefined);
+    setOutreachHistory(undefined);
     setIsFormOpen(true);
   };
 
@@ -325,6 +333,8 @@ export default function MembersTab({
     setMentor(member.mentor || '');
     setStaffAdvisor(member.staffAdvisor || '');
     setStatusKeaktifan(member.statusKeaktifan as any || 'Aktif');
+    setOutreachRelationId(member.outreachRelationId);
+    setOutreachHistory(member.outreachHistory);
     setIsFormOpen(true);
   };
 
@@ -349,37 +359,21 @@ export default function MembersTab({
     };
 
     members.forEach(m => checkId(m.id));
-    notes.forEach(n => checkId(n.memberId));
-    prayerRequests.forEach(p => checkId(p.memberId));
-    followUps.forEach(f => checkId(f.memberId));
 
-    let nextSeq = maxSeq + 1;
-    let candidate = `${prefix}-${currentYear}-${String(nextSeq).padStart(5, '0')}`;
-    while (
-      members.some(m => m.id === candidate) ||
-      notes.some(n => n.memberId === candidate) ||
-      prayerRequests.some(p => p.memberId === candidate) ||
-      followUps.some(f => f.memberId === candidate)
-    ) {
-      nextSeq++;
-      candidate = `${prefix}-${currentYear}-${String(nextSeq).padStart(5, '0')}`;
-    }
-    return candidate;
+    const nextSeq = (maxSeq + 1).toString().padStart(5, '0');
+    return `${prefix}-${currentYear}-${nextSeq}`;
   };
 
   const handleSaveMember = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName || !nickName) {
-      alert('Nama lengkap dan Panggilan wajib diisi!');
+    if (!fullName || !phone) {
+      alert('Nama Lengkap dan Nomor Telepon wajib diisi');
       return;
     }
 
     const matchedIntimateGroup = smallGroups.find(g => g.name === intimateSpaceComm);
 
     if (editingMember) {
-      if (!window.confirm('Apakah Anda yakin ingin menyimpan perubahan data anggota ini?')) {
-        return;
-      }
       const finalRegion = selectedRegions.length > 0 ? selectedRegions.join(', ') : (region || profile?.regions?.[0] || 'Yogyakarta');
       const updated: Member = {
         ...editingMember,
@@ -408,6 +402,8 @@ export default function MembersTab({
         staffAdvisor,
         mentor, // Pemimpin Komunitas
         statusKeaktifan,
+        outreachRelationId: editingMember.outreachRelationId,
+        outreachHistory: editingMember.outreachHistory,
       };
       onUpdateMember(updated);
       if (selectedMember?.id === updated.id) {
@@ -442,7 +438,9 @@ export default function MembersTab({
         staffAdvisor: staffAdvisor || 'Joseph Daniel',
         mentor: mentor || 'Christian Sitorus',
         statusKeaktifan,
-        joinedDate: new Date().toISOString().split('T')[0]
+        joinedDate: new Date().toISOString().split('T')[0],
+        outreachRelationId,
+        outreachHistory,
       };
       onAddMember(newlyCreated);
       setSelectedMember(newlyCreated);
@@ -1503,6 +1501,92 @@ export default function MembersTab({
                       <span className="text-slate-500 block text-[11px]">Staff Pendamping:</span>
                       <span className="text-slate-900 font-medium">{selectedMember.staffAdvisor || '-'}</span>
                     </div>
+                  </div>
+
+                  {/* Riwayat Penjangkauan & Bergabung (Outreach & Registration History) */}
+                  <div className="pt-3 border-t border-slate-200">
+                    <h4 className="text-xs font-bold text-[#0c2340] uppercase tracking-wider mb-2 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <HeartHandshake className="w-3.5 h-3.5 text-[#0c2340]" />
+                        Riwayat Penjangkauan
+                      </span>
+                      {selectedMember.outreachHistory && selectedMember.outreachHistory.length > 0 ? (
+                        <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.2 rounded font-semibold">
+                          Alur Relasi Pelayanan
+                        </span>
+                      ) : (
+                        <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-semibold">
+                          Daftar Langsung
+                        </span>
+                      )}
+                    </h4>
+
+                    {selectedMember.outreachHistory && selectedMember.outreachHistory.length > 0 ? (
+                      <div className="space-y-2 bg-slate-50 border border-slate-200 rounded p-2.5 max-h-52 overflow-y-auto">
+                        {selectedMember.outreachHistory.map((step, idx) => {
+                          const isLast = idx === (selectedMember.outreachHistory?.length || 0) - 1;
+                          return (
+                            <div key={idx} className="flex gap-2 relative text-xs">
+                              {!isLast && (
+                                <div className="absolute left-2.5 top-5 bottom-0 w-0.5 bg-slate-200" />
+                              )}
+                              <div className="w-5 h-5 rounded-full bg-[#0c2340] text-white flex items-center justify-center text-[9px] font-bold shrink-0 z-10">
+                                {idx + 1}
+                              </div>
+                              <div className="flex-1 bg-white border border-slate-200 rounded p-2 text-xs space-y-1 shadow-2xs">
+                                <div className="flex justify-between items-center">
+                                  <span className="font-bold text-slate-900 text-[11px]">{step.stage}</span>
+                                  <span className="text-[10px] text-slate-500 font-mono">{step.date}</span>
+                                </div>
+                                {step.pic && (
+                                  <div className="text-[10px] text-slate-600">
+                                    <span className="text-slate-400">PIC: </span>{step.pic}
+                                  </div>
+                                )}
+                                {step.notes && (
+                                  <p className="text-[10px] text-slate-600 italic bg-slate-50 p-1 rounded border border-slate-100">
+                                    "{step.notes}"
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {/* Final Step: Registered */}
+                        <div className="flex gap-2 relative text-xs pt-1">
+                          <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 z-10">
+                            ✓
+                          </div>
+                          <div className="flex-1 bg-emerald-50/70 border border-emerald-200 rounded p-2 text-xs space-y-0.5">
+                            <div className="flex justify-between items-center">
+                              <span className="font-bold text-emerald-950 text-[11px]">Terdaftar di Database Anggota</span>
+                              <span className="text-[10px] text-emerald-800 font-mono">{selectedMember.joinedDate}</span>
+                            </div>
+                            <div className="text-[10px] text-emerald-700">
+                              Resmi tercatat dan siap mengikuti pembinaan pemuridan.
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-2.5 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-slate-800 flex items-center gap-1">
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                            Pendaftaran Langsung
+                          </span>
+                          <span className="text-[10px] font-mono text-slate-500">{selectedMember.joinedDate}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Anggota ini didaftarkan langsung ke Database Anggota pada tanggal <strong>{selectedMember.joinedDate}</strong> (tanpa melalui alur Relasi Pelayanan).
+                        </p>
+                        <div className="text-[10px] text-slate-600 pt-1 border-t border-slate-200/60 flex justify-between">
+                          <span>Didampingi:</span>
+                          <span className="font-semibold text-slate-800">{selectedMember.staffAdvisor || selectedMember.discipleshipLeader || '-'}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Growth History Preview inside drawer */}

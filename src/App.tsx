@@ -36,6 +36,7 @@ import MMBLogo from './components/MMBLogo';
 const DashboardTab = lazy(() => import('./components/DashboardTab'));
 const MembersTab = lazy(() => import('./components/MembersTab'));
 const SmallGroupsTab = lazy(() => import('./components/SmallGroupsTab'));
+const MinistryRelationsTab = lazy(() => import('./components/MinistryRelationsTab'));
 const FinanceTab = lazy(() => import('./components/FinanceTab'));
 const PartnersTab = lazy(() => import('./components/PartnersTab'));
 const StaffTab = lazy(() => import('./components/StaffTab'));
@@ -112,6 +113,7 @@ interface AuthUser {
 
 const TAB_TO_HASH: Record<string, string> = {
   dashboard: 'dashboard',
+  ministry_relations: 'relasi-pelayanan',
   members: 'members',
   small_groups: 'small-groups',
   finance: 'finance',
@@ -130,8 +132,10 @@ const TAB_TO_HASH: Record<string, string> = {
 
 const HASH_TO_TAB: Record<string, string> = {
   dashboard: 'dashboard',
+  'relasi-pelayanan': 'ministry_relations',
+  'ministry-relations': 'ministry_relations',
+  ministry_relations: 'ministry_relations',
   members: 'members',
-  'relasi-pelayanan': 'small_groups',
   'pemuridan-misional': 'small_groups',
   'small-groups': 'small_groups',
   small_groups: 'small_groups',
@@ -260,6 +264,9 @@ export default function App() {
   const hasFeatureAccess = (feature: string): boolean => {
     if (!currentUser) return false;
     if (feature === 'staff_profile') return true; // Always allow self-profile
+    if (feature === 'ministry_relations') {
+      return hasFeatureAccess('small_groups') || hasFeatureAccess('members');
+    }
     
     // Allow override if the feature is explicitly granted in the user's customized features list
     if (currentUser.features && currentUser.features.includes(feature)) {
@@ -370,7 +377,9 @@ export default function App() {
       mentor: rel.picStaffOrLeader || 'Staf Pembina',
       discipleshipLeader: rel.picStaffOrLeader || 'Staf Pembina',
       staffAdvisor: rel.picStaffOrLeader || 'Staf Pembina',
-      statusKeaktifan: 'Aktif'
+      statusKeaktifan: 'Aktif',
+      outreachRelationId: rel.id,
+      outreachHistory: rel.stageHistory
     });
     setActiveRelationForRegistration(rel);
     navigateTab('members');
@@ -2932,8 +2941,8 @@ if (!res.ok) {
       <div className="flex-1 flex flex-col sm:flex-row relative h-[calc(100vh-53px)] overflow-hidden">
         
         {/* SIDE BAR NAVIGATION RAIL (Left column - Institutional Light Theme) */}
-        <nav className={`sm:w-56 bg-white border-r border-slate-200 p-3 shrink-0 flex flex-col justify-between absolute sm:relative inset-y-0 left-0 z-30 transition-all duration-200 transform sm:translate-x-0 overflow-y-auto ${
-          isMobileMenuOpen ? 'translate-x-0 w-56 shadow-lg' : '-translate-x-full sm:translate-x-0'
+        <nav className={`sm:w-64 bg-white border-r border-slate-200 p-3 shrink-0 flex flex-col justify-between absolute sm:relative inset-y-0 left-0 z-30 transition-all duration-200 transform sm:translate-x-0 overflow-y-auto ${
+          isMobileMenuOpen ? 'translate-x-0 w-64 shadow-lg' : '-translate-x-full sm:translate-x-0'
         }`}>
           
           <div className="space-y-4">
@@ -2985,8 +2994,8 @@ if (!res.ok) {
                 </button>
               )}
 
-              {/* Group: Anggota & Pemuridan (Option A) */}
-              {(hasFeatureAccess('members') || hasFeatureAccess('small_groups')) && (
+              {/* Group: Anggota & Pemuridan (1. Relasi Pelayanan, 2. Database Anggota, 3. Komunitas & Pemuridan) */}
+              {(hasFeatureAccess('members') || hasFeatureAccess('small_groups') || hasFeatureAccess('ministry_relations')) && (
                 <div className="pt-2 pb-1 space-y-1">
                   <div className="flex items-center justify-between px-2.5 py-1 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                     <span className="flex items-center gap-1.5">
@@ -2995,6 +3004,31 @@ if (!res.ok) {
                   </div>
 
                   <div className="space-y-1 pl-1.5 border-l-2 border-slate-200 ml-3">
+                    {/* 1. Relasi Pelayanan */}
+                    {hasFeatureAccess('ministry_relations') && (
+                      <button 
+                        onClick={() => navigateTab('ministry_relations')}
+                        className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded flex items-center justify-between transition-colors cursor-pointer text-left ${
+                          activeTab === 'ministry_relations'
+                            ? 'bg-[#0c2340] text-white shadow-2xs font-bold' 
+                            : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <HeartHandshake className="w-3.5 h-3.5 shrink-0" />
+                          <span>Relasi Pelayanan</span>
+                        </span>
+                        {ministryRelations.length > 0 && (
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold shrink-0 ${
+                            activeTab === 'ministry_relations' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700 border border-blue-200'
+                          }`}>
+                            {ministryRelations.length}
+                          </span>
+                        )}
+                      </button>
+                    )}
+
+                    {/* 2. Database Anggota */}
                     {hasFeatureAccess('members') && (
                       <button 
                         onClick={() => navigateTab('members')}
@@ -3004,8 +3038,9 @@ if (!res.ok) {
                             : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                         }`}
                       >
-                        <span className="flex items-center gap-2 truncate">
-                          <Users className="w-3.5 h-3.5 shrink-0" /> Database Anggota
+                        <span className="flex items-center gap-2">
+                          <Users className="w-3.5 h-3.5 shrink-0" />
+                          <span>Database Anggota</span>
                         </span>
                         <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold shrink-0 ${
                           activeTab === 'members' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
@@ -3015,42 +3050,22 @@ if (!res.ok) {
                       </button>
                     )}
 
+                    {/* 3. Komunitas & Pemuridan */}
                     {hasFeatureAccess('small_groups') && (
                       <button 
-                        onClick={() => navigateSmallGroups('relations')}
+                        onClick={() => navigateTab('small_groups')}
                         className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded flex items-center justify-between transition-colors cursor-pointer text-left ${
-                          activeTab === 'small_groups' && smallGroupsSubView === 'relations'
+                          activeTab === 'small_groups'
                             ? 'bg-[#0c2340] text-white shadow-2xs font-bold' 
                             : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
                         }`}
                       >
-                        <span className="flex items-center gap-2 truncate">
-                          <HeartHandshake className="w-3.5 h-3.5 shrink-0" /> Relasi Pelayanan
-                        </span>
-                        {ministryRelations.length > 0 && (
-                          <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold shrink-0 ${
-                            activeTab === 'small_groups' && smallGroupsSubView === 'relations' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700 border border-blue-200'
-                          }`}>
-                            {ministryRelations.length}
-                          </span>
-                        )}
-                      </button>
-                    )}
-
-                    {hasFeatureAccess('small_groups') && (
-                      <button 
-                        onClick={() => navigateSmallGroups('groups')}
-                        className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded flex items-center justify-between transition-colors cursor-pointer text-left ${
-                          activeTab === 'small_groups' && smallGroupsSubView !== 'relations'
-                            ? 'bg-[#0c2340] text-white shadow-2xs font-bold' 
-                            : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c2340]'
-                        }`}
-                      >
-                        <span className="flex items-center gap-2 truncate">
-                          <BookOpen className="w-3.5 h-3.5 shrink-0" /> Komunitas & Kurikulum
+                        <span className="flex items-center gap-2">
+                          <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                          <span>Komunitas & Pemuridan</span>
                         </span>
                         <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold shrink-0 ${
-                          activeTab === 'small_groups' && smallGroupsSubView !== 'relations' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                          activeTab === 'small_groups' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
                         }`}>
                           {smallGroups.length}
                         </span>
@@ -3281,13 +3296,26 @@ if (!res.ok) {
               />
             )}
 
+            {activeTab === 'ministry_relations' && (
+              <MinistryRelationsTab
+                ministryRelations={ministryRelations}
+                members={members}
+                groups={smallGroups}
+                onAddMinistryRelation={handleAddMinistryRelation}
+                onUpdateMinistryRelation={handleUpdateMinistryRelation}
+                onDeleteMinistryRelation={handleDeleteMinistryRelation}
+                onRegisterAsMember={handleRegisterRelationAsMember}
+                currentRole={currentRole}
+                profile={profile}
+              />
+            )}
+
             {activeTab === 'small_groups' && (
               <SmallGroupsTab 
                 groups={smallGroups}
                 meetings={meetings}
                 materials={materials}
                 members={members}
-                ministryRelations={ministryRelations}
                 onAddGroup={handleAddSmallGroup}
                 onUpdateGroup={handleUpdateSmallGroup}
                 onDeleteGroup={handleDeleteSmallGroup}
@@ -3297,14 +3325,10 @@ if (!res.ok) {
                 onUpdateMeeting={handleUpdateGroupMeeting}
                 onDeleteMeeting={handleDeleteGroupMeeting}
                 onUpdateMember={handleUpdateMember}
-                onAddMinistryRelation={handleAddMinistryRelation}
-                onUpdateMinistryRelation={handleUpdateMinistryRelation}
-                onDeleteMinistryRelation={handleDeleteMinistryRelation}
                 profile={profile}
                 currentRole={currentRole}
-                controlledSubView={smallGroupsSubView}
+                controlledSubView={smallGroupsSubView === 'relations' ? 'groups' : smallGroupsSubView}
                 onSubViewChange={setSmallGroupsSubView}
-                onRegisterAsMember={handleRegisterRelationAsMember}
               />
             )}
 

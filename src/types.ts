@@ -66,6 +66,10 @@ export interface Member {
   intimateSpaceCommunity?: string;
   socialSpaceCommunity?: string;
   committeeRole?: string; // e.g. "Ketua Pengurus Mahasiswa (Core Circle)", "Sekretaris", etc.
+
+  // Outreach & Conversion Track
+  outreachRelationId?: string;
+  outreachHistory?: MinistryRelationStageLog[];
 }
 
 export interface MemberNote {
@@ -137,6 +141,13 @@ export interface MaterialInfo {
   uploadedAt?: string;
 }
 
+export interface MinistryRelationStageLog {
+  stage: MinistryRelationStage;
+  date: string;
+  notes?: string;
+  pic?: string;
+}
+
 export type MinistryRelationStage = 'Kenalan' | 'Berelasi' | 'Diberitakan Injil' | 'Dimuridkan';
 
 export interface MinistryRelation {
@@ -149,6 +160,7 @@ export interface MinistryRelation {
   city?: string;
   region?: string;
   stage: MinistryRelationStage;
+  stageHistory?: MinistryRelationStageLog[];
   picStaffOrLeader: string;
   notes?: string;
   lastContactDate?: string;

@@ -47,11 +47,6 @@ router.post('/', authenticateToken, async (req: any, res: Response) => {
     await dbDriver.setDoc('staff_tasks', id, task);
     await writeAuditLog({ userName, userRole, action: `Tambah Task Staff: ${task.title} (${id}) — ${task.staffName}`, module: 'Program & Rapat Staf' });
 
-    // Kirim notifikasi email ke staf secara background (asinkron)
-    sendStaffTaskNotificationEmail(task, undefined, userName).catch(err => {
-      console.error('[StaffTasks] Background mail notification failed:', err);
-    });
-
     res.json({ success: true, id, task });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });

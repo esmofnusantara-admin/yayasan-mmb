@@ -4,7 +4,6 @@ import path from 'path';
 import { dbDriver } from '../db/driver';
 import { authenticateToken, checkCollectionPermission } from './auth.routes';
 import { cleanObjectForFirestore, syncTransactionSubcollections } from '../services/transaction-sync.service';
-import { sendStaffTaskNotificationEmail } from '../services/mail.service';
 
 const router = Router();
 
@@ -136,13 +135,6 @@ router.post('/:colName/:id', authenticateToken, checkCollectionPermission, async
       }
     }
     await dbDriver.setDoc(colName, id, cleaned);
-
-    if (colName === 'staff_tasks' || colName === 'foundation_tasks') {
-      const user = (req as any).user;
-      sendStaffTaskNotificationEmail(cleaned, undefined, user?.name).catch(err => {
-        console.error(`[DataRoutes] Background ${colName} email notification failed:`, err);
-      });
-    }
 
     res.json({ success: true });
   } catch (error: any) {

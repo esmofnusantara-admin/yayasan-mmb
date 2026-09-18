@@ -748,13 +748,26 @@ export const RichTextViewer: React.FC<RichTextViewerProps> = ({ content, classNa
   const hasHtml = /<[a-z][\s\S]*>/i.test(content);
 
   const handleCopy = () => {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = content;
-    const textToCopy = tempDiv.innerText || tempDiv.textContent || content;
+    try {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      const textToCopy = tempDiv.innerText || tempDiv.textContent || content;
 
-    navigator.clipboard.writeText(textToCopy);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(textToCopy);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = textToCopy;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
   };
 
   return (
@@ -762,7 +775,7 @@ export const RichTextViewer: React.FC<RichTextViewerProps> = ({ content, classNa
       <button
         type="button"
         onClick={handleCopy}
-        className="absolute top-2 right-2 px-2 py-1 bg-white/90 hover:bg-white border border-slate-200 text-slate-600 hover:text-slate-900 rounded text-[10px] font-semibold flex items-center gap-1 shadow-2xs opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer"
+        className="absolute top-0 right-0 px-2.5 py-1 bg-white/95 hover:bg-white border border-slate-200 text-slate-600 hover:text-[#0c2340] rounded text-[10px] font-semibold flex items-center gap-1 shadow-xs opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10 cursor-pointer"
         title="Salin isi notulen ke clipboard"
       >
         {copied ? (
@@ -780,11 +793,11 @@ export const RichTextViewer: React.FC<RichTextViewerProps> = ({ content, classNa
 
       {hasHtml ? (
         <div
-          className={`rich-text-content text-xs text-slate-800 leading-relaxed font-sans ${className}`}
+          className={`rich-text-content text-xs text-slate-800 leading-relaxed font-sans pr-14 ${className}`}
           dangerouslySetInnerHTML={{ __html: content }}
         />
       ) : (
-        <div className={`text-xs text-slate-800 leading-relaxed whitespace-pre-wrap font-sans ${className}`}>
+        <div className={`text-xs text-slate-800 leading-relaxed whitespace-pre-wrap font-sans pr-14 ${className}`}>
           {content}
         </div>
       )}

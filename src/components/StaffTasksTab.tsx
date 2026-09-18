@@ -46,6 +46,7 @@ import {
 } from 'lucide-react';
 import { StaffTask, StaffMeeting, Staff, Member, MemberNote, SmallGroup, InstitutionalProfile } from '../types';
 import { isPengurusMember } from './StaffTab';
+import { RichTextEditor, RichTextViewer } from './RichTextEditor';
 
 interface StaffTasksTabProps {
   targetScope?: 'staff' | 'foundation';
@@ -1018,6 +1019,12 @@ export default function StaffTasksTab({
     e.preventDefault();
     if (!meetingTitle || !meetingDate || !meetingLeaderName) {
       alert('Topik, Tanggal & Pimpinan Rapat wajib diisi!');
+      return;
+    }
+
+    const strippedNotes = meetingNotes ? meetingNotes.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() : '';
+    if (!strippedNotes && !meetingNotes.includes('<table') && !meetingNotes.includes('<img')) {
+      alert('Notulen / Catatan hasil rapat wajib diisi!');
       return;
     }
 
@@ -2468,7 +2475,7 @@ export default function StaffTasksTab({
 
       {viewingMeeting && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
-          <div className="bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[calc(100vh-4rem)] animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[calc(100vh-4rem)] animate-in fade-in zoom-in-95 duration-150">
             <div className="bg-[#0c2340] p-4 text-white flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-slate-300" />
@@ -2485,7 +2492,7 @@ export default function StaffTasksTab({
             <div className="p-5 space-y-4 overflow-y-auto flex-1 text-xs">
               <div className="space-y-0.5">
                 <span className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider block">Topik Agenda Rapat</span>
-                <h2 className="text-xs font-bold text-slate-900 leading-snug">{viewingMeeting.title}</h2>
+                <h2 className="text-sm font-bold text-slate-900 leading-snug">{viewingMeeting.title}</h2>
               </div>
 
               <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded border border-slate-200">
@@ -2533,8 +2540,8 @@ export default function StaffTasksTab({
 
               <div className="space-y-1">
                 <span className="text-[10px] text-slate-500 uppercase font-semibold block">Notulen & Kesepakatan</span>
-                <div className="bg-slate-50 p-3.5 rounded border border-slate-200 text-xs text-slate-800 leading-relaxed whitespace-pre-wrap max-h-56 overflow-y-auto font-sans">
-                  {viewingMeeting.notes}
+                <div className="bg-slate-50 p-4 rounded border border-slate-200 max-h-96 overflow-y-auto">
+                  <RichTextViewer content={viewingMeeting.notes} />
                 </div>
               </div>
 
@@ -3232,7 +3239,7 @@ export default function StaffTasksTab({
       )}
       {isMeetingModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
-          <div className="bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[calc(100vh-4rem)]">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[calc(100vh-4rem)]">
             <div className="bg-[#0c2340] p-4 text-white flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-slate-300" />
@@ -3478,14 +3485,15 @@ export default function StaffTasksTab({
               </div>
 
               <div className="space-y-1">
-                <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">Notulen / Keputusan & Tindakan</label>
-                <textarea
-                  placeholder="Tulis ringkasan hasil rapat, keputusan, rencana lanjutan, dll..."
-                  rows={4}
+                <label className="text-slate-600 font-semibold uppercase tracking-wider text-[9px] block">
+                  Notulen / Keputusan & Tindakan
+                </label>
+                <RichTextEditor
                   value={meetingNotes}
-                  onChange={(e) => setMeetingNotes(e.target.value)}
-                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs outline-none bg-white text-slate-800 leading-relaxed font-sans"
-                  required
+                  onChange={setMeetingNotes}
+                  placeholder="Tulis ringkasan hasil rapat, keputusan, rencana lanjutan, dll..."
+                  title={editingMeeting ? `Notulen: ${editingMeeting.title}` : (isFoundationScope ? "Notulensi Rapat Yayasan" : "Notulensi Rapat Staf")}
+                  minHeight="180px"
                 />
               </div>
 

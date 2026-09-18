@@ -158,18 +158,20 @@ body {
 }
 .rich-text-content ul {
   list-style-type: disc !important;
-  margin-left: 1.25rem !important;
+  padding-left: 1.25rem !important;
+  margin-left: 0.5rem !important;
   margin-top: 0.25rem !important;
   margin-bottom: 0.5rem !important;
 }
 .rich-text-content ol {
   list-style-type: decimal !important;
-  margin-left: 1.25rem !important;
+  padding-left: 1.25rem !important;
+  margin-left: 0.5rem !important;
   margin-top: 0.25rem !important;
   margin-bottom: 0.5rem !important;
 }
 .rich-text-content li {
-  margin-bottom: 0.125rem;
+  margin-bottom: 0.25rem;
 }
 .rich-text-content blockquote {
   border-left: 3px solid #0c2340;

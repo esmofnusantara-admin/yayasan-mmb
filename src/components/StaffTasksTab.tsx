@@ -17,6 +17,7 @@ import {
   X,
   PlusCircle,
   FileDown,
+  ChevronLeft,
   ChevronRight,
   TrendingUp,
   ArrowLeft,
@@ -276,6 +277,102 @@ export const formatTaskPeriodBadge = (task: {
   };
 };
 
+export const getTaskEffectiveDates = (task: {
+  targetDate?: string;
+  startDate?: string;
+  endDate?: string;
+  time?: string;
+  createdAt?: string;
+}): { startStr: string; endStr: string } => {
+  let startStr = task.startDate || '';
+  let endStr = task.endDate || '';
+
+  if (!startStr) {
+    const tDate = task.targetDate || '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(tDate)) {
+      startStr = tDate;
+    } else if (/^\d{4}-\d{2}-W\d+$/.test(tDate)) {
+      const match = tDate.match(/^(\d{4})-(\d{2})-W(\d+)$/);
+      if (match) {
+        const y = parseInt(match[1], 10);
+        const m = parseInt(match[2], 10);
+        const w = parseInt(match[3], 10);
+        const startDay = (w - 1) * 7 + 1;
+        startStr = `${y}-${String(m).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
+        const lastDayOfMonth = new Date(y, m, 0).getDate();
+        endStr = `${y}-${String(m).padStart(2, '0')}-${String(Math.min(w * 7, lastDayOfMonth)).padStart(2, '0')}`;
+      }
+    } else if (/^\d{4}-\d{2}$/.test(tDate)) {
+      startStr = `${tDate}-01`;
+      const [y, m] = tDate.split('-').map(Number);
+      const lastDay = new Date(y, m, 0).getDate();
+      endStr = `${tDate}-${String(lastDay).padStart(2, '0')}`;
+    } else if (/^\d{4}$/.test(tDate)) {
+      startStr = `${tDate}-01-01`;
+      endStr = `${tDate}-12-31`;
+    }
+
+    if (!startStr && task.createdAt) {
+      startStr = task.createdAt.substring(0, 10);
+    }
+  }
+
+  if (!endStr) {
+    endStr = startStr;
+  }
+
+  return { startStr, endStr };
+};
+
+export const compareTasksByDateAsc = (a: StaffTask, b: StaffTask): number => {
+  const aDates = getTaskEffectiveDates(a);
+  const bDates = getTaskEffectiveDates(b);
+
+  const aDateStr = aDates.startStr || a.createdAt || '';
+  const bDateStr = bDates.startStr || b.createdAt || '';
+
+  const dateCmp = aDateStr.localeCompare(bDateStr);
+  if (dateCmp !== 0) return dateCmp;
+
+  const aTime = a.time || '00:00';
+  const bTime = b.time || '00:00';
+  const timeCmp = aTime.localeCompare(bTime);
+  if (timeCmp !== 0) return timeCmp;
+
+  return (a.title || '').localeCompare(b.title || '');
+};
+
+export const compareTasksByDateDesc = (a: StaffTask, b: StaffTask): number => {
+  return compareTasksByDateAsc(b, a);
+};
+
+export const getTaskDaysOverdue = (task: {
+  targetDate?: string;
+  startDate?: string;
+  endDate?: string;
+  createdAt?: string;
+}): { diffDays: number; isOverdue: boolean; targetDateStr: string } | null => {
+  const { endStr, startStr } = getTaskEffectiveDates(task);
+  const compDateStr = endStr || startStr;
+  if (!compDateStr || compDateStr.length < 10) return null;
+
+  const parts = compDateStr.substring(0, 10).split('-').map(Number);
+  if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return null;
+
+  const target = new Date(parts[0], parts[1] - 1, parts[2]);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const diffTime = today.getTime() - target.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  return {
+    diffDays,
+    isOverdue: diffDays > 0,
+    targetDateStr: compDateStr
+  };
+};
+
 const GDRIVE_FOLDER_URL = "https://drive.google.com/drive/folders/1UeWgBx8r7jP9I03XO4r-1xtTmDER5x4t?usp=drive_link";
 const MAX_DIRECT_UPLOAD_MB = 1;
 const MAX_DIRECT_UPLOAD_BYTES = MAX_DIRECT_UPLOAD_MB * 1024 * 1024;
@@ -338,6 +435,13 @@ export default function StaffTasksTab({
   // Filters within staff task details archive section
   const [taskMonthFilter, setTaskMonthFilter] = useState<string>('Semua');
   const [taskYearFilter, setTaskYearFilter] = useState<string>('Semua');
+  const [archiveSearch, setArchiveSearch] = useState<string>('');
+  const [archivePage, setArchivePage] = useState<number>(1);
+  const ARCHIVE_PAGE_SIZE = 5;
+
+  useEffect(() => {
+    setArchivePage(1);
+  }, [taskYearFilter, taskMonthFilter, archiveSearch, selectedStaff?.nik]);
 
   // Rapat Search & Date Range state
   const [meetingSearch, setMeetingSearch] = useState('');
@@ -1035,12 +1139,12 @@ export default function StaffTasksTab({
 
   // Split tasks for selected staff member:
   // 1. Ongoing Tasks: Not Completed OR (Completed AND target date is in current month)
-  // 2. Archived Tasks: All Completed tasks, filterable by Year and Month
+  // 2. Archived Tasks: All Completed tasks, filterable by Year, Month, and Search Query
   const allSelectedStaffTasks = selectedStaff
     ? staffTasks.filter(t => t.staffNik === selectedStaff.nik)
     : [];
 
-  const ongoingTasks = allSelectedStaffTasks.filter(t => {
+  const rawOngoingTasks = allSelectedStaffTasks.filter(t => {
     const isCompleted = t.status === 'Selesai';
     const tMonth = getTaskMonth(t);
     const tYear = getTaskYear(t);
@@ -1048,6 +1152,18 @@ export default function StaffTasksTab({
 
     return !isCompleted || isCurrentMonth;
   });
+
+  // 1. Belum selesai diurutkan dari tanggal paling lama (prioritas utama di atas)
+  const uncompletedOngoingTasks = rawOngoingTasks
+    .filter(t => t.status !== 'Selesai')
+    .sort(compareTasksByDateAsc);
+
+  // 2. Sudah selesai dipindahkan ke bawah dan diurutkan dari tanggal juga
+  const completedOngoingTasks = rawOngoingTasks
+    .filter(t => t.status === 'Selesai')
+    .sort(compareTasksByDateAsc);
+
+  const ongoingTasks = [...uncompletedOngoingTasks, ...completedOngoingTasks];
 
   const archivedTasks = allSelectedStaffTasks.filter(t => {
     const isCompleted = t.status === 'Selesai';
@@ -1060,8 +1176,20 @@ export default function StaffTasksTab({
     const matchesMonth = taskMonthFilter === 'Semua' || tMonth === parseInt(taskMonthFilter, 10);
     const matchesYear = taskYearFilter === 'Semua' || tYear === parseInt(taskYearFilter, 10);
 
-    return matchesMonth && matchesYear;
-  });
+    const q = archiveSearch.trim().toLowerCase();
+    const matchesSearch = !q ||
+      (t.title || '').toLowerCase().includes(q) ||
+      (t.notes || '').toLowerCase().includes(q);
+
+    return matchesMonth && matchesYear && matchesSearch;
+  }).sort(compareTasksByDateDesc);
+
+  const totalArchivePages = Math.max(1, Math.ceil(archivedTasks.length / ARCHIVE_PAGE_SIZE));
+  const safeArchivePage = Math.min(archivePage, totalArchivePages);
+  const paginatedArchivedTasks = archivedTasks.slice(
+    (safeArchivePage - 1) * ARCHIVE_PAGE_SIZE,
+    safeArchivePage * ARCHIVE_PAGE_SIZE
+  );
 
   // Filter Meetings with Date Range support
   const filteredMeetings = staffMeetings.filter(m => {
@@ -1402,6 +1530,8 @@ export default function StaffTasksTab({
                           setSelectedStaff(st);
                           setTaskMonthFilter('Semua');
                           setTaskYearFilter('Semua');
+                          setArchiveSearch('');
+                          setArchivePage(1);
                         }}
                         className="w-full py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-300 text-slate-700 font-semibold text-xs rounded flex items-center justify-center gap-1 transition-colors cursor-pointer shadow-xs"
                       >
@@ -1441,13 +1571,15 @@ export default function StaffTasksTab({
                 ]
                   .filter(col => filterStatus === 'ALL' || col.status === filterStatus)
                   .map((col) => {
-                    const colTasks = staffTasks.filter(t => {
-                      if (t.status !== col.status) return false;
-                      if (!matchesStaffFilter(t)) return false;
-                      if (!matchesPeriodFilter(t)) return false;
-                      if (!matchesSearchFilter(t)) return false;
-                      return true;
-                    });
+                    const colTasks = staffTasks
+                      .filter(t => {
+                        if (t.status !== col.status) return false;
+                        if (!matchesStaffFilter(t)) return false;
+                        if (!matchesPeriodFilter(t)) return false;
+                        if (!matchesSearchFilter(t)) return false;
+                        return true;
+                      })
+                      .sort(compareTasksByDateAsc);
 
                     return (
                       <div key={col.status} className="bg-slate-50/80 rounded-lg border border-slate-200 p-3 space-y-3">
@@ -1471,11 +1603,17 @@ export default function StaffTasksTab({
                               const pInfo = formatTaskPeriodBadge(task);
                               const isOwnTask = matchedCurrentStaff && task.staffNik === matchedCurrentStaff.nik;
                               const canModify = isSuperAdmin || isOwnTask;
+                              const overdueInfo = getTaskDaysOverdue(task);
+                              const isTaskOverdue = task.status !== 'Selesai' && overdueInfo && overdueInfo.diffDays > 0;
 
                               return (
                                 <div
                                   key={task.id}
-                                  className="bg-white p-3.5 rounded-lg border border-slate-200 hover:border-slate-300 shadow-xs space-y-2.5 transition-all"
+                                  className={`bg-white p-3.5 rounded-lg border ${
+                                    isTaskOverdue
+                                      ? 'border-rose-300 border-l-4 border-l-rose-500 bg-rose-50/15'
+                                      : 'border-slate-200'
+                                  } hover:border-slate-300 shadow-xs space-y-2.5 transition-all`}
                                 >
                                   <div className="flex items-center justify-between">
                                     <span className={`px-2 py-0.5 rounded text-[9px] font-semibold uppercase border flex items-center gap-1 ${pInfo.badge}`}>
@@ -1489,9 +1627,38 @@ export default function StaffTasksTab({
 
                                   <div className="space-y-1">
                                     <h5 className="font-bold text-slate-900 text-xs leading-snug">{task.title}</h5>
-                                    <p className="text-[10px] text-slate-600 font-medium">
-                                      {pInfo.dateRangeText}
-                                    </p>
+                                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                      <p className="text-[10px] text-slate-600 font-medium">
+                                        {pInfo.dateRangeText}
+                                      </p>
+                                      {/* Overdue / Due indicator */}
+                                      {overdueInfo && (
+                                        task.status !== 'Selesai' ? (
+                                          overdueInfo.diffDays > 0 ? (
+                                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                                              <AlertCircle className="w-2.5 h-2.5 text-rose-600 shrink-0" />
+                                              Lewat {overdueInfo.diffDays} hari
+                                            </span>
+                                          ) : overdueInfo.diffDays === 0 ? (
+                                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                              <Clock className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                                              Hari ini
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium text-slate-500 bg-slate-100 border border-slate-200">
+                                              {Math.abs(overdueInfo.diffDays)} hari lagi
+                                            </span>
+                                          )
+                                        ) : (
+                                          overdueInfo.diffDays > 0 ? (
+                                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200">
+                                              <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                                              {overdueInfo.diffDays} hari lalu
+                                            </span>
+                                          ) : null
+                                        )
+                                      )}
+                                    </div>
                                     {task.notes && (
                                       <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed">
                                         {task.notes}
@@ -1706,7 +1873,11 @@ export default function StaffTasksTab({
           <div className="bg-[#0c2340] text-white p-5 rounded-lg border border-slate-700 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="space-y-2">
               <button
-                onClick={() => setSelectedStaff(null)}
+                onClick={() => {
+                  setSelectedStaff(null);
+                  setArchiveSearch('');
+                  setArchivePage(1);
+                }}
                 className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white font-semibold transition-colors cursor-pointer bg-slate-800/80 px-2.5 py-1 rounded border border-slate-700 shadow-xs"
               >
                 <ArrowLeft className="w-3.5 h-3.5" /> Kembali ke Daftar Staf
@@ -1751,11 +1922,18 @@ export default function StaffTasksTab({
                       Tidak ada kegiatan berjalan atau belum selesai.
                     </div>
                   ) : (
-                    ongoingTasks.map(task => {
+                    ongoingTasks.map((task, taskIdx) => {
                       const isOwnTask = matchedCurrentStaff && task.staffNik === matchedCurrentStaff.nik;
                       const canModify = isSuperAdmin || isOwnTask;
                       const parentTask = staffTasks.find(x => x.id === task.parentTaskId);
                       const pInfo = formatTaskPeriodBadge(task);
+                      const overdueInfo = getTaskDaysOverdue(task);
+
+                      // Separator marker for the first completed task below uncompleted ones
+                      const isFirstCompleted =
+                        task.status === 'Selesai' &&
+                        uncompletedOngoingTasks.length > 0 &&
+                        taskIdx === uncompletedOngoingTasks.length;
 
                       const getBorderClass = (st: StaffTask['status']) => {
                         switch (st) {
@@ -1767,37 +1945,66 @@ export default function StaffTasksTab({
                       };
 
                       return (
-                        <div key={task.id} className={`p-4 rounded-lg border border-slate-200 space-y-2.5 relative hover:border-slate-300 transition-colors ${getBorderClass(task.status)}`}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5">
-                              <span className={`px-2 py-0.5 rounded font-semibold text-[9px] uppercase border flex items-center gap-1 ${pInfo.badge}`}>
-                                <span>{pInfo.icon}</span>
-                                <span>{pInfo.label}</span>
+                        <React.Fragment key={task.id}>
+                          {isFirstCompleted && (
+                            <div className="pt-3 pb-1 flex items-center gap-2">
+                              <div className="h-px bg-slate-200 flex-1"></div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                                <CheckCircle className="w-3 h-3 text-emerald-600" /> Selesai Bulan Ini ({completedOngoingTasks.length})
                               </span>
-                              <span className="text-[10px] text-slate-600 font-mono font-semibold">
-                                {pInfo.dateRangeText}
-                              </span>
+                              <div className="h-px bg-slate-200 flex-1"></div>
+                            </div>
+                          )}
+
+                          <div className={`p-4 rounded-lg border border-slate-200 space-y-2.5 relative hover:border-slate-300 transition-colors ${getBorderClass(task.status)}`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className={`px-2 py-0.5 rounded font-semibold text-[9px] uppercase border flex items-center gap-1 ${pInfo.badge}`}>
+                                  <span>{pInfo.icon}</span>
+                                  <span>{pInfo.label}</span>
+                                </span>
+                                <span className="text-[10px] text-slate-600 font-mono font-semibold">
+                                  {pInfo.dateRangeText}
+                                </span>
+                                {/* Overdue / Target indicator for uncompleted tasks */}
+                                {task.status !== 'Selesai' && overdueInfo && (
+                                  overdueInfo.diffDays > 0 ? (
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                                      <AlertCircle className="w-2.5 h-2.5 text-rose-600 shrink-0" />
+                                      Lewat {overdueInfo.diffDays} hari
+                                    </span>
+                                  ) : overdueInfo.diffDays === 0 ? (
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                      <Clock className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                                      Hari ini
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium text-slate-500 bg-slate-100 border border-slate-200">
+                                      {Math.abs(overdueInfo.diffDays)} hari lagi
+                                    </span>
+                                  )
+                                )}
+                              </div>
+
+                              {/* Status Quick Switcher Dropdown */}
+                              <select
+                                value={task.status}
+                                onChange={(e) => handleQuickUpdateStatus(task, e.target.value as any)}
+                                className={`px-2 py-0.5 rounded text-[10px] font-semibold border outline-none cursor-pointer ${task.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                                  task.status === 'Dalam Proses' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                                    task.status === 'Tertunda' ? 'bg-rose-50 text-rose-800 border-rose-200' :
+                                      'bg-slate-100 text-slate-800 border-slate-200'
+                                  }`}
+                              >
+                                <option value="Belum Mulai">⚪ Belum Mulai</option>
+                                <option value="Dalam Proses">🟡 Dalam Proses</option>
+                                <option value="Selesai">🟢 Selesai</option>
+                                <option value="Tertunda">🔴 Tertunda</option>
+                              </select>
                             </div>
 
-                            {/* Status Quick Switcher Dropdown */}
-                            <select
-                              value={task.status}
-                              onChange={(e) => handleQuickUpdateStatus(task, e.target.value as any)}
-                              className={`px-2 py-0.5 rounded text-[10px] font-semibold border outline-none cursor-pointer ${task.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                                task.status === 'Dalam Proses' ? 'bg-amber-50 text-amber-800 border-amber-200' :
-                                  task.status === 'Tertunda' ? 'bg-rose-50 text-rose-800 border-rose-200' :
-                                    'bg-slate-100 text-slate-800 border-slate-200'
-                                }`}
-                            >
-                              <option value="Belum Mulai">⚪ Belum Mulai</option>
-                              <option value="Dalam Proses">🟡 Dalam Proses</option>
-                              <option value="Selesai">🟢 Selesai</option>
-                              <option value="Tertunda">🔴 Tertunda</option>
-                            </select>
-                          </div>
-
-                          <div className="space-y-0.5">
-                            <h4 className="font-bold text-slate-900 text-xs leading-snug">{task.title}</h4>
+                            <div className="space-y-0.5">
+                              <h4 className="font-bold text-slate-900 text-xs leading-snug">{task.title}</h4>
                             {task.notes && (
                               <p className="text-slate-600 text-[11px] leading-relaxed">{task.notes}</p>
                             )}
@@ -1862,18 +2069,45 @@ export default function StaffTasksTab({
                             </div>
                           )}
                         </div>
-                      );
-                    })
-                  )}
+                      </React.Fragment>
+                    );
+                  })
+                )}
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
-              <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
-                  <Archive className="w-4 h-4 text-slate-700" />
-                  <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Riwayat Kegiatan (Arsip)</h3>
+              <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-3.5">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Archive className="w-4 h-4 text-slate-700" />
+                    <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Riwayat Kegiatan (Arsip)</h3>
+                  </div>
+                  <span className="text-[10px] font-mono font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    {archivedTasks.length} Arsip
+                  </span>
+                </div>
+
+                {/* Quick Search within Archive */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
+                  <input
+                    type="text"
+                    placeholder="Cari judul/catatan arsip..."
+                    value={archiveSearch}
+                    onChange={(e) => setArchiveSearch(e.target.value)}
+                    className="w-full pl-8 pr-7 py-1 text-xs border border-slate-300 rounded bg-white text-slate-800 focus:outline-none focus:border-[#0c2340]"
+                  />
+                  {archiveSearch && (
+                    <button
+                      onClick={() => setArchiveSearch('')}
+                      className="absolute right-2 top-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      title="Hapus pencarian arsip"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
@@ -1906,19 +2140,21 @@ export default function StaffTasksTab({
                   </div>
                 </div>
 
-                <div className="space-y-2.5 max-h-[480px] overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-[440px] overflow-y-auto pr-1">
                   {archivedTasks.length === 0 ? (
                     <div className="p-6 text-center text-slate-500 text-xs italic">
-                      Belum ada arsip kegiatan selesai pada periode ini.
+                      {archiveSearch.trim()
+                        ? `Tidak ada arsip kegiatan yang cocok dengan "${archiveSearch}".`
+                        : 'Belum ada arsip kegiatan selesai pada periode ini.'}
                     </div>
                   ) : (
-                    archivedTasks.map(task => {
+                    paginatedArchivedTasks.map(task => {
                       const isOwnTask = matchedCurrentStaff && task.staffNik === matchedCurrentStaff.nik;
                       const canModify = isSuperAdmin || isOwnTask;
                       const pInfo = formatTaskPeriodBadge(task);
 
                       return (
-                        <div key={task.id} className="bg-emerald-50/30 p-3.5 rounded-lg border-l-4 border-emerald-600 border-r border-y border-emerald-200 shadow-xs space-y-1.5 relative">
+                        <div key={task.id} className="bg-emerald-50/30 p-3 rounded-lg border-l-4 border-emerald-600 border-r border-y border-emerald-200 shadow-xs space-y-1.5 relative">
                           <div className="flex items-center justify-between text-[10px]">
                             <span className="font-semibold text-slate-600 font-mono">{pInfo.dateRangeText}</span>
                             <span className="font-semibold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded border border-emerald-200">Arsip Selesai</span>
@@ -1926,7 +2162,13 @@ export default function StaffTasksTab({
 
                           <h5 className="font-bold text-slate-900 text-xs leading-tight">{task.title}</h5>
 
-                          <div className="flex flex-wrap gap-1.5 pt-1">
+                          {task.notes && (
+                            <p className="text-[10px] text-slate-600 line-clamp-2 leading-relaxed">
+                              {task.notes}
+                            </p>
+                          )}
+
+                          <div className="flex flex-wrap gap-1.5 pt-0.5">
                             {task.attachmentUrl && task.attachmentName && (
                               <a
                                 href={`/api/documents/download/${task.attachmentUrl}?token=${getSessionUserToken()}`}
@@ -1971,6 +2213,31 @@ export default function StaffTasksTab({
                     })
                   )}
                 </div>
+
+                {/* Pagination Controls for Archive */}
+                {totalArchivePages > 1 && (
+                  <div className="pt-2.5 border-t border-slate-200 flex items-center justify-between text-xs">
+                    <button
+                      onClick={() => setArchivePage(prev => Math.max(1, prev - 1))}
+                      disabled={safeArchivePage === 1}
+                      className="px-2 py-1 rounded bg-slate-50 border border-slate-300 text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-0.5 text-[11px] font-semibold cursor-pointer transition-colors"
+                    >
+                      <ChevronLeft className="w-3 h-3" /> Prev
+                    </button>
+
+                    <span className="text-[11px] text-slate-600 font-medium">
+                      Hal <strong className="font-bold text-slate-900">{safeArchivePage}</strong> dari {totalArchivePages}
+                    </span>
+
+                    <button
+                      onClick={() => setArchivePage(prev => Math.min(totalArchivePages, prev + 1))}
+                      disabled={safeArchivePage === totalArchivePages}
+                      className="px-2 py-1 rounded bg-slate-50 border border-slate-300 text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-0.5 text-[11px] font-semibold cursor-pointer transition-colors"
+                    >
+                      Next <ChevronRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

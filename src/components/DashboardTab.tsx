@@ -34,6 +34,7 @@ interface DashboardTabProps {
   onOpenQuickMember: () => void;
   profile?: any;
   staffs?: Staff[];
+  pengurus?: Staff[];
   hasFeatureAccess: (feature: string) => boolean;
   currentRole?: string;
 }
@@ -50,6 +51,7 @@ export default function DashboardTab({
   onOpenQuickMember,
   profile,
   staffs = [],
+  pengurus = [],
   hasFeatureAccess,
   currentRole = 'Staff',
 }: DashboardTabProps) {
@@ -129,28 +131,43 @@ export default function DashboardTab({
   const currentMonthNumStr = currentMonthNum < 10 ? `0${currentMonthNum}` : `${currentMonthNum}`;
   const monthName = new Date().toLocaleString('id-ID', { month: 'long' });
 
-  const memberBirthdays = members
-    .filter(m => m.birthDate)
+  const memberBirthdays = (members || [])
+    .filter(m => m.birthDate && !m.deleted)
     .map(m => ({
       id: m.id,
-      fullName: m.fullName,
+      fullName: m.fullName || m.nickName || '',
       birthDate: m.birthDate,
-      component: m.component,
-      region: m.region
+      component: m.component || 'Anggota',
+      region: m.region ? `Wilayah ${m.region}` : 'Komunitas MMB'
     }));
 
   const staffBirthdays = (staffs || [])
-    .filter(s => s.birthDate)
-    .map(s => ({
-      id: s.id || s.nik,
-      fullName: `${s.name} (Staff)`,
-      birthDate: s.birthDate,
-      component: 'Staff Pelayanan',
-      region: s.division || 'Kantor Pusat'
+    .filter(s => s.birthDate && !s.deleted)
+    .map(s => {
+      const isPengurus = s.category === 'Pengurus' || (s.position && /pengurus|pembina|pengawas|ketua|sekretaris|bendahara/i.test(s.position));
+      return {
+        id: s.id || s.nik,
+        fullName: `${s.name} ${isPengurus ? '(Pengurus)' : '(Staff)'}`,
+        birthDate: s.birthDate,
+        component: s.position || (isPengurus ? 'Pengurus Yayasan' : 'Staff Pelayanan'),
+        region: s.division || (isPengurus ? 'Yayasan MMB' : 'Kantor Pusat')
+      };
+    });
+
+  const pengurusBirthdays = (pengurus || [])
+    .filter(p => p.birthDate && !p.deleted)
+    .filter(p => !staffBirthdays.some(s => s.id === (p.id || p.nik) || s.fullName.toLowerCase().includes((p.name || '').toLowerCase())))
+    .map(p => ({
+      id: p.id || p.nik,
+      fullName: `${p.name} (Pengurus)`,
+      birthDate: p.birthDate,
+      component: p.position || 'Pengurus Yayasan',
+      region: p.division || 'Yayasan MMB'
     }));
 
-  const upcomingBirthdays = [...memberBirthdays, ...staffBirthdays]
+  const upcomingBirthdays = [...memberBirthdays, ...staffBirthdays, ...pengurusBirthdays]
     .filter(b => {
+      if (!b.birthDate) return false;
       const parts = b.birthDate.split('-');
       return parts.length >= 2 && parts[1] === currentMonthNumStr;
     })
@@ -476,7 +493,7 @@ export default function DashboardTab({
                     {monthName}
                   </span>
                 </div>
-                <p className="text-slate-500 text-xs mb-3">Daftar anggota yang berulang tahun pada bulan ini</p>
+                <p className="text-slate-500 text-xs mb-3">Daftar anggota, staf & pengurus yang berulang tahun pada bulan ini</p>
                 
                 {upcomingBirthdays.length === 0 ? (
                   <div className="text-center py-5 text-slate-400 text-xs italic">
@@ -579,7 +596,7 @@ export default function DashboardTab({
                     {monthName}
                   </span>
                 </div>
-                <p className="text-slate-500 text-xs mb-3">Daftar anggota yang berulang tahun pada bulan ini</p>
+                <p className="text-slate-500 text-xs mb-3">Daftar anggota, staf & pengurus yang berulang tahun pada bulan ini</p>
                 
                 {upcomingBirthdays.length === 0 ? (
                   <div className="text-center py-5 text-slate-400 text-xs italic">

@@ -649,7 +649,7 @@ export default function App() {
   };
 
   const TAB_REQUIRED_COLLECTIONS: Record<string, string[]> = {
-    dashboard: ['members', 'transactions', 'partners', 'small_groups', 'approvals', 'audits', 'staff', 'ministry_relations'],
+    dashboard: ['members', 'transactions', 'partners', 'small_groups', 'approvals', 'audits', 'staff', 'pengurus', 'ministry_relations'],
     ministry_relations: ['ministry_relations', 'members', 'small_groups', 'staff'],
     members: ['members', 'small_groups', 'member_notes', 'prayer_requests', 'follow_ups', 'ministry_relations', 'staff'],
     small_groups: ['small_groups', 'meeting_logs', 'materials', 'members', 'ministry_relations'],
@@ -3264,6 +3264,7 @@ if (!res.ok) {
                 onOpenQuickMember={() => { navigateTab('members'); setTimeout(() => alert('Silakan klik tombol "Registrasi Anggota" di kanan atas.'), 400); }}
                 profile={profile}
                 staffs={staffs}
+                pengurus={pengurus}
                 hasFeatureAccess={hasFeatureAccess}
                 currentRole={profile?.role}
               />

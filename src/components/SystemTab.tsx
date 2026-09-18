@@ -755,7 +755,17 @@ export default function SystemTab({
 
   // Dynamic dropdown lists
   const [regions, setRegions] = useState<string[]>(profile.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]);
-  const [materialCategories, setMaterialCategories] = useState<string[]>(profile.materialCategories || ["Materi Dasar / Siswa", "Siswa & Mahasiswa", "Alumni", "Pelatihan Pemimpin (PKK)", "Materi Umum / Publik"]);
+  const [materialCategories, setMaterialCategories] = useState<string[]>(profile.materialCategories || [
+    "Character (Karakter)",
+    "Wisdom (Hikmat)",
+    "Theology (Teologi)",
+    "Missional Living (Misi & Vokasi)",
+    "Materi Dasar / Siswa",
+    "Siswa & Mahasiswa",
+    "Alumni",
+    "Pelatihan Pemimpin (PKK)",
+    "Materi Umum / Publik"
+  ]);
   const [incomeAllocations, setIncomeAllocations] = useState<string[]>(profile.incomeAllocations || ["Gaji / Operasional", "Peralatan", "Kegiatan Khusus", "Lainnya"]);
   const [meetingDays, setMeetingDays] = useState<string[]>(profile.meetingDays || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]);
   const [memberKeaktifanStatuses, setMemberKeaktifanStatuses] = useState<string[]>(profile.memberKeaktifanStatuses || ["Penjangkauan", "Aktif", "Pasif", "Cuti", "Pindah"]);
@@ -941,9 +951,18 @@ export default function SystemTab({
         logoUrl === (last.logoUrl || '') &&
         JSON.stringify(customSignatures) === JSON.stringify(last.customSignatures || []) &&
         systemTitle === (last.systemTitle || 'MMB FMS') &&
-        dashboardTitle === (last.dashboardTitle || 'Institutional Executive ERP') &&
         JSON.stringify(regions) === JSON.stringify(last.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]) &&
-        JSON.stringify(materialCategories) === JSON.stringify(last.materialCategories || ["Materi Dasar / Siswa", "Siswa & Mahasiswa", "Alumni", "Pelatihan Pemimpin (PKK)", "Materi Umum / Publik"]) &&
+        JSON.stringify(materialCategories) === JSON.stringify(last.materialCategories || [
+          "Character (Karakter)",
+          "Wisdom (Hikmat)",
+          "Theology (Teologi)",
+          "Missional Living (Misi & Vokasi)",
+          "Materi Dasar / Siswa",
+          "Siswa & Mahasiswa",
+          "Alumni",
+          "Pelatihan Pemimpin (PKK)",
+          "Materi Umum / Publik"
+        ]) &&
         JSON.stringify(incomeAllocations) === JSON.stringify(last.incomeAllocations || ["Gaji / Operasional", "Peralatan", "Kegiatan Khusus", "Lainnya"]) &&
         JSON.stringify(meetingDays) === JSON.stringify(last.meetingDays || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]) &&
         JSON.stringify(memberKeaktifanStatuses) === JSON.stringify(last.memberKeaktifanStatuses || ["Penjangkauan", "Aktif", "Pasif", "Cuti", "Pindah"]) &&
@@ -998,7 +1017,17 @@ export default function SystemTab({
       systemTitle === (profile.systemTitle || 'MMB FMS') &&
       dashboardTitle === (profile.dashboardTitle || 'Institutional Executive ERP') &&
       JSON.stringify(regions) === JSON.stringify(profile.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]) &&
-      JSON.stringify(materialCategories) === JSON.stringify(profile.materialCategories || ["Materi Dasar / Siswa", "Siswa & Mahasiswa", "Alumni", "Pelatihan Pemimpin (PKK)", "Materi Umum / Publik"]) &&
+      JSON.stringify(materialCategories) === JSON.stringify(profile.materialCategories || [
+        "Character (Karakter)",
+        "Wisdom (Hikmat)",
+        "Theology (Teologi)",
+        "Missional Living (Misi & Vokasi)",
+        "Materi Dasar / Siswa",
+        "Siswa & Mahasiswa",
+        "Alumni",
+        "Pelatihan Pemimpin (PKK)",
+        "Materi Umum / Publik"
+      ]) &&
       JSON.stringify(incomeAllocations) === JSON.stringify(profile.incomeAllocations || ["Gaji / Operasional", "Peralatan", "Kegiatan Khusus", "Lainnya"]) &&
       JSON.stringify(meetingDays) === JSON.stringify(profile.meetingDays || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]) &&
       JSON.stringify(memberKeaktifanStatuses) === JSON.stringify(profile.memberKeaktifanStatuses || ["Penjangkauan", "Aktif", "Pasif", "Cuti", "Pindah"]) &&
@@ -1052,7 +1081,17 @@ export default function SystemTab({
       setSystemTitle(profile.systemTitle || 'MMB FMS');
       setDashboardTitle(profile.dashboardTitle || 'Institutional Executive ERP');
       setRegions(profile.regions || ["Yogyakarta", "Solo", "Semarang", "Purwokerto"]);
-      setMaterialCategories(profile.materialCategories || ["Materi Dasar / Siswa", "Siswa & Mahasiswa", "Alumni", "Pelatihan Pemimpin (PKK)", "Materi Umum / Publik"]);
+      setMaterialCategories(profile.materialCategories || [
+        "Character (Karakter)",
+        "Wisdom (Hikmat)",
+        "Theology (Teologi)",
+        "Missional Living (Misi & Vokasi)",
+        "Materi Dasar / Siswa",
+        "Siswa & Mahasiswa",
+        "Alumni",
+        "Pelatihan Pemimpin (PKK)",
+        "Materi Umum / Publik"
+      ]);
       setIncomeAllocations(profile.incomeAllocations || ["Gaji / Operasional", "Peralatan", "Kegiatan Khusus", "Lainnya"]);
       setMeetingDays(profile.meetingDays || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]);
       setMemberKeaktifanStatuses(profile.memberKeaktifanStatuses || ["Penjangkauan", "Aktif", "Pasif", "Cuti", "Pindah"]);
@@ -2910,6 +2949,12 @@ export default function SystemTab({
                   {node.title}
                 </div>
 
+                {/* Person name */}
+                <h4 className={`text-xs font-bold leading-tight line-clamp-2 ${
+                  isSelected || isTopLevel ? 'text-white' : 'text-slate-900'
+                }`}>
+                  {node.name || '(Belum Ditentukan)'}
+                </h4>
                 {/* Person name(s) */}
                 <div className="space-y-1 my-1">
                   {node.name ? (
@@ -3089,6 +3134,7 @@ export default function SystemTab({
                       Formulir Penambahan Jabatan / Divisi Baru
                     </h4>
                     <p className="text-xs text-slate-500 mt-0.5">
+                      Tentukan atasan langsung dan urutan horizontal agar tersusun otomatis di bagan organisasi.
                       Pilih pengurus/staf dari database yayasan. Tentukan atasan langsung dan urutan horizontal agar tersusun otomatis di bagan organisasi.
                     </p>
                   </div>
@@ -3134,6 +3180,7 @@ export default function SystemTab({
                     />
                   </div>
                   <div>
+                    <label className="text-slate-700 font-semibold mb-1 block text-xs">Nama Pejabat / Pengurus :</label>
                     <label className="text-slate-700 font-semibold mb-1 block text-xs">
                       Nama Pejabat / Pengurus {newSelectedNiks.length > 0 && <span className="text-emerald-600 font-normal text-[10px]">(Terisi Otomatis)</span>} :
                     </label>
@@ -3151,6 +3198,7 @@ export default function SystemTab({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-slate-700 font-semibold mb-1 block text-xs">
+                      Email Resmi Pengurus <span className="text-amber-600 font-normal">(Menerima Notifikasi Pagi 07:00 WIB)</span> :
                       Email Resmi Pengurus {newSelectedNiks.length > 0 && <span className="text-emerald-600 font-normal text-[10px]">(Terisi Otomatis)</span>} <span className="text-amber-600 font-normal">(Menerima Notifikasi Pagi 07:00 WIB)</span> :
                     </label>
                     <input
@@ -3162,6 +3210,7 @@ export default function SystemTab({
                     />
                   </div>
                   <div>
+                    <label className="text-slate-700 font-semibold mb-1 block text-xs">No. Telepon / WhatsApp :</label>
                     <label className="text-slate-700 font-semibold mb-1 block text-xs">
                       No. Telepon / WhatsApp {newSelectedNiks.length > 0 && <span className="text-emerald-600 font-normal text-[10px]">(Terisi Otomatis)</span>} :
                     </label>
@@ -3438,6 +3487,7 @@ export default function SystemTab({
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1">
+                          <label className="text-[10px] text-slate-600 font-semibold block">Nama Pengurus/Staf :</label>
                           <label className="text-[10px] text-slate-600 font-semibold block">
                             Nama Pengurus/Staf {editSelectedNiks.length > 0 && <span className="text-emerald-600 font-normal">(Terisi Otomatis)</span>} :
                           </label>
@@ -3467,6 +3517,7 @@ export default function SystemTab({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <label className="text-[10px] text-slate-600 font-semibold block">
+                            Email Resmi Pengurus <span className="text-amber-600 font-normal">(Menerima Notifikasi Pagi 07:00 WIB)</span> :
                             Email Resmi Pengurus {editSelectedNiks.length > 0 && <span className="text-emerald-600 font-normal">(Terisi Otomatis)</span>} <span className="text-amber-600 font-normal">(Menerima Notifikasi Pagi 07:00 WIB)</span> :
                           </label>
                           <input 
@@ -3479,6 +3530,7 @@ export default function SystemTab({
                         </div>
 
                         <div className="space-y-1">
+                          <label className="text-[10px] text-slate-600 font-semibold block">No. Telepon / WhatsApp :</label>
                           <label className="text-[10px] text-slate-600 font-semibold block">
                             No. Telepon / WhatsApp {editSelectedNiks.length > 0 && <span className="text-emerald-600 font-normal">(Terisi Otomatis)</span>} :
                           </label>

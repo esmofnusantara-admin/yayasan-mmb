@@ -11,6 +11,7 @@ import {
   SmallGroup,
   MeetingLog,
   MaterialInfo,
+  MinistryRelation,
   Transaction,
   FinancialCategory,
   Partner,
@@ -41,7 +42,17 @@ export const INITIAL_PROFILE: InstitutionalProfile = {
   systemTitle: 'Yayasan MMB',
   dashboardTitle: 'Institutional Executive ERP',
   regions: ["Yogyakarta", "Solo", "Semarang", "Purwokerto"],
-  materialCategories: ["Materi Dasar / Siswa", "Siswa & Mahasiswa", "Alumni", "Pelatihan Pemimpin (PKK)", "Materi Umum / Publik"],
+  materialCategories: [
+    "Character (Karakter)",
+    "Wisdom (Hikmat)",
+    "Theology (Teologi)",
+    "Missional Living (Misi & Vokasi)",
+    "Materi Dasar / Siswa",
+    "Siswa & Mahasiswa",
+    "Alumni",
+    "Pelatihan Pemimpin (PKK)",
+    "Materi Umum / Publik"
+  ],
   incomeAllocations: ["Gaji / Operasional", "Peralatan", "Kegiatan Khusus", "Lainnya"],
   meetingDays: ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"],
   memberKeaktifanStatuses: ["Penjangkauan", "Aktif", "Pasif", "Cuti", "Pindah"],
@@ -514,6 +525,94 @@ export const INITIAL_MATERIALS: MaterialInfo[] = [
     category: 'Pelatihan Pemimpin (PKK)',
     description: 'Panduan lengkap bagi para calon pemimpin kelompok kecil di sekolah maupun kampus.',
     fileSize: '4.8 MB'
+  }
+];
+
+export const INITIAL_MINISTRY_RELATIONS: MinistryRelation[] = [
+  {
+    id: 'REL-01',
+    fullName: 'Jonathan Christian',
+    nickName: 'Nathan',
+    gender: 'Laki-laki',
+    phone: '081234567890',
+    campusOrSchool: 'Universitas Indonesia',
+    city: 'Depok',
+    region: 'Jabodetabek',
+    stage: 'Kenalan',
+    picStaffOrLeader: 'Vivi Fransiska',
+    notes: 'Bertemu di ibadah pembukaan kampus. Tertarik diskusi seputar tantangan iman dan dunia perkuliahan.',
+    lastContactDate: '2026-09-12'
+  },
+  {
+    id: 'REL-02',
+    fullName: 'Clara Angelica',
+    nickName: 'Clara',
+    gender: 'Perempuan',
+    phone: '082198765432',
+    campusOrSchool: 'SMA Negeri 1 Serang',
+    city: 'Serang',
+    region: 'Banten',
+    stage: 'Kenalan',
+    picStaffOrLeader: 'Pnt. Handoko',
+    notes: 'Siswa kelas 11, kenalan saat pembinaan siswa gabungan. Terbuka diajak diskusi personal.',
+    lastContactDate: '2026-09-15'
+  },
+  {
+    id: 'REL-03',
+    fullName: 'Kevin Pratama',
+    nickName: 'Kevin',
+    gender: 'Laki-laki',
+    phone: '081377889900',
+    campusOrSchool: 'Universitas Serang Raya (UNSERA)',
+    city: 'Serang',
+    region: 'Banten',
+    stage: 'Berelasi',
+    picStaffOrLeader: 'Vivi Fransiska',
+    notes: 'Rutin ngopi mingguan & sharing kehidupan kampus. Mulai terbuka menceritakan pergumulan keluarga.',
+    lastContactDate: '2026-09-16'
+  },
+  {
+    id: 'REL-04',
+    fullName: 'Grace Natasya',
+    nickName: 'Grace',
+    gender: 'Perempuan',
+    phone: '081266554433',
+    campusOrSchool: 'Universitas Padjadjaran',
+    city: 'Bandung',
+    region: 'Bandung & Jabar',
+    stage: 'Berelasi',
+    picStaffOrLeader: 'Sarah',
+    notes: 'Sedang proses membangun persahabatan, saling mendoakan skripsi dan persiapan kerja.',
+    lastContactDate: '2026-09-10'
+  },
+  {
+    id: 'REL-05',
+    fullName: 'Rendy Wijaya',
+    nickName: 'Rendy',
+    gender: 'Laki-laki',
+    phone: '081912344321',
+    campusOrSchool: 'Institut Teknologi Bandung',
+    city: 'Bandung',
+    region: 'Bandung & Jabar',
+    stage: 'Diberitakan Injil',
+    picStaffOrLeader: 'Eko Prasetyo',
+    notes: 'Sudah dijelaskan 4 Hukum Rohani dan Jembatan Keselamatan. Meresponi positif dan sedang mendoakan komitmen iman.',
+    lastContactDate: '2026-09-14'
+  },
+  {
+    id: 'REL-06',
+    fullName: 'Felicia Tan',
+    nickName: 'Feli',
+    gender: 'Perempuan',
+    phone: '082233445566',
+    campusOrSchool: 'Universitas Pelita Harapan',
+    city: 'Tangerang',
+    region: 'Banten',
+    stage: 'Dimuridkan',
+    picStaffOrLeader: 'Vivi Fransiska',
+    targetGroupId: 'SG-02',
+    notes: 'Telah menerima Kristus dan masuk kelompok kecil Fidelia (SG-02). Mulai pembinaan dasar Buku 1.',
+    lastContactDate: '2026-09-17'
   }
 ];
 

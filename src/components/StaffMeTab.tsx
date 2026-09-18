@@ -130,13 +130,54 @@ export default function StaffMeTab({ currentUser, staffs, salaries = [], profile
     existingMap.set(c.name.toLowerCase().trim(), c);
   });
 
+  const getStaffPropertyFallback = (fieldId: string, staff: Staff): number => {
+    switch (fieldId) {
+      case 'allowancePosition': return staff.allowancePosition || 0;
+      case 'allowanceHousing': return staff.allowanceHousing || 0;
+      case 'allowanceTransport': return staff.allowanceTransport || 0;
+      case 'allowanceComm': return staff.allowanceComm || 0;
+      case 'bpjsAllowance': return staff.bpjsAllowance || 0;
+      case 'bonus': return staff.bonus || 0;
+      case 'thr': return staff.thr || 0;
+      case 'taxDeduction': return staff.taxDeduction || 0;
+      case 'bpjsDeduction': return staff.bpjsDeduction || 0;
+      case 'kasbonDeduction': return staff.kasbonDeduction || 0;
+      case 'otherDeduction': return staff.otherDeduction || 0;
+      default: {
+        const normalized = fieldId.toLowerCase().trim();
+        if (normalized.includes('jabatan')) return staff.allowancePosition || 0;
+        if (normalized.includes('rumah') || normalized.includes('perumahan')) return staff.allowanceHousing || 0;
+        if (normalized.includes('transport')) return staff.allowanceTransport || 0;
+        if (normalized.includes('komunikasi') || normalized.includes('pulsa') || normalized.includes('comm')) return staff.allowanceComm || 0;
+        if (normalized.includes('bpjs') && (normalized.includes('premi') || normalized.includes('allowance'))) return staff.bpjsAllowance || 0;
+        if (normalized.includes('bpjs') && (normalized.includes('iuran') || normalized.includes('potongan') || normalized.includes('karyawan'))) return staff.bpjsDeduction || 0;
+        if (normalized.includes('pajak') || normalized.includes('pph')) return staff.taxDeduction || 0;
+        if (normalized.includes('kasbon') || normalized.includes('angsuran') || normalized.includes('pinjaman')) return staff.kasbonDeduction || 0;
+        if (normalized.includes('lain')) return staff.otherDeduction || 0;
+        if (staff.customFields && Array.isArray(staff.customFields)) {
+          const cf = staff.customFields.find(c => c.id === fieldId || c.name?.toLowerCase().trim() === normalized);
+          if (cf) return cf.amount || 0;
+        }
+        return 0;
+      }
+    }
+  };
+
   const mergedMasterComps = masterSalaryComponents.map(m => {
     const match = existingMap.get(m.id) || existingMap.get(m.name.toLowerCase().trim());
+    let amount = 0;
+    if (match) {
+      amount = match.amount;
+    } else if (rawConfig) {
+      amount = m.amount || 0;
+    } else {
+      amount = getStaffPropertyFallback(m.id, currentStaff) || getStaffPropertyFallback(m.name, currentStaff) || (m.amount || 0);
+    }
     return {
       id: m.id,
       name: m.name,
       type: m.type,
-      amount: match ? match.amount : (m.amount || 0)
+      amount
     };
   });
 
@@ -146,7 +187,27 @@ export default function StaffMeTab({ currentUser, staffs, salaries = [], profile
     !masterIdSet.has(c.id) && !masterNameSet.has(c.name.toLowerCase().trim())
   );
 
-  const allComponents = [...mergedMasterComps, ...customComps];
+  const fallbackExtraComps: { id: string; name: string; amount: number; type: 'allowance' | 'deduction' }[] = [];
+  if (!rawConfig) {
+    if (currentStaff.bonus && currentStaff.bonus > 0 && !masterIdSet.has('bonus') && !masterNameSet.has('bonus')) {
+      fallbackExtraComps.push({ id: 'bonus', name: 'Bonus / Insentif', type: 'allowance', amount: currentStaff.bonus });
+    }
+    if (currentStaff.thr && currentStaff.thr > 0 && !masterIdSet.has('thr') && !masterNameSet.has('thr')) {
+      fallbackExtraComps.push({ id: 'thr', name: 'Tunjangan Hari Raya (THR)', type: 'allowance', amount: currentStaff.thr });
+    }
+    if (currentStaff.otherDeduction && currentStaff.otherDeduction > 0 && !masterIdSet.has('otherDeduction') && !masterNameSet.has('potongan lain-lain')) {
+      fallbackExtraComps.push({ id: 'otherDeduction', name: 'Potongan Lain-lain', type: 'deduction', amount: currentStaff.otherDeduction });
+    }
+    if (Array.isArray(currentStaff.customFields)) {
+      currentStaff.customFields.forEach(cf => {
+        if (cf.amount > 0 && !masterIdSet.has(cf.id) && !masterNameSet.has(cf.name.toLowerCase().trim())) {
+          fallbackExtraComps.push({ id: cf.id, name: cf.name, type: cf.type, amount: cf.amount });
+        }
+      });
+    }
+  }
+
+  const allComponents = [...mergedMasterComps, ...customComps, ...fallbackExtraComps];
 
   const allowances = allComponents
     .filter(c => c.type === 'allowance')

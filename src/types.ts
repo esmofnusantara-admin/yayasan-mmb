@@ -137,6 +137,25 @@ export interface MaterialInfo {
   uploadedAt?: string;
 }
 
+export type MinistryRelationStage = 'Kenalan' | 'Berelasi' | 'Diberitakan Injil' | 'Dimuridkan';
+
+export interface MinistryRelation {
+  id: string;
+  fullName: string;
+  nickName?: string;
+  gender?: 'Laki-laki' | 'Perempuan';
+  phone?: string;
+  campusOrSchool?: string;
+  city?: string;
+  region?: string;
+  stage: MinistryRelationStage;
+  picStaffOrLeader: string;
+  notes?: string;
+  lastContactDate?: string;
+  targetGroupId?: string;
+  createdAt?: string;
+}
+
 export interface StaffPaymentBreakdown {
   nik: string;
   name: string;
@@ -282,20 +301,20 @@ export interface Staff {
   birthPlace?: string;
   
   // Salary details
-  salaryBase: number;
-  allowancePosition: number;
-  allowanceHousing: number;
-  allowanceTransport: number;
-  allowanceComm: number;
-  bonus: number;
-  thr: number;
-  bpjsAllowance: number;
+  salaryBase?: number;
+  allowancePosition?: number;
+  allowanceHousing?: number;
+  allowanceTransport?: number;
+  allowanceComm?: number;
+  bonus?: number;
+  thr?: number;
+  bpjsAllowance?: number;
   
   // Deductions
-  taxDeduction: number;
-  bpjsDeduction: number;
-  kasbonDeduction: number;
-  otherDeduction: number;
+  taxDeduction?: number;
+  bpjsDeduction?: number;
+  kasbonDeduction?: number;
+  otherDeduction?: number;
 
   customFields?: CustomPayrollField[];
   paidAmount?: number;

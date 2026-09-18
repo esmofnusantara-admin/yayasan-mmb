@@ -82,7 +82,17 @@ router.get('/partner-types', authenticateToken, async (_req: any, res: Response)
 router.get('/material-categories', authenticateToken, async (_req: any, res: Response) => {
   try {
     const profile = await getProfileMaster();
-    const cats = profile?.materialCategories || ['Materi Dasar / Siswa', 'Siswa & Mahasiswa', 'Alumni', 'Pelatihan Pemimpin (PKK)', 'Materi Umum / Publik'];
+    const cats = profile?.materialCategories || [
+      'Character (Karakter)',
+      'Wisdom (Hikmat)',
+      'Theology (Teologi)',
+      'Missional Living (Misi & Vokasi)',
+      'Materi Dasar / Siswa',
+      'Siswa & Mahasiswa',
+      'Alumni',
+      'Pelatihan Pemimpin (PKK)',
+      'Materi Umum / Publik'
+    ];
     res.json(cats);
   } catch (err: any) {
     res.status(500).json({ error: err.message });

@@ -74,7 +74,8 @@ import {
   ActivityRundownItem,
   ActivityPreparationItem,
   StaffTask,
-  StaffMeeting
+  StaffMeeting,
+  MinistryRelation
 } from './types';
 
 import { 
@@ -86,6 +87,7 @@ import {
   INITIAL_SMALL_GROUPS,
   INITIAL_MEETING_LOGS,
   INITIAL_MATERIALS,
+  INITIAL_MINISTRY_RELATIONS,
   INITIAL_TRANSACTIONS,
   INITIAL_CATEGORIES,
   INITIAL_PARTNERS,
@@ -370,6 +372,7 @@ export default function App() {
   const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
   const [meetings, setMeetings] = useState<MeetingLog[]>([]);
   const [materials, setMaterials] = useState<MaterialInfo[]>([]);
+  const [ministryRelations, setMinistryRelations] = useState<MinistryRelation[]>([]);
   
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<FinancialCategory[]>([]);
@@ -491,7 +494,20 @@ export default function App() {
 
     try {
       const rawData = await safeFetchJson(`/api/data/${colName}?includeDeleted=true&t=${Date.now()}`);
-      const activeData = Array.isArray(rawData) ? rawData.filter((x: any) => !x.deleted) : [];
+      let activeData = Array.isArray(rawData) ? rawData.filter((x: any) => !x.deleted) : [];
+      if (colName === 'ministry_relations' && activeData.length === 0 && Array.isArray(initialData) && initialData.length > 0) {
+        for (const item of initialData) {
+          const id = (item as any).id;
+          if (id) {
+            await fetch(`/api/data/${colName}/${id}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...item, deleted: false, createdAt: new Date().toISOString() })
+            }).catch(() => {});
+          }
+        }
+        activeData = initialData;
+      }
       setter(activeData);
       return activeData as T[];
     } catch (err) {
@@ -586,7 +602,7 @@ export default function App() {
   const TAB_REQUIRED_COLLECTIONS: Record<string, string[]> = {
     dashboard: ['members', 'transactions', 'partners', 'small_groups', 'approvals', 'audits', 'staff'],
     members: ['members', 'small_groups', 'member_notes', 'prayer_requests', 'follow_ups'],
-    small_groups: ['small_groups', 'meeting_logs', 'materials', 'members'],
+    small_groups: ['small_groups', 'meeting_logs', 'materials', 'members', 'ministry_relations'],
     finance: ['transactions', 'categories'],
     kegiatan: ['activities', 'activity_transactions', 'activity_rundowns', 'activity_preparations', 'transactions'],
     partners: ['partners', 'donations'],
@@ -619,6 +635,8 @@ export default function App() {
         return loadCollection('meeting_logs', INITIAL_MEETING_LOGS, setMeetings);
       case 'materials':
         return loadCollection('materials', INITIAL_MATERIALS, setMaterials);
+      case 'ministry_relations':
+        return loadCollection('ministry_relations', INITIAL_MINISTRY_RELATIONS, setMinistryRelations);
       case 'transactions': {
         const txs = await loadCollection('transactions', INITIAL_TRANSACTIONS, setTransactions);
         if (txs && Array.isArray(txs)) {
@@ -1228,6 +1246,68 @@ export default function App() {
     } catch (e: any) {
       console.error(e);
       alert(`Terjadi kesalahan saat menghapus kurikulum/materi: ${e.message}`);
+    }
+  };
+
+  // Ministry Relations Handlers
+  const handleAddMinistryRelation = async (rel: MinistryRelation) => {
+    try {
+      const payload = {
+        ...rel,
+        createdBy: `${currentRole} Operator`,
+        createdAt: new Date().toISOString(),
+        deleted: false
+      };
+      await fetch(`/api/data/ministry_relations/${rel.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      await logAudit(`Menambah Relasi Pelayanan Baru: ${rel.fullName} (${rel.stage})`, 'Pemuridan');
+      loadCollection('ministry_relations', INITIAL_MINISTRY_RELATIONS, setMinistryRelations);
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
+  const handleUpdateMinistryRelation = async (rel: MinistryRelation) => {
+    try {
+      const payload = {
+        ...rel,
+        updatedBy: `${currentRole} Operator`,
+        updatedAt: new Date().toISOString(),
+        deleted: false
+      };
+      await fetch(`/api/data/ministry_relations/${rel.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      await logAudit(`Memperbarui Relasi Pelayanan: ${rel.fullName} (${rel.stage})`, 'Pemuridan');
+      loadCollection('ministry_relations', INITIAL_MINISTRY_RELATIONS, setMinistryRelations);
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteMinistryRelation = async (id: string) => {
+    try {
+      const res = await fetch(`/api/data/ministry_relations/${id}?role=${encodeURIComponent(currentRole)}`, {
+        method: 'DELETE',
+        headers: {
+          'x-user-role': currentRole
+        }
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        alert(`Gagal menghapus Relasi Pelayanan: ${errText}`);
+        return;
+      }
+      await logAudit(`Menghapus Relasi Pelayanan ID: ${id} (Soft-Delete)`, 'Pemuridan');
+      loadCollection('ministry_relations', INITIAL_MINISTRY_RELATIONS, setMinistryRelations);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Terjadi kesalahan saat menghapus relasi: ${e.message}`);
     }
   };
 
@@ -3106,6 +3186,7 @@ if (!res.ok) {
                 meetings={meetings}
                 materials={materials}
                 members={members}
+                ministryRelations={ministryRelations}
                 onAddGroup={handleAddSmallGroup}
                 onUpdateGroup={handleUpdateSmallGroup}
                 onDeleteGroup={handleDeleteSmallGroup}
@@ -3115,6 +3196,9 @@ if (!res.ok) {
                 onUpdateMeeting={handleUpdateGroupMeeting}
                 onDeleteMeeting={handleDeleteGroupMeeting}
                 onUpdateMember={handleUpdateMember}
+                onAddMinistryRelation={handleAddMinistryRelation}
+                onUpdateMinistryRelation={handleUpdateMinistryRelation}
+                onDeleteMinistryRelation={handleDeleteMinistryRelation}
                 profile={profile}
                 currentRole={currentRole}
               />

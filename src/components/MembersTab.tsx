@@ -111,6 +111,8 @@ export default function MembersTab({
 
   const [component, setComponent] = useState<'Siswa' | 'Mahasiswa' | 'Alumni' | 'Umum'>((profile?.memberComponents?.[0] as any) || 'Mahasiswa');
   const [region, setRegion] = useState(profile?.regions?.[0] || '');
+  const [selectedRegions, setSelectedRegions] = useState<string[]>(profile?.regions?.[0] ? [profile.regions[0]] : []);
+  const [filterRegion, setFilterRegion] = useState('Semua');
 
   // 3 Space Communities states
   const [selectedSpaces, setSelectedSpaces] = useState<('Core Circle' | 'Intimate Space' | 'Social Space')[]>(['Intimate Space']);
@@ -223,6 +225,7 @@ export default function MembersTab({
     setOccupation('');
     setComponent((profile?.memberComponents?.[0] as any) || 'Mahasiswa');
     setRegion(profile?.regions?.[0] || '');
+    setSelectedRegions(profile?.regions?.[0] ? [profile.regions[0]] : []);
 
     setSelectedSpaces(['Intimate Space']);
     setCoreCircleComm('');
@@ -255,6 +258,10 @@ export default function MembersTab({
     setOccupation(member.occupation);
     setComponent(member.component);
     setRegion(member.region);
+    const parsedRegions = member.region
+      ? member.region.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+    setSelectedRegions(parsedRegions);
 
     const spaces: ('Core Circle' | 'Intimate Space' | 'Social Space')[] = [];
     if (member.coreCircleCommunity) spaces.push('Core Circle');
@@ -325,6 +332,7 @@ export default function MembersTab({
       if (!window.confirm('Apakah Anda yakin ingin menyimpan perubahan data anggota ini?')) {
         return;
       }
+      const finalRegion = selectedRegions.length > 0 ? selectedRegions.join(', ') : (region || profile?.regions?.[0] || 'Yogyakarta');
       const updated: Member = {
         ...editingMember,
         fullName,
@@ -342,7 +350,7 @@ export default function MembersTab({
         education,
         occupation,
         component,
-        region,
+        region: finalRegion,
         communitySpaces: selectedSpaces,
         coreCircleCommunity: selectedSpaces.includes('Core Circle') ? coreCircleComm : undefined,
         intimateSpaceCommunity: selectedSpaces.includes('Intimate Space') ? intimateSpaceComm : undefined,
@@ -358,6 +366,7 @@ export default function MembersTab({
         setSelectedMember(updated);
       }
     } else {
+      const finalRegion = selectedRegions.length > 0 ? selectedRegions.join(', ') : (region || profile?.regions?.[0] || 'Yogyakarta');
       const newlyCreated: Member = {
         id: generateNewId(component),
         fullName,
@@ -375,7 +384,7 @@ export default function MembersTab({
         education,
         occupation,
         component,
-        region,
+        region: finalRegion,
         communitySpaces: selectedSpaces,
         coreCircleCommunity: selectedSpaces.includes('Core Circle') ? coreCircleComm : undefined,
         intimateSpaceCommunity: selectedSpaces.includes('Intimate Space') ? intimateSpaceComm : undefined,
@@ -684,8 +693,10 @@ export default function MembersTab({
     const matchesSearch = member.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       member.nickName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       member.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (member.city && member.city.toLowerCase().includes(searchQuery.toLowerCase())) ||
       member.id.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesComponent = filterComponent === 'Semua' || member.component === filterComponent;
+    const matchesRegion = filterRegion === 'Semua' || (member.region && member.region.toLowerCase().includes(filterRegion.toLowerCase()));
 
     let matchesSpace = true;
     if (filterSpace === 'Core Circle') {
@@ -696,7 +707,7 @@ export default function MembersTab({
       matchesSpace = !!member.socialSpaceCommunity;
     }
 
-    return matchesSearch && matchesComponent && matchesSpace;
+    return matchesSearch && matchesComponent && matchesRegion && matchesSpace;
   });
 
   const handleExportCSV = () => {
@@ -872,6 +883,16 @@ export default function MembersTab({
                     <option value="Semua">Semua Komponen</option>
                     {(profile?.memberComponents || ["Siswa", "Mahasiswa", "Alumni", "Umum"]).map((comp, idx) => (
                       <option key={idx} value={comp}>{comp}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={filterRegion}
+                    onChange={(e) => setFilterRegion(e.target.value)}
+                    className="border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white text-slate-700 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
+                  >
+                    <option value="Semua">Semua Wilayah</option>
+                    {(profile?.regions || []).map((r, idx) => (
+                      <option key={idx} value={r}>{r}</option>
                     ))}
                   </select>
                   <select
@@ -2434,12 +2455,12 @@ export default function MembersTab({
                   </div>
 
                   <div>
-                    <label className="text-slate-700 font-semibold block mb-1">Kota :</label>
+                    <label className="text-slate-700 font-semibold block mb-1">Kota / Kabupaten :</label>
                     <input
                       type="text"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
-                      placeholder="Sleman"
+                      placeholder="Sleman / Kab. Tangerang / Kota Tangerang"
                       className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                     />
                   </div>
@@ -2515,7 +2536,10 @@ export default function MembersTab({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
-                    <label className="text-slate-700 font-semibold block mb-1">Komponen Kategori :</label>
+                    <label className="text-slate-700 font-semibold block mb-0.5">Kategori Anggota (Status Pembinaan) :</label>
+                    <span className="text-[11px] text-slate-400 block mb-1 font-normal">
+                      (Status demografis pribadi: Siswa, Mahasiswa, Alumni, atau Umum)
+                    </span>
                     <select
                       value={component}
                       onChange={(e) => setComponent(e.target.value as any)}
@@ -2527,16 +2551,52 @@ export default function MembersTab({
                     </select>
                   </div>
                   <div>
-                    <label className="text-slate-700 font-semibold block mb-1">Wilayah Pelayanan :</label>
-                    <select
-                      value={region}
-                      onChange={(e) => setRegion(e.target.value)}
-                      className="w-full border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
-                    >
-                      {(profile?.regions || []).map((r, idx) => (
-                        <option key={idx} value={r}>{r}</option>
-                      ))}
-                    </select>
+                    <label className="text-slate-700 font-semibold block mb-0.5">Wilayah Pelayanan :</label>
+                    <span className="text-[11px] text-slate-400 block mb-1 font-normal">
+                      (Anggota Connect dapat memilih &gt; 1 wilayah)
+                    </span>
+                    <div className="border border-slate-300 rounded p-2 bg-white max-h-36 overflow-y-auto space-y-1">
+                      {(profile?.regions || []).map((r, idx) => {
+                        const isChecked = selectedRegions.includes(r);
+                        return (
+                          <label key={idx} className="flex items-center gap-2 text-xs text-slate-800 cursor-pointer hover:bg-slate-50 p-1 rounded transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                const next = isChecked
+                                  ? selectedRegions.filter(x => x !== r)
+                                  : [...selectedRegions, r];
+                                setSelectedRegions(next);
+                                setRegion(next.join(', '));
+                              }}
+                              className="rounded text-[#0c2340] focus:ring-0"
+                            />
+                            <span>{r}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    {selectedRegions.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {selectedRegions.map((r, idx) => (
+                          <span key={idx} className="inline-flex items-center gap-1 text-[11px] bg-blue-50 text-blue-900 border border-blue-200 px-2 py-0.5 rounded-full font-medium">
+                            {r}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = selectedRegions.filter(x => x !== r);
+                                setSelectedRegions(next);
+                                setRegion(next.join(', '));
+                              }}
+                              className="text-blue-600 hover:text-rose-600 ml-0.5 font-bold cursor-pointer"
+                            >
+                              &times;
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 

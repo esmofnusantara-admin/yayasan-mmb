@@ -6,14 +6,14 @@ import { cleanObjectForFirestore } from '../services/transaction-sync.service';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'yayasan-mmb-super-secure-key-1029384756';
 
-export function generateToken(payload: { email: string, role: string, features: string[] }): string {
+export function generateToken(payload: { email: string, name?: string, role: string, features: string[] }): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const signature = crypto.createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest('base64url');
   return `${header}.${body}.${signature}`;
 }
 
-export function verifyToken(token: string): { email: string, role: string, features: string[] } | null {
+export function verifyToken(token: string): { email: string, name?: string, role: string, features: string[] } | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
@@ -74,8 +74,8 @@ export const checkCollectionPermission = (req: any, res: Response, next: NextFun
     const hasStaffAccess = Array.isArray(user.features) && (user.features.includes('staff') || user.features.includes('foundation_tasks') || user.features.includes('staff_tasks'));
     const hasReportsAccess = Array.isArray(user.features) && user.features.includes('reports');
 
-    // 1. Staff can read staff, pengurus, and salaries
-    const isStaffOrSalaryRead = (colName === 'staff' || colName === 'pengurus' || colName === 'salaries') && isReadRequest && hasStaffAccess;
+    // 1. Staff and authenticated users can read staff, pengurus, and salaries (backend data layer securely filters data to only their matching NIK)
+    const isStaffOrSalaryRead = (colName === 'staff' || colName === 'pengurus' || colName === 'salaries') && isReadRequest;
     // 2. Partners access
     const isPartnersAccess = colName === 'partners';
     // 3. Staff can only read donations
@@ -233,6 +233,7 @@ router.post('/login', async (req: Request, res: Response) => {
         const features = user.features || [];
         const token = generateToken({
           email: user.email || user.phone,
+          name: user.name,
           role: user.role,
           features: features
         });

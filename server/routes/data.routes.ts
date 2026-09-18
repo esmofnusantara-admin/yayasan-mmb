@@ -46,8 +46,11 @@ router.get('/:colName', authenticateToken, checkCollectionPermission, async (req
         const userEmail = req.user?.email?.toLowerCase().trim();
         const userName = req.user?.name?.toLowerCase().trim();
         
-        // Find matching staff first to find the NIK
-        const allStaff = await dbDriver.getDocs('staff');
+        // Find matching staff first to find the NIK (search both staff and pengurus)
+        const allStaffDocs = await dbDriver.getDocs('staff');
+        const allPengurusDocs = await dbDriver.getDocs('pengurus');
+        const allStaff = [...allStaffDocs, ...allPengurusDocs];
+
         const matchedStaff = allStaff.find(item => {
           const staffEmail = item.email?.toLowerCase().trim();
           const staffName = item.name?.toLowerCase().trim();
@@ -58,7 +61,35 @@ router.get('/:colName', authenticateToken, checkCollectionPermission, async (req
         });
 
         if (matchedStaff) {
-          dataItems = dataItems.filter(item => item.id === matchedStaff.nik);
+          const matchedSalaries = dataItems.filter(item => item.id === matchedStaff.nik);
+          if (matchedSalaries.length > 0) {
+            dataItems = matchedSalaries;
+          } else {
+            // Synthesize default salary configuration from matchedStaff properties
+            const defaultComponents: any[] = [];
+            if (matchedStaff.allowancePosition) defaultComponents.push({ id: 'allowancePosition', name: 'Tunjangan Jabatan', type: 'allowance', amount: Number(matchedStaff.allowancePosition) });
+            if (matchedStaff.allowanceHousing) defaultComponents.push({ id: 'allowanceHousing', name: 'Tunjangan Perumahan', type: 'allowance', amount: Number(matchedStaff.allowanceHousing) });
+            if (matchedStaff.allowanceTransport) defaultComponents.push({ id: 'allowanceTransport', name: 'Tunjangan Transport', type: 'allowance', amount: Number(matchedStaff.allowanceTransport) });
+            if (matchedStaff.allowanceComm) defaultComponents.push({ id: 'allowanceComm', name: 'Tunjangan Komunikasi', type: 'allowance', amount: Number(matchedStaff.allowanceComm) });
+            if (matchedStaff.bpjsAllowance) defaultComponents.push({ id: 'bpjsAllowance', name: 'Premi BPJS Allowance', type: 'allowance', amount: Number(matchedStaff.bpjsAllowance) });
+            if (matchedStaff.bonus) defaultComponents.push({ id: 'bonus', name: 'Bonus / Insentif', type: 'allowance', amount: Number(matchedStaff.bonus) });
+            if (matchedStaff.thr) defaultComponents.push({ id: 'thr', name: 'Tunjangan Hari Raya (THR)', type: 'allowance', amount: Number(matchedStaff.thr) });
+            if (matchedStaff.taxDeduction) defaultComponents.push({ id: 'taxDeduction', name: 'Pajak PPH21 Bruto', type: 'deduction', amount: Number(matchedStaff.taxDeduction) });
+            if (matchedStaff.bpjsDeduction) defaultComponents.push({ id: 'bpjsDeduction', name: 'Iuran BPJS Karyawan', type: 'deduction', amount: Number(matchedStaff.bpjsDeduction) });
+            if (matchedStaff.kasbonDeduction) defaultComponents.push({ id: 'kasbonDeduction', name: 'Kasbon / Angsuran', type: 'deduction', amount: Number(matchedStaff.kasbonDeduction) });
+            if (matchedStaff.otherDeduction) defaultComponents.push({ id: 'otherDeduction', name: 'Potongan Lain-lain', type: 'deduction', amount: Number(matchedStaff.otherDeduction) });
+            if (Array.isArray(matchedStaff.customFields)) {
+              matchedStaff.customFields.forEach((cf: any) => {
+                if (cf.amount > 0) defaultComponents.push({ id: cf.id || `cf-${Date.now()}`, name: cf.name, type: cf.type, amount: Number(cf.amount) });
+              });
+            }
+
+            dataItems = [{
+              id: matchedStaff.nik,
+              salaryBase: matchedStaff.salaryBase || 0,
+              components: defaultComponents
+            }];
+          }
         } else {
           dataItems = [];
         }

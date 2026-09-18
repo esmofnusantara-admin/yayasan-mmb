@@ -71,7 +71,17 @@ export async function seedProfileIfEmpty() {
         systemTitle: 'Yayasan MMB',
         dashboardTitle: 'Institutional Executive ERP',
         regions: ['Yogyakarta', 'Solo', 'Semarang', 'Purwokerto'],
-        materialCategories: ['Materi Dasar / Siswa', 'Siswa & Mahasiswa', 'Alumni', 'Pelatihan Pemimpin (PKK)', 'Materi Umum / Publik'],
+        materialCategories: [
+          'Character (Karakter)',
+          'Wisdom (Hikmat)',
+          'Theology (Teologi)',
+          'Missional Living (Misi & Vokasi)',
+          'Materi Dasar / Siswa',
+          'Siswa & Mahasiswa',
+          'Alumni',
+          'Pelatihan Pemimpin (PKK)',
+          'Materi Umum / Publik'
+        ],
         incomeAllocations: ['Gaji / Operasional', 'Peralatan', 'Kegiatan Khusus', 'Lainnya'],
         meetingDays: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'],
         memberKeaktifanStatuses: ['Aktif', 'Pasif', 'Cuti', 'Pindah'],

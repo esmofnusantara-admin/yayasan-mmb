@@ -143,7 +143,11 @@ export default function ReportsTab({
   const getStaffNetSalary = (s: any) => {
     const config = salaries.find(sal => sal.id === s.nik);
     const base = s.salaryBase || 0;
-    if (!config) return base;
+    if (!config) {
+      const allowances = (s.allowancePosition || 0) + (s.allowanceHousing || 0) + (s.allowanceTransport || 0) + (s.allowanceComm || 0) + (s.bpjsAllowance || 0) + (s.bonus || 0) + (s.thr || 0);
+      const deductions = (s.taxDeduction || 0) + (s.bpjsDeduction || 0) + (s.kasbonDeduction || 0) + (s.otherDeduction || 0);
+      return base + allowances - deductions;
+    }
     let totalAllowances = 0;
     let totalDeductions = 0;
     config.components.forEach(comp => {

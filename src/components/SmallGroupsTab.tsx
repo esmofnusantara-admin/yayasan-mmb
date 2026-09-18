@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
 import {
   Plus,
@@ -28,9 +28,18 @@ import {
   Layers,
   Sparkles,
   CheckCircle2,
+  Phone,
   Image as ImageIcon
 } from 'lucide-react';
-import { SmallGroup, MeetingLog, MaterialInfo, Member, InstitutionalProfile } from '../types';
+import { 
+  SmallGroup, 
+  MeetingLog, 
+  MaterialInfo, 
+  Member, 
+  InstitutionalProfile,
+  MinistryRelation,
+  MinistryRelationStage
+} from '../types';
 import { exportToCSV } from '../utils/export';
 
 const GDRIVE_KURIKULUM_URL = "https://drive.google.com/drive/folders/1z9WXkVgZUCNzZHOmyQKh3mBP0axvLxAg?usp=sharing";
@@ -42,6 +51,7 @@ interface SmallGroupsTabProps {
   meetings: MeetingLog[];
   materials: MaterialInfo[];
   members: Member[];
+  ministryRelations?: MinistryRelation[];
   onAddGroup: (g: SmallGroup) => void;
   onUpdateGroup?: (g: SmallGroup) => void;
   onDeleteGroup: (id: string) => void;
@@ -51,6 +61,9 @@ interface SmallGroupsTabProps {
   onUpdateMeeting?: (m: MeetingLog) => void;
   onDeleteMeeting?: (id: string) => void;
   onUpdateMember?: (m: Member) => void;
+  onAddMinistryRelation?: (r: MinistryRelation) => void;
+  onUpdateMinistryRelation?: (r: MinistryRelation) => void;
+  onDeleteMinistryRelation?: (id: string) => void;
   profile?: InstitutionalProfile;
   currentRole: string;
 }
@@ -60,6 +73,7 @@ export default function SmallGroupsTab({
   meetings,
   materials,
   members,
+  ministryRelations = [],
   onAddGroup,
   onUpdateGroup,
   onDeleteGroup,
@@ -69,13 +83,16 @@ export default function SmallGroupsTab({
   onUpdateMeeting,
   onDeleteMeeting,
   onUpdateMember,
+  onAddMinistryRelation,
+  onUpdateMinistryRelation,
+  onDeleteMinistryRelation,
   profile,
   currentRole,
 }: SmallGroupsTabProps) {
   const isEditable = ['Super Admin', 'Ketua Yayasan', 'Pembina Yayasan', 'Sekretaris', 'Staff', 'Volunteer'].includes(currentRole);
 
   // Navigation inside groups
-  const [activeSubView, setActiveSubView] = useState<'groups' | 'matrix' | 'meetings' | 'materials'>('groups');
+  const [activeSubView, setActiveSubView] = useState<'relations' | 'groups' | 'matrix' | 'meetings' | 'materials'>('relations');
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -111,12 +128,22 @@ export default function SmallGroupsTab({
   const [editGroupMemberSearch, setEditGroupMemberSearch] = useState('');
 
   // Meeting logger state
+  const [filterMeetingGroupId, setFilterMeetingGroupId] = useState<string>('all');
+  const [formMeetingGroupId, setFormMeetingGroupId] = useState<string>(groups[0]?.id || '');
+  const [selectedMeetingMaterials, setSelectedMeetingMaterials] = useState<string[]>([]);
+  const [customMaterialInput, setCustomMaterialInput] = useState('');
   const [isAddMeetingOpen, setIsAddMeetingOpen] = useState(false);
   const [meetingDate, setMeetingDate] = useState(new Date().toISOString().split('T')[0]);
   const [meetingMaterial, setMeetingMaterial] = useState('Fondasi Iman Kristen (Buku 1)');
   const [meetingNotes, setMeetingNotes] = useState('');
   const [presentMembers, setPresentMembers] = useState<string[]>([]);
   const [editingMeeting, setEditingMeeting] = useState<MeetingLog | null>(null);
+
+  useEffect(() => {
+    if (!formMeetingGroupId && groups.length > 0) {
+      setFormMeetingGroupId(groups[0].id);
+    }
+  }, [groups, formMeetingGroupId]);
 
   // Material Form state
   const [isAddMaterialOpen, setIsAddMaterialOpen] = useState(false);
@@ -132,6 +159,183 @@ export default function SmallGroupsTab({
 
   // Matrix Filter state
   const [matrixSearch, setMatrixSearch] = useState('');
+
+  // Ministry Relation Pipeline state
+  const RELATION_STAGES: MinistryRelationStage[] = ['Kenalan', 'Berelasi', 'Diberitakan Injil', 'Dimuridkan'];
+  const [relationSearch, setRelationSearch] = useState('');
+  const [relationRegionFilter, setRelationRegionFilter] = useState('all');
+  const [relationPicFilter, setRelationPicFilter] = useState('all');
+
+  // Relation Form state (Create & Edit)
+  const [isRelationModalOpen, setIsRelationModalOpen] = useState(false);
+  const [editingRelation, setEditingRelation] = useState<MinistryRelation | null>(null);
+  const [relFullName, setRelFullName] = useState('');
+  const [relNickName, setRelNickName] = useState('');
+  const [relGender, setRelGender] = useState<'Laki-laki' | 'Perempuan'>('Laki-laki');
+  const [relPhone, setRelPhone] = useState('');
+  const [relCampusOrSchool, setRelCampusOrSchool] = useState('');
+  const [relCity, setRelCity] = useState('');
+  const [relRegion, setRelRegion] = useState('');
+  const [relStage, setRelStage] = useState<MinistryRelationStage>('Kenalan');
+  const [relPicStaffOrLeader, setRelPicStaffOrLeader] = useState('');
+  const [relNotes, setRelNotes] = useState('');
+  const [relLastContactDate, setRelLastContactDate] = useState(new Date().toISOString().split('T')[0]);
+  const [relTargetGroupId, setRelTargetGroupId] = useState('');
+  const [deleteConfirmRelation, setDeleteConfirmRelation] = useState<MinistryRelation | null>(null);
+
+  const safeRelations = Array.isArray(ministryRelations) ? ministryRelations : [];
+
+  const filteredRelations = safeRelations.filter(rel => {
+    const matchesSearch = 
+      (rel.fullName || '').toLowerCase().includes(relationSearch.toLowerCase()) ||
+      (rel.nickName || '').toLowerCase().includes(relationSearch.toLowerCase()) ||
+      (rel.campusOrSchool || '').toLowerCase().includes(relationSearch.toLowerCase()) ||
+      (rel.picStaffOrLeader || '').toLowerCase().includes(relationSearch.toLowerCase()) ||
+      (rel.city || '').toLowerCase().includes(relationSearch.toLowerCase());
+    const matchesRegion = relationRegionFilter === 'all' || rel.region === relationRegionFilter;
+    const matchesPic = relationPicFilter === 'all' || rel.picStaffOrLeader === relationPicFilter;
+    return matchesSearch && matchesRegion && matchesPic;
+  });
+
+  const getStageColor = (stage: MinistryRelationStage) => {
+    switch (stage) {
+      case 'Kenalan':
+        return {
+          headerBg: 'bg-sky-50 border-sky-200 text-sky-900',
+          badge: 'bg-sky-100 text-sky-800 border-sky-300',
+          indicator: 'bg-sky-500'
+        };
+      case 'Berelasi':
+        return {
+          headerBg: 'bg-amber-50 border-amber-200 text-amber-900',
+          badge: 'bg-amber-100 text-amber-800 border-amber-300',
+          indicator: 'bg-amber-500'
+        };
+      case 'Diberitakan Injil':
+        return {
+          headerBg: 'bg-purple-50 border-purple-200 text-purple-900',
+          badge: 'bg-purple-100 text-purple-800 border-purple-300',
+          indicator: 'bg-purple-500'
+        };
+      case 'Dimuridkan':
+        return {
+          headerBg: 'bg-emerald-50 border-emerald-200 text-emerald-900',
+          badge: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+          indicator: 'bg-emerald-500'
+        };
+      default:
+        return {
+          headerBg: 'bg-slate-50 border-slate-200 text-slate-900',
+          badge: 'bg-slate-100 text-slate-800 border-slate-300',
+          indicator: 'bg-slate-500'
+        };
+    }
+  };
+
+  const getNextStage = (current: MinistryRelationStage): MinistryRelationStage => {
+    if (current === 'Kenalan') return 'Berelasi';
+    if (current === 'Berelasi') return 'Diberitakan Injil';
+    if (current === 'Diberitakan Injil') return 'Dimuridkan';
+    return 'Dimuridkan';
+  };
+
+  const getPrevStage = (current: MinistryRelationStage): MinistryRelationStage => {
+    if (current === 'Dimuridkan') return 'Diberitakan Injil';
+    if (current === 'Diberitakan Injil') return 'Berelasi';
+    if (current === 'Berelasi') return 'Kenalan';
+    return 'Kenalan';
+  };
+
+  const handleQuickStageChange = (rel: MinistryRelation, newStage: MinistryRelationStage) => {
+    if (!onUpdateMinistryRelation) return;
+    onUpdateMinistryRelation({
+      ...rel,
+      stage: newStage
+    });
+  };
+
+  const openAddRelation = () => {
+    setEditingRelation(null);
+    setRelFullName('');
+    setRelNickName('');
+    setRelGender('Laki-laki');
+    setRelPhone('');
+    setRelCampusOrSchool('');
+    setRelCity('');
+    setRelRegion(profile?.regions?.[0] || 'Jabodetabek');
+    setRelStage('Kenalan');
+    setRelPicStaffOrLeader(groups[0]?.leaderName || 'Vivi Fransiska');
+    setRelNotes('');
+    setRelLastContactDate(new Date().toISOString().split('T')[0]);
+    setRelTargetGroupId('');
+    setIsRelationModalOpen(true);
+  };
+
+  const openEditRelation = (rel: MinistryRelation) => {
+    setEditingRelation(rel);
+    setRelFullName(rel.fullName || '');
+    setRelNickName(rel.nickName || '');
+    setRelGender(rel.gender || 'Laki-laki');
+    setRelPhone(rel.phone || '');
+    setRelCampusOrSchool(rel.campusOrSchool || '');
+    setRelCity(rel.city || '');
+    setRelRegion(rel.region || profile?.regions?.[0] || 'Jabodetabek');
+    setRelStage(rel.stage);
+    setRelPicStaffOrLeader(rel.picStaffOrLeader || '');
+    setRelNotes(rel.notes || '');
+    setRelLastContactDate(rel.lastContactDate || '');
+    setRelTargetGroupId(rel.targetGroupId || '');
+    setIsRelationModalOpen(true);
+  };
+
+  const handleSaveRelation = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!relFullName.trim()) {
+      alert('Nama lengkap relasi wajib diisi.');
+      return;
+    }
+
+    if (editingRelation) {
+      if (onUpdateMinistryRelation) {
+        onUpdateMinistryRelation({
+          ...editingRelation,
+          fullName: relFullName.trim(),
+          nickName: relNickName.trim() || undefined,
+          gender: relGender,
+          phone: relPhone.trim() || undefined,
+          campusOrSchool: relCampusOrSchool.trim() || undefined,
+          city: relCity.trim() || undefined,
+          region: relRegion,
+          stage: relStage,
+          picStaffOrLeader: relPicStaffOrLeader.trim(),
+          notes: relNotes.trim() || undefined,
+          lastContactDate: relLastContactDate || undefined,
+          targetGroupId: relTargetGroupId || undefined,
+        });
+      }
+    } else {
+      if (onAddMinistryRelation) {
+        const newId = `REL-${Date.now().toString().slice(-6)}`;
+        onAddMinistryRelation({
+          id: newId,
+          fullName: relFullName.trim(),
+          nickName: relNickName.trim() || undefined,
+          gender: relGender,
+          phone: relPhone.trim() || undefined,
+          campusOrSchool: relCampusOrSchool.trim() || undefined,
+          city: relCity.trim() || undefined,
+          region: relRegion,
+          stage: relStage,
+          picStaffOrLeader: relPicStaffOrLeader.trim() || 'Staf Pembina',
+          notes: relNotes.trim() || undefined,
+          lastContactDate: relLastContactDate || new Date().toISOString().split('T')[0],
+          targetGroupId: relTargetGroupId || undefined,
+          createdAt: new Date().toISOString()
+        });
+      }
+    }
+    setIsRelationModalOpen(false);
+  };
 
   // Helper to generate unique group ID
   const generateGroupId = (existingGroups: SmallGroup[]): string => {
@@ -344,19 +548,30 @@ export default function SmallGroupsTab({
   // Function to lock in meeting logs
   const handleCreateMeeting = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedGroup) {
+    const targetGroupId = formMeetingGroupId || selectedGroup?.id || groups[0]?.id;
+    if (!targetGroupId) {
       alert('Pilih Komunitas Pemuridan terlebih dahulu!');
       return;
     }
+
+    const finalMaterialName = selectedMeetingMaterials.length > 0
+      ? selectedMeetingMaterials.join(' & ')
+      : meetingMaterial;
+
+    if (!finalMaterialName || !finalMaterialName.trim()) {
+      alert('Pilih minimal satu bahan kajian / materi kurikulum!');
+      return;
+    }
+
     if (editingMeeting) {
       if (!window.confirm('Apakah Anda yakin ingin menyimpan perubahan log pertemuan ini?')) {
         return;
       }
       const updatedMeeting: MeetingLog = {
         ...editingMeeting,
-        groupId: selectedGroup.id,
+        groupId: targetGroupId,
         date: meetingDate,
-        materialName: meetingMaterial,
+        materialName: finalMaterialName,
         attendance: presentMembers,
         notes: meetingNotes
       };
@@ -366,19 +581,23 @@ export default function SmallGroupsTab({
       setEditingMeeting(null);
       setMeetingNotes('');
       setPresentMembers([]);
+      setSelectedMeetingMaterials([]);
+      setCustomMaterialInput('');
       alert('Laporan Pertemuan Komunitas Berhasil Diperbarui.');
     } else {
       const newMeeting: MeetingLog = {
         id: `MEET-${Date.now()}`,
-        groupId: selectedGroup.id,
+        groupId: targetGroupId,
         date: meetingDate,
-        materialName: meetingMaterial,
+        materialName: finalMaterialName,
         attendance: presentMembers,
         notes: meetingNotes
       };
       onAddMeeting(newMeeting);
       setMeetingNotes('');
       setPresentMembers([]);
+      setSelectedMeetingMaterials([]);
+      setCustomMaterialInput('');
       setIsAddMeetingOpen(false);
       alert('Laporan Pertemuan Komunitas Berhasil Tersimpan.');
     }
@@ -387,11 +606,15 @@ export default function SmallGroupsTab({
   const handleEditMeeting = (meet: MeetingLog) => {
     const grp = groups.find(g => g.id === meet.groupId);
     if (grp) {
-      setSelectedGroup(grp);
+      setFormMeetingGroupId(grp.id);
     }
     setEditingMeeting(meet);
     setMeetingDate(meet.date);
     setMeetingMaterial(meet.materialName);
+    const parsed = meet.materialName
+      ? meet.materialName.split(/\s*&\s*|\s*,\s*/).map(s => s.trim()).filter(Boolean)
+      : [];
+    setSelectedMeetingMaterials(parsed.length > 0 ? parsed : (meet.materialName ? [meet.materialName] : []));
     setMeetingNotes(meet.notes);
     setPresentMembers(meet.attendance);
     setIsAddMeetingOpen(true);
@@ -506,6 +729,16 @@ export default function SmallGroupsTab({
     m.socialSpaceCommunity === selectedGroup?.name
   );
 
+  const currentMeetingGroup = groups.find(g => g.id === formMeetingGroupId) || selectedGroup || groups[0];
+  const activeMeetingGroupMembers = members.filter(m =>
+    currentMeetingGroup && (
+      m.smallGroupId === currentMeetingGroup.id ||
+      m.coreCircleCommunity === currentMeetingGroup.name ||
+      m.intimateSpaceCommunity === currentMeetingGroup.name ||
+      m.socialSpaceCommunity === currentMeetingGroup.name
+    )
+  );
+
   const toggleAttendance = (memberId: string) => {
     setPresentMembers(prev =>
       prev.includes(memberId)
@@ -592,6 +825,14 @@ export default function SmallGroupsTab({
               )}
             </>
           )}
+          {activeSubView === 'relations' && isEditable && (
+            <button
+              onClick={openAddRelation}
+              className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" /> Tambah Relasi Baru
+            </button>
+          )}
           {activeSubView === 'materials' && isEditable && (
             <button
               onClick={() => setIsAddMaterialOpen(true)}
@@ -604,10 +845,20 @@ export default function SmallGroupsTab({
       </div>
 
       {/* Segmented Menu Control */}
-      <div className="bg-slate-100 border border-slate-200 p-1 rounded-lg flex max-w-2xl shadow-xs my-2">
+      <div className="bg-slate-100 border border-slate-200 p-1 rounded-lg flex max-w-3xl shadow-xs my-2 overflow-x-auto">
+        <button
+          onClick={() => setActiveSubView('relations')}
+          className={`flex-1 py-1.5 px-3 rounded text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeSubView === 'relations'
+              ? 'bg-[#0c2340] text-white shadow-xs'
+              : 'text-slate-700 hover:text-slate-900'
+            }`}
+        >
+          <HeartHandshake className="w-3.5 h-3.5" />
+          <span>Relasi Pelayanan</span>
+        </button>
         <button
           onClick={() => setActiveSubView('groups')}
-          className={`flex-1 py-1.5 px-3 rounded text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${activeSubView === 'groups'
+          className={`flex-1 py-1.5 px-3 rounded text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeSubView === 'groups'
               ? 'bg-[#0c2340] text-white shadow-xs'
               : 'text-slate-700 hover:text-slate-900'
             }`}
@@ -617,7 +868,7 @@ export default function SmallGroupsTab({
         </button>
         <button
           onClick={() => setActiveSubView('matrix')}
-          className={`flex-1 py-1.5 px-3 rounded text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${activeSubView === 'matrix'
+          className={`flex-1 py-1.5 px-3 rounded text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeSubView === 'matrix'
               ? 'bg-[#0c2340] text-white shadow-xs'
               : 'text-slate-700 hover:text-slate-900'
             }`}
@@ -627,7 +878,7 @@ export default function SmallGroupsTab({
         </button>
         <button
           onClick={() => setActiveSubView('meetings')}
-          className={`flex-1 py-1.5 px-3 rounded text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${activeSubView === 'meetings'
+          className={`flex-1 py-1.5 px-3 rounded text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeSubView === 'meetings'
               ? 'bg-[#0c2340] text-white shadow-xs'
               : 'text-slate-700 hover:text-slate-900'
             }`}
@@ -637,7 +888,7 @@ export default function SmallGroupsTab({
         </button>
         <button
           onClick={() => setActiveSubView('materials')}
-          className={`flex-1 py-1.5 px-3 rounded text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${activeSubView === 'materials'
+          className={`flex-1 py-1.5 px-3 rounded text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeSubView === 'materials'
               ? 'bg-[#0c2340] text-white shadow-xs'
               : 'text-slate-700 hover:text-slate-900'
             }`}
@@ -646,6 +897,214 @@ export default function SmallGroupsTab({
           <span>Bahan Kurikulum</span>
         </button>
       </div>
+
+      {/* SUBVIEW 0: RELASI PELAYANAN PIPELINE */}
+      {activeSubView === 'relations' && (
+        <div className="space-y-4">
+          {/* Section Header Card */}
+          <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-slate-900 text-sm">Pipeline Relasi Pelayanan & Penjangkauan</h3>
+                <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-bold border border-slate-200">
+                  {safeRelations.length} Total Relasi
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Memantau tahapan penginjilan dan pemuridan personal: Kenalan, Berelasi, Diberitakan Injil, hingga Dimuridkan.
+              </p>
+            </div>
+
+            {isEditable && (
+              <button
+                onClick={openAddRelation}
+                className="px-3.5 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5 shrink-0" />
+                <span>Tambah Relasi Baru</span>
+              </button>
+            )}
+          </div>
+
+          {/* Filter Bar */}
+          <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Cari nama, panggilan, kampus, atau PIC..."
+                value={relationSearch}
+                onChange={(e) => setRelationSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded text-xs bg-white text-slate-800 focus:outline-none focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340]"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-500 text-xs shrink-0">Wilayah:</span>
+                <select
+                  value={relationRegionFilter}
+                  onChange={(e) => setRelationRegionFilter(e.target.value)}
+                  className="px-2.5 py-1.5 border border-slate-300 rounded text-xs bg-white text-slate-800 focus:outline-none focus:border-[#0c2340]"
+                >
+                  <option value="all">Semua Wilayah</option>
+                  {(profile?.regions || ['Jabodetabek', 'Banten', 'Bandung & Jabar', 'Yogyakarta', 'Jawa Tengah', 'Jawa Timur']).map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-500 text-xs shrink-0">PIC:</span>
+                <select
+                  value={relationPicFilter}
+                  onChange={(e) => setRelationPicFilter(e.target.value)}
+                  className="px-2.5 py-1.5 border border-slate-300 rounded text-xs bg-white text-slate-800 focus:outline-none focus:border-[#0c2340]"
+                >
+                  <option value="all">Semua PIC</option>
+                  {Array.from(new Set(safeRelations.map(r => r.picStaffOrLeader).filter(Boolean))).map(pic => (
+                    <option key={pic} value={pic}>{pic}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Kanban Board 4 Columns */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
+            {RELATION_STAGES.map((stage) => {
+              const itemsInStage = filteredRelations.filter(r => r.stage === stage);
+              const style = getStageColor(stage);
+              return (
+                <div key={stage} className="bg-slate-50 rounded-lg p-3 border border-slate-200 flex flex-col min-h-[520px] max-h-[750px]">
+                  {/* Column Header */}
+                  <div className={`p-2.5 rounded border mb-3 flex items-center justify-between ${style.headerBg}`}>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${style.indicator}`}></span>
+                      <span className="font-bold text-xs uppercase tracking-wide">{stage}</span>
+                    </div>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold border ${style.badge}`}>
+                      {itemsInStage.length}
+                    </span>
+                  </div>
+
+                  {/* Cards List */}
+                  <div className="space-y-2.5 overflow-y-auto flex-1 pr-1 pb-2">
+                    {itemsInStage.length === 0 ? (
+                      <div className="h-32 flex flex-col items-center justify-center text-center p-4 border border-dashed border-slate-200 rounded-lg bg-white/60">
+                        <HeartHandshake className="w-5 h-5 text-slate-300 mb-1" />
+                        <span className="text-[11px] text-slate-400">Belum ada relasi di tahap ini</span>
+                      </div>
+                    ) : (
+                      itemsInStage.map((rel) => (
+                        <div
+                          key={rel.id}
+                          onClick={() => openEditRelation(rel)}
+                          className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs hover:border-[#0c2340] hover:shadow-sm transition-all cursor-pointer space-y-2"
+                        >
+                          <div className="flex justify-between items-start gap-1.5">
+                            <div>
+                              <h4 className="font-bold text-xs text-slate-900 leading-tight">
+                                {rel.fullName}
+                                {rel.nickName && <span className="text-slate-500 font-normal"> ({rel.nickName})</span>}
+                              </h4>
+                              <p className="text-[11px] text-slate-500 mt-0.5">
+                                {rel.campusOrSchool || 'Umum'} {rel.city ? `• ${rel.city}` : ''}
+                              </p>
+                            </div>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold shrink-0 ${
+                              rel.gender === 'Perempuan' 
+                                ? 'bg-rose-50 text-rose-700 border border-rose-100' 
+                                : 'bg-sky-50 text-sky-700 border border-sky-100'
+                            }`}>
+                              {rel.gender || 'L/P'}
+                            </span>
+                          </div>
+
+                          {/* Info bar */}
+                          <div className="text-[11px] space-y-1 pt-1.5 border-t border-slate-100 text-slate-600">
+                            <div className="flex justify-between items-center text-[10px]">
+                              <span className="text-slate-400">PIC Mentor:</span>
+                              <strong className="text-slate-700 truncate max-w-[130px]">{rel.picStaffOrLeader || '-'}</strong>
+                            </div>
+                            {rel.lastContactDate && (
+                              <div className="flex justify-between items-center text-[10px]">
+                                <span className="text-slate-400">Kontak Terakhir:</span>
+                                <span className="text-slate-600 font-medium">{rel.lastContactDate}</span>
+                              </div>
+                            )}
+                            {rel.targetGroupId && (
+                              <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded px-1.5 py-0.5 text-[10px] font-semibold flex items-center gap-1 mt-1">
+                                <Users className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span className="truncate">
+                                  {groups.find(g => g.id === rel.targetGroupId)?.name || rel.targetGroupId}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Notes if any */}
+                          {rel.notes && (
+                            <p className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 italic line-clamp-2">
+                              "{rel.notes}"
+                            </p>
+                          )}
+
+                          {/* Stage Transition Control */}
+                          {isEditable && (
+                            <div
+                              className="pt-2 mt-1 border-t border-slate-100 flex items-center justify-between gap-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="flex items-center gap-1">
+                                {stage !== 'Kenalan' && (
+                                  <button
+                                    type="button"
+                                    title={`Kembali ke ${getPrevStage(stage)}`}
+                                    onClick={() => handleQuickStageChange(rel, getPrevStage(stage))}
+                                    className="px-1.5 py-0.5 border border-slate-200 hover:bg-slate-100 rounded text-[10px] font-bold text-slate-600 cursor-pointer"
+                                  >
+                                    ←
+                                  </button>
+                                )}
+                                <select
+                                  value={rel.stage}
+                                  onChange={(e) => handleQuickStageChange(rel, e.target.value as MinistryRelationStage)}
+                                  className="text-[10px] bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded px-1 py-0.5 font-medium text-slate-700 cursor-pointer focus:outline-none"
+                                >
+                                  {RELATION_STAGES.map(s => (
+                                    <option key={s} value={s}>{s}</option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              {stage !== 'Dimuridkan' ? (
+                                <button
+                                  type="button"
+                                  title={`Lanjut ke ${getNextStage(stage)}`}
+                                  onClick={() => handleQuickStageChange(rel, getNextStage(stage))}
+                                  className="px-2 py-0.5 bg-[#0c2340] hover:bg-[#1b365d] text-white rounded text-[10px] font-bold cursor-pointer flex items-center gap-1 shadow-2xs transition-colors"
+                                >
+                                  <span>→</span>
+                                  <span>{getNextStage(stage)}</span>
+                                </button>
+                              ) : (
+                                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-0.5">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Murid Aktif
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* SUBVIEW 1: GROUPS BOARD */}
       {activeSubView === 'groups' && (
@@ -1113,14 +1572,42 @@ export default function SmallGroupsTab({
 
           {/* List of past logged meetings */}
           <div className="lg:col-span-2 bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4">
-            <h3 className="text-sm font-bold text-slate-900">Arsip Pertemuan Komunitas Pemuridan</h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Arsip Pertemuan Komunitas Pemuridan</h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Total {meetings.length} log pertemuan tercatat
+                </p>
+              </div>
+
+              {/* Explicit Filter Dropdown */}
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs text-slate-600 font-semibold shrink-0">Filter Komunitas:</label>
+                <select
+                  value={filterMeetingGroupId}
+                  onChange={(e) => setFilterMeetingGroupId(e.target.value)}
+                  className="border border-slate-300 rounded px-2.5 py-1 text-xs bg-white text-slate-800 font-medium focus:border-[#0c2340] focus:outline-none"
+                >
+                  <option value="all">Semua Komunitas ({meetings.length})</option>
+                  {groups.map(g => {
+                    const count = meetings.filter(m => m.groupId === g.id).length;
+                    return (
+                      <option key={g.id} value={g.id}>
+                        {g.name} ({count} pertemuan)
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
 
             <div className="divide-y divide-slate-100 max-h-160 overflow-y-auto">
               {meetings
                 .filter(m => {
-                  const grp = groups.find(g => g.id === m.groupId);
-                  if (!grp) return false;
-                  return !selectedGroup || m.groupId === selectedGroup.id;
+                  if (filterMeetingGroupId !== 'all' && m.groupId !== filterMeetingGroupId) {
+                    return false;
+                  }
+                  return true;
                 })
                 .map((meet) => {
                   const grp = groups.find(g => g.id === meet.groupId);
@@ -1129,7 +1616,7 @@ export default function SmallGroupsTab({
                       <div className="flex justify-between items-start">
                         <div>
                           <h4 className="text-xs font-bold text-slate-900 tracking-tight">Materi: {meet.materialName}</h4>
-                          <p className="text-xs text-slate-500 mt-0.5">Komunitas: <span className="text-slate-700 font-semibold">{grp?.name}</span> &bull; Tanggal: {meet.date}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">Komunitas: <span className="text-slate-700 font-semibold">{grp?.name || 'Komunitas MMB'}</span> &bull; Tanggal: {meet.date}</p>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 font-semibold">
@@ -1194,6 +1681,8 @@ export default function SmallGroupsTab({
                     setEditingMeeting(null);
                     setMeetingNotes('');
                     setPresentMembers([]);
+                    setSelectedMeetingMaterials([]);
+                    setCustomMaterialInput('');
                   }}
                   className="text-[10px] text-slate-500 hover:underline cursor-pointer"
                 >
@@ -1206,11 +1695,8 @@ export default function SmallGroupsTab({
               <div>
                 <label className="text-slate-700 block mb-1 font-semibold">Komunitas Pemuridan :</label>
                 <select
-                  value={selectedGroup?.id || ''}
-                  onChange={(e) => {
-                    const grp = groups.find(g => g.id === e.target.value);
-                    if (grp) setSelectedGroup(grp);
-                  }}
+                  value={formMeetingGroupId || (groups[0]?.id || '')}
+                  onChange={(e) => setFormMeetingGroupId(e.target.value)}
                   className="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
                 >
                   {groups.map(g => (
@@ -1231,29 +1717,103 @@ export default function SmallGroupsTab({
               </div>
 
               <div>
-                <label className="text-slate-700 block mb-1 font-semibold">Bahan Kajian / Materi Kurikulum :</label>
-                <select
-                  value={meetingMaterial}
-                  onChange={(e) => setMeetingMaterial(e.target.value)}
-                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
-                  required
-                >
-                  <option value="">-- Pilih Materi dari Kurikulum --</option>
-                  {materials.map((mat) => (
-                    <option key={mat.id} value={mat.title}>
-                      [{mat.category}] {mat.title}
-                    </option>
-                  ))}
-                  {meetingMaterial && !materials.some(m => m.title === meetingMaterial) && (
-                    <option value={meetingMaterial}>{meetingMaterial}</option>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-slate-700 block font-semibold">Bahan Kajian / Materi Kurikulum :</label>
+                  <span className="text-[11px] text-slate-500 font-normal">(Bisa centang &gt; 1 materi)</span>
+                </div>
+
+                <div className="space-y-1 max-h-44 overflow-y-auto border border-slate-200 rounded p-2 bg-slate-50">
+                  {materials.map((mat) => {
+                    const isChecked = selectedMeetingMaterials.includes(mat.title);
+                    return (
+                      <label
+                        key={mat.id}
+                        className={`flex items-start gap-2 cursor-pointer p-1.5 rounded transition-colors text-xs ${
+                          isChecked ? 'bg-blue-50 border border-blue-200' : 'hover:bg-slate-100'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            setSelectedMeetingMaterials(prev =>
+                              prev.includes(mat.title)
+                                ? prev.filter(t => t !== mat.title)
+                                : [...prev, mat.title]
+                            );
+                          }}
+                          className="rounded text-[#0c2340] focus:ring-0 mt-0.5"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="font-semibold text-slate-900 block leading-tight">{mat.title}</span>
+                          <span className="text-[10px] text-slate-500">[{mat.category}]</span>
+                        </div>
+                      </label>
+                    );
+                  })}
+                  {materials.length === 0 && (
+                    <span className="text-slate-400 italic text-[11px]">Belum ada materi di kurikulum.</span>
                   )}
-                </select>
+                </div>
+
+                {/* Custom material input helper */}
+                <div className="flex gap-1.5 mt-1.5">
+                  <input
+                    type="text"
+                    value={customMaterialInput}
+                    onChange={(e) => setCustomMaterialInput(e.target.value)}
+                    placeholder="Atau ketik judul materi tambahan..."
+                    className="flex-1 border border-slate-300 rounded px-2.5 py-1 text-xs bg-white text-slate-800 focus:border-[#0c2340] focus:outline-none"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (customMaterialInput.trim() && !selectedMeetingMaterials.includes(customMaterialInput.trim())) {
+                          setSelectedMeetingMaterials(prev => [...prev, customMaterialInput.trim()]);
+                          setCustomMaterialInput('');
+                        }
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (customMaterialInput.trim() && !selectedMeetingMaterials.includes(customMaterialInput.trim())) {
+                        setSelectedMeetingMaterials(prev => [...prev, customMaterialInput.trim()]);
+                        setCustomMaterialInput('');
+                      }
+                    }}
+                    className="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded font-semibold text-xs transition-colors cursor-pointer"
+                  >
+                    + Tambah
+                  </button>
+                </div>
+
+                {/* Selected Materials Pills */}
+                {selectedMeetingMaterials.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {selectedMeetingMaterials.map((matTitle, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 text-[11px] bg-[#0c2340]/10 text-[#0c2340] border border-[#0c2340]/20 px-2 py-0.5 rounded font-medium"
+                      >
+                        ✓ {matTitle}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMeetingMaterials(prev => prev.filter(t => t !== matTitle))}
+                          className="hover:text-rose-700 font-bold ml-0.5 text-xs cursor-pointer"
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>
                 <label className="text-slate-700 block mb-1 font-semibold">Presensi Kehadiran Anggota :</label>
                 <div className="space-y-1 max-h-40 overflow-y-auto border border-slate-200 rounded p-2 bg-slate-50">
-                  {activeGroupMembers.map(m => (
+                  {activeMeetingGroupMembers.map(m => (
                     <label key={m.id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-1 rounded transition-colors text-xs">
                       <input
                         type="checkbox"
@@ -1264,7 +1824,7 @@ export default function SmallGroupsTab({
                       <span className="text-slate-800">{m.fullName}</span>
                     </label>
                   ))}
-                  {activeGroupMembers.length === 0 && (
+                  {activeMeetingGroupMembers.length === 0 && (
                     <span className="text-slate-400 italic text-[11px]">Belum ada anggota terdaftar di komunitas ini.</span>
                   )}
                 </div>
@@ -1875,22 +2435,57 @@ export default function SmallGroupsTab({
               </div>
 
               <div>
-                <label className="text-slate-700 block mb-1 font-semibold">Kategori Sasaran Bimbingan :</label>
-                <select
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-slate-700 block font-semibold">Kategori Sasaran / Profil Murid :</label>
+                  <span className="text-[11px] text-slate-400 font-normal">Bisa pilih atau ketik sendiri</span>
+                </div>
+                <input
+                  type="text"
+                  list="material-categories-datalist"
                   value={materialCategory}
                   onChange={(e) => setMaterialCategory(e.target.value)}
+                  placeholder="Pilih atau ketik kategori/profil murid..."
                   className="w-full border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 focus:border-[#0c2340] focus:ring-1 focus:ring-[#0c2340] focus:outline-none"
-                >
+                  required
+                />
+                <datalist id="material-categories-datalist">
                   {(profile?.materialCategories || [
+                    "Character (Karakter)",
+                    "Wisdom (Hikmat)",
+                    "Theology (Teologi)",
+                    "Missional Living (Misi & Vokasi)",
                     "Materi Dasar / Siswa",
                     "Siswa & Mahasiswa",
                     "Alumni",
                     "Pelatihan Pemimpin (PKK)",
                     "Materi Umum / Publik"
                   ]).map((cat, idx) => (
-                    <option key={idx} value={cat}>{cat}</option>
+                    <option key={idx} value={cat} />
                   ))}
-                </select>
+                </datalist>
+
+                {/* 4 Profil Murid (Christlikeness) Quick-Pills */}
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {[
+                    { label: "Character", full: "Character (Karakter)" },
+                    { label: "Wisdom", full: "Wisdom (Hikmat)" },
+                    { label: "Theology", full: "Theology (Teologi)" },
+                    { label: "Missional Living", full: "Missional Living (Misi & Vokasi)" }
+                  ].map((p, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setMaterialCategory(p.full)}
+                      className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
+                        materialCategory === p.full || materialCategory === p.label
+                          ? 'bg-[#0c2340] text-white border-[#0c2340] font-semibold'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200'
+                      }`}
+                    >
+                      ✨ {p.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
@@ -2035,6 +2630,254 @@ export default function SmallGroupsTab({
                 className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors"
               >
                 Ya, Hapus Materi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: TAMBAH / EDIT RELASI PELAYANAN */}
+      {isRelationModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-300 w-full max-w-xl overflow-hidden my-8">
+            <div className="bg-[#0c2340] text-white px-5 py-3.5 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <HeartHandshake className="w-4 h-4 text-sky-400" />
+                <h3 className="font-bold text-sm">
+                  {editingRelation ? 'Edit Data Relasi Pelayanan' : 'Tambah Relasi Pelayanan Baru'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsRelationModalOpen(false)}
+                className="text-slate-300 hover:text-white cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveRelation} className="p-5 space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Nama Lengkap */}
+                <div className="sm:col-span-2">
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Nama Lengkap <span className="text-rose-500">*</span> :
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: Jonathan Christian"
+                    value={relFullName}
+                    onChange={(e) => setRelFullName(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#0c2340] focus:outline-none"
+                  />
+                </div>
+
+                {/* Nama Panggilan */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Nama Panggilan :</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Nathan"
+                    value={relNickName}
+                    onChange={(e) => setRelNickName(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#0c2340] focus:outline-none"
+                  />
+                </div>
+
+                {/* Jenis Kelamin */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Jenis Kelamin :</label>
+                  <select
+                    value={relGender}
+                    onChange={(e) => setRelGender(e.target.value as 'Laki-laki' | 'Perempuan')}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#0c2340] focus:outline-none"
+                  >
+                    <option value="Laki-laki">Laki-laki</option>
+                    <option value="Perempuan">Perempuan</option>
+                  </select>
+                </div>
+
+                {/* No WhatsApp / Telepon */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">No. WhatsApp / HP :</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: 081234567890"
+                    value={relPhone}
+                    onChange={(e) => setRelPhone(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#0c2340] focus:outline-none"
+                  />
+                </div>
+
+                {/* Asal Kampus / Sekolah */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Kampus / Sekolah / Asal :</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Universitas Indonesia / SMA 1"
+                    value={relCampusOrSchool}
+                    onChange={(e) => setRelCampusOrSchool(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#0c2340] focus:outline-none"
+                  />
+                </div>
+
+                {/* Wilayah */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Wilayah Pelayanan :</label>
+                  <select
+                    value={relRegion}
+                    onChange={(e) => setRelRegion(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#0c2340] focus:outline-none"
+                  >
+                    {(profile?.regions || ['Jabodetabek', 'Banten', 'Bandung & Jabar', 'Yogyakarta', 'Jawa Tengah', 'Jawa Timur']).map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Kota / Kabupaten */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Kota / Kabupaten :</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Depok / Serang"
+                    value={relCity}
+                    onChange={(e) => setRelCity(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#0c2340] focus:outline-none"
+                  />
+                </div>
+
+                {/* Tahap Pipeline */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Tahapan Pipeline :</label>
+                  <select
+                    value={relStage}
+                    onChange={(e) => setRelStage(e.target.value as MinistryRelationStage)}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded font-semibold text-[#0c2340] focus:border-[#0c2340] focus:outline-none"
+                  >
+                    {RELATION_STAGES.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* PIC Pembina / Mentor */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">PIC Pembimbing / Mentor :</label>
+                  <input
+                    type="text"
+                    placeholder="Nama staf atau pemimpin KTB"
+                    value={relPicStaffOrLeader}
+                    onChange={(e) => setRelPicStaffOrLeader(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#0c2340] focus:outline-none"
+                  />
+                </div>
+
+                {/* Tanggal Kontak Terakhir */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Tanggal Kontak Terakhir :</label>
+                  <input
+                    type="date"
+                    value={relLastContactDate}
+                    onChange={(e) => setRelLastContactDate(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#0c2340] focus:outline-none"
+                  />
+                </div>
+
+                {/* Hubungkan ke Komunitas Pemuridan */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Komunitas Pemuridan (KTB) :
+                  </label>
+                  <select
+                    value={relTargetGroupId}
+                    onChange={(e) => setRelTargetGroupId(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#0c2340] focus:outline-none"
+                  >
+                    <option value="">-- Belum Ditempatkan ke Komunitas --</option>
+                    {groups.map(g => (
+                      <option key={g.id} value={g.id}>{g.name} ({g.communitySpace} - {g.region})</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Catatan / Pokok Doa */}
+                <div className="sm:col-span-2">
+                  <label className="block font-semibold text-slate-700 mb-1">Catatan Perkembangan & Pokok Doa :</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Tuliskan catatan respon firman, pergumulan pribadi, atau rencana tindak lanjut..."
+                    value={relNotes}
+                    onChange={(e) => setRelNotes(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#0c2340] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center pt-3 border-t border-slate-200">
+                {editingRelation && isEditable ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteConfirmRelation(editingRelation);
+                      setIsRelationModalOpen(false);
+                    }}
+                    className="px-3 py-1.5 text-rose-700 hover:bg-rose-50 border border-rose-200 rounded font-semibold text-xs flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <Trash className="w-3.5 h-3.5" /> Hapus
+                  </button>
+                ) : <div />}
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsRelationModalOpen(false)}
+                    className="px-4 py-1.5 border border-slate-300 rounded text-slate-700 font-semibold cursor-pointer hover:bg-slate-50 transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 bg-[#0c2340] hover:bg-[#1b365d] text-white font-semibold rounded shadow-xs cursor-pointer flex items-center gap-1.5 transition-colors"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>{editingRelation ? 'Simpan Perubahan' : 'Tambahkan Relasi'}</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM MODAL: HAPUS RELASI PELAYANAN */}
+      {deleteConfirmRelation && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-300 w-full max-w-md overflow-hidden p-5 space-y-4">
+            <h3 className="text-sm font-bold text-slate-900">Konfirmasi Hapus Relasi Pelayanan</h3>
+            <p className="text-slate-600 text-xs leading-relaxed">
+              Apakah Anda yakin ingin menghapus data relasi pelayanan <strong className="text-slate-900">"{deleteConfirmRelation.fullName}"</strong> (Tahap: {deleteConfirmRelation.stage})? Tindakan ini akan menghapus data tersebut.
+            </p>
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmRelation(null)}
+                className="px-4 py-2 border border-slate-300 rounded text-slate-700 font-medium text-xs cursor-pointer hover:bg-slate-50 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onDeleteMinistryRelation) {
+                    onDeleteMinistryRelation(deleteConfirmRelation.id);
+                  }
+                  setDeleteConfirmRelation(null);
+                }}
+                className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white font-semibold rounded text-xs cursor-pointer shadow-xs transition-colors"
+              >
+                Ya, Hapus Relasi
               </button>
             </div>
           </div>

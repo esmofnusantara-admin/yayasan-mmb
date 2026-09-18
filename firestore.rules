@@ -173,6 +173,10 @@ service cloud.firestore {
       allow delete: if true;
     }
 
+    match /ministry_relations/{relationId} {
+      allow read, write: if true;
+    }
+
     match /transactions/{transactionId} {
       allow read: if true;
       allow create, update: if isValidId(transactionId) && isValidTransaction(incoming());

@@ -109,7 +109,7 @@ export default function PayrollTab({
   }, [profile?.salaryComponents]);
 
   // Helper to retrieve salary configuration from the salaries collection, ensuring all master components are included
-  const getStaffSalaryConfig = (nik: string, baseFromStaff: number): StaffSalary => {
+  const getStaffSalaryConfig = (nik: string, baseFromStaff: number, staffObj?: Staff): StaffSalary => {
     const found = salaries.find(sal => sal.id === nik);
     const existingComponents = found ? [...found.components] : [];
     
@@ -119,14 +119,36 @@ export default function PayrollTab({
       existingMap.set(c.name.toLowerCase().trim(), c);
     });
 
+    const targetStaff = staffObj || staffs.find(s => s.nik === nik);
+
     // 1. Mandatory Master Components: guaranteed to be present for all staff
     const mergedMasterComps: SalaryComponent[] = masterSalaryComponents.map(m => {
       const match = existingMap.get(m.id) || existingMap.get(m.name.toLowerCase().trim());
+      let amount = 0;
+      if (match) {
+        amount = match.amount;
+      } else if (found) {
+        amount = m.amount || 0;
+      } else if (targetStaff) {
+        const normalized = m.name.toLowerCase().trim();
+        if (m.id === 'allowancePosition' || normalized.includes('jabatan')) amount = targetStaff.allowancePosition || 0;
+        else if (m.id === 'allowanceHousing' || normalized.includes('perumahan') || normalized.includes('rumah')) amount = targetStaff.allowanceHousing || 0;
+        else if (m.id === 'allowanceTransport' || normalized.includes('transport')) amount = targetStaff.allowanceTransport || 0;
+        else if (m.id === 'allowanceComm' || normalized.includes('komunikasi') || normalized.includes('pulsa')) amount = targetStaff.allowanceComm || 0;
+        else if (m.id === 'bpjsAllowance' || (normalized.includes('bpjs') && m.type === 'allowance')) amount = targetStaff.bpjsAllowance || 0;
+        else if (m.id === 'taxDeduction' || normalized.includes('pajak') || normalized.includes('pph')) amount = targetStaff.taxDeduction || 0;
+        else if (m.id === 'bpjsDeduction' || (normalized.includes('bpjs') && m.type === 'deduction')) amount = targetStaff.bpjsDeduction || 0;
+        else if (m.id === 'kasbonDeduction' || normalized.includes('kasbon') || normalized.includes('angsuran')) amount = targetStaff.kasbonDeduction || 0;
+        else amount = m.amount || 0;
+      } else {
+        amount = m.amount || 0;
+      }
+
       return {
         id: m.id,
         name: m.name,
         type: m.type,
-        amount: match ? match.amount : (m.amount || 0)
+        amount
       };
     });
 
@@ -134,9 +156,28 @@ export default function PayrollTab({
     const masterNameSet = new Set(masterSalaryComponents.map(m => m.name.toLowerCase().trim()));
 
     // 2. Custom Manual Components: individual components not in the master variable list
-    const customComps = existingComponents.filter(c => 
+    let customComps = existingComponents.filter(c => 
       !masterIdSet.has(c.id) && !masterNameSet.has(c.name.toLowerCase().trim())
     );
+
+    if (!found && targetStaff) {
+      if (targetStaff.bonus && targetStaff.bonus > 0 && !masterIdSet.has('bonus')) {
+        customComps.push({ id: 'bonus', name: 'Bonus / Insentif', type: 'allowance', amount: targetStaff.bonus });
+      }
+      if (targetStaff.thr && targetStaff.thr > 0 && !masterIdSet.has('thr')) {
+        customComps.push({ id: 'thr', name: 'Tunjangan Hari Raya (THR)', type: 'allowance', amount: targetStaff.thr });
+      }
+      if (targetStaff.otherDeduction && targetStaff.otherDeduction > 0 && !masterIdSet.has('otherDeduction')) {
+        customComps.push({ id: 'otherDeduction', name: 'Potongan Lain-lain', type: 'deduction', amount: targetStaff.otherDeduction });
+      }
+      if (Array.isArray(targetStaff.customFields)) {
+        targetStaff.customFields.forEach(cf => {
+          if (cf.amount > 0 && !masterIdSet.has(cf.id)) {
+            customComps.push({ id: cf.id, name: cf.name, type: cf.type, amount: cf.amount });
+          }
+        });
+      }
+    }
 
     return {
       id: nik,
@@ -147,7 +188,7 @@ export default function PayrollTab({
 
   // Helper to dynamically calculate base, standard public components, and individual components for a Staff member
   const getStaffFinancialBreakdown = (s: Staff) => {
-    const config = getStaffSalaryConfig(s.nik, s.salaryBase);
+    const config = getStaffSalaryConfig(s.nik, s.salaryBase, s);
     
     let baseSalary = config.salaryBase;
     let totalAllowanceCombined = 0;
@@ -1583,7 +1624,7 @@ export default function PayrollTab({
                         <button 
                           onClick={() => {
                             setEditingPayrollStaff(stf);
-                            const config = getStaffSalaryConfig(stf.nik, stf.salaryBase);
+                            const config = getStaffSalaryConfig(stf.nik, stf.salaryBase, stf);
                             setEditingSalary(JSON.parse(JSON.stringify(config)));
                           }}
                           className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded text-xs font-medium cursor-pointer flex items-center gap-1 shadow-xs transition-colors"

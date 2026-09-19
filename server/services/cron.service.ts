@@ -28,20 +28,21 @@ export function initCronScheduler() {
       // Ambil tanggal saat ini di zona WIB (Format YYYY-MM-DD)
       const currentDateWib = new Intl.DateTimeFormat('en-CA', { timeZone }).format(now);
 
-      // Ambil jam dan menit WIB secara numerik
+      // Ambil jam dan menit WIB secara numerik dengan hourCycle h23
       const parts = new Intl.DateTimeFormat('en-US', {
         timeZone,
         hour: 'numeric',
         minute: 'numeric',
-        hour12: false
+        hourCycle: 'h23'
       }).formatToParts(now);
 
-      const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+      const rawHour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+      const hour = rawHour === 24 ? 0 : (rawHour % 24);
       const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
 
-      // Cek apakah sudah pukul 08:00 WIB atau lebih
-      if (hour < 8) {
-        return; // Belum mencapai jam 8 pagi WIB
+      // Cek apakah sudah pukul 08:00 WIB atau lebih (dan tidak melebihi jam 21:00 WIB malam)
+      if (hour < 8 || hour >= 21) {
+        return; // Belum mencapai jam 8 pagi WIB atau sudah larut malam
       }
 
       // Cek apakah sudah pernah dijalankan hari ini (cek cache memori)
@@ -52,8 +53,30 @@ export function initCronScheduler() {
       // Cek apakah sudah pernah dijalankan hari ini dari database (agar aman jika PM2 restart)
       const record = await dbDriver.getDoc('system_state', 'daily_digest_status');
       if (record && record.lastRunDate === currentDateWib) {
-        lastDailyDigestRunDate = currentDateWib;
-        return;
+        // Cek jam eksekusi sebelumnya di zona WIB
+        let executedHourWib = -1;
+        if (record.executedAt) {
+          try {
+            const execParts = new Intl.DateTimeFormat('en-US', {
+              timeZone,
+              hour: 'numeric',
+              hourCycle: 'h23'
+            }).formatToParts(new Date(record.executedAt));
+            const rawExecH = parseInt(execParts.find(p => p.type === 'hour')?.value || '0', 10);
+            executedHourWib = rawExecH === 24 ? 0 : (rawExecH % 24);
+          } catch {
+            executedHourWib = -1;
+          }
+        }
+
+        // Jika eksekusi sebelumnya terjadi sebelum pukul 08:00 WIB (misal bug eksekusi dini hari 00:01),
+        // dan sekarang sudah masuk jadwal resmi (08:00 WIB atau lebih), izinkan berjalan kembali!
+        if (executedHourWib >= 0 && executedHourWib < 8 && hour >= 8) {
+          console.log(`[CronScheduler] Previous run for ${currentDateWib} occurred prematurely at hour ${executedHourWib} WIB (< 08:00). Re-running official 08:00 AM digest now.`);
+        } else {
+          lastDailyDigestRunDate = currentDateWib;
+          return;
+        }
       }
 
       // Jalankan proses pengiriman digest

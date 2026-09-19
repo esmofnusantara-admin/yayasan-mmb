@@ -592,10 +592,17 @@ export async function sendDailyMorningTaskDigest(): Promise<{ totalSent: number;
     console.log(`[MorningDigest] Preparing morning reminder for ${recipients.length} recipients (Staf & Pengurus)...`);
 
     // Ambil tanggal hari ini format YYYY-MM-DD (WIB / Asia/Jakarta)
-    const nowWib = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
-    const todayStr = nowWib.toISOString().substring(0, 10);
-    const todayMonthDay = todayStr.substring(5, 10); // MM-DD
-    const dateFormatted = nowWib.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const timeZone = 'Asia/Jakarta';
+    const now = new Date();
+    const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone }).format(now); // 'YYYY-MM-DD' di zona WIB
+    const todayMonthDay = todayStr.substring(5, 10); // 'MM-DD'
+    const dateFormatted = new Intl.DateTimeFormat('id-ID', {
+      timeZone,
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    }).format(now);
 
     // -------------------------------------------------------------
     // 1. CEK ULANG TAHUN HARI INI (KIRIM KE SEMUA STAF & PENGURUS)

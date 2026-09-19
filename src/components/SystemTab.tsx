@@ -68,6 +68,19 @@ export const DEFAULT_MASTER_SALARY_COMPONENTS: SalaryComponent[] = [
   { id: 'kasbonDeduction', name: 'Kasbon / Angsuran', type: 'deduction', amount: 0 }
 ];
 
+const getSessionUserToken = () => {
+  try {
+    const saved = localStorage.getItem('esm_session_user');
+    if (saved) {
+      const user = JSON.parse(saved);
+      return user?.token || '';
+    }
+  } catch (err) {
+    console.error(err);
+  }
+  return '';
+};
+
 interface SystemTabProps {
   profile: InstitutionalProfile;
   auditLogs: AuditLog[];
@@ -1523,9 +1536,13 @@ export default function SystemTab({
     setIsTestingSmtp(true);
     setSmtpTestResult(null);
     try {
+      const token = getSessionUserToken();
       const res = await fetch('/api/mail/verify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           host: smtpHost,
           port: Number(smtpPort),
@@ -1551,9 +1568,13 @@ export default function SystemTab({
     setIsTestingSmtp(true);
     setSmtpTestResult(null);
     try {
+      const token = getSessionUserToken();
       const res = await fetch('/api/mail/test', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           toEmail: testEmailRecipient,
           config: {
@@ -1617,9 +1638,13 @@ export default function SystemTab({
     setIsSendingBroadcast(true);
     setBroadcastResult(null);
     try {
+      const token = getSessionUserToken();
       const res = await fetch('/api/mail/broadcast', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           recipients,
           subject: broadcastSubject,
@@ -1642,15 +1667,19 @@ export default function SystemTab({
   };
 
   const handleTriggerMorningDigest = async () => {
-    if (!window.confirm('Jalankan pengiriman Rekap & Reminder Program Kerja Pagi (07:00 WIB) ke seluruh staf sekarang?')) {
+    if (!window.confirm('Jalankan pengiriman Rekap & Reminder Program Kerja Pagi serta Kabar Sukacita Ulang Tahun (08:00 WIB) ke seluruh staf sekarang?')) {
       return;
     }
     setIsTriggeringMorningDigest(true);
     setMorningDigestResult(null);
     try {
+      const token = getSessionUserToken();
       const res = await fetch('/api/mail/morning-digest', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
       });
       const data = await res.json();
       setMorningDigestResult(data);

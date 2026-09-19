@@ -55,6 +55,19 @@ interface PayrollTabProps {
   onUpdateProfile?: (p: InstitutionalProfile) => void;
 }
 
+const getSessionUserToken = () => {
+  try {
+    const saved = localStorage.getItem('esm_session_user');
+    if (saved) {
+      const user = JSON.parse(saved);
+      return user?.token || '';
+    }
+  } catch (err) {
+    console.error(err);
+  }
+  return '';
+};
+
 export const DEFAULT_MASTER_SALARY_COMPONENTS: SalaryComponent[] = [
   { id: 'allowancePosition', name: 'Tunjangan Jabatan', type: 'allowance', amount: 0 },
   { id: 'allowanceHousing', name: 'Tunjangan Perumahan', type: 'allowance', amount: 0 },
@@ -334,9 +347,13 @@ export default function PayrollTab({
 
     setIsSendingSlipEmail(prev => ({ ...prev, [stf.nik]: true }));
     try {
+      const token = getSessionUserToken();
       const res = await fetch('/api/mail/send-slip', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           staff: {
             nik: stf.nik,
